@@ -10,6 +10,8 @@ Each issue must include tests, manual verification when UI/files are involved, r
 
 The canonical build log path is `docs/internal/build-log.md`. Do not create or update a second build log elsewhere.
 
+Every issue must report visual impact, including editing-surface changes, general UI/inspector changes, or `No visible editing or general UI changes` for internal-only work.
+
 For UI issues, visual verification is mandatory: dev server command, local URL, browser/host preview, manual scenario, screenshot or visual artifact under `docs/internal/visual-checks/<issue-id>/`, reviewer/subagent inspection when available, and explicit human-review status.
 
 Default execution model for every issue:

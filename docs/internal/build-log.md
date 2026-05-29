@@ -506,3 +506,30 @@
   - None.
 - Suggested commit message:
   - `feat: add source-range serializer edits`
+
+## MME-0006 follow-up — Visual impact summary rule
+
+- Timestamp: 2026-05-29T22:24:56Z
+- Summary: Added a process rule requiring every completed issue to state what changed visually in the editing surface and general UI, or explicitly state that there were no visible editing/general UI changes.
+- Files changed:
+  - `AGENT.md`
+  - `docs/internal/QUALITY_GATES.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+- Tests/checks run:
+  - `rg -n "Visual impact|visual impact|No visible editing or general UI changes" AGENT.md docs/internal/QUALITY_GATES.md docs/internal/ISSUES.md docs/internal/build-log.md`
+  - `git diff --check`
+- Manual verification:
+  - Confirmed the post-implementation protocol now includes `Visual impact:`.
+  - Confirmed the quality gates require a visual impact summary for every issue, including internal-only slices.
+  - Confirmed issue guidance says to report editing-surface changes, general UI/inspector changes, or `No visible editing or general UI changes`.
+- Reviewer/subagent used and result:
+  - Fallback self-check: passed. This is a docs-only process update requested directly by the human.
+- Visual impact:
+  - No visible editing or general UI changes.
+- Deviations from PRD:
+  - None. This is a build-process documentation update.
+- Open questions:
+  - None.
+- Suggested commit message:
+  - `docs: require visual impact summaries`

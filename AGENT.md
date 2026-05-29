@@ -91,12 +91,13 @@ Before implementing an issue, output:
 After implementation, output:
 
 1. `What changed:`
-2. `Tests run:`
-3. `Manual verification:`
-4. `Reviewer pass:`
-5. `Build log updated:`
-6. `Suggested commit message:`
-7. `Next issue:`
+2. `Visual impact:`
+3. `Tests run:`
+4. `Manual verification:`
+5. `Reviewer pass:`
+6. `Build log updated:`
+7. `Suggested commit message:`
+8. `Next issue:`
 
 ## Fresh issue agent rule
 
@@ -180,6 +181,20 @@ Every acceptance criterion must be proven by one of:
 - reviewer statement.
 
 Do not mark an issue complete just because it builds.
+
+### Visual impact summary
+
+Every completed issue must report its visible impact, even when the issue is not a UI issue.
+
+In the final issue report and build log, explicitly state:
+
+- what changed visually in the editing surface;
+- what changed visually in the general UI or inspector;
+- what did not change visually, if the slice is internal-only.
+
+If there is no visible change, write `No visible editing or general UI changes`.
+
+This is separate from the UI visual verification gate. UI issues still require screenshots and visual verification artifacts.
 
 ### Minimal, not toy
 

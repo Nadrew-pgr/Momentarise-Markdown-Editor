@@ -93,6 +93,18 @@ Every acceptance criterion must be proven by one of:
 
 Do not mark an issue complete just because it builds.
 
+## Gate 0.75 — Visual impact reporting
+
+Every issue must include a visual impact summary in its final report and in `docs/internal/build-log.md`.
+
+The visual impact summary must state:
+
+- editing-surface changes;
+- general UI or inspector changes;
+- `No visible editing or general UI changes` when the slice is internal-only.
+
+This gate applies even when no screenshots are required.
+
 ## Gate 0.8 — UI visual verification
 
 For every issue that creates or changes visible UI, the issue is not complete until the implementation agent has:
