@@ -11,12 +11,14 @@
   "scripts": {
     "build": "tsc -b packages/md-core packages/md-format packages/md-adapter-web packages/md-cli",
     "build:demo": "npm run build -w @momentarise/md-demo",
-    "test": "npm run test:contracts && npm run test:architecture && npm run test:demo-baseline && npm run test:fixtures && npm run build && npm run build:demo",
+    "test": "npm run test:contracts && npm run test:architecture && npm run test:demo-baseline && npm run test:fixtures && npm run test:roundtrip && npm run build && npm run build:demo",
     "test:architecture": "node tests/no-host-imports.mjs",
     "test:contracts": "tsc -p tsconfig.tests.json --noEmit",
     "test:demo-baseline": "node tests/demo-source-baseline.mjs",
     "test:fixtures": "node tests/fixtures-corpus.test.mjs",
-    "visual:mme-0002": "node scripts/visual-check-mme0002.mjs"
+    "test:roundtrip": "npm run build && node tests/roundtrip-harness.test.mjs",
+    "visual:mme-0002": "node scripts/visual-check-mme0002.mjs",
+    "visual:mme-0004": "node scripts/visual-check-mme0004.mjs"
   },
   "devDependencies": {
     "typescript": "^5.0.0"

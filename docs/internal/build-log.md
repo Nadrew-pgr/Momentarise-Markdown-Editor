@@ -338,3 +338,55 @@
   - None.
 - Suggested commit message:
   - `test: add markdown fixture corpus`
+
+## MME-0004 — Round-trip harness and demo status
+
+- Timestamp: 2026-05-29T14:06:25Z
+- Summary: Added a pre-parser identity preservation round-trip harness, fixture round-trip tests, and visible demo status for current fixture, round-trip mode, parser status, serializer status, and diagnostics.
+- Files changed:
+  - `package.json`
+  - `package-lock.json`
+  - `packages/md-format/src/index.ts`
+  - `tests/roundtrip-harness.test.mjs`
+  - `apps/md-demo/package.json`
+  - `apps/md-demo/tsconfig.json`
+  - `apps/md-demo/src/main.ts`
+  - `apps/md-demo/src/styles.css`
+  - `scripts/visual-check-mme0004.mjs`
+  - `docs/internal/visual-checks/MME-0004/README.md`
+  - `docs/internal/visual-checks/MME-0004/roundtrip-status-loaded.png`
+  - `docs/internal/visual-checks/MME-0004/roundtrip-status-after-edit.png`
+  - `docs/internal/build-log.md`
+- Behavior to prove before implementation:
+  - `test:roundtrip` command exists.
+  - The harness runs fixture parse/serialize/compare checks with readable diffs.
+  - At least 10 fixtures pass.
+  - Modes include `strict`, `semantic`, and `opaque-preservation`.
+  - Unknown syntax fixture proves opaque preservation.
+  - Frontmatter fixture preserves frontmatter.
+  - HTML fixture preserves HTML when untouched.
+  - Demo shows current fixture, parser status, serializer status, and diagnostics without claiming the final parser exists.
+- Test-first evidence:
+  - `npm run test:roundtrip` failed before implementation because `@momentarise/md-format` did not export `createIdentityMarkdownFormatter`.
+- Tests/checks run:
+  - `npm run test:roundtrip`
+  - `npm test`
+  - `npm run visual:mme-0004` (requires Chrome headless outside the sandbox on this machine)
+  - `git diff --check`
+- Manual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1`
+  - Local URL: `http://127.0.0.1:5173/`
+  - Reloaded the in-app browser demo and verified the inspector shows fixture, mode, parser status, serializer status, and diagnostics.
+  - Verified visual script screenshots for initial round-trip status and status after editing.
+- Visual artifacts:
+  - `docs/internal/visual-checks/MME-0004/roundtrip-status-loaded.png` proves the status panel appears on initial load.
+  - `docs/internal/visual-checks/MME-0004/roundtrip-status-after-edit.png` proves status remains visible after source edits.
+- Reviewer/subagent used and result:
+  - Test Reviewer subagent: passed with no blocking findings. Confirmed `test:roundtrip`, 18 total fixtures, 18 passed, required modes, opaque preservation, frontmatter preservation, HTML preservation, readable forced-failure diff, and that the implementation does not claim to be the final parser.
+  - UX Reviewer subagent: passed with no blocking findings. Confirmed the visible status panel and screenshots show fixture, mode, parser status, serializer status, and diagnostics, with honest `pre-parser identity` copy.
+- Deviations from PRD:
+  - Real Markdown AST parser remains out of scope until MME-0005. MME-0004 intentionally uses a pre-parser identity formatter to prove preservation and harness plumbing before parser selection.
+- Open questions:
+  - None.
+- Suggested commit message:
+  - `feat: add roundtrip harness status`

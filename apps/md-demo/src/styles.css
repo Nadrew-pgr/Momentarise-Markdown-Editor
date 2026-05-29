@@ -189,6 +189,29 @@ h1 {
   font-weight: 680;
 }
 
+.status-lines {
+  display: grid;
+  gap: 8px;
+}
+
+.status-lines p {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 10px;
+  margin: 0;
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.status-lines span {
+  color: var(--muted);
+}
+
+.status-lines strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .baseline-list {
   margin: 0;
   padding-left: 18px;
@@ -197,7 +220,8 @@ h1 {
   font-size: 14px;
 }
 
-.event-log {
+.event-log,
+.diagnostics-list {
   margin: 0;
   padding-left: 0;
   list-style: none;
@@ -206,7 +230,8 @@ h1 {
   line-height: 1.45;
 }
 
-.event-log li + li {
+.event-log li + li,
+.diagnostics-list li + li {
   margin-top: 8px;
 }
 

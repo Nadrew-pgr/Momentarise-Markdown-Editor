@@ -4,6 +4,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { bracketMatching, indentOnInput } from "@codemirror/language";
 import { EditorState, Transaction } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
+import { roundTripMarkdown, type FixtureRoundTripResult } from "@momentarise/md-format";
 import { basicSetup } from "codemirror";
 import "./styles.css";
 
@@ -65,6 +66,19 @@ app.innerHTML = `
           <p class="status-value">CodeMirror 6</p>
         </section>
         <section class="status-block">
+          <p class="label">Round-trip</p>
+          <div class="status-lines" data-testid="roundtrip-status">
+            <p><span>Fixture</span><strong data-testid="roundtrip-fixture">source-mode-fixture.md</strong></p>
+            <p><span>Mode</span><strong data-testid="roundtrip-mode">strict</strong></p>
+            <p><span>Parser</span><strong data-testid="parser-status">pending</strong></p>
+            <p><span>Serializer</span><strong data-testid="serializer-status">pending</strong></p>
+          </div>
+        </section>
+        <section class="status-block">
+          <p class="label">Diagnostics</p>
+          <ol class="diagnostics-list" data-testid="roundtrip-diagnostics" aria-live="polite"></ol>
+        </section>
+        <section class="status-block">
           <p class="label">Baseline</p>
           <ul class="baseline-list">
             <li>Undo / redo</li>
@@ -90,6 +104,10 @@ const memorySaveButton = queryRequired<HTMLButtonElement>('[data-testid="memory-
 const saveStateElement = queryRequired<HTMLElement>('[data-testid="save-state"]');
 const dirtyStateElement = queryRequired<HTMLElement>('[data-testid="dirty-state"]');
 const eventLogElement = queryRequired<HTMLOListElement>('[data-testid="event-log"]');
+const parserStatusElement = queryRequired<HTMLElement>('[data-testid="parser-status"]');
+const serializerStatusElement = queryRequired<HTMLElement>('[data-testid="serializer-status"]');
+const roundTripModeElement = queryRequired<HTMLElement>('[data-testid="roundtrip-mode"]');
+const diagnosticsElement = queryRequired<HTMLOListElement>('[data-testid="roundtrip-diagnostics"]');
 
 let memorySnapshot = fixtureMarkdown;
 let dirty = false;
@@ -132,6 +150,7 @@ const editor = new EditorView({
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           updateDirtyState();
+          updateRoundTripStatus();
         }
       }),
       EditorView.theme({
@@ -168,6 +187,7 @@ memorySaveButton.addEventListener("click", () => {
 });
 
 logEvent("Loaded built-in fixture in memory-only mode.");
+updateRoundTripStatus();
 
 window.__MME_DEMO_VISUAL_CHECK__ = {
   editor,
@@ -300,6 +320,35 @@ function updateDirtyState(): void {
   dirty = getMarkdown() !== memorySnapshot;
   dirtyStateElement.textContent = dirty ? "dirty" : "clean";
   saveStateElement.textContent = dirty ? "memory only / dirty" : "memory saved (not persisted)";
+}
+
+function updateRoundTripStatus(): void {
+  const result = roundTripMarkdown(getMarkdown(), {
+    fixtureId: "source-mode-fixture",
+    mode: "strict"
+  });
+  roundTripModeElement.textContent = result.mode;
+  parserStatusElement.textContent = parserStatusLabel(result);
+  serializerStatusElement.textContent = serializerStatusLabel(result);
+  renderDiagnostics(result);
+}
+
+function parserStatusLabel(result: FixtureRoundTripResult): string {
+  return result.status === "pass" ? "pass (pre-parser identity)" : "fail";
+}
+
+function serializerStatusLabel(result: FixtureRoundTripResult): string {
+  return result.status === "pass" ? "pass (source preserved)" : "fail";
+}
+
+function renderDiagnostics(result: FixtureRoundTripResult): void {
+  diagnosticsElement.replaceChildren(
+    ...result.diagnostics.slice(0, 4).map((diagnostic) => {
+      const item = document.createElement("li");
+      item.textContent = `${diagnostic.severity}: ${diagnostic.code}`;
+      return item;
+    })
+  );
 }
 
 function getMarkdown(): string {
