@@ -12,6 +12,14 @@ The canonical build log path is `docs/internal/build-log.md`. Do not create or u
 
 For UI issues, visual verification is mandatory: dev server command, local URL, browser/host preview, manual scenario, screenshot or visual artifact under `docs/internal/visual-checks/<issue-id>/`, reviewer/subagent inspection when available, and explicit human-review status.
 
+Default execution model for every issue:
+
+- Implementation: sequential only.
+- Fresh agent required: yes, unless the human explicitly continues the same conversation for that issue.
+- Reviewer subagents: allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: issue-specific.
+
 ## MME-0000 — Repository bootstrap and documentation acceptance
 
 ### Goal
@@ -26,6 +34,14 @@ Create the repo with docs only and prove that the agent has read the instruction
 - `docs/internal/build-log.md` exists.
 - Agent outputs a summary of V0 scope, non-goals, first issue, gates, and reviewer plan.
 - No source code yet.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Architecture Reviewer or fallback self-check allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no.
 
 ### Reviewer
 
@@ -61,6 +77,14 @@ Define types for documents, paths, dialects, nodes, opaque nodes, source ranges,
 ### Out of scope
 
 Parser, serializer, UI, CodeMirror, Theia, AI.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Architecture Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no, unless package boundaries or dependency choices change architecture.
 
 ### Reviewer
 
@@ -115,6 +139,14 @@ Create a demo app that:
 
 Start the dev server, open the documented local URL, capture the initial loaded demo, type headings/lists/code, test newline, selection, copy/paste, undo/redo, test `Cmd/Ctrl+S`, verify dirty state, capture the required screenshots, download/copy, and verify output.
 
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: UX Reviewer and DX Reviewer allowed.
+- Parallel implementation: forbidden.
+- Human review required: yes, because this is the first visible UI slice.
+
 ### Reviewer
 
 UX Reviewer.
@@ -156,6 +188,14 @@ Each fixture has `input.md` and `expectations.md`.
 - Each expectation describes what must be preserved, normalized, opaque, source-only, or rendered.
 - Fixtures documented in `fixtures/README.md`.
 
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no, unless fixture provenance is unclear.
+
 ### Reviewer
 
 Test Reviewer.
@@ -188,6 +228,14 @@ Demo shows current fixture, parser status, serializer status, diagnostics.
 - HTML fixture proves HTML survives if untouched.
 - Demo shows pass/fail status.
 
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Test Reviewer and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no, unless visible demo status changes are not visually verified.
+
 ### Reviewer
 
 Test Reviewer.
@@ -215,6 +263,14 @@ Handle frontmatter, V0 nodes, opaque nodes, source ranges where feasible, diagno
 - Diagnostics recorded.
 - Parser result independent of ProseMirror/CodeMirror.
 - Demo displays frontmatter/diagnostics.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Architecture Reviewer and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes if the parser dependency choice changes architecture.
 
 ### Reviewer
 
@@ -250,6 +306,14 @@ Add tests for edited-range behavior:
 - Edited one-node tests preserve unrelated file regions as closely as feasible.
 - Serializer reports diagnostics/normalizations.
 
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no, unless preservation cannot be honestly proven.
+
 ### Reviewer
 
 Test Reviewer.
@@ -283,6 +347,14 @@ Enable/configure CodeMirror behavior:
 - Enter inside checkbox continues checkbox.
 - Code fence editing is comfortable in source mode.
 - No regression in round-trip tests.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: UX Reviewer and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this is the source editing baseline gate.
 
 ### Reviewer
 
@@ -321,6 +393,14 @@ Add persistence target labels:
 
 Open a real `.md` where supported, edit, save, close page, reopen file outside demo, verify disk content changed.
 
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: UX Reviewer and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because real persistence and save truthfulness are user-critical.
+
 ### Reviewer
 
 UX Reviewer and Test Reviewer.
@@ -342,6 +422,14 @@ Implement File System Access API path where supported. Provide fallback import/d
 - Fallback mode never pretends to write original file.
 - File mode/status is visible.
 - Manual QA documented.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this issue opens and saves real local files.
 
 ### Reviewer
 
@@ -374,6 +462,14 @@ Implement `mme` CLI with:
 - `--write` is explicit.
 - README includes CLI quickstart.
 
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: DX Reviewer and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no, unless CLI write semantics are ambiguous.
+
 ### Reviewer
 
 DX Reviewer.
@@ -394,6 +490,14 @@ Visible/hidden/source modes.
 - User can hide/show properties.
 - Source mode still shows raw YAML.
 - Round-trip preserves frontmatter.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: UX Reviewer and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this is the first properties UI slice.
 
 ### Reviewer
 
@@ -418,6 +522,14 @@ Support V0 subset: paragraph, headings, emphasis, strong, inline code, lists, to
 - Code fence content editable.
 - Source/rich switching preserves content.
 - Unsupported blocks are safe.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Architecture Reviewer, UX Reviewer, and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this is the first rich-mode slice.
 
 ### Reviewer
 
@@ -444,6 +556,14 @@ Toolbar: heading, bold, italic, list, todo, quote, code, callout, link, image, s
 - Toolbar actions affect current selection/block.
 - Markdown output remains valid.
 
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: UX Reviewer and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this is a major command UI slice.
+
 ### Reviewer
 
 UX Reviewer.
@@ -464,6 +584,14 @@ Folding for headings/code/callouts if feasible. Toggle block emitted only when e
 - Toggle block emits `<details><summary>...</summary>...</details>` only by explicit command.
 - Sidecar/session location documented.
 
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: UX Reviewer and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no, unless folding behavior changes visible editor semantics in a way screenshots cannot prove.
+
 ### Reviewer
 
 UX Reviewer.
@@ -482,6 +610,14 @@ Support `.html` files as source + sandboxed preview.
 - Script fixture proves scripts do not run.
 - UI marks HTML as artifact/preview.
 
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Security Reviewer and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this is the HTML preview security/UI gate.
+
 ### Reviewer
 
 Security Reviewer.
@@ -498,6 +634,14 @@ Implement policy resolver and minimal enforcement.
 - `.env` fixture denied.
 - Read allowed but share denied case works.
 - Denied action returns reason and audit record.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Security Reviewer and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no, unless policy semantics are ambiguous.
 
 ### Reviewer
 
@@ -521,6 +665,14 @@ Completion, rewrite selection, improve, summarize, title generation, insert bloc
 - Suggestions are accepted/rejected, not silently applied.
 - Mock provider available for tests.
 
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Security Reviewer, UX Reviewer, and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this is the AI writing UI and policy boundary.
+
 ### Reviewer
 
 Security Reviewer and UX Reviewer.
@@ -538,6 +690,14 @@ Integrate the same core into Theia.
 - Source mode works.
 - Saving works.
 - No duplicated parser/serializer logic.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Architecture Reviewer, UX Reviewer, and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no, unless adapter integration changes core boundaries.
 
 ### Reviewer
 

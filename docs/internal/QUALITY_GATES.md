@@ -43,6 +43,41 @@ Do not create or update a second build log elsewhere.
 
 Every issue must append its final report to this file.
 
+## Gate 0.65 — Sequential issue execution
+
+The project is built one issue at a time.
+
+An implementation agent must not start a new issue until the previous issue has:
+
+- passing required tests;
+- completed manual verification if applicable;
+- reviewer/subagent pass or documented fallback review;
+- updated `docs/internal/build-log.md`;
+- clean or intentionally documented `git status`;
+- suggested commit message;
+- human review when required by the issue.
+
+Parallel implementation is forbidden by default.
+
+Allowed parallel work:
+
+- reviewer pass;
+- test review;
+- architecture review;
+- UX screenshot review;
+- security review;
+- DX/docs review;
+- research for a future issue, only if it does not modify production code.
+
+Forbidden without explicit human approval:
+
+- two agents implementing separate issues at the same time;
+- two agents modifying overlapping packages;
+- one agent starting the next issue while the previous issue is not accepted;
+- one agent changing parser, serializer, Save Engine, policy, source mode, rich mode, or package boundaries while another implementation is active.
+
+Reviewer subagents may run in parallel, but they must only review and report.
+
 ## Gate 0.7 — No false done
 
 An issue is not done if one of its acceptance criteria is only implied.

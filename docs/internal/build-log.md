@@ -236,3 +236,33 @@
   - Human review is required before accepting MME-0002 and before moving to the next UI-heavy issue.
 - Suggested commit message:
   - `feat: add CodeMirror source demo`
+
+## MME-0002 follow-up — Fresh issue agent and sequential execution rules
+
+- Timestamp: 2026-05-29T13:36:53Z
+- Summary: Added process rules for one fresh implementation agent/conversation per issue, sequential implementation by default, reviewer-only parallel work, and per-issue execution model fields. Updated the README status so fresh agents do not treat the repository as docs-only after MME-0001/MME-0002.
+- Files changed:
+  - `AGENT.md`
+  - `README.md`
+  - `docs/internal/QUALITY_GATES.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+- Tests/checks run:
+  - `rg -n "parallel|Parallel|Fresh issue|Sequential|Execution model|docs-only bootstrap|starts with docs only|Current state" AGENT.md docs/internal/QUALITY_GATES.md docs/internal/ISSUES.md README.md`
+  - `nl -ba docs/internal/PRD.md | sed -n '55,75p'`
+  - `nl -ba docs/internal/PRD.md | sed -n '270,306p'`
+  - `nl -ba docs/internal/PRD.md | sed -n '431,442p'`
+  - `nl -ba docs/internal/ISSUES.md | sed -n '388,430p'`
+- Manual verification:
+  - Confirmed the docs now require fresh issue context from repo docs/build log/git status instead of conversation memory.
+  - Confirmed implementation parallelism is forbidden by default, with reviewer subagents allowed only for review/reporting.
+  - Confirmed every issue has an `Execution model` section.
+  - Confirmed local file open/save is already planned and no duplicate scope was added: PRD goals include real Markdown open/edit/save, mini web demo real-file mode where browser APIs allow it, V0 acceptance requires opening a real local file where supported, MME-0008 covers Save Engine/truthful persistence, and MME-0009 covers local file open/save in the mini web demo.
+- Reviewer/subagent used and result:
+  - Process/DX Reviewer subagent: initial fail because fresh-agent language was advisory and build-log reviewer status was pending. Findings addressed by making fresh implementation agent/conversation mandatory per new issue unless the human explicitly continues the same conversation, changing issue execution fields to `Fresh agent required: yes`, and recording this reviewer pass. Re-check passed and marked the docs commit-ready.
+- Deviations from PRD:
+  - None. This is a process documentation update.
+- Open questions:
+  - None.
+- Suggested commit message:
+  - `docs: require fresh sequential issue execution`

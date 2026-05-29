@@ -4,7 +4,9 @@
 
 Build **Momentarise Markdown Editor**, a production-oriented Markdown-native framework.
 
-This is a restart from zero. The repository starts with docs only. Do not reuse disposable implementation choices from previous attempts.
+This repository was restarted from zero with a docs-first process. Current implementation status is tracked in `README.md` and `docs/internal/build-log.md`.
+
+Do not reuse disposable implementation choices from previous attempts.
 
 ## Global objective
 
@@ -74,6 +76,8 @@ Mention them only as future constraints where necessary.
 
 ## Required issue protocol
 
+Each issue is implemented as a single controlled slice.
+
 Before implementing an issue, output:
 
 1. `Issue selected:`
@@ -93,6 +97,47 @@ After implementation, output:
 5. `Build log updated:`
 6. `Suggested commit message:`
 7. `Next issue:`
+
+## Fresh issue agent rule
+
+Each new implementation issue must be handled by one fresh implementation agent or conversation unless the human explicitly continues the same conversation for that issue.
+
+The fresh implementation agent must not rely on previous conversation memory. It must rebuild context from repository documents and current repository state.
+
+Before coding, the agent must read, in this order:
+
+1. `AGENT.md`
+2. `README.md`
+3. `docs/internal/PRD.md`
+4. `docs/internal/QUALITY_GATES.md`
+5. `docs/internal/ISSUES.md`
+6. the latest relevant entries in `docs/internal/build-log.md`
+7. the current `git status`
+8. the files related to the current issue
+
+Before implementation, the agent must output a Slice Start Brief:
+
+- current issue ID and goal;
+- previous issue status;
+- acceptance criteria;
+- gates that apply;
+- expected files/packages to change;
+- tests/manual checks to create first;
+- reviewer/subagent plan;
+- out-of-scope items;
+- stop conditions.
+
+If the Slice Start Brief is missing or incomplete, the agent must not code.
+
+## Sequential implementation rule
+
+Only one implementation agent may modify production code at a time.
+
+Do not run multiple implementation agents in parallel on separate issues unless explicit human approval is given.
+
+Reviewer subagents are allowed in parallel because they do not implement production code. Their role is limited to review, verification, test analysis, UX screenshot review, architecture review, security review, or DX/docs review.
+
+A reviewer subagent must not modify source code unless explicitly asked by the human.
 
 ## Build method
 
