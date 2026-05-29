@@ -3,6 +3,7 @@ import type {
   DocumentHash,
   DocumentPath,
   FrontmatterRecord,
+  FrontmatterValue,
   KnownNode,
   MomentariseNode,
   OpaqueNode,
@@ -13,6 +14,12 @@ import type {
   SourcePosition,
   SourceRange
 } from "@momentarise/md-core";
+import remarkFrontmatter from "remark-frontmatter";
+import remarkGfm from "remark-gfm";
+import remarkParse from "remark-parse";
+import { unified } from "unified";
+import { VFile } from "vfile";
+import { matter } from "vfile-matter";
 
 export interface MarkdownFormatContract {
   readonly packageName: "@momentarise/md-format";
@@ -69,6 +76,129 @@ export interface RunFixtureRoundTripOptions {
 }
 
 const defaultDialect: ParseOptions["dialect"] = "momentarise-enhanced";
+
+type MdastLikeNode = {
+  readonly type: string;
+  readonly children?: readonly MdastLikeNode[];
+  readonly position?: {
+    readonly start: {
+      readonly line: number;
+      readonly column: number;
+      readonly offset?: number;
+    };
+    readonly end: {
+      readonly line: number;
+      readonly column: number;
+      readonly offset?: number;
+    };
+  };
+  readonly value?: string;
+  readonly lang?: string | null;
+};
+
+export function createMarkdownAstParser(): MarkdownParser {
+  const processor = unified().use(remarkParse).use(remarkFrontmatter, ["yaml"]).use(remarkGfm);
+
+  return {
+    parse(source: string, options: ParseOptions): ParseResult {
+      const hash = hashContent(source);
+      const diagnostics: Diagnostic[] = [
+        {
+          code: "ast_parser_foundation",
+          message: "Parsed with unified/remark and mapped to Momentarise host-independent nodes.",
+          severity: "info"
+        }
+      ];
+
+      const frontmatter = parseFrontmatter(source);
+      if (frontmatter) {
+        diagnostics.push({
+          code: "frontmatter_extracted",
+          message: "YAML frontmatter extracted into the Momentarise document snapshot.",
+          severity: "info"
+        });
+      }
+
+      let ast: MdastLikeNode;
+      try {
+        ast = processor.parse(source) as MdastLikeNode;
+      } catch (error) {
+        const fallbackOpaque = opaqueNodeFromRaw(source, 0, source.length, "parser fallback after AST parse error", 0);
+        diagnostics.push({
+          code: "ast_parse_error",
+          message: error instanceof Error ? error.message : "Markdown AST parser failed.",
+          severity: "error"
+        });
+        const root: KnownNode = {
+          children: [fallbackOpaque],
+          id: "root",
+          kind: "root",
+          type: "document"
+        };
+        return createParseResult(source, hash, options, root, diagnostics, frontmatter);
+      }
+
+      const mappedChildren = (ast.children ?? []).map((child, index) =>
+        mapMdastNode(child, source, `ast-${index}`)
+      );
+      const detectedOpaqueNodes = detectOpaqueNodes(source);
+      const astOpaqueNodes = collectOpaqueNodesFromList(mappedChildren);
+      const extraOpaqueNodes = detectedOpaqueNodes.filter(
+        (detected) =>
+          !astOpaqueNodes.some(
+            (node) =>
+              node.sourceRange.start.offset === detected.sourceRange.start.offset &&
+              node.sourceRange.end.offset === detected.sourceRange.end.offset &&
+              node.reason === detected.reason
+          )
+      );
+      const children: readonly MomentariseNode[] = [...mappedChildren, ...extraOpaqueNodes].sort(
+        (first, second) => (first.sourceRange?.start.offset ?? 0) - (second.sourceRange?.start.offset ?? 0)
+      );
+
+      for (const node of collectOpaqueNodesFromList(children)) {
+        diagnostics.push({
+          code: "opaque_preserved",
+          message: `Preserved unsupported or extension syntax as opaque source: ${node.reason ?? "opaque"}.`,
+          severity: "info",
+          sourceRange: node.sourceRange
+        });
+      }
+
+      const root: KnownNode = {
+        children,
+        id: "root",
+        kind: "root",
+        type: "document"
+      };
+
+      return createParseResult(source, hash, options, root, diagnostics, frontmatter);
+    }
+  };
+}
+
+export function createMarkdownAstFormatter(): MarkdownFormatter {
+  const parser = createMarkdownAstParser();
+  return {
+    parse: parser.parse,
+    serialize(result: ParseResult, _options?: SerializeOptions): SerializeResult {
+      const content = result.snapshot.content;
+      return {
+        content,
+        diagnostics: [
+          {
+            code: "source_preservation_serializer",
+            message:
+              "Source preservation serializer returned original Markdown bytes until full serializer work starts.",
+            severity: "info"
+          }
+        ],
+        hash: hashContent(content),
+        normalizations: []
+      };
+    }
+  };
+}
 
 export function createIdentityMarkdownFormatter(): MarkdownFormatter {
   return {
@@ -135,6 +265,172 @@ export function createIdentityMarkdownFormatter(): MarkdownFormatter {
       };
     }
   };
+}
+
+function createParseResult(
+  source: string,
+  hash: DocumentHash,
+  options: ParseOptions,
+  root: KnownNode,
+  diagnostics: readonly Diagnostic[],
+  frontmatter: { readonly raw: string; readonly record: FrontmatterRecord } | null
+): ParseResult {
+  return {
+    diagnostics,
+    document: {
+      diagnostics,
+      dialect: options.dialect,
+      root,
+      ...(frontmatter ? { frontmatter: frontmatter.record } : {})
+    },
+    snapshot: {
+      content: source,
+      dialect: options.dialect,
+      hash,
+      path: options.path ?? null,
+      ...(frontmatter ? { frontmatter: frontmatter.record } : {})
+    }
+  };
+}
+
+function mapMdastNode(node: MdastLikeNode, source: string, id: string): MomentariseNode {
+  const reason = opaqueReasonForMdastNode(node);
+  if (reason) {
+    return opaqueNodeFromMdastNode(node, source, reason, id);
+  }
+
+  const children = (node.children ?? []).map((child, index) => mapMdastNode(child, source, `${id}-${index}`));
+  const sourceRange = rangeFromMdastPosition(node.position);
+  return {
+    ...(children.length > 0 ? { children } : {}),
+    ...(sourceRange ? { sourceRange } : {}),
+    id,
+    kind: kindForMdastType(node.type),
+    type: typeForMdastType(node.type)
+  };
+}
+
+function opaqueReasonForMdastNode(node: MdastLikeNode): string | null {
+  if (node.type === "html") {
+    return "raw HTML";
+  }
+  if (node.type === "code" && node.lang?.toLowerCase() === "mermaid") {
+    return "Mermaid fenced block";
+  }
+  return null;
+}
+
+function opaqueNodeFromMdastNode(
+  node: MdastLikeNode,
+  source: string,
+  reason: string,
+  id: string
+): OpaqueNode {
+  const sourceRange = rangeFromMdastPosition(node.position);
+  if (sourceRange) {
+    return {
+      id,
+      kind: "opaque",
+      preservation: "preserve-raw",
+      raw: source.slice(sourceRange.start.offset, sourceRange.end.offset),
+      reason,
+      sourceRange,
+      type: "opaque"
+    };
+  }
+
+  const raw = node.value ?? "";
+  const start = raw ? source.indexOf(raw) : 0;
+  return opaqueNodeFromRaw(source, start >= 0 ? start : 0, start >= 0 ? start + raw.length : raw.length, reason, 0);
+}
+
+function opaqueNodeFromRaw(
+  source: string,
+  startOffset: number,
+  endOffset: number,
+  reason: string,
+  index: number
+): OpaqueNode {
+  const raw = source.slice(startOffset, endOffset);
+  return {
+    id: `opaque-${index}`,
+    kind: "opaque",
+    preservation: "preserve-raw",
+    raw,
+    reason,
+    sourceRange: rangeFor(source, startOffset, endOffset),
+    type: "opaque"
+  };
+}
+
+function kindForMdastType(type: string): KnownNode["kind"] {
+  if (
+    type === "break" ||
+    type === "delete" ||
+    type === "emphasis" ||
+    type === "inlineCode" ||
+    type === "link" ||
+    type === "strong" ||
+    type === "text"
+  ) {
+    return "inline";
+  }
+  return "block";
+}
+
+function typeForMdastType(type: string): string {
+  const typeMap: Record<string, string> = {
+    blockquote: "blockquote",
+    break: "lineBreak",
+    code: "codeFence",
+    definition: "definition",
+    delete: "strikethrough",
+    emphasis: "emphasis",
+    footnoteDefinition: "footnoteDefinition",
+    heading: "heading",
+    image: "image",
+    inlineCode: "inlineCode",
+    link: "link",
+    list: "list",
+    listItem: "listItem",
+    paragraph: "paragraph",
+    root: "document",
+    strong: "strong",
+    table: "table",
+    tableCell: "tableCell",
+    tableRow: "tableRow",
+    text: "text",
+    thematicBreak: "thematicBreak",
+    yaml: "yamlFrontmatter"
+  };
+  return typeMap[type] ?? type;
+}
+
+function rangeFromMdastPosition(position: MdastLikeNode["position"]): SourceRange | null {
+  if (
+    typeof position?.start.offset !== "number" ||
+    typeof position.end.offset !== "number" ||
+    position.start.offset < 0 ||
+    position.end.offset < position.start.offset
+  ) {
+    return null;
+  }
+  return {
+    end: {
+      column: position.end.column,
+      line: position.end.line,
+      offset: position.end.offset
+    },
+    start: {
+      column: position.start.column,
+      line: position.start.line,
+      offset: position.start.offset
+    }
+  };
+}
+
+function collectOpaqueNodesFromList(nodes: readonly MomentariseNode[]): readonly OpaqueNode[] {
+  return nodes.flatMap((node) => collectOpaqueNodes(node));
 }
 
 export function runFixtureRoundTrip(options: RunFixtureRoundTripOptions): RoundTripHarnessResult {
@@ -234,29 +530,64 @@ function parseFrontmatter(source: string): { readonly raw: string; readonly reco
   if (!raw) {
     return null;
   }
-  const record: Record<string, string | readonly string[]> = {};
-  const lines = raw.split("\n").slice(1, -1);
-  let currentListKey: string | null = null;
-  for (const line of lines) {
-    const keyValue = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
-    if (keyValue) {
-      const key = keyValue[1]!;
-      const value = keyValue[2]!;
-      currentListKey = value ? null : key;
-      record[key] = value;
-      continue;
-    }
-
-    const listItem = line.match(/^\s+-\s+(.+)$/);
-    if (listItem && currentListKey) {
-      const existing = record[currentListKey];
-      record[currentListKey] = [...(Array.isArray(existing) ? existing : []), listItem[1]!];
-    }
+  const file = new VFile({
+    value: source
+  });
+  matter(file, {
+    strip: false
+  });
+  const record = toFrontmatterRecord(file.data.matter);
+  if (!record) {
+    return null;
   }
   return {
     raw,
     record
   };
+}
+
+function toFrontmatterRecord(value: unknown): FrontmatterRecord | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const record: Record<string, FrontmatterValue> = {};
+  for (const [key, item] of Object.entries(value)) {
+    const frontmatterValue = toFrontmatterValue(item);
+    if (frontmatterValue !== undefined) {
+      record[key] = frontmatterValue;
+    }
+  }
+  return record;
+}
+
+function toFrontmatterValue(value: unknown): FrontmatterValue | undefined {
+  if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return value;
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => toFrontmatterValue(item) ?? String(item));
+  }
+  if (isRecord(value)) {
+    const record: Record<string, FrontmatterValue> = {};
+    for (const [key, item] of Object.entries(value)) {
+      const frontmatterValue = toFrontmatterValue(item);
+      if (frontmatterValue !== undefined) {
+        record[key] = frontmatterValue;
+      }
+    }
+    return record;
+  }
+  if (typeof value === "bigint") {
+    return value.toString();
+  }
+  return undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function frontmatterBlock(source: string): string {
@@ -294,7 +625,7 @@ function detectOpaqueNodes(source: string): readonly OpaqueNode[] {
       reason: "raw HTML"
     },
     {
-      pattern: /:::[\s\S]*?:::|{%[\s\S]*?%}/g,
+      pattern: /:::[^\n]*(?:\n[\s\S]*?)?\n:::|{%\s*([A-Za-z][\w-]*)\b[\s\S]*?%}[\s\S]*?{%\s*end\1\s*%}|{%[\s\S]*?%}/g,
       reason: "unknown extension syntax"
     }
   ];

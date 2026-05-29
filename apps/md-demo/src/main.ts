@@ -4,7 +4,13 @@ import { markdown } from "@codemirror/lang-markdown";
 import { bracketMatching, indentOnInput } from "@codemirror/language";
 import { EditorState, Transaction } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
-import { roundTripMarkdown, type FixtureRoundTripResult } from "@momentarise/md-format";
+import {
+  createMarkdownAstFormatter,
+  roundTripMarkdown,
+  type FixtureRoundTripResult,
+  type FrontmatterRecord,
+  type ParseResult
+} from "@momentarise/md-format";
 import { basicSetup } from "codemirror";
 import "./styles.css";
 
@@ -75,6 +81,10 @@ app.innerHTML = `
           </div>
         </section>
         <section class="status-block">
+          <p class="label">Frontmatter</p>
+          <dl class="frontmatter-list" data-testid="frontmatter-list" aria-live="polite"></dl>
+        </section>
+        <section class="status-block">
           <p class="label">Diagnostics</p>
           <ol class="diagnostics-list" data-testid="roundtrip-diagnostics" aria-live="polite"></ol>
         </section>
@@ -107,12 +117,14 @@ const eventLogElement = queryRequired<HTMLOListElement>('[data-testid="event-log
 const parserStatusElement = queryRequired<HTMLElement>('[data-testid="parser-status"]');
 const serializerStatusElement = queryRequired<HTMLElement>('[data-testid="serializer-status"]');
 const roundTripModeElement = queryRequired<HTMLElement>('[data-testid="roundtrip-mode"]');
+const frontmatterElement = queryRequired<HTMLElement>('[data-testid="frontmatter-list"]');
 const diagnosticsElement = queryRequired<HTMLOListElement>('[data-testid="roundtrip-diagnostics"]');
 
 let memorySnapshot = fixtureMarkdown;
 let dirty = false;
 let eventCounter = 0;
 let lastCopiedMarkdown: string | null = null;
+const markdownAstFormatter = createMarkdownAstFormatter();
 
 const sourceKeymap = [
   {
@@ -323,22 +335,41 @@ function updateDirtyState(): void {
 }
 
 function updateRoundTripStatus(): void {
+  const parseResult = markdownAstFormatter.parse(getMarkdown(), {
+    dialect: "momentarise-enhanced"
+  });
   const result = roundTripMarkdown(getMarkdown(), {
+    formatter: markdownAstFormatter,
     fixtureId: "source-mode-fixture",
     mode: "strict"
   });
   roundTripModeElement.textContent = result.mode;
   parserStatusElement.textContent = parserStatusLabel(result);
   serializerStatusElement.textContent = serializerStatusLabel(result);
+  renderFrontmatter(parseResult);
   renderDiagnostics(result);
 }
 
 function parserStatusLabel(result: FixtureRoundTripResult): string {
-  return result.status === "pass" ? "pass (pre-parser identity)" : "fail";
+  return result.status === "pass" ? "pass (remark AST)" : "fail";
 }
 
 function serializerStatusLabel(result: FixtureRoundTripResult): string {
   return result.status === "pass" ? "pass (source preserved)" : "fail";
+}
+
+function renderFrontmatter(parseResult: ParseResult): void {
+  const frontmatter = parseResult.document.frontmatter;
+  if (!frontmatter || Object.keys(frontmatter).length === 0) {
+    frontmatterElement.replaceChildren(emptyValue("none"));
+    return;
+  }
+
+  frontmatterElement.replaceChildren(
+    ...Object.entries(frontmatter)
+      .slice(0, 6)
+      .flatMap(([key, value]) => frontmatterRow(key, value))
+  );
 }
 
 function renderDiagnostics(result: FixtureRoundTripResult): void {
@@ -349,6 +380,30 @@ function renderDiagnostics(result: FixtureRoundTripResult): void {
       return item;
     })
   );
+}
+
+function frontmatterRow(key: string, value: FrontmatterRecord[string]): readonly HTMLElement[] {
+  const term = document.createElement("dt");
+  term.textContent = key;
+  const description = document.createElement("dd");
+  description.textContent = formatFrontmatterValue(value);
+  return [term, description];
+}
+
+function emptyValue(value: string): HTMLElement {
+  const item = document.createElement("dd");
+  item.textContent = value;
+  return item;
+}
+
+function formatFrontmatterValue(value: FrontmatterRecord[string]): string {
+  if (Array.isArray(value)) {
+    return value.map((item) => formatFrontmatterValue(item)).join(", ");
+  }
+  if (value && typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return String(value);
 }
 
 function getMarkdown(): string {

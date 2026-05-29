@@ -19,6 +19,12 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@momentarise/md-core": "0.0.0"
+    "@momentarise/md-core": "0.0.0",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5",
+    "vfile": "^6.0.3",
+    "vfile-matter": "^5.0.1"
   }
 }

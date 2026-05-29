@@ -390,3 +390,76 @@
   - None.
 - Suggested commit message:
   - `feat: add roundtrip harness status`
+
+## MME-0005 — Real Markdown AST parser foundation
+
+- Timestamp: 2026-05-29T21:20:00Z
+- Summary: Added a real Markdown AST parser foundation in `@momentarise/md-format` using unified/remark, mapped parser output into Momentarise core nodes, extracted YAML frontmatter through `vfile-matter`, preserved unsupported syntax as opaque raw nodes, and updated the mini demo to display frontmatter and real parser diagnostics.
+- Files changed:
+  - `README.md`
+  - `package.json`
+  - `package-lock.json`
+  - `packages/md-format/package.json`
+  - `packages/md-format/src/index.ts`
+  - `tests/parser-foundation.test.mjs`
+  - `apps/md-demo/src/main.ts`
+  - `apps/md-demo/src/styles.css`
+  - `scripts/visual-check-mme0005.mjs`
+  - `docs/internal/visual-checks/MME-0005/README.md`
+  - `docs/internal/visual-checks/MME-0005/parser-frontmatter-loaded.png`
+  - `docs/internal/visual-checks/MME-0005/parser-opaque-diagnostics-after-edit.png`
+  - `docs/internal/build-log.md`
+- Behavior to prove before implementation:
+  - A real parser foundation exists and is not the MME-0004 identity harness.
+  - Parser handles all fixtures without throwing.
+  - YAML frontmatter is extracted into Momentarise snapshots/documents.
+  - Unsupported syntax such as callouts, wikilinks, Mermaid, LaTeX, and custom blocks is preserved as opaque/raw.
+  - Parser diagnostics are recorded.
+  - Public parser result remains independent of ProseMirror, CodeMirror, browser APIs, and third-party AST types.
+  - Demo displays frontmatter and diagnostics.
+- Test-first evidence:
+  - `npm run test:parser` failed before implementation because `@momentarise/md-format` did not export `createMarkdownAstParser`.
+- Parser dependency choice:
+  - `unified`
+  - `remark-parse`
+  - `remark-frontmatter`
+  - `remark-gfm`
+  - `vfile`
+  - `vfile-matter`
+  - These dependencies are contained in `@momentarise/md-format`; `@momentarise/md-core` remains host/editor independent.
+- Tests/checks run:
+  - `npm view unified version`
+  - `npm view remark-parse version`
+  - `npm view remark-frontmatter version`
+  - `npm view remark-gfm version`
+  - `npm view vfile-matter version`
+  - `npm view vfile version`
+  - `npm run test:parser` before implementation, failed as expected because `createMarkdownAstParser` was not exported.
+  - strengthened `tests/parser-foundation.test.mjs` after reviewer finding, failed as expected because the `{% experimental %}` block was split into tag-level opaque nodes.
+  - `npm run test:parser`
+  - `npm test`
+  - `npm run visual:mme-0005` (requires Chrome headless outside the sandbox on this machine)
+  - `curl -I http://127.0.0.1:5173/`
+  - in-app browser reload of `http://127.0.0.1:5173/`
+  - fixture 013 spot check confirming full raw opaque blocks for `:::...:::` and `{% experimental %}...{% endexperimental %}`
+  - `git diff --check`
+- Manual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1`
+  - Local URL: `http://127.0.0.1:5173/`
+  - Verified the existing dev server returned `HTTP/1.1 200 OK`.
+  - Reloaded the in-app browser and confirmed the inspector showed `pass (remark AST)`, frontmatter values for `title` and `mode`, and diagnostics including `ast_parser_foundation`, `frontmatter_extracted`, and `source_preservation_serializer`.
+  - Visual script inserted an unsupported wikilink and confirmed `opaque_preserved` appears in diagnostics.
+- Visual artifacts:
+  - `docs/internal/visual-checks/MME-0005/parser-frontmatter-loaded.png` proves the demo displays the real parser status, frontmatter, and parser diagnostics after load.
+  - `docs/internal/visual-checks/MME-0005/parser-opaque-diagnostics-after-edit.png` proves unsupported wikilink syntax is preserved and diagnosed as opaque after source editing.
+- Reviewer/subagent used and result:
+  - Architecture Reviewer subagent: passed with no blocking findings. Confirmed parser dependencies are contained in `@momentarise/md-format`, core remains host/editor independent, generated public types expose only Momentarise/core contracts, and third-party AST shape stays internal.
+  - Test Reviewer subagent: initially failed because fixture 013 only proved tag-level opaque preservation for the `{% experimental %}` block. Addressed by strengthening the parser test to require full raw snippets and by detecting paired `{% name %}...{% endname %}` blocks before single-tag fallback. Re-check passed with no remaining blocking findings.
+- Deviations from PRD:
+  - Full serializer normalization and edited-range preservation remain out of scope until MME-0006. `createMarkdownAstFormatter()` currently uses the real parser plus a source-preservation serializer that returns original Markdown bytes.
+  - Opaque syntax can currently appear as additional source-range nodes alongside mapped Markdown nodes. This is acceptable for the MME-0005 parser foundation and must be refined during serializer/edited-range work.
+  - Vite still reports a large demo bundle warning because CodeMirror and parser dependencies are bundled into the demo. This remains acceptable for the mini demo and should be revisited before production packaging.
+- Open questions:
+  - None.
+- Suggested commit message:
+  - `feat: add markdown parser foundation`
