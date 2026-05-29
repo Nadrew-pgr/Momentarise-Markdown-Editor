@@ -172,3 +172,67 @@
   - None.
 - Suggested commit message:
   - `docs: require visual verification for UI slices`
+
+## MME-0002 — Source-first mini web demo with CodeMirror
+
+- Timestamp: 2026-05-29T13:19:04Z
+- Summary: Added a Vite mini web demo using CodeMirror 6 as the source editor, with memory-only fixture loading, honest save state, dirty tracking, copy/download/memory-save controls, keyboard save capture, and a reproducible visual verification script.
+- Files changed:
+  - `.gitignore`
+  - `package.json`
+  - `package-lock.json`
+  - `apps/md-demo/package.json`
+  - `apps/md-demo/tsconfig.json`
+  - `apps/md-demo/index.html`
+  - `apps/md-demo/src/main.ts`
+  - `apps/md-demo/src/styles.css`
+  - `tests/demo-source-baseline.mjs`
+  - `scripts/visual-check-mme0002.mjs`
+  - `docs/internal/visual-checks/MME-0002/README.md`
+  - `docs/internal/visual-checks/MME-0002/initial-demo-loaded.png`
+  - `docs/internal/visual-checks/MME-0002/editor-after-typing-markdown.png`
+  - `docs/internal/visual-checks/MME-0002/dirty-state-after-edit.png`
+  - `docs/internal/visual-checks/MME-0002/save-shortcut-event-log.png`
+  - `docs/internal/build-log.md`
+- Behavior to prove before implementation:
+  - CodeMirror 6, not a textarea, is the source editor.
+  - Markdown can be edited across multiple lines.
+  - List and todo continuation work.
+  - Selection and copy/paste work.
+  - Undo and redo work through platform shortcuts.
+  - `Cmd/Ctrl+S` is captured and delegated to an honest memory-only save state.
+  - Dirty state changes after edits and clears after memory save.
+  - The built-in fixture is clearly labeled as memory-only and not persisted to disk.
+- Test-first evidence:
+  - `npm run test:demo-baseline` failed before implementation with `Missing MME-0002 required file: apps/md-demo/package.json`.
+- Tests run:
+  - `npm run test:demo-baseline`
+  - `npm run build:demo`
+  - `npm test`
+  - `npm run visual:mme-0002` (requires Chrome headless outside the sandbox on this machine)
+  - `npm audit --json` (0 total vulnerabilities)
+  - `git diff --check`
+- Manual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1`
+  - Local URL: `http://127.0.0.1:5173/`
+  - Opened the demo in a browser/host preview and verified the source editor surface is CodeMirror 6 with gutters and syntax highlighting.
+  - Verified editing Markdown, multiline input, todo/list continuation, selection, copy/paste, undo, redo, dirty state, and `Cmd/Ctrl+S` memory-save logging through the visual script.
+  - Verified save state never claims disk persistence for the built-in fixture: UI says `memory only, not persisted` and `memory saved (not persisted)`.
+- Visual artifacts:
+  - `docs/internal/visual-checks/MME-0002/initial-demo-loaded.png` proves the initial demo loads with CodeMirror and memory-only state.
+  - `docs/internal/visual-checks/MME-0002/editor-after-typing-markdown.png` proves Markdown typing, multiline editing, and list/todo continuation.
+  - `docs/internal/visual-checks/MME-0002/dirty-state-after-edit.png` proves dirty state after edit plus copy/paste and undo/redo coverage.
+  - `docs/internal/visual-checks/MME-0002/save-shortcut-event-log.png` proves `Cmd/Ctrl+S` is captured and delegated to memory-only save.
+- Reviewer/subagent used and result:
+  - UX Reviewer subagent initial result: failed because this MME-0002 build-log entry was missing and `npm run visual:mme-0002` could hang on Chrome cleanup.
+  - Findings addressed by adding this build-log entry, making Chrome startup/cleanup deterministic, and re-running the visual scenario successfully.
+  - Reviewer re-check: passed. Confirmed build-log evidence, visual command pass, `npm test`, `git diff --check`, and the Chrome cleanup fix.
+  - Final reviewer delta check: passed. Confirmed the visual script now proves list and todo continuation through actual `Enter` keypresses and that the regenerated screenshot artifact is valid.
+- Deviations from PRD:
+  - Real local file open/save remains out of scope for MME-0002. This slice is intentionally memory-only and labels that state explicitly.
+  - Source mode auto-closing pairs are enabled through CodeMirror `closeBrackets`.
+  - Production chunk size warning remains: the CodeMirror demo bundle is over Vite's 500 kB warning threshold. This is acceptable for the mini demo and should be revisited before production packaging.
+- Open questions:
+  - Human review is required before accepting MME-0002 and before moving to the next UI-heavy issue.
+- Suggested commit message:
+  - `feat: add CodeMirror source demo`
