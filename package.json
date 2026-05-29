@@ -1,0 +1,22 @@
+{
+  "name": "momentarise-markdown-editor",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Markdown-native framework for portable, preservation-first document editors.",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "tsc -b packages/md-core packages/md-format packages/md-adapter-web packages/md-cli",
+    "test": "npm run test:contracts && npm run test:architecture && npm run build",
+    "test:architecture": "node tests/no-host-imports.mjs",
+    "test:contracts": "tsc -p tsconfig.tests.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

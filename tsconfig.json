@@ -1,0 +1,17 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "packages/md-core"
+    },
+    {
+      "path": "packages/md-format"
+    },
+    {
+      "path": "packages/md-adapter-web"
+    },
+    {
+      "path": "packages/md-cli"
+    }
+  ]
+}

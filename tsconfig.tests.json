@@ -1,0 +1,28 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@momentarise/md-core": [
+        "packages/md-core/src/index.ts"
+      ],
+      "@momentarise/md-format": [
+        "packages/md-format/src/index.ts"
+      ],
+      "@momentarise/md-adapter-web": [
+        "packages/md-adapter-web/src/index.ts"
+      ],
+      "@momentarise/md-cli": [
+        "packages/md-cli/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "tests/**/*.ts"
+  ]
+}

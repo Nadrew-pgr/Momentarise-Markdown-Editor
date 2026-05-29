@@ -97,3 +97,51 @@
   - None.
 - Suggested commit message:
   - `chore: restart repository from docs`
+
+## MME-0001 — Repo skeleton and core contracts
+
+- Timestamp: 2026-05-29T08:50:52Z
+- Summary: Added a TypeScript workspace skeleton with host-independent core contracts and minimal package entrypoints for format, web adapter, and CLI contracts.
+- Files changed:
+  - `package.json`
+  - `package-lock.json`
+  - `tsconfig.base.json`
+  - `tsconfig.json`
+  - `tsconfig.tests.json`
+  - `packages/md-core/package.json`
+  - `packages/md-core/tsconfig.json`
+  - `packages/md-core/src/index.ts`
+  - `packages/md-format/package.json`
+  - `packages/md-format/tsconfig.json`
+  - `packages/md-format/src/index.ts`
+  - `packages/md-adapter-web/package.json`
+  - `packages/md-adapter-web/tsconfig.json`
+  - `packages/md-adapter-web/src/index.ts`
+  - `packages/md-cli/package.json`
+  - `packages/md-cli/tsconfig.json`
+  - `packages/md-cli/src/index.ts`
+  - `tests/type-contracts.test.ts`
+  - `tests/no-host-imports.mjs`
+  - `docs/internal/build-log.md`
+- Tests run:
+  - Test-first red: `npm run test:contracts` failed before package implementation with `TS2307` missing modules for `@momentarise/md-core`, `@momentarise/md-format`, `@momentarise/md-adapter-web`, and `@momentarise/md-cli`.
+  - Test-first red: `npm run test:architecture` failed before package implementation with `Missing core public entrypoint: packages/md-core/src/index.ts`.
+  - `npm i`
+  - `npm run test:contracts`
+  - `npm run test:architecture`
+  - `npm run build`
+  - `npm test`
+  - `git diff --check`
+  - `rg -n "from ['\"](react|@theia/|vscode|@codemirror/|codemirror|prosemirror|electron)|import ['\"](react|@theia/|vscode|@codemirror/|codemirror|prosemirror|electron)" packages/md-core/src package.json packages/*/package.json`
+- Manual verification:
+  - Confirmed `md-core` exports `OpaqueNode`, `DocumentSnapshot`, `PolicyCapability`, source ranges, hashes, snapshots, editor/save/policy/sidecar contract types, and has no host/editor imports.
+  - Confirmed `md-format`, `md-adapter-web`, and `md-cli` expose contract-only entrypoints and do not implement parser, serializer, UI, CodeMirror, Theia, or AI behavior.
+  - Confirmed generated `dist/`, `node_modules/`, and `.learnings/` are ignored.
+- Reviewer/subagent used and result:
+  - Architecture Reviewer subagent: initial fail because this build-log entry was missing, test-first proof was not recorded, and the architecture check did not cover browser/mobile globals. Findings addressed by adding this entry and expanding `tests/no-host-imports.mjs`; re-check passed with no remaining findings.
+- Deviations from PRD:
+  - None. Parser, serializer, UI, CodeMirror, Theia, and AI remain out of scope.
+- Open questions:
+  - None.
+- Suggested commit message:
+  - `feat: add repo skeleton and core contracts`

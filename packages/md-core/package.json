@@ -1,0 +1,21 @@
+{
+  "name": "@momentarise/md-core",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Host-independent core contracts for Momentarise Markdown Editor.",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  }
+}
