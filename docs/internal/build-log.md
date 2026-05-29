@@ -533,3 +533,68 @@
   - None.
 - Suggested commit message:
   - `docs: require visual impact summaries`
+
+## MME-0007 — Source editing UX baseline
+
+- Timestamp: 2026-05-29T22:42:00Z
+- Summary: Strengthened the CodeMirror source-mode baseline so the demo behaves like a real Markdown editor for continuation/exit flows, pairing, code fences, undo/redo verification, selection preservation, and visible baseline reporting.
+- Files changed:
+  - `README.md`
+  - `package.json`
+  - `apps/md-demo/src/main.ts`
+  - `tests/source-editing-ux-baseline.test.mjs`
+  - `scripts/visual-check-mme0007.mjs`
+  - `docs/internal/visual-checks/MME-0007/README.md`
+  - `docs/internal/visual-checks/MME-0007/source-editing-baseline-loaded.png`
+  - `docs/internal/visual-checks/MME-0007/source-editing-list-checkbox-exit.png`
+  - `docs/internal/visual-checks/MME-0007/source-editing-code-fence-keyboard.png`
+  - `docs/internal/visual-checks/MME-0007/source-editing-selection-preserved.png`
+  - `docs/internal/build-log.md`
+- Behavior to prove before implementation:
+  - Source mode remains CodeMirror 6, not a textarea fallback.
+  - Undo and redo work through keyboard shortcuts.
+  - Enter inside a Markdown list continues the list.
+  - Enter on an empty list marker exits to normal paragraph text.
+  - Enter inside a checkbox item continues the checkbox.
+  - Enter on an empty checkbox marker exits to normal paragraph text.
+  - Brackets, braces, parentheses, quotes, and backticks auto-pair through CodeMirror behavior.
+  - Code fence editing remains usable, including tab indentation inside a fence.
+  - Selection/cursor state survives non-destructive status refreshes.
+  - Opaque/source-only syntax still reports `opaque_preserved`.
+  - Round-trip and serializer tests do not regress.
+- Test-first evidence:
+  - `npm run test:source-ux` failed before implementation because `scripts/visual-check-mme0007.mjs` did not exist.
+  - `npm run visual:mme-0007` initially failed in the sandbox because Chrome headless could not expose CDP; it passed after rerunning outside the sandbox.
+  - The first visual scenario expectation was too strict about a trailing blank line at end-of-document. It was corrected to prove the actual user-facing behavior: exiting list/checkbox mode lets the next typed text become a normal paragraph with no stale marker.
+- Tests/checks run:
+  - `npm run test:source-ux`
+  - `npm run build:demo`
+  - `npm test`
+  - `curl -I http://127.0.0.1:5173/`
+  - `npm run visual:mme-0007`
+  - in-app browser reload of `http://127.0.0.1:5173/`
+  - `git diff --check`
+- Manual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1`
+  - Local URL: `http://127.0.0.1:5173/`
+  - Verified the existing dev server returned `HTTP/1.1 200 OK`.
+  - Reloaded the in-app browser and confirmed the visible Baseline list includes undo/redo, multiline editing, selection/clipboard, list continuation and exit, checkbox continuation and exit, indentation, bracket/quote pairing, and code fence editing.
+  - Visual script verified list continuation/exit, checkbox continuation/exit, auto-pairs, code fence editing, `opaque_preserved`, undo/redo, and selection preservation.
+- Visual artifacts:
+  - `docs/internal/visual-checks/MME-0007/source-editing-baseline-loaded.png` proves the initial CodeMirror source demo loads with honest memory-only persistence and clean state.
+  - `docs/internal/visual-checks/MME-0007/source-editing-list-checkbox-exit.png` proves list/checkbox continuation and exit into normal paragraph text without stale markers.
+  - `docs/internal/visual-checks/MME-0007/source-editing-code-fence-keyboard.png` proves bracket/quote/backtick pairing, code fence editing, tab indentation, dirty state, and `opaque_preserved` diagnostics.
+  - `docs/internal/visual-checks/MME-0007/source-editing-selection-preserved.png` proves the selected Markdown heading survives a status refresh without recreating or disturbing the editor selection.
+- Reviewer/subagent used and result:
+  - UX Reviewer subagent: passed with no blocking findings. Confirmed screenshots and script assertions cover CodeMirror baseline, list/checkbox continuation and exit, auto-pairs, code fence editing, selection preservation, dirty state, and honest memory-only persistence.
+  - Test/Process Reviewer subagent: initially blocked completion because this build-log entry was missing. Also noted that `test:source-ux` is a static sentinel; accepted that the real behavior proof is `npm run visual:mme-0007`, not `npm test` alone.
+- Visual impact:
+  - Editing surface: CodeMirror now visibly supports exiting list and checkbox flows into normal paragraph text, typed pairing characters, code fence editing, tab indentation inside a fence, and preserved selection after status refresh.
+  - General UI/inspector: the Baseline section now lists the stronger source editing expectations separately: list continuation/exit, checkbox continuation/exit, indentation, bracket/quote pairing, and code fence editing. Dirty state and memory-only persistence remain visible and honest.
+- Deviations from PRD:
+  - No local disk open/save behavior is implemented in this issue; that belongs to the Save Engine and real-file persistence issues.
+  - `test:source-ux` is a static guard for required scripts/hooks/documentation. Behavioral UX proof requires the Chrome-backed visual scenario.
+- Open questions:
+  - Human review is required before considering MME-0007 accepted and before moving to the next issue.
+- Suggested commit message:
+  - `feat: improve source editing baseline`

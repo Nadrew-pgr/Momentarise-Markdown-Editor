@@ -94,8 +94,11 @@ app.innerHTML = `
             <li>Undo / redo</li>
             <li>Multiline editing</li>
             <li>Selection and clipboard</li>
-            <li>List and todo continuation</li>
+            <li>List continuation and exit</li>
+            <li>Checkbox continuation and exit</li>
+            <li>Indentation</li>
             <li>Bracket and quote pairing</li>
+            <li>Code fence editing</li>
           </ul>
         </section>
         <section class="status-block">
@@ -207,7 +210,31 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   getLastCopiedMarkdown() {
     return lastCopiedMarkdown;
   },
+  forceStatusRefresh() {
+    updateRoundTripStatus();
+  },
+  getSelectionRange() {
+    const selection = editor.state.selection.main;
+    return {
+      anchor: selection.anchor,
+      from: selection.from,
+      head: selection.head,
+      to: selection.to
+    };
+  },
   memorySave,
+  setCursorAfterText(text: string) {
+    const offset = getMarkdown().indexOf(text);
+    if (offset < 0) {
+      throw new Error(`Cannot set cursor after missing text: ${text}`);
+    }
+    editor.focus();
+    editor.dispatch({
+      selection: {
+        anchor: offset + text.length
+      }
+    });
+  },
   setCursorToEnd() {
     editor.focus();
     editor.dispatch({
@@ -236,6 +263,24 @@ function continueMarkdownList(view: EditorView): boolean {
 
   const line = state.doc.lineAt(selection.from);
   const beforeCursor = state.sliceDoc(line.from, selection.from);
+  const afterCursor = state.sliceDoc(selection.from, line.to);
+  if (exitEmptyCheckboxItem(beforeCursor, afterCursor) || exitEmptyMarkdownListItem(beforeCursor, afterCursor)) {
+    view.dispatch(
+      state.update({
+        changes: {
+          from: line.from,
+          insert: "",
+          to: selection.from
+        },
+        selection: {
+          anchor: line.from
+        },
+        annotations: Transaction.userEvent.of("input")
+      })
+    );
+    return true;
+  }
+
   const checkboxInsertion = continueCheckboxItem(beforeCursor);
   const listInsertion = checkboxInsertion ?? continueListItem(beforeCursor);
 
@@ -256,6 +301,14 @@ function continueMarkdownList(view: EditorView): boolean {
     })
   );
   return true;
+}
+
+function exitEmptyCheckboxItem(beforeCursor: string, afterCursor: string): boolean {
+  return /^(\s*)([-*+])\s+\[(?: |x|X)\]\s*$/.test(beforeCursor) && afterCursor.trim() === "";
+}
+
+function exitEmptyMarkdownListItem(beforeCursor: string, afterCursor: string): boolean {
+  return /^(\s*)(?:[-*+]|\d+[.)])\s+$/.test(beforeCursor) && afterCursor.trim() === "";
 }
 
 function continueCheckboxItem(beforeCursor: string): string | null {
@@ -429,9 +482,17 @@ declare global {
   interface Window {
     __MME_DEMO_VISUAL_CHECK__: {
       editor: EditorView;
+      forceStatusRefresh: () => void;
       getLastCopiedMarkdown: () => string | null;
       getMarkdown: () => string;
+      getSelectionRange: () => {
+        readonly anchor: number;
+        readonly from: number;
+        readonly head: number;
+        readonly to: number;
+      };
       memorySave: (source: "button" | "keyboard shortcut") => void;
+      setCursorAfterText: (text: string) => void;
       setCursorToEnd: () => void;
       setSelection: (anchor: number, head: number) => void;
     };
