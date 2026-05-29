@@ -17,6 +17,7 @@ Completed slices:
 - MME-0005: Real Markdown AST parser foundation with frontmatter extraction, opaque preservation diagnostics, and demo parser status.
 - MME-0006: Source-range serializer edits with opaque preservation and edited-range tests.
 - MME-0007: Source editing UX baseline with list/checkbox exit, pairing, code fence editing, selection preservation, and visual QA artifacts.
+- MME-0008: Host-independent Save Engine with dirty/autosave/manual flush/conflict/no-overwrite tests and truthful persistence UI.
 
 See `docs/internal/build-log.md` for the latest completed issue and current progress.
 

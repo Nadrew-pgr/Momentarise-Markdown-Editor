@@ -8,6 +8,9 @@
       "path": "packages/md-format"
     },
     {
+      "path": "packages/md-save"
+    },
+    {
       "path": "packages/md-adapter-web"
     },
     {

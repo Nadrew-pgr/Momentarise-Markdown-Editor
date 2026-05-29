@@ -598,3 +598,82 @@
   - Human review is required before considering MME-0007 accepted and before moving to the next issue.
 - Suggested commit message:
   - `feat: improve source editing baseline`
+
+## MME-0008 — Save Engine and truthful persistence
+
+- Timestamp: 2026-05-29T23:20:58Z
+- Summary: Added a host-independent `@momentarise/md-save` package and wired the demo through a real Save Engine for dirty state, manual flush, autosave, write queue behavior, download-required blocking, conflict detection, no-overwrite protection, close guard, and truthful persistence UI labels.
+- Files changed:
+  - `README.md`
+  - `package.json`
+  - `package-lock.json`
+  - `tsconfig.json`
+  - `tsconfig.base.json`
+  - `tsconfig.tests.json`
+  - `packages/md-save/package.json`
+  - `packages/md-save/tsconfig.json`
+  - `packages/md-save/src/index.ts`
+  - `apps/md-demo/package.json`
+  - `apps/md-demo/tsconfig.json`
+  - `apps/md-demo/src/main.ts`
+  - `tests/save-engine.test.mjs`
+  - `tests/demo-source-baseline.mjs`
+  - `tests/no-host-imports.mjs`
+  - `tests/type-contracts.test.ts`
+  - `scripts/visual-check-mme0008.mjs`
+  - `docs/internal/visual-checks/MME-0008/README.md`
+  - `docs/internal/visual-checks/MME-0008/save-engine-initial.png`
+  - `docs/internal/visual-checks/MME-0008/save-engine-dirty.png`
+  - `docs/internal/visual-checks/MME-0008/save-engine-autosaved.png`
+  - `docs/internal/visual-checks/MME-0008/save-engine-shortcut-flush.png`
+  - `docs/internal/visual-checks/MME-0008/save-engine-conflict.png`
+  - `docs/internal/build-log.md`
+- Behavior to prove before implementation:
+  - Editing marks dirty through the Save Engine.
+  - `Cmd/Ctrl+S` flushes through the Save Engine.
+  - Autosave runs after the configured delay.
+  - The UI never says plain `saved`; it always includes target context.
+  - Download-required targets block writes and do not mark content as persisted.
+  - Conflict detection blocks silent overwrite when external content changes.
+  - Conflict state cannot become clean merely because local text is reverted to the last saved hash.
+  - A flush must not report `saved` if content changed during an in-flight write and the returned state remains dirty.
+  - Write queue behavior flushes the latest content after an edit during save.
+  - The Save Engine package remains host-independent.
+- Test-first evidence:
+  - `npm run test:save-engine` failed before implementation because `packages/md-save/tsconfig.json` did not exist.
+  - After Test Reviewer findings, strengthened tests failed because conflict could clear after reverting to the last saved hash. Fixed by preserving conflict state until explicit resolution is added in a future slice.
+  - Strengthened tests also covered the dirty-during-in-flight-save result; fixed by returning `status: "dirty"` when a write succeeds but newer content remains unsaved.
+- Tests/checks run:
+  - `npm run test:save-engine`
+  - `npm run test:demo-baseline`
+  - `npm run build:demo`
+  - `npm test`
+  - `curl -I http://127.0.0.1:5174/`
+  - `MME_DEMO_URL=http://127.0.0.1:5174/ npm run visual:mme-0008`
+  - in-app browser load of `http://127.0.0.1:5174/`
+  - `git diff --check`
+- Manual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`
+  - Local URL: `http://127.0.0.1:5174/`
+  - Used port `5174` because an older Vite process on `5173` had stale dependency resolution before the new workspace link was installed.
+  - Reloaded the in-app browser on `5174` and confirmed initial UI says `memory saved (not persisted)`, document target says `fixture, memory only, not persisted`, and the Save Engine panel shows target, contextual status, hashes, external hash, and last action.
+  - Visual script verified dirty state after edit, autosave back to memory-only saved state, `Cmd/Ctrl+S` shortcut flush with visible last-action proof, and conflict/no-overwrite with visible external hash and blocked-overwrite proof.
+- Visual artifacts:
+  - `docs/internal/visual-checks/MME-0008/save-engine-initial.png` proves the initial fixture is memory-only, clean, and not persisted to disk.
+  - `docs/internal/visual-checks/MME-0008/save-engine-dirty.png` proves editing marks the Save Engine dirty with changed current hash and unchanged last-saved hash.
+  - `docs/internal/visual-checks/MME-0008/save-engine-autosaved.png` proves autosave returns to a contextual memory-only saved state.
+  - `docs/internal/visual-checks/MME-0008/save-engine-shortcut-flush.png` proves `Cmd/Ctrl+S` by showing `keyboard shortcut flush wrote memory-only target` in the visible Last action row.
+  - `docs/internal/visual-checks/MME-0008/save-engine-conflict.png` proves conflict state, `not overwritten` target copy, exposed external hash, and visible `conflict blocked overwrite` last action.
+- Reviewer/subagent used and result:
+  - Test Reviewer subagent: initially found two blocking issues: unresolved conflict could be hidden by reverting local text to the last saved hash, and flush could report `saved` while returning dirty state after an edit during an in-flight save. Both were fixed and re-check passed with no remaining blockers.
+  - UX Reviewer subagent: initially found screenshot proof gaps for shortcut and no-overwrite, plus a raw `Status saved` wording issue. Added visible Last action and External rows and contextual status labels; re-check passed with no remaining blockers.
+- Visual impact:
+  - Editing surface: editing still happens in the same CodeMirror source editor, but Save Engine state now reacts to edits, autosave, shortcut flushes, and conflicts.
+  - General UI/inspector: the action bar adds `Simulate conflict`; the document strip now says `fixture, memory only, not persisted` or `conflict, not overwritten`; the inspector adds a Save Engine section with target, contextual status, current hash, last-saved hash, external hash, and last action.
+- Deviations from PRD:
+  - Real local file open/save is not implemented in this slice. MME-0009 owns File System Access API and real disk write behavior.
+  - Conflict resolution UI is not implemented yet. MME-0008 detects and blocks conflict; future persistence/open-save work must add explicit resolution flows.
+- Open questions:
+  - Human review is required before considering MME-0008 accepted and before moving to MME-0009.
+- Suggested commit message:
+  - `feat: add save engine truthfulness`

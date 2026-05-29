@@ -8,6 +8,7 @@ import type {
   SourceRange
 } from "@momentarise/md-core";
 import type { MarkdownFormatContract } from "@momentarise/md-format";
+import type { SaveEngineContract } from "@momentarise/md-save";
 import type { WebAdapterContract } from "@momentarise/md-adapter-web";
 import type { CliContract } from "@momentarise/md-cli";
 
@@ -65,6 +66,11 @@ const webAdapterContract: WebAdapterContract = {
   host: "web"
 };
 
+const saveEngineContract: SaveEngineContract = {
+  packageName: "@momentarise/md-save",
+  dependsOnCore: true
+};
+
 const cliContract: CliContract = {
   packageName: "@momentarise/md-cli",
   dependsOnCore: true,
@@ -74,5 +80,6 @@ const cliContract: CliContract = {
 void opaqueNode;
 void snapshot;
 void formatContract;
+void saveEngineContract;
 void webAdapterContract;
 void cliContract;

@@ -11,6 +11,13 @@ import {
   type FrontmatterRecord,
   type ParseResult
 } from "@momentarise/md-format";
+import {
+  createMemorySaveTarget,
+  createSaveEngine,
+  persistenceTargetLabel,
+  type SaveFlushReason,
+  type SaveState
+} from "@momentarise/md-save";
 import { basicSetup } from "codemirror";
 import "./styles.css";
 
@@ -44,6 +51,7 @@ app.innerHTML = `
       <div class="topbar-actions" aria-label="Document actions">
         <button class="button secondary" type="button" data-testid="copy-button">Copy</button>
         <button class="button secondary" type="button" data-testid="download-button">Download</button>
+        <button class="button secondary" type="button" data-testid="simulate-conflict-button">Simulate conflict</button>
         <button class="button primary" type="button" data-testid="memory-save-button">Memory save</button>
       </div>
     </header>
@@ -66,6 +74,17 @@ app.innerHTML = `
         <section class="status-block">
           <p class="label">Dirty state</p>
           <p class="status-value" data-testid="dirty-state">clean</p>
+        </section>
+        <section class="status-block">
+          <p class="label">Save Engine</p>
+          <div class="status-lines" data-testid="save-engine-status">
+            <p><span>Target</span><strong data-testid="save-engine-target">memory-only</strong></p>
+            <p><span>Status</span><strong data-testid="save-engine-state">memory saved</strong></p>
+            <p><span>Current</span><strong data-testid="save-engine-current-hash">pending</strong></p>
+            <p><span>Last saved</span><strong data-testid="save-engine-last-saved-hash">pending</strong></p>
+            <p><span>External</span><strong data-testid="save-engine-external-hash">none</strong></p>
+            <p><span>Last action</span><strong data-testid="save-engine-last-action">loaded fixture</strong></p>
+          </div>
         </section>
         <section class="status-block">
           <p class="label">Source editor</p>
@@ -114,8 +133,16 @@ const editorHost = queryRequired<HTMLDivElement>("[data-editor-host]");
 const copyButton = queryRequired<HTMLButtonElement>('[data-testid="copy-button"]');
 const downloadButton = queryRequired<HTMLButtonElement>('[data-testid="download-button"]');
 const memorySaveButton = queryRequired<HTMLButtonElement>('[data-testid="memory-save-button"]');
+const simulateConflictButton = queryRequired<HTMLButtonElement>('[data-testid="simulate-conflict-button"]');
 const saveStateElement = queryRequired<HTMLElement>('[data-testid="save-state"]');
 const dirtyStateElement = queryRequired<HTMLElement>('[data-testid="dirty-state"]');
+const persistenceTargetElement = queryRequired<HTMLElement>('[data-testid="persistence-target"]');
+const saveEngineTargetElement = queryRequired<HTMLElement>('[data-testid="save-engine-target"]');
+const saveEngineStateElement = queryRequired<HTMLElement>('[data-testid="save-engine-state"]');
+const saveEngineCurrentHashElement = queryRequired<HTMLElement>('[data-testid="save-engine-current-hash"]');
+const saveEngineLastSavedHashElement = queryRequired<HTMLElement>('[data-testid="save-engine-last-saved-hash"]');
+const saveEngineExternalHashElement = queryRequired<HTMLElement>('[data-testid="save-engine-external-hash"]');
+const saveEngineLastActionElement = queryRequired<HTMLElement>('[data-testid="save-engine-last-action"]');
 const eventLogElement = queryRequired<HTMLOListElement>('[data-testid="event-log"]');
 const parserStatusElement = queryRequired<HTMLElement>('[data-testid="parser-status"]');
 const serializerStatusElement = queryRequired<HTMLElement>('[data-testid="serializer-status"]');
@@ -123,11 +150,20 @@ const roundTripModeElement = queryRequired<HTMLElement>('[data-testid="roundtrip
 const frontmatterElement = queryRequired<HTMLElement>('[data-testid="frontmatter-list"]');
 const diagnosticsElement = queryRequired<HTMLOListElement>('[data-testid="roundtrip-diagnostics"]');
 
-let memorySnapshot = fixtureMarkdown;
-let dirty = false;
 let eventCounter = 0;
 let lastCopiedMarkdown: string | null = null;
 const markdownAstFormatter = createMarkdownAstFormatter();
+const saveTarget = createMemorySaveTarget({
+  initialContent: fixtureMarkdown,
+  targetLabel: "fixture://source-mode-fixture.md"
+});
+const saveEngine = createSaveEngine({
+  autosaveDelayMs: 1000,
+  content: fixtureMarkdown,
+  target: saveTarget
+});
+let lastSaveAction = "loaded fixture";
+let autosaveTimer: ReturnType<typeof window.setTimeout> | undefined;
 
 const sourceKeymap = [
   {
@@ -164,7 +200,9 @@ const editor = new EditorView({
       EditorView.lineWrapping,
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
-          updateDirtyState();
+          saveEngine.updateContent(getMarkdown());
+          renderSaveState();
+          scheduleAutosave();
           updateRoundTripStatus();
         }
       }),
@@ -201,7 +239,26 @@ memorySaveButton.addEventListener("click", () => {
   memorySave("button");
 });
 
+simulateConflictButton.addEventListener("click", () => {
+  simulateExternalConflict();
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden" && saveEngine.shouldBlockClose()) {
+    void flushSave("tab-switch");
+  }
+});
+
+window.addEventListener("beforeunload", (event) => {
+  if (!saveEngine.shouldBlockClose()) {
+    return;
+  }
+  event.preventDefault();
+  event.returnValue = "";
+});
+
 logEvent("Loaded built-in fixture in memory-only mode.");
+renderSaveState();
 updateRoundTripStatus();
 
 window.__MME_DEMO_VISUAL_CHECK__ = {
@@ -210,8 +267,12 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   getLastCopiedMarkdown() {
     return lastCopiedMarkdown;
   },
+  getSaveState() {
+    return saveEngine.getState();
+  },
   forceStatusRefresh() {
     updateRoundTripStatus();
+    renderSaveState();
   },
   getSelectionRange() {
     const selection = editor.state.selection.main;
@@ -222,7 +283,11 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
       to: selection.to
     };
   },
+  flushSave(reason: SaveFlushReason) {
+    return flushSave(reason);
+  },
   memorySave,
+  simulateExternalConflict,
   setCursorAfterText(text: string) {
     const offset = getMarkdown().indexOf(text);
     if (offset < 0) {
@@ -375,16 +440,104 @@ function downloadMarkdown(): void {
 }
 
 function memorySave(source: "button" | "keyboard shortcut"): void {
-  memorySnapshot = getMarkdown();
-  updateDirtyState();
-  saveStateElement.textContent = "memory saved (not persisted)";
-  logEvent(`Captured ${source} save to memory-only target.`);
+  void flushSave("manual", source);
 }
 
-function updateDirtyState(): void {
-  dirty = getMarkdown() !== memorySnapshot;
-  dirtyStateElement.textContent = dirty ? "dirty" : "clean";
-  saveStateElement.textContent = dirty ? "memory only / dirty" : "memory saved (not persisted)";
+async function flushSave(reason: SaveFlushReason, source?: "button" | "keyboard shortcut"): Promise<void> {
+  clearAutosaveTimer();
+  const result = await saveEngine.flush({
+    reason
+  });
+  if (result.status === "saved") {
+    lastSaveAction = `${source ?? reason} flush wrote memory-only target`;
+    logEvent(`Flushed ${source ?? reason} save to memory-only target.`);
+  } else if (result.status === "noop") {
+    lastSaveAction = `${source ?? reason} flush found no dirty changes`;
+    logEvent(`Save Engine ${source ?? reason} flush found no dirty changes.`);
+  } else if (result.status === "dirty") {
+    lastSaveAction = `${source ?? reason} flush wrote an older revision; latest content remains dirty`;
+    logEvent(`Save incomplete: ${result.message}`);
+  } else if (result.status === "blocked") {
+    lastSaveAction = `${source ?? reason} flush blocked`;
+    logEvent(`Save blocked: ${result.message}`);
+  } else if (result.status === "conflict") {
+    lastSaveAction = `conflict blocked overwrite; external ${shortHash(result.state.externalHash ?? result.state.currentHash)} preserved`;
+    logEvent("Conflict detected; Save Engine blocked overwrite.");
+  } else if (result.status === "error") {
+    lastSaveAction = `${source ?? reason} flush errored`;
+    logEvent(`Save error: ${result.message}`);
+  }
+  renderSaveState();
+}
+
+function scheduleAutosave(): void {
+  clearAutosaveTimer();
+  autosaveTimer = window.setTimeout(() => {
+    autosaveTimer = undefined;
+    if (saveEngine.shouldAutosave()) {
+      void flushSave("autosave");
+    }
+  }, saveEngine.autosaveDelayMs);
+}
+
+function clearAutosaveTimer(): void {
+  if (autosaveTimer === undefined) {
+    return;
+  }
+  window.clearTimeout(autosaveTimer);
+  autosaveTimer = undefined;
+}
+
+function simulateExternalConflict(): void {
+  saveTarget.simulateExternalChange(`${saveTarget.readContent()}\n<!-- simulated external edit -->\n`);
+  lastSaveAction = "external target changed; next save must detect conflict";
+  logEvent("Simulated external target change; the next dirty save must report conflict.");
+  renderSaveState();
+}
+
+function renderSaveState(): void {
+  const state = saveEngine.getState();
+  const label = persistenceTargetLabel(state);
+  saveStateElement.textContent = label;
+  dirtyStateElement.textContent = dirtyStateLabel(state);
+  persistenceTargetElement.textContent = documentTargetLabel(state);
+  saveEngineTargetElement.textContent = state.target;
+  saveEngineStateElement.textContent = saveEngineStatusLabel(state);
+  saveEngineCurrentHashElement.textContent = shortHash(state.currentHash);
+  saveEngineLastSavedHashElement.textContent = state.lastSavedHash ? shortHash(state.lastSavedHash) : "none";
+  saveEngineExternalHashElement.textContent = state.externalHash ? shortHash(state.externalHash) : "none";
+  saveEngineLastActionElement.textContent = lastSaveAction;
+}
+
+function dirtyStateLabel(state: SaveState): string {
+  if (state.status === "saved") {
+    return "clean";
+  }
+  return state.status;
+}
+
+function documentTargetLabel(state: SaveState): string {
+  if (state.target === "conflict") {
+    return "conflict, not overwritten";
+  }
+  if (state.target === "memory-only") {
+    return "fixture, memory only, not persisted";
+  }
+  return persistenceTargetLabel(state);
+}
+
+function saveEngineStatusLabel(state: SaveState): string {
+  if (state.status === "saved" && state.target === "memory-only") {
+    return "memory saved";
+  }
+  if (state.status === "saved" && state.target === "disk") {
+    return "disk saved";
+  }
+  return state.status;
+}
+
+function shortHash(hash: string): string {
+  return hash.replace(/^fnv1a64:/, "").slice(0, 8);
 }
 
 function updateRoundTripStatus(): void {
@@ -482,9 +635,11 @@ declare global {
   interface Window {
     __MME_DEMO_VISUAL_CHECK__: {
       editor: EditorView;
+      flushSave: (reason: SaveFlushReason) => Promise<void>;
       forceStatusRefresh: () => void;
       getLastCopiedMarkdown: () => string | null;
       getMarkdown: () => string;
+      getSaveState: () => SaveState;
       getSelectionRange: () => {
         readonly anchor: number;
         readonly from: number;
@@ -492,6 +647,7 @@ declare global {
         readonly to: number;
       };
       memorySave: (source: "button" | "keyboard shortcut") => void;
+      simulateExternalConflict: () => void;
       setCursorAfterText: (text: string) => void;
       setCursorToEnd: () => void;
       setSelection: (anchor: number, head: number) => void;

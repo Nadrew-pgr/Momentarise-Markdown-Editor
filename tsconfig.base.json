@@ -27,6 +27,9 @@
       "@momentarise/md-format": [
         "packages/md-format/src/index.ts"
       ],
+      "@momentarise/md-save": [
+        "packages/md-save/src/index.ts"
+      ],
       "@momentarise/md-adapter-web": [
         "packages/md-adapter-web/src/index.ts"
       ],

@@ -1,8 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const coreSourceRoot = "packages/md-core/src";
-const coreEntry = join(coreSourceRoot, "index.ts");
+const checkedSourceRoots = ["packages/md-core/src", "packages/md-save/src"];
 
 const forbiddenImports = [
   "react",
@@ -33,11 +32,14 @@ const forbiddenGlobalUsages = [
   ["Cordova", [String.raw`\bCordova\s*\.`, String.raw`\btypeof\s+Cordova\b`]]
 ];
 
-if (!existsSync(coreEntry)) {
-  throw new Error(`Missing core public entrypoint: ${coreEntry}`);
+for (const sourceRoot of checkedSourceRoots) {
+  const entry = join(sourceRoot, "index.ts");
+  if (!existsSync(entry)) {
+    throw new Error(`Missing host-independent public entrypoint: ${entry}`);
+  }
 }
 
-const sourceFiles = collectTypeScriptFiles(coreSourceRoot);
+const sourceFiles = checkedSourceRoots.flatMap((sourceRoot) => collectTypeScriptFiles(sourceRoot));
 
 for (const file of sourceFiles) {
   const text = readFileSync(file, "utf8");
