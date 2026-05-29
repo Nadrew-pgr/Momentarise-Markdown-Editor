@@ -75,6 +75,23 @@ export interface RunFixtureRoundTripOptions {
   readonly dialect?: ParseOptions["dialect"];
 }
 
+export type MarkdownEditKind =
+  | "replace-node"
+  | "replace-source-range"
+  | "replace-code-fence-content"
+  | "replace-code-fence-language";
+
+export interface MarkdownSourceEdit {
+  readonly kind: MarkdownEditKind;
+  readonly replacement: string;
+  readonly nodeId?: string;
+  readonly sourceRange?: SourceRange;
+}
+
+export interface SerializeMarkdownEditsOptions {
+  readonly edits: readonly MarkdownSourceEdit[];
+}
+
 const defaultDialect: ParseOptions["dialect"] = "momentarise-enhanced";
 
 type MdastLikeNode = {
@@ -265,6 +282,204 @@ export function createIdentityMarkdownFormatter(): MarkdownFormatter {
       };
     }
   };
+}
+
+export function serializeMarkdownEdits(
+  result: ParseResult,
+  options: SerializeMarkdownEditsOptions
+): SerializeResult {
+  const resolvedEdits = options.edits
+    .map((edit, index) => resolveMarkdownEdit(result, edit, index))
+    .sort((first, second) => first.sourceRange.start.offset - second.sourceRange.start.offset);
+  assertNoOverlappingEdits(resolvedEdits);
+
+  let content = result.snapshot.content;
+  for (const edit of [...resolvedEdits].reverse()) {
+    content =
+      content.slice(0, edit.sourceRange.start.offset) +
+      edit.replacement +
+      content.slice(edit.sourceRange.end.offset);
+  }
+
+  const editDiagnostics: Diagnostic[] = resolvedEdits.map((edit) => ({
+    code: "serializer_edit_applied",
+    message: `Applied ${edit.kind} while preserving source outside the edited range.`,
+    severity: "info",
+    sourceRange: edit.sourceRange
+  }));
+
+  return {
+    content,
+    diagnostics: [
+      {
+        code: "source_range_serializer",
+        message:
+          "Source-range serializer applied targeted Markdown edits and preserved unrelated source bytes.",
+        severity: "info"
+      },
+      ...editDiagnostics
+    ],
+    hash: hashContent(content),
+    normalizations: resolvedEdits.map((edit) => `${edit.kind}:${edit.nodeId ?? "source-range"}`)
+  };
+}
+
+type ResolvedMarkdownEdit = {
+  readonly kind: MarkdownEditKind;
+  readonly nodeId?: string;
+  readonly replacement: string;
+  readonly sourceRange: SourceRange;
+};
+
+function resolveMarkdownEdit(
+  result: ParseResult,
+  edit: MarkdownSourceEdit,
+  index: number
+): ResolvedMarkdownEdit {
+  if (edit.kind === "replace-source-range") {
+    if (!edit.sourceRange) {
+      throw new Error(`Serializer edit ${index} is missing sourceRange.`);
+    }
+    return {
+      kind: edit.kind,
+      replacement: edit.replacement,
+      sourceRange: edit.sourceRange
+    };
+  }
+
+  if (!edit.nodeId) {
+    throw new Error(`Serializer edit ${index} is missing nodeId.`);
+  }
+  const node = findNodeById(result.document.root, edit.nodeId);
+  if (!node.sourceRange) {
+    throw new Error(`Serializer edit ${index} targets node without source range: ${edit.nodeId}`);
+  }
+
+  if (edit.kind === "replace-code-fence-content") {
+    return {
+      kind: edit.kind,
+      nodeId: edit.nodeId,
+      replacement: replaceCodeFenceContent(result.snapshot.content, node.sourceRange, edit.replacement),
+      sourceRange: node.sourceRange
+    };
+  }
+
+  if (edit.kind === "replace-code-fence-language") {
+    return {
+      kind: edit.kind,
+      nodeId: edit.nodeId,
+      replacement: replaceCodeFenceLanguage(result.snapshot.content, node.sourceRange, edit.replacement),
+      sourceRange: node.sourceRange
+    };
+  }
+
+  return {
+    kind: edit.kind,
+    nodeId: edit.nodeId,
+    replacement: edit.replacement,
+    sourceRange: node.sourceRange
+  };
+}
+
+function findNodeById(node: MomentariseNode, nodeId: string): MomentariseNode {
+  const found = findNodeByIdOrNull(node, nodeId);
+  if (!found) {
+    throw new Error(`Could not find node for serializer edit: ${nodeId}`);
+  }
+  return found;
+}
+
+function findNodeByIdOrNull(node: MomentariseNode, nodeId: string): MomentariseNode | null {
+  if (node.id === nodeId) {
+    return node;
+  }
+  if (node.kind === "opaque") {
+    return null;
+  }
+  for (const child of node.children ?? []) {
+    const found = findNodeByIdOrNull(child, nodeId);
+    if (found) {
+      return found;
+    }
+  }
+  return null;
+}
+
+function replaceCodeFenceContent(source: string, sourceRange: SourceRange, replacement: string): string {
+  const raw = source.slice(sourceRange.start.offset, sourceRange.end.offset);
+  const firstLineEnding = firstLineEndingIn(raw);
+  const closingLineStart = lastLineStartOffset(raw);
+  if (!firstLineEnding || closingLineStart <= firstLineEnding.endOffset) {
+    throw new Error("Cannot replace code fence content because fence boundaries were not found.");
+  }
+  const openingLine = raw.slice(0, firstLineEnding.endOffset);
+  const closingLine = raw.slice(closingLineStart);
+  const contentLineEnding = raw.slice(closingLineStart - firstLineEnding.value.length, closingLineStart);
+  const preservedLineEnding = contentLineEnding === "\r\n" || contentLineEnding === "\n"
+    ? contentLineEnding
+    : firstLineEnding.value;
+  return `${openingLine}${withoutOneTrailingLineEnding(replacement)}${preservedLineEnding}${closingLine}`;
+}
+
+function replaceCodeFenceLanguage(source: string, sourceRange: SourceRange, replacement: string): string {
+  const raw = source.slice(sourceRange.start.offset, sourceRange.end.offset);
+  const firstLineEnding = firstLineEndingIn(raw);
+  if (!firstLineEnding) {
+    throw new Error("Cannot replace code fence language because opening fence was not found.");
+  }
+  const openingLine = raw.slice(0, firstLineEnding.startOffset);
+  const openingMatch = openingLine.match(/^([`~]{3,})(\s*)(\S*)?(.*)$/);
+  if (!openingMatch) {
+    throw new Error("Cannot replace code fence language on a non-fenced code block.");
+  }
+  const fence = openingMatch[1]!;
+  const spacing = openingMatch[2] ?? "";
+  const metadata = openingMatch[4] ?? "";
+  return `${fence}${spacing}${replacement}${metadata}${raw.slice(firstLineEnding.startOffset)}`;
+}
+
+function withoutOneTrailingLineEnding(value: string): string {
+  return value.replace(/\r?\n$/, "");
+}
+
+function firstLineEndingIn(value: string): { readonly startOffset: number; readonly endOffset: number; readonly value: string } | null {
+  const newlineOffset = value.indexOf("\n");
+  if (newlineOffset < 0) {
+    return null;
+  }
+  if (newlineOffset > 0 && value[newlineOffset - 1] === "\r") {
+    return {
+      endOffset: newlineOffset + 1,
+      startOffset: newlineOffset - 1,
+      value: "\r\n"
+    };
+  }
+  return {
+    endOffset: newlineOffset + 1,
+    startOffset: newlineOffset,
+    value: "\n"
+  };
+}
+
+function lastLineStartOffset(value: string): number {
+  const lastNewlineOffset = value.lastIndexOf("\n");
+  if (lastNewlineOffset < 0) {
+    return 0;
+  }
+  return lastNewlineOffset + 1;
+}
+
+function assertNoOverlappingEdits(edits: readonly ResolvedMarkdownEdit[]): void {
+  for (let index = 1; index < edits.length; index += 1) {
+    const previous = edits[index - 1]!;
+    const current = edits[index]!;
+    if (current.sourceRange.start.offset < previous.sourceRange.end.offset) {
+      throw new Error(
+        `Serializer edits overlap: ${previous.kind} ending at ${previous.sourceRange.end.offset}, ` +
+          `${current.kind} starting at ${current.sourceRange.start.offset}.`
+      );
+    }
+  }
 }
 
 function createParseResult(

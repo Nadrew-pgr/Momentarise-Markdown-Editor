@@ -15,6 +15,7 @@ Completed slices:
 - MME-0003: Fixture corpus and expectations for preservation, opaque syntax, policy-sensitive placeholders, and vault-like Markdown.
 - MME-0004: Pre-parser identity round-trip harness and demo status panel.
 - MME-0005: Real Markdown AST parser foundation with frontmatter extraction, opaque preservation diagnostics, and demo parser status.
+- MME-0006: Source-range serializer edits with opaque preservation and edited-range tests.
 
 See `docs/internal/build-log.md` for the latest completed issue and current progress.
 

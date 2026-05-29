@@ -463,3 +463,46 @@
   - None.
 - Suggested commit message:
   - `feat: add markdown parser foundation`
+
+## MME-0006 — Serializer with opaque preservation and edited-range tests
+
+- Timestamp: 2026-05-29T22:13:16Z
+- Summary: Added a source-range serializer edit API that applies targeted Markdown edits while preserving unrelated source bytes, plus edited-range tests for headings, paragraphs, list items, code fence content, code fence language, frontmatter, tables, HTML, and unknown opaque syntax.
+- Files changed:
+  - `README.md`
+  - `package.json`
+  - `packages/md-format/src/index.ts`
+  - `tests/serializer-edited-range.test.mjs`
+  - `docs/internal/build-log.md`
+- Behavior to prove before implementation:
+  - Fixtures pass expected serializer round-trip modes.
+  - Unknown syntax remains preserved as opaque/raw.
+  - Frontmatter remains preserved.
+  - Code fences remain preserved through content and language edits.
+  - Tables remain preserved even when treated as source-only.
+  - HTML remains preserved even when source-only.
+  - Editing one node preserves unrelated file regions as closely as feasible.
+  - Serializer reports diagnostics and normalizations.
+- Test-first evidence:
+  - `npm run test:serializer` failed before implementation because `@momentarise/md-format` did not export `serializeMarkdownEdits`.
+  - After reviewer feedback, strengthened tests failed on CRLF code fence boundaries and then on spaced info-string language edits before each fix.
+- Tests/checks run:
+  - `npm run test:serializer`
+  - `npm run test:roundtrip`
+  - `npm run test:parser`
+  - `npm test`
+  - `git diff --check`
+- Manual verification:
+  - No visible UI changed in this slice, so the UI visual verification gate did not apply.
+  - Manually reviewed focused serializer behavior for CRLF code fences and spaced info strings. Confirmed ```` ``` js title="x" ```` edits to ```` ``` ts title="x" ```` without dropping metadata or duplicating the old language.
+- Reviewer/subagent used and result:
+  - Test Reviewer subagent: initially failed because code fence content edits normalized CRLF boundaries and code fence language edits dropped info-string metadata.
+  - Test Reviewer subagent re-check: failed again on spaced info-string syntax because ```` ``` js title="x" ```` duplicated the old language into metadata.
+  - Test Reviewer final re-check: passed with no blocking findings. Confirmed `test:serializer`, `test:roundtrip`, `test:parser`, `test:contracts`, `git diff --check`, and manual spaced info-string repro.
+- Deviations from PRD:
+  - This is a preservation-first source-range serializer, not a full Markdown pretty-printer. It is intentionally narrow so edited ranges can be proven before rich mode.
+  - The existing round-trip harness still defaults to the identity formatter unless a formatter is passed explicitly; the new serializer tests exercise `createMarkdownAstFormatter()` and `serializeMarkdownEdits()`.
+- Open questions:
+  - None.
+- Suggested commit message:
+  - `feat: add source-range serializer edits`
