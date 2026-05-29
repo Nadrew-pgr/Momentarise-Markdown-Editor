@@ -266,3 +266,75 @@
   - None.
 - Suggested commit message:
   - `docs: require fresh sequential issue execution`
+
+## MME-0003 — Fixture corpus and expectations
+
+- Timestamp: 2026-05-29T13:48:26Z
+- Summary: Added the first repository fixture corpus with 18 real Markdown files and paired expectations covering preservation, normalization, opaque/source-only fallback, rendering, policy-sensitive placeholders, and vault-like content. Added a fixture corpus test and wired it into `npm test`.
+- Files changed:
+  - `package.json`
+  - `tests/fixtures-corpus.test.mjs`
+  - `fixtures/README.md`
+  - `fixtures/001-simple-markdown/input.md`
+  - `fixtures/001-simple-markdown/expectations.md`
+  - `fixtures/002-yaml-frontmatter/input.md`
+  - `fixtures/002-yaml-frontmatter/expectations.md`
+  - `fixtures/003-gfm-task-list/input.md`
+  - `fixtures/003-gfm-task-list/expectations.md`
+  - `fixtures/004-gfm-table/input.md`
+  - `fixtures/004-gfm-table/expectations.md`
+  - `fixtures/005-code-fence-language/input.md`
+  - `fixtures/005-code-fence-language/expectations.md`
+  - `fixtures/006-blockquote/input.md`
+  - `fixtures/006-blockquote/expectations.md`
+  - `fixtures/007-obsidian-callout/input.md`
+  - `fixtures/007-obsidian-callout/expectations.md`
+  - `fixtures/008-wikilink/input.md`
+  - `fixtures/008-wikilink/expectations.md`
+  - `fixtures/009-link-image/input.md`
+  - `fixtures/009-link-image/expectations.md`
+  - `fixtures/010-html-inline-block/input.md`
+  - `fixtures/010-html-inline-block/expectations.md`
+  - `fixtures/011-mermaid-fence/input.md`
+  - `fixtures/011-mermaid-fence/expectations.md`
+  - `fixtures/012-latex-inline-block/input.md`
+  - `fixtures/012-latex-inline-block/expectations.md`
+  - `fixtures/013-unknown-custom-syntax/input.md`
+  - `fixtures/013-unknown-custom-syntax/expectations.md`
+  - `fixtures/014-mixed-real-world/input.md`
+  - `fixtures/014-mixed-real-world/expectations.md`
+  - `fixtures/015-sanitized-vault-sample/input.md`
+  - `fixtures/015-sanitized-vault-sample/expectations.md`
+  - `fixtures/016-policy-sensitive/input.md`
+  - `fixtures/016-policy-sensitive/expectations.md`
+  - `fixtures/017-long-heading-document/input.md`
+  - `fixtures/017-long-heading-document/expectations.md`
+  - `fixtures/018-nested-lists-todos/input.md`
+  - `fixtures/018-nested-lists-todos/expectations.md`
+  - `docs/internal/build-log.md`
+- Behavior to prove before implementation:
+  - The corpus has at least 18 fixture directories matching the MME-0003 required categories.
+  - Every fixture has a non-empty `input.md` and `expectations.md`.
+  - Expectations state preservation, normalization, opaque, source-only, and render behavior.
+  - Fixtures avoid obvious secrets/private data.
+  - `fixtures/README.md` documents the corpus.
+- Test-first evidence:
+  - `npm run test:fixtures` failed before fixture implementation with `ENOENT: no such file or directory, scandir 'fixtures'`.
+- Tests/checks run:
+  - `npm run test:fixtures`
+  - `npm test`
+  - `git diff --check`
+  - `find fixtures -maxdepth 2 -type f | sort`
+  - `rg -n "AKIA|BEGIN .*PRIVATE KEY|sk-[A-Za-z0-9_-]{20,}|ghp_|xox[baprs]-|password\\s*[:=]|secret\\s*[:=]|token\\s*[:=]" fixtures`
+- Manual verification:
+  - Confirmed the fixture list covers simple Markdown, YAML frontmatter, GFM task list, GFM table, code fence with language, blockquote, Obsidian callout, wikilink, link/image, HTML, Mermaid, LaTeX, unknown custom syntax, mixed real-world content, sanitized vault-like content, policy-sensitive placeholders, long heading document, and nested lists/todos.
+  - Confirmed each `expectations.md` names preservation, normalization, opaque behavior, source-only behavior, and render expectations.
+  - Confirmed the policy-sensitive fixture uses redacted placeholders and not working credentials.
+- Reviewer/subagent used and result:
+  - Test Reviewer subagent: passed with no blocking findings. Confirmed 18 real fixtures, paired non-empty input/expectation files, required category coverage, README documentation, no obvious secrets/private data, and passing fixture tests. Residual risk noted: secret scanning checks common patterns, not exhaustive PII/provenance.
+- Deviations from PRD:
+  - None. Parser, serializer, round-trip harness, UI, and local file persistence remain out of scope.
+- Open questions:
+  - None.
+- Suggested commit message:
+  - `test: add markdown fixture corpus`
