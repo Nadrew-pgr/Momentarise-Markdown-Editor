@@ -8,6 +8,10 @@ Visible progress is valuable. Fake progress is forbidden.
 
 Each issue must include tests, manual verification when UI/files are involved, reviewer pass, and build log update in `docs/internal/build-log.md`.
 
+The canonical build log path is `docs/internal/build-log.md`. Do not create or update a second build log elsewhere.
+
+For UI issues, visual verification is mandatory: dev server command, local URL, browser/host preview, manual scenario, screenshot or visual artifact under `docs/internal/visual-checks/<issue-id>/`, reviewer/subagent inspection when available, and explicit human-review status.
+
 ## MME-0000 — Repository bootstrap and documentation acceptance
 
 ### Goal
@@ -83,18 +87,33 @@ Create a demo app that:
 ### Acceptance criteria
 
 - Demo runs with one command.
+- Dev server starts with one documented command.
+- Local URL is documented.
 - User can edit Markdown in CodeMirror.
 - `Cmd/Ctrl+S` is detected.
 - `Cmd/Ctrl+Z` works.
+- Redo works with `Cmd/Ctrl+Shift+Z` or platform equivalent.
 - Newlines work.
+- Normal multiline editing works.
+- Selection works.
+- Copy/paste works.
+- Dirty state updates after edits.
 - List continuation works or is documented as a failed acceptance criterion.
-- Dirty state changes after edit.
+- Source editor is CodeMirror 6, not a textarea.
+- CodeMirror is configured with a serious baseline extension setup, not a bare editor shell.
+- Auto-closing pairs for `{}`, `[]`, `()`, quotes, and backticks work if enabled.
+- Missing auto-closing pair behavior is explicitly documented as a follow-up before source mode can be considered production-grade.
 - Download/copy returns current Markdown.
 - No Theia import.
+- Screenshots are captured for initial demo loaded, editor after typing Markdown, dirty state after edit, and `Cmd/Ctrl+S` event/log after save shortcut.
+- Screenshots are stored in `docs/internal/visual-checks/MME-0002/`.
+- Build log links those screenshots.
+- Reviewer checks screenshots or live UI.
+- Human review is requested before considering the first UI slice accepted.
 
 ### Manual verification
 
-Open demo, type headings/lists/code, test undo/redo, test `Cmd/Ctrl+S`, download/copy, verify output.
+Start the dev server, open the documented local URL, capture the initial loaded demo, type headings/lists/code, test newline, selection, copy/paste, undo/redo, test `Cmd/Ctrl+S`, verify dirty state, capture the required screenshots, download/copy, and verify output.
 
 ### Reviewer
 

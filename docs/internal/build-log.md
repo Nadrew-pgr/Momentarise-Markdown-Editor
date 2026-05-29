@@ -145,3 +145,30 @@
   - None.
 - Suggested commit message:
   - `feat: add repo skeleton and core contracts`
+
+## MME-0001 follow-up — UI process gates before MME-0002
+
+- Timestamp: 2026-05-29T09:27:08Z
+- Summary: Added mandatory UI visual verification, canonical build-log path wording, stronger source editor baseline requirements, no-false-done rules, and MME-0002 screenshot/human-review acceptance criteria before starting the first UI slice.
+- Files changed:
+  - `AGENT.md`
+  - `docs/internal/QUALITY_GATES.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/visual-checks/README.md`
+  - `docs/internal/build-log.md`
+- Tests run:
+  - `rg -n "docs/build-log\\.md|docs/internal/build-log\\.md|Visual Verification|UI visual verification|Source editor baseline|visual-checks|No false done|Minimal, not toy|MME-0002" AGENT.md docs/internal/QUALITY_GATES.md docs/internal/ISSUES.md docs/internal/visual-checks/README.md docs/internal/build-log.md`
+  - `find . -name 'init.md' -o -name 'INIT.md'`
+  - `git diff --check`
+- Manual verification:
+  - Confirmed no `init.md` exists in the restarted repository.
+  - Confirmed `AGENT.md`, `QUALITY_GATES.md`, and `ISSUES.md` identify `docs/internal/build-log.md` as the canonical build-log path.
+  - Confirmed MME-0002 now requires dev server command, local URL, browser/host preview, manual UI scenario, screenshots in `docs/internal/visual-checks/MME-0002/`, reviewer UI inspection, and human review request.
+- Reviewer/subagent used and result:
+  - Process/UX Reviewer subagent: passed with no blocking findings. Confirmed canonical build-log path, UI visual verification gate, MME-0002 source editing baseline, no-false-done/no-toy rules, first UI human-review pause, and follow-up build-log entry.
+- Deviations from PRD:
+  - None. This tightens process gates before visible UI work starts.
+- Open questions:
+  - None.
+- Suggested commit message:
+  - `docs: require visual verification for UI slices`

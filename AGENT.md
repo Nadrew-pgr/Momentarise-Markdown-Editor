@@ -121,6 +121,65 @@ A slice is not complete if it only looks implemented. It is complete only when i
 
 Do not satisfy an issue with a toy implementation that passes superficial checks but violates the framework goal. If the issue cannot be tested honestly, stop and ask for clarification.
 
+### No false done
+
+An issue is not done if one of its acceptance criteria is only implied.
+
+Every acceptance criterion must be proven by one of:
+
+- automated test;
+- manual UI check;
+- screenshot or visual artifact;
+- fixture regression;
+- build log evidence;
+- reviewer statement.
+
+Do not mark an issue complete just because it builds.
+
+### Minimal, not toy
+
+Minimal implementation is allowed. Toy implementation is forbidden.
+
+Minimal means narrow scope with serious architecture.
+
+Toy means superficial code that passes shallow checks while compromising the framework.
+
+### UI visual verification
+
+For every issue that creates or changes visible UI, the issue is not complete until the implementation agent has:
+
+1. started the relevant dev server;
+2. recorded the exact command used to start it;
+3. recorded the local URL;
+4. opened the UI in a browser or host preview;
+5. executed the issue's manual UI scenario;
+6. captured at least one screenshot or visual artifact;
+7. saved the screenshot/artifact path in `docs/internal/build-log.md`;
+8. asked a reviewer/subagent to inspect the screenshot or UI behavior when available;
+9. documented whether human review is required.
+
+If browser or screenshot tooling is unavailable, the issue must not be marked visually verified. It must be marked `code-complete, visual verification pending`.
+
+Store UI screenshots and visual verification artifacts under `docs/internal/visual-checks/<issue-id>/`.
+
+Each UI issue must include a short `README.md` in its visual-checks folder or a build-log entry explaining what each screenshot proves.
+
+### Human-facing editor baseline
+
+Any user-facing editor surface must satisfy basic editor expectations before it can be called usable:
+
+- undo/redo;
+- multiline editing;
+- selection;
+- copy/paste;
+- keyboard shortcuts;
+- no accidental data loss;
+- honest save state;
+- no UI reload on save;
+- no silent Markdown rewrite.
+
+After MME-0002, stop for human review before moving to the next UI-heavy issue. The implementation agent may continue only if the human explicitly approves the mini web demo direction.
+
 ## Reviewer protocol
 
 Use reviewer subagents when available. This is a build-process rule, not a product feature.
@@ -136,6 +195,10 @@ Required reviewer roles by issue type:
 Do not rely only on the implementation agent’s own review. If subagents are unavailable, record that in `docs/internal/build-log.md` and label the review as fallback verification.
 
 ## Build log
+
+The canonical build log path is `docs/internal/build-log.md`.
+
+Do not create or update a second build log elsewhere.
 
 Create and maintain `docs/internal/build-log.md`.
 

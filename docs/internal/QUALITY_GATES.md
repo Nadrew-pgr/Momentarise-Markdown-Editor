@@ -29,6 +29,78 @@ Manual tests do not replace automated tests for core behavior. Manual tests are 
 
 Documentation-only and pure repository bootstrap issues are exempt from TDD, but must still document acceptance criteria, file checks, reviewer verification, and build-log results.
 
+For UI issues, define the manual UI scenario before implementation.
+
+For core, parser, serializer, save, and policy issues, automated tests are mandatory.
+
+For visual polish issues, screenshots and manual/reviewer verification are mandatory.
+
+## Gate 0.6 — Canonical build log
+
+The canonical build log path is `docs/internal/build-log.md`.
+
+Do not create or update a second build log elsewhere.
+
+Every issue must append its final report to this file.
+
+## Gate 0.7 — No false done
+
+An issue is not done if one of its acceptance criteria is only implied.
+
+Every acceptance criterion must be proven by one of:
+
+- automated test;
+- manual UI check;
+- screenshot or visual artifact;
+- fixture regression;
+- build log evidence;
+- reviewer statement.
+
+Do not mark an issue complete just because it builds.
+
+## Gate 0.8 — UI visual verification
+
+For every issue that creates or changes visible UI, the issue is not complete until the implementation agent has:
+
+1. started the relevant dev server;
+2. recorded the exact command used to start it;
+3. recorded the local URL;
+4. opened the UI in a browser or host preview;
+5. executed the issue's manual UI scenario;
+6. captured at least one screenshot or visual artifact;
+7. saved the screenshot/artifact path in `docs/internal/build-log.md`;
+8. asked a reviewer/subagent to inspect the screenshot or UI behavior when available;
+9. documented whether human review is required.
+
+If browser or screenshot tooling is unavailable, the issue must not be marked visually verified. It must be marked `code-complete, visual verification pending`.
+
+Store UI screenshots and visual verification artifacts under `docs/internal/visual-checks/<issue-id>/`.
+
+Each UI issue must include a short `README.md` in its visual-checks folder or a build-log entry explaining what each screenshot proves.
+
+### Required UI review levels
+
+Use human review gates for the first major visual slice of each area:
+
+- MME-0002, first mini web demo;
+- MME-0007, source editing baseline;
+- MME-0008 and MME-0009, save/open real file behavior;
+- MME-0011, properties UI;
+- MME-0012, first rich mode;
+- MME-0013, slash menu and toolbar;
+- MME-0015, HTML preview;
+- MME-0017, AI writing UI.
+
+Minor UI-only changes can be reviewer-verified without human review, but only if screenshots are included.
+
+## Gate 0.9 — Minimal, not toy
+
+Minimal implementation is allowed. Toy implementation is forbidden.
+
+Minimal means narrow scope with serious architecture.
+
+Toy means superficial code that passes shallow checks while compromising the framework.
+
 ## Gate 1 — Core independence
 
 No core package may import React, Theia, VS Code, CodeMirror, ProseMirror, Electron, browser-only APIs, or mobile-only APIs.
@@ -70,13 +142,23 @@ Before rich mode, source mode must support:
 - CodeMirror 6;
 - undo/redo;
 - `Cmd/Ctrl+Z`;
+- redo with `Cmd/Ctrl+Shift+Z` or platform equivalent;
 - normal newline behavior;
+- normal multiline editing;
 - list continuation;
 - checkbox continuation;
 - indentation;
 - selection;
+- copy/paste;
+- Markdown text editing;
 - `Cmd/Ctrl+S` hook;
 - dirty state.
+
+MME-0002 must prove that CodeMirror is a real source editor, not a textarea-like demo.
+
+If auto-closing pairs are enabled, `{}`, `[]`, `()`, quotes, and backticks must behave correctly.
+
+If auto-closing pairs are not yet enabled, this must be explicitly documented as a follow-up before source mode can be considered production-grade.
 
 ## Gate 6 — Real file persistence
 
