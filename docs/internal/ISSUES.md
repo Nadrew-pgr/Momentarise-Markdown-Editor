@@ -1,0 +1,525 @@
+# Momentarise Markdown Editor — V0 Issues, Restart Zero
+
+## Principle
+
+Issues must be vertical where possible, but never at the cost of Markdown preservation.
+
+Visible progress is valuable. Fake progress is forbidden.
+
+Each issue must include tests, manual verification when UI/files are involved, reviewer pass, and build log update in `docs/internal/build-log.md`.
+
+## MME-0000 — Repository bootstrap and documentation acceptance
+
+### Goal
+
+Create the repo with docs only and prove that the agent has read the instructions.
+
+### Acceptance criteria
+
+- `README.md` and `AGENT.md` exist at the repository root.
+- `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, and `docs/internal/ISSUES.md` exist.
+- `docs/public/GLOSSARY.md` exists.
+- `docs/internal/build-log.md` exists.
+- Agent outputs a summary of V0 scope, non-goals, first issue, gates, and reviewer plan.
+- No source code yet.
+
+### Reviewer
+
+Architecture Reviewer or fallback self-check.
+
+## MME-0001 — Repo skeleton and core contracts
+
+### Goal
+
+Create monorepo skeleton and host-independent core contracts.
+
+### Scope
+
+Create packages:
+
+- `@momentarise/md-core`
+- `@momentarise/md-format`
+- `@momentarise/md-adapter-web`
+- `@momentarise/md-cli`
+
+Define types for documents, paths, dialects, nodes, opaque nodes, source ranges, snapshots, revisions, hashes, parse/serialize results, round-trip results, editor modes, save states, policies, sidecar state.
+
+### Acceptance criteria
+
+- Packages compile.
+- Public entrypoints export types.
+- Core imports no host/editor UI libraries.
+- `OpaqueNode` can store unknown source text and source range.
+- `DocumentSnapshot` includes content, hash, path, dialect, optional frontmatter.
+- `PolicyCapability` includes exists, metadata, read, index, write, execute, share, export.
+- Build log updated.
+
+### Out of scope
+
+Parser, serializer, UI, CodeMirror, Theia, AI.
+
+### Reviewer
+
+Architecture Reviewer.
+
+## MME-0002 — Source-first mini web demo with CodeMirror
+
+### Goal
+
+Show the first visible surface immediately: a mini web demo with CodeMirror 6 editing Markdown.
+
+### Scope
+
+Create a demo app that:
+
+- renders CodeMirror 6;
+- loads a built-in Markdown fixture;
+- shows document name/path;
+- tracks dirty/clean in memory;
+- captures `Cmd/Ctrl+S`;
+- supports copy/download current Markdown;
+- does not depend on Theia, VS Code, ProseMirror, or AI.
+
+### Acceptance criteria
+
+- Demo runs with one command.
+- User can edit Markdown in CodeMirror.
+- `Cmd/Ctrl+S` is detected.
+- `Cmd/Ctrl+Z` works.
+- Newlines work.
+- List continuation works or is documented as a failed acceptance criterion.
+- Dirty state changes after edit.
+- Download/copy returns current Markdown.
+- No Theia import.
+
+### Manual verification
+
+Open demo, type headings/lists/code, test undo/redo, test `Cmd/Ctrl+S`, download/copy, verify output.
+
+### Reviewer
+
+UX Reviewer.
+
+## MME-0003 — Fixture corpus and expectations
+
+### Goal
+
+Create test fixtures before parser/serializer work.
+
+### Scope
+
+Create at least 18 fixtures:
+
+1. simple Markdown;
+2. YAML frontmatter;
+3. GFM task list;
+4. GFM table;
+5. code fence with language;
+6. blockquote;
+7. Obsidian-style callout;
+8. wikilink;
+9. Markdown link/image;
+10. HTML inline/block;
+11. Mermaid fenced block;
+12. LaTeX inline/block;
+13. unknown custom syntax;
+14. mixed real-world document;
+15. sanitized vault sample;
+16. policy-sensitive file;
+17. long heading document for folding;
+18. nested lists/todos.
+
+Each fixture has `input.md` and `expectations.md`.
+
+### Acceptance criteria
+
+- No secrets/private data.
+- Each expectation describes what must be preserved, normalized, opaque, source-only, or rendered.
+- Fixtures documented in `fixtures/README.md`.
+
+### Reviewer
+
+Test Reviewer.
+
+## MME-0004 — Round-trip harness and demo status
+
+### Goal
+
+Create parse → model → serialize test harness and expose status in demo.
+
+### Scope
+
+Implement test command to load fixtures, parse, serialize, compare, and report diffs.
+
+Modes:
+
+- strict;
+- semantic;
+- opaque preservation.
+
+Demo shows current fixture, parser status, serializer status, diagnostics.
+
+### Acceptance criteria
+
+- `test:roundtrip` command exists.
+- At least 10 fixtures pass in expected mode.
+- Failures show readable diffs.
+- Unknown syntax fixture proves opaque preservation.
+- Frontmatter fixture proves frontmatter survives.
+- HTML fixture proves HTML survives if untouched.
+- Demo shows pass/fail status.
+
+### Reviewer
+
+Test Reviewer.
+
+## MME-0005 — Real Markdown AST parser foundation
+
+### Goal
+
+Implement parser using a real Markdown AST foundation.
+
+### Scope
+
+Use micromark, remark/unified/mdast, or documented equivalent.
+
+Map third-party AST to Momentarise internal model. Do not expose third-party AST types from public core.
+
+Handle frontmatter, V0 nodes, opaque nodes, source ranges where feasible, diagnostics.
+
+### Acceptance criteria
+
+- No long-term handwritten parser.
+- Parser handles all fixtures without throwing.
+- YAML frontmatter extracted.
+- Unsupported syntax becomes opaque/raw, not dropped.
+- Diagnostics recorded.
+- Parser result independent of ProseMirror/CodeMirror.
+- Demo displays frontmatter/diagnostics.
+
+### Reviewer
+
+Architecture Reviewer and Test Reviewer.
+
+## MME-0006 — Serializer with opaque preservation and edited-range tests
+
+### Goal
+
+Serialize Momentarise model back to Markdown with preservation.
+
+### Scope
+
+Implement serializer for known V0 nodes and opaque nodes.
+
+Add tests for edited-range behavior:
+
+- edit heading;
+- edit paragraph;
+- edit list item;
+- edit code fence content;
+- edit code fence language;
+- preserve unrelated ranges.
+
+### Acceptance criteria
+
+- Fixtures pass expected modes.
+- Unknown syntax preserved.
+- Frontmatter preserved.
+- Code fences preserved.
+- Tables preserved even source-only.
+- HTML preserved even source-only.
+- Edited one-node tests preserve unrelated file regions as closely as feasible.
+- Serializer reports diagnostics/normalizations.
+
+### Reviewer
+
+Test Reviewer.
+
+## MME-0007 — Source editing UX baseline
+
+### Goal
+
+Make source mode feel like a real editor, not a demo.
+
+### Scope
+
+Enable/configure CodeMirror behavior:
+
+- undo/redo;
+- `Cmd/Ctrl+Z`;
+- redo shortcut;
+- auto-closing pairs where appropriate;
+- quotes/backticks behavior;
+- list continuation;
+- checkbox continuation;
+- indentation;
+- markdown-friendly keyboard handling;
+- selection/cursor preservation across non-destructive UI updates.
+
+### Acceptance criteria
+
+- Manual QA proves undo/redo works.
+- Bracket/quote/backtick behavior works or is explicitly documented with reason.
+- Enter inside list continues list.
+- Enter inside checkbox continues checkbox.
+- Code fence editing is comfortable in source mode.
+- No regression in round-trip tests.
+
+### Reviewer
+
+UX Reviewer.
+
+## MME-0008 — Save Engine and truthful persistence
+
+### Goal
+
+Implement Save Engine and prevent fake saved states.
+
+### Scope
+
+Track hashes, dirty/saving/saved/conflict/error, write queue, autosave, `Cmd/Ctrl+S`, tab-switch flush, close guard, conflict detection.
+
+Add persistence target labels:
+
+- disk;
+- memory only;
+- download required;
+- unsupported;
+- conflict;
+- error.
+
+### Acceptance criteria
+
+- Editing marks dirty.
+- `Cmd/Ctrl+S` flushes.
+- Autosave works after delay.
+- UI never says just `saved` if no real target was persisted.
+- Demo distinguishes fixture, imported copy, real writable file, download-only.
+- External modification simulation produces conflict.
+- No silent overwrite.
+
+### Manual verification
+
+Open a real `.md` where supported, edit, save, close page, reopen file outside demo, verify disk content changed.
+
+### Reviewer
+
+UX Reviewer and Test Reviewer.
+
+## MME-0009 — Local file open/save in mini web demo
+
+### Goal
+
+Use the mini web demo on actual local Markdown files when browser APIs allow.
+
+### Scope
+
+Implement File System Access API path where supported. Provide fallback import/download mode.
+
+### Acceptance criteria
+
+- User can open a local `.md` file in supported browsers.
+- Save writes to original file when writable.
+- Fallback mode never pretends to write original file.
+- File mode/status is visible.
+- Manual QA documented.
+
+### Reviewer
+
+UX Reviewer.
+
+## MME-0010 — CLI V0 for developers and coding agents
+
+### Goal
+
+Provide CLI entrypoints for setup, validation, fixtures, and inspection.
+
+### Scope
+
+Implement `mme` CLI with:
+
+- `mme init`;
+- `mme check`;
+- `mme test:fixtures`;
+- `mme inspect <file>`;
+- `mme format <file>` dry-run;
+- `mme format <file> --write` explicit write;
+- `mme create-fixture <name>`.
+
+### Acceptance criteria
+
+- CLI runs without Theia.
+- `mme test:fixtures` invokes round-trip tests.
+- `mme inspect` reports frontmatter, dialect, diagnostics, opaque nodes.
+- `mme format` dry-run never writes.
+- `--write` is explicit.
+- README includes CLI quickstart.
+
+### Reviewer
+
+DX Reviewer.
+
+## MME-0011 — Properties UI basics
+
+### Goal
+
+Expose YAML frontmatter as properties in the mini demo.
+
+### Scope
+
+Visible/hidden/source modes.
+
+### Acceptance criteria
+
+- Frontmatter fixture displays properties.
+- User can hide/show properties.
+- Source mode still shows raw YAML.
+- Round-trip preserves frontmatter.
+
+### Reviewer
+
+UX Reviewer.
+
+## MME-0012 — Rich mode ProseMirror spike
+
+### Goal
+
+Prototype rich mode after parser/save/source gates pass.
+
+### Scope
+
+Support V0 subset: paragraph, headings, emphasis, strong, inline code, lists, todos, blockquote, links, images, horizontal rule, code fence basic, callout simple if feasible, raw fallback.
+
+### Acceptance criteria
+
+- User can switch source/rich.
+- Enter/newline works.
+- Undo/redo works.
+- Editing heading/paragraph serializes correctly.
+- Code fence content editable.
+- Source/rich switching preserves content.
+- Unsupported blocks are safe.
+
+### Reviewer
+
+Architecture Reviewer, UX Reviewer, Test Reviewer.
+
+## MME-0013 — Slash menu and toolbar V0
+
+### Goal
+
+Add first command UI.
+
+### Scope
+
+Slash menu with fuzzy aliases and toolbar actions.
+
+Commands: paragraph, h1/h2/h3, todo, bullet list, quote, code block, callout, image, divider.
+
+Toolbar: heading, bold, italic, list, todo, quote, code, callout, link, image, source/rich/preview, more menu.
+
+### Acceptance criteria
+
+- `/h1`, `/H1`, `/heading` all find heading.
+- Commands insert/transform supported blocks.
+- Toolbar actions affect current selection/block.
+- Markdown output remains valid.
+
+### Reviewer
+
+UX Reviewer.
+
+## MME-0014 — Folding UI and toggle block distinction
+
+### Goal
+
+Implement or specify folding behavior without mutating Markdown.
+
+### Scope
+
+Folding for headings/code/callouts if feasible. Toggle block emitted only when explicitly inserted.
+
+### Acceptance criteria
+
+- Folding state does not change Markdown.
+- Toggle block emits `<details><summary>...</summary>...</details>` only by explicit command.
+- Sidecar/session location documented.
+
+### Reviewer
+
+UX Reviewer.
+
+## MME-0015 — HTML File Reader and sandbox preview
+
+### Goal
+
+Support `.html` files as source + sandboxed preview.
+
+### Acceptance criteria
+
+- HTML source opens.
+- Preview sandboxed.
+- Scripts disabled by default.
+- Script fixture proves scripts do not run.
+- UI marks HTML as artifact/preview.
+
+### Reviewer
+
+Security Reviewer.
+
+## MME-0016 — Document Access Policy V0
+
+### Goal
+
+Implement policy resolver and minimal enforcement.
+
+### Acceptance criteria
+
+- Effective policy resolves from defaults, document properties, hard deny.
+- `.env` fixture denied.
+- Read allowed but share denied case works.
+- Denied action returns reason and audit record.
+
+### Reviewer
+
+Security Reviewer.
+
+## MME-0017 — AI writing BYOK V0
+
+### Goal
+
+Add document-local AI writing assistance.
+
+### Scope
+
+Completion, rewrite selection, improve, summarize, title generation, insert block from prompt.
+
+### Acceptance criteria
+
+- BYOK key/session endpoint works in demo.
+- Key not logged.
+- Policy checked before sending content.
+- Suggestions are accepted/rejected, not silently applied.
+- Mock provider available for tests.
+
+### Reviewer
+
+Security Reviewer and UX Reviewer.
+
+## MME-0018 — Theia adapter alpha
+
+### Goal
+
+Integrate the same core into Theia.
+
+### Acceptance criteria
+
+- Theia adapter uses same core packages.
+- Opening `.md` works.
+- Source mode works.
+- Saving works.
+- No duplicated parser/serializer logic.
+
+### Reviewer
+
+Architecture Reviewer.
