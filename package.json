@@ -9,9 +9,9 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "tsc -b packages/md-core packages/md-format packages/md-save packages/md-policy packages/md-source-codemirror packages/md-adapter-web packages/md-cli",
+    "build": "tsc -b packages/md-core packages/md-format packages/md-save packages/md-policy packages/md-rich-prosemirror packages/md-source-codemirror packages/md-adapter-web packages/md-cli",
     "build:demo": "npm run build -w @momentarise/md-demo",
-    "test": "npm run test:contracts && npm run test:architecture && npm run test:alignment && npm run test:demo-baseline && npm run test:fixtures && npm run test:roundtrip && npm run test:parser && npm run test:serializer && npm run test:source-ux && npm run test:source-codemirror && npm run test:visual-portability && npm run test:properties-ui && npm run test:policy && npm run test:save-engine && npm run test:web-file-access && npm run test:cli && npm run build && npm run build:demo",
+    "test": "npm run test:contracts && npm run test:architecture && npm run test:alignment && npm run test:demo-baseline && npm run test:fixtures && npm run test:roundtrip && npm run test:parser && npm run test:serializer && npm run test:source-ux && npm run test:source-codemirror && npm run test:rich-prosemirror && npm run test:demo-rich && npm run test:visual-portability && npm run test:properties-ui && npm run test:policy && npm run test:save-engine && npm run test:web-file-access && npm run test:cli && npm run build && npm run build:demo",
     "test:alignment": "node tests/alignment-gate.test.mjs",
     "test:architecture": "node tests/no-host-imports.mjs",
     "test:contracts": "tsc -p tsconfig.tests.json --noEmit",
@@ -24,6 +24,8 @@
     "test:serializer": "npm run build && node tests/serializer-edited-range.test.mjs",
     "test:save-engine": "npm run build && node tests/save-engine.test.mjs",
     "test:source-codemirror": "npm run build && node tests/source-codemirror-package.test.mjs",
+    "test:rich-prosemirror": "npm run build && node tests/rich-prosemirror-package.test.mjs",
+    "test:demo-rich": "node tests/demo-rich-mode-baseline.test.mjs",
     "test:visual-portability": "node tests/visual-chrome-portability.test.mjs",
     "test:web-file-access": "npm run build && node tests/web-file-access.test.mjs",
     "test:cli": "npm run build && node tests/cli-v0.test.mjs",
@@ -34,7 +36,8 @@
     "visual:mme-0007": "node scripts/visual-check-mme0007.mjs",
     "visual:mme-0008": "node scripts/visual-check-mme0008.mjs",
     "visual:mme-0009": "node scripts/visual-check-mme0009.mjs",
-    "visual:mme-0011": "node scripts/visual-check-mme0011.mjs"
+    "visual:mme-0011": "node scripts/visual-check-mme0011.mjs",
+    "visual:mme-0012": "node scripts/visual-check-mme0012.mjs"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

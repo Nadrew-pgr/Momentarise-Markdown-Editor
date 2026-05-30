@@ -119,6 +119,7 @@ type MdastLikeNode = {
   readonly url?: string;
   readonly title?: string | null;
   readonly alt?: string | null;
+  readonly start?: number | null;
 };
 
 export function createMarkdownAstParser(): MarkdownParser {
@@ -543,6 +544,9 @@ function attributesForMdastNode(node: MdastLikeNode): NodeAttributes | null {
   }
   if (node.type === "list" && typeof node.ordered === "boolean") {
     attributes.ordered = node.ordered;
+    if (typeof node.start === "number") {
+      attributes.start = node.start;
+    }
   }
   if (node.type === "listItem" && typeof node.checked === "boolean") {
     attributes.checked = node.checked;

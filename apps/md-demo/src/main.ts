@@ -1,5 +1,5 @@
 import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import { EditorView as CodeMirrorEditorView } from "@codemirror/view";
 import {
   createMarkdownAstFormatter,
   roundTripMarkdown,
@@ -27,7 +27,14 @@ import {
   type WebOpenedMarkdownFile,
   type WebOpenedMarkdownMode
 } from "@momentarise/md-adapter-web";
+import {
+  createRichMarkdownState,
+  serializeRichMarkdownState,
+  type RichMarkdownState
+} from "@momentarise/md-rich-prosemirror";
 import { createMomentariseSourceExtensions } from "@momentarise/md-source-codemirror";
+import { TextSelection } from "prosemirror-state";
+import { EditorView as ProseMirrorEditorView } from "prosemirror-view";
 import "./styles.css";
 
 const fixtureMarkdown = `---
@@ -55,7 +62,7 @@ app.innerHTML = `
     <header class="topbar">
       <div>
         <p class="eyebrow">Momentarise Markdown Editor</p>
-        <h1>Source demo</h1>
+        <h1>Markdown editor demo</h1>
       </div>
       <div class="topbar-actions" aria-label="Document actions">
         <button class="button secondary" type="button" data-testid="open-local-file-button">Open .md</button>
@@ -75,7 +82,12 @@ app.innerHTML = `
           <span data-testid="document-path">fixture://source-mode-fixture.md</span>
           <span class="target-label" data-testid="persistence-target">memory only, not persisted</span>
         </div>
+        <div class="mode-switch" role="group" aria-label="Editor mode">
+          <button class="mode-button" type="button" data-testid="source-mode-button">Source</button>
+          <button class="mode-button" type="button" data-testid="rich-mode-button">Rich</button>
+        </div>
         <div class="editor-host" data-editor-host data-testid="editor-host"></div>
+        <div class="rich-editor-host" data-testid="rich-editor-host" hidden></div>
       </div>
 
       <aside class="inspector" aria-label="Document status">
@@ -115,8 +127,8 @@ app.innerHTML = `
           </div>
         </section>
         <section class="status-block">
-          <p class="label">Source editor</p>
-          <p class="status-value">CodeMirror 6</p>
+          <p class="label">Editor surface</p>
+          <p class="status-value" data-testid="editor-surface-state">CodeMirror source mode</p>
         </section>
         <section class="status-block">
           <p class="label">Round-trip</p>
@@ -154,6 +166,9 @@ app.innerHTML = `
 `;
 
 const editorHost = queryRequired<HTMLDivElement>("[data-editor-host]");
+const richEditorHost = queryRequired<HTMLDivElement>('[data-testid="rich-editor-host"]');
+const sourceModeButton = queryRequired<HTMLButtonElement>('[data-testid="source-mode-button"]');
+const richModeButton = queryRequired<HTMLButtonElement>('[data-testid="rich-mode-button"]');
 const openLocalFileButton = queryRequired<HTMLButtonElement>('[data-testid="open-local-file-button"]');
 const importCopyButton = queryRequired<HTMLButtonElement>('[data-testid="import-copy-button"]');
 const importCopyInput = queryRequired<HTMLInputElement>('[data-testid="import-copy-input"]');
@@ -186,11 +201,13 @@ const propertiesModeVisibleButton = queryRequired<HTMLButtonElement>('[data-test
 const propertiesModeHiddenButton = queryRequired<HTMLButtonElement>('[data-testid="properties-mode-hidden"]');
 const propertiesModeSourceButton = queryRequired<HTMLButtonElement>('[data-testid="properties-mode-source"]');
 const diagnosticsElement = queryRequired<HTMLOListElement>('[data-testid="roundtrip-diagnostics"]');
+const editorSurfaceStateElement = queryRequired<HTMLElement>('[data-testid="editor-surface-state"]');
 
 let eventCounter = 0;
 let lastCopiedMarkdown: string | null = null;
 const markdownAstFormatter = createMarkdownAstFormatter();
 type DemoDocumentMode = "fixture" | WebOpenedMarkdownMode;
+type DemoEditorMode = "source" | "rich";
 type PropertiesDisplayMode = "visible" | "hidden" | "source";
 
 interface ActiveDemoDocument {
@@ -219,10 +236,17 @@ let activeDocument: ActiveDemoDocument = {
   simulateExternalChange: fixtureSaveTarget.simulateExternalChange
 };
 let lastSaveAction = "loaded fixture";
+let editorMode: DemoEditorMode = "source";
 let propertiesDisplayMode: PropertiesDisplayMode = "visible";
 let autosaveTimer: number | undefined;
+let richState: RichMarkdownState = createRichMarkdownState(fixtureMarkdown, {
+  dialect: "momentarise-enhanced"
+});
+let richEditor: ProseMirrorEditorView | null = null;
+let richBaselineMarkdown = fixtureMarkdown;
+let richChanged = false;
 
-const editor = new EditorView({
+const editor = new CodeMirrorEditorView({
   parent: editorHost,
   state: EditorState.create({
     doc: fixtureMarkdown,
@@ -233,8 +257,8 @@ const editor = new EditorView({
           return true;
         }
       }),
-      EditorView.updateListener.of((update) => {
-        if (update.docChanged) {
+      CodeMirrorEditorView.updateListener.of((update) => {
+        if (update.docChanged && editorMode === "source") {
           saveEngine.updateContent(getMarkdown());
           renderSaveState();
           scheduleAutosave();
@@ -243,6 +267,16 @@ const editor = new EditorView({
       }),
     ]
   })
+});
+
+renderEditorMode();
+
+sourceModeButton.addEventListener("click", () => {
+  switchEditorMode("source");
+});
+
+richModeButton.addEventListener("click", () => {
+  switchEditorMode("rich");
 });
 
 openLocalFileButton.addEventListener("click", () => {
@@ -310,6 +344,12 @@ updateRoundTripStatus();
 window.__MME_DEMO_VISUAL_CHECK__ = {
   editor,
   getMarkdown,
+  getEditorMode() {
+    return editorMode;
+  },
+  getRichText() {
+    return richEditor?.state.doc.textContent ?? "";
+  },
   getLastCopiedMarkdown() {
     return lastCopiedMarkdown;
   },
@@ -411,6 +451,12 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
         head
       }
     });
+  },
+  setRichSelectionAfterText(text: string) {
+    setRichSelectionAfterText(text);
+  },
+  switchEditorMode(mode: DemoEditorMode) {
+    switchEditorMode(mode);
   }
 };
 
@@ -504,6 +550,9 @@ function loadOpenedMarkdownFile(
   lastCopiedMarkdown = null;
   lastSaveAction = `opened ${documentModeLabel(opened.mode)} document`;
   replaceEditorDocument(opened.content);
+  if (editorMode === "rich") {
+    mountRichEditor(opened.content);
+  }
   logEvent(`Opened ${opened.fileName} as ${documentModeLabel(opened.mode)} via ${options.sourceLabel ?? "document loader"}.`);
   renderSaveState();
   updateRoundTripStatus();
@@ -520,6 +569,102 @@ function replaceEditorDocument(content: string): void {
       anchor: 0
     }
   });
+}
+
+function switchEditorMode(mode: DemoEditorMode): void {
+  if (editorMode === mode) {
+    return;
+  }
+
+  if (mode === "rich") {
+    mountRichEditor(editor.state.doc.toString());
+    editorMode = "rich";
+    logEvent("Switched to ProseMirror rich mode.");
+  } else {
+    if (richChanged) {
+      syncRichMarkdownToSource("mode switch");
+    } else {
+      replaceEditorDocument(richBaselineMarkdown);
+    }
+    editorMode = "source";
+    editor.focus();
+    logEvent("Switched to CodeMirror source mode.");
+  }
+
+  renderEditorMode();
+  renderSaveState();
+  updateRoundTripStatus();
+}
+
+function renderEditorMode(): void {
+  editorHost.hidden = editorMode !== "source";
+  richEditorHost.hidden = editorMode !== "rich";
+  sourceModeButton.setAttribute("aria-pressed", String(editorMode === "source"));
+  richModeButton.setAttribute("aria-pressed", String(editorMode === "rich"));
+  editorSurfaceStateElement.textContent = editorMode === "rich" ? "ProseMirror rich mode" : "CodeMirror source mode";
+}
+
+function mountRichEditor(markdown: string): void {
+  richEditor?.destroy();
+  richEditorHost.replaceChildren();
+  richState = createRichMarkdownState(markdown, {
+    dialect: "momentarise-enhanced"
+  });
+  richBaselineMarkdown = markdown;
+  richChanged = false;
+  richEditor = new ProseMirrorEditorView(richEditorHost, {
+    state: richState.editorState,
+    dispatchTransaction(transaction) {
+      if (!richEditor) {
+        return;
+      }
+      const editorState = richEditor.state.apply(transaction);
+      richEditor.updateState(editorState);
+      richState = {
+        ...richState,
+        editorState
+      };
+      if (transaction.docChanged) {
+        richChanged = true;
+        syncRichMarkdownToSource("rich edit");
+      }
+    }
+  });
+}
+
+function syncRichMarkdownToSource(source: "rich edit" | "mode switch"): void {
+  const markdown = serializeRichMarkdownState(richState).content;
+  replaceEditorDocument(markdown);
+  saveEngine.updateContent(markdown);
+  renderSaveState();
+  scheduleAutosave();
+  updateRoundTripStatus();
+  if (source === "mode switch") {
+    logEvent("Serialized rich mode back to Markdown source.");
+  }
+}
+
+function setRichSelectionAfterText(text: string): void {
+  if (!richEditor) {
+    throw new Error("Rich editor is not mounted.");
+  }
+  let position: number | null = null;
+  richEditor.state.doc.descendants((node, offset) => {
+    if (!node.isText || typeof node.text !== "string") {
+      return true;
+    }
+    const index = node.text.indexOf(text);
+    if (index < 0) {
+      return true;
+    }
+    position = offset + index + text.length;
+    return false;
+  });
+  if (position === null) {
+    throw new Error(`Cannot set rich selection after missing text: ${text}`);
+  }
+  richEditor.focus();
+  richEditor.dispatch(richEditor.state.tr.setSelection(TextSelection.create(richEditor.state.doc, position)));
 }
 
 async function copyMarkdown(): Promise<void> {
@@ -549,6 +694,17 @@ function downloadMarkdown(): void {
 }
 
 function memorySave(source: "button" | "keyboard shortcut"): void {
+  const state = saveEngine.getState();
+  if (state.target === "download-required" || activeDocument.mode === "imported-copy") {
+    downloadMarkdown();
+    return;
+  }
+  if (state.target === "unsupported" || activeDocument.mode === "unsupported") {
+    lastSaveAction = `${source} cannot save unsupported local-file access; use Download or Import copy`;
+    logEvent("Save unavailable for unsupported local-file access. Use Download or Import copy.");
+    renderSaveState();
+    return;
+  }
   void flushSave("manual", source);
 }
 
@@ -635,6 +791,18 @@ function renderSaveState(): void {
   saveEngineLastSavedHashElement.textContent = state.lastSavedHash ? shortHash(state.lastSavedHash) : "none";
   saveEngineExternalHashElement.textContent = state.externalHash ? shortHash(state.externalHash) : "none";
   saveEngineLastActionElement.textContent = lastSaveAction;
+  memorySaveButton.textContent = primaryActionLabel(state);
+  memorySaveButton.disabled = state.target === "unsupported";
+}
+
+function primaryActionLabel(state: SaveState): string {
+  if (activeDocument.mode === "imported-copy" || state.target === "download-required") {
+    return "Download";
+  }
+  if (activeDocument.mode === "unsupported" || state.target === "unsupported") {
+    return "Save unavailable";
+  }
+  return "Save";
 }
 
 function dirtyStateLabel(state: SaveState): string {
@@ -882,6 +1050,9 @@ function extractFrontmatterSource(markdownText: string): string {
 }
 
 function getMarkdown(): string {
+  if (editorMode === "rich") {
+    return serializeRichMarkdownState(richState).content;
+  }
   return editor.state.doc.toString();
 }
 
@@ -903,7 +1074,7 @@ function queryRequired<T extends Element>(selector: string): T {
 declare global {
   interface Window {
     __MME_DEMO_VISUAL_CHECK__: {
-      editor: EditorView;
+      editor: CodeMirrorEditorView;
       flushSave: (reason: SaveFlushReason) => Promise<void>;
       forceStatusRefresh: () => void;
       getActiveDocument: () => {
@@ -911,6 +1082,7 @@ declare global {
         readonly mode: DemoDocumentMode;
         readonly pathLabel: string;
       };
+      getEditorMode: () => DemoEditorMode;
       getLastCopiedMarkdown: () => string | null;
       getMarkdown: () => string;
       getPropertiesState: () => {
@@ -921,6 +1093,7 @@ declare global {
         readonly sourceHidden: boolean;
       };
       getSaveState: () => SaveState;
+      getRichText: () => string;
       getSelectionRange: () => {
         readonly anchor: number;
         readonly from: number;
@@ -935,7 +1108,9 @@ declare global {
       simulateExternalConflict: () => void;
       setCursorAfterText: (text: string) => void;
       setCursorToEnd: () => void;
+      setRichSelectionAfterText: (text: string) => void;
       setSelection: (anchor: number, head: number) => void;
+      switchEditorMode: (mode: DemoEditorMode) => void;
     };
   }
 }

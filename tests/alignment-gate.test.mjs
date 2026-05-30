@@ -9,6 +9,7 @@ const expectedBuildPackages = [
   "packages/md-format",
   "packages/md-save",
   "packages/md-policy",
+  "packages/md-rich-prosemirror",
   "packages/md-source-codemirror",
   "packages/md-adapter-web",
   "packages/md-cli"

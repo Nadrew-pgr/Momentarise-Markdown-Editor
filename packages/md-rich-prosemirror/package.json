@@ -1,0 +1,30 @@
+{
+  "name": "@momentarise/md-rich-prosemirror",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "ProseMirror rich-mode bridge for Momentarise Markdown Editor.",
+  "sideEffects": false,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@momentarise/md-core": "0.0.0",
+    "@momentarise/md-format": "0.0.0",
+    "prosemirror-commands": "^1.7.1",
+    "prosemirror-history": "^1.5.0",
+    "prosemirror-keymap": "^1.2.3",
+    "prosemirror-model": "^1.25.4",
+    "prosemirror-state": "^1.4.4"
+  }
+}

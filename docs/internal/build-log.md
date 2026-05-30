@@ -1129,3 +1129,72 @@
   - Whether default-editor registration belongs in MME-0019 or a later adapter-specific issue can be decided when adapter work starts.
 - Suggested commit message:
   - `docs: note default markdown editor adapters`
+
+## MME-0012 — Rich mode ProseMirror spike
+
+- Timestamp: 2026-05-30T21:03:08Z
+- Summary: Added the first ProseMirror rich-mode bridge and demo switcher after the pre-rich alignment gate. The slice is code-complete and requires human review before MME-0013.
+- Files changed:
+  - `packages/md-rich-prosemirror/*`
+  - `apps/md-demo/src/main.ts`
+  - `apps/md-demo/src/styles.css`
+  - `apps/md-demo/package.json`
+  - `apps/md-demo/tsconfig.json`
+  - `package.json`
+  - `package-lock.json`
+  - `tsconfig.json`
+  - `tsconfig.base.json`
+  - `packages/md-format/src/index.ts`
+  - `tests/rich-prosemirror-package.test.mjs`
+  - `tests/demo-rich-mode-baseline.test.mjs`
+  - `tests/type-contracts.test.ts`
+  - `tests/alignment-gate.test.mjs`
+  - `scripts/visual-check-mme0012.mjs`
+  - `docs/internal/visual-checks/MME-0012/*`
+  - `README.md`
+- Behavior to prove before implementation:
+  - Source and rich modes can switch without corrupting Markdown.
+  - Rich edits to headings, paragraphs, Enter-created paragraphs, and code fence content serialize back to Markdown.
+  - Undo/redo works in rich mode.
+  - Frontmatter and real unsupported extension syntax survive rich round-trip without duplication.
+  - Imported-copy state uses an honest `Download` primary action instead of a misleading `Save`.
+- Test-first evidence:
+  - Added failing rich package assertions for task checkbox preservation, ordered-list start preservation, code fence meta preservation, and real unsupported extension syntax appearing exactly once.
+  - Added package-boundary assertions for `@momentarise/md-rich-prosemirror` metadata.
+  - Extended MME-0012 visual script to require selected Source/Rich state, `Download` as imported-copy primary action, and no unsupported-syntax duplication.
+- Tests/checks run:
+  - `npm run test:rich-prosemirror`
+  - `npm run test:demo-rich`
+  - `npm run test:parser`
+  - `npm run test:architecture`
+  - `npm run build:demo`
+  - `npm test`
+  - `git diff --check`
+  - `npm run visual:mme-0012`
+- Manual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174 --strictPort`
+  - Local URL: `http://127.0.0.1:5174/`
+  - The server was intentionally left running on `5174`.
+  - The visual command had to run with GUI/headless permission because sandboxed Chrome exited before CDP became available.
+  - In-app browser automation could not reload `localhost:5174` and reported `net::ERR_ABORTED`; escalated local `curl` and the headless visual run confirmed the dev server is serving the current MME-0012 bundle.
+- Visual artifacts:
+  - `docs/internal/visual-checks/MME-0012/rich-mode-loaded.png`
+  - `docs/internal/visual-checks/MME-0012/rich-heading-paragraph-edited.png`
+  - `docs/internal/visual-checks/MME-0012/rich-code-fence-edited.png`
+  - `docs/internal/visual-checks/MME-0012/source-after-rich-roundtrip.png`
+- Reviewer/subagent used and result:
+  - Architecture Reviewer: no P0; P1 found rich serialization normalizing unedited source and package metadata mismatch. Fixed package metadata, ordered-list start, code fence meta, task checkbox markers, and unsupported duplicate handling. Full untouched-source preservation remains a known follow-up for the rich serializer.
+  - Test/Preservation Reviewer: no P0; P1 found opaque duplication and task marker loss. Fixed and added regression tests.
+  - UX Reviewer: no P0; P1 found imported-copy primary action still said `Save`. Fixed to show/use `Download` for download-required targets and added visual assertion.
+  - Additional reviewer: confirmed real unsupported syntax was not covered by the earlier `%%` fixture. Fixed the fixture to use `:::momentarise-card`.
+- Visual impact:
+  - Editing surface: a Source/Rich segmented switch now appears above the editor. Rich mode renders a ProseMirror editing surface for heading, paragraph, code fence, and unsupported raw blocks. Switching back to Source shows the serialized Markdown in CodeMirror.
+  - General UI: the page title changed from `Source demo` to `Markdown editor demo`; the inspector now labels the active editor surface as `CodeMirror source mode` or `ProseMirror rich mode`; imported-copy documents show `Download` as the primary action instead of `Save`.
+  - Save workflow: no new disk persistence behavior. Writable-file save remains adapter/Save Engine owned; imported-copy rich documents still require download/export.
+- Deviations from PRD:
+  - Rich serialization is still a V0 spike, not the final preservation serializer. It now preserves the tested task/order/code-meta/opaque cases, but broad source-range preservation for every untouched construct remains future work.
+  - Vite still warns that the demo bundle is over 500 kB after adding ProseMirror. This is accepted for the mini demo and should be revisited before production packaging.
+- Human review status:
+  - `code-complete/pending human review`. Required before starting MME-0013.
+- Suggested commit message:
+  - `feat: add rich mode prosemirror spike`

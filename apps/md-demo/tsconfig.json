@@ -14,6 +14,9 @@
       "path": "../../packages/md-format"
     },
     {
+      "path": "../../packages/md-rich-prosemirror"
+    },
+    {
       "path": "../../packages/md-adapter-web"
     },
     {

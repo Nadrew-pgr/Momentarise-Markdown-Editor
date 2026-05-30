@@ -23,6 +23,10 @@ Completed slices:
 - MME-0011: Properties UI basics in the mini web demo, code-complete with human review status tracked in the build log.
 - MME-0011.5: Alignment gate before rich mode, resolving policy/source-package/parser/status drift before `MME-0012`.
 
+Current slice:
+
+- MME-0012: Rich mode ProseMirror spike is code-complete and pending required human review before `MME-0013`.
+
 See `docs/internal/build-log.md` for the latest completed issue and current progress.
 
 Momentarise Markdown Editor is separate from Momentarise Workbench. The framework handles Markdown documents, source/rich editing, preservation, save behavior, adapters, HTML previews, and AI writing assistance. It does not implement SaaS, Mission Control, calendar, RAG, long-running agents, subagents, or the full Momentarise harness in V0.
