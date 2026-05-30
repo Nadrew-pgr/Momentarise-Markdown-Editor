@@ -15,9 +15,20 @@ import {
   createMemorySaveTarget,
   createSaveEngine,
   persistenceTargetLabel,
+  type SaveEngine,
   type SaveFlushReason,
-  type SaveState
+  type SaveState,
+  type SaveTarget
 } from "@momentarise/md-save";
+import {
+  canUseFileSystemAccess,
+  createImportedCopyDocument,
+  createWritableFileSaveTarget,
+  openWritableMarkdownFile,
+  type WebFileHandleLike,
+  type WebOpenedMarkdownFile,
+  type WebOpenedMarkdownMode
+} from "@momentarise/md-adapter-web";
 import { basicSetup } from "codemirror";
 import "./styles.css";
 
@@ -49,10 +60,13 @@ app.innerHTML = `
         <h1>Source demo</h1>
       </div>
       <div class="topbar-actions" aria-label="Document actions">
+        <button class="button secondary" type="button" data-testid="open-local-file-button">Open .md</button>
+        <button class="button secondary" type="button" data-testid="import-copy-button">Import copy</button>
+        <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain" data-testid="import-copy-input" />
         <button class="button secondary" type="button" data-testid="copy-button">Copy</button>
         <button class="button secondary" type="button" data-testid="download-button">Download</button>
         <button class="button secondary" type="button" data-testid="simulate-conflict-button">Simulate conflict</button>
-        <button class="button primary" type="button" data-testid="memory-save-button">Memory save</button>
+        <button class="button primary" type="button" data-testid="memory-save-button">Save</button>
       </div>
     </header>
 
@@ -78,6 +92,7 @@ app.innerHTML = `
         <section class="status-block">
           <p class="label">Save Engine</p>
           <div class="status-lines" data-testid="save-engine-status">
+            <p><span>Mode</span><strong data-testid="document-mode">fixture</strong></p>
             <p><span>Target</span><strong data-testid="save-engine-target">memory-only</strong></p>
             <p><span>Status</span><strong data-testid="save-engine-state">memory saved</strong></p>
             <p><span>Current</span><strong data-testid="save-engine-current-hash">pending</strong></p>
@@ -130,13 +145,19 @@ app.innerHTML = `
 `;
 
 const editorHost = queryRequired<HTMLDivElement>("[data-editor-host]");
+const openLocalFileButton = queryRequired<HTMLButtonElement>('[data-testid="open-local-file-button"]');
+const importCopyButton = queryRequired<HTMLButtonElement>('[data-testid="import-copy-button"]');
+const importCopyInput = queryRequired<HTMLInputElement>('[data-testid="import-copy-input"]');
 const copyButton = queryRequired<HTMLButtonElement>('[data-testid="copy-button"]');
 const downloadButton = queryRequired<HTMLButtonElement>('[data-testid="download-button"]');
 const memorySaveButton = queryRequired<HTMLButtonElement>('[data-testid="memory-save-button"]');
 const simulateConflictButton = queryRequired<HTMLButtonElement>('[data-testid="simulate-conflict-button"]');
+const documentNameElement = queryRequired<HTMLElement>('[data-testid="document-name"]');
+const documentPathElement = queryRequired<HTMLElement>('[data-testid="document-path"]');
 const saveStateElement = queryRequired<HTMLElement>('[data-testid="save-state"]');
 const dirtyStateElement = queryRequired<HTMLElement>('[data-testid="dirty-state"]');
 const persistenceTargetElement = queryRequired<HTMLElement>('[data-testid="persistence-target"]');
+const documentModeElement = queryRequired<HTMLElement>('[data-testid="document-mode"]');
 const saveEngineTargetElement = queryRequired<HTMLElement>('[data-testid="save-engine-target"]');
 const saveEngineStateElement = queryRequired<HTMLElement>('[data-testid="save-engine-state"]');
 const saveEngineCurrentHashElement = queryRequired<HTMLElement>('[data-testid="save-engine-current-hash"]');
@@ -144,6 +165,7 @@ const saveEngineLastSavedHashElement = queryRequired<HTMLElement>('[data-testid=
 const saveEngineExternalHashElement = queryRequired<HTMLElement>('[data-testid="save-engine-external-hash"]');
 const saveEngineLastActionElement = queryRequired<HTMLElement>('[data-testid="save-engine-last-action"]');
 const eventLogElement = queryRequired<HTMLOListElement>('[data-testid="event-log"]');
+const roundTripFixtureElement = queryRequired<HTMLElement>('[data-testid="roundtrip-fixture"]');
 const parserStatusElement = queryRequired<HTMLElement>('[data-testid="parser-status"]');
 const serializerStatusElement = queryRequired<HTMLElement>('[data-testid="serializer-status"]');
 const roundTripModeElement = queryRequired<HTMLElement>('[data-testid="roundtrip-mode"]');
@@ -153,15 +175,33 @@ const diagnosticsElement = queryRequired<HTMLOListElement>('[data-testid="roundt
 let eventCounter = 0;
 let lastCopiedMarkdown: string | null = null;
 const markdownAstFormatter = createMarkdownAstFormatter();
-const saveTarget = createMemorySaveTarget({
+type DemoDocumentMode = "fixture" | WebOpenedMarkdownMode;
+
+interface ActiveDemoDocument {
+  readonly fileName: string;
+  readonly mode: DemoDocumentMode;
+  readonly pathLabel: string;
+  readonly readDiskContent?: () => string;
+  readonly simulateExternalChange?: (content: string) => void;
+}
+
+const fixtureSaveTarget = createMemorySaveTarget({
   initialContent: fixtureMarkdown,
   targetLabel: "fixture://source-mode-fixture.md"
 });
-const saveEngine = createSaveEngine({
+let saveTarget: SaveTarget = fixtureSaveTarget;
+let saveEngine: SaveEngine = createSaveEngine({
   autosaveDelayMs: 1000,
   content: fixtureMarkdown,
   target: saveTarget
 });
+let activeDocument: ActiveDemoDocument = {
+  fileName: "source-mode-fixture.md",
+  mode: "fixture",
+  pathLabel: "fixture://source-mode-fixture.md",
+  readDiskContent: fixtureSaveTarget.readContent,
+  simulateExternalChange: fixtureSaveTarget.simulateExternalChange
+};
 let lastSaveAction = "loaded fixture";
 let autosaveTimer: ReturnType<typeof window.setTimeout> | undefined;
 
@@ -227,6 +267,22 @@ const editor = new EditorView({
   })
 });
 
+openLocalFileButton.addEventListener("click", () => {
+  void openLocalMarkdownFile();
+});
+
+importCopyButton.addEventListener("click", () => {
+  importCopyInput.click();
+});
+
+importCopyInput.addEventListener("change", () => {
+  const [file] = Array.from(importCopyInput.files ?? []);
+  importCopyInput.value = "";
+  if (file) {
+    void importMarkdownCopy(file);
+  }
+});
+
 copyButton.addEventListener("click", () => {
   void copyMarkdown();
 });
@@ -267,8 +323,18 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   getLastCopiedMarkdown() {
     return lastCopiedMarkdown;
   },
+  getActiveDocument() {
+    return {
+      fileName: activeDocument.fileName,
+      mode: activeDocument.mode,
+      pathLabel: activeDocument.pathLabel
+    };
+  },
   getSaveState() {
     return saveEngine.getState();
+  },
+  getTestDiskContent() {
+    return activeDocument.readDiskContent?.() ?? null;
   },
   forceStatusRefresh() {
     updateRoundTripStatus();
@@ -285,6 +351,31 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   },
   flushSave(reason: SaveFlushReason) {
     return flushSave(reason);
+  },
+  loadImportedCopyForTest(fileName: string, content: string) {
+    loadOpenedMarkdownFile(createImportedCopyDocument({ content, fileName }), {
+      sourceLabel: "test imported copy"
+    });
+  },
+  loadWritableMarkdownFileForTest(fileName: string, content: string) {
+    const testHandle = createTestWritableFileHandle(fileName, content);
+    loadOpenedMarkdownFile(
+      {
+        content,
+        fileName,
+        mode: "writable-file",
+        pathLabel: `disk://${fileName}`,
+        target: createWritableFileSaveTarget({
+          handle: testHandle.handle,
+          targetLabel: `disk://${fileName}`
+        })
+      },
+      {
+        readDiskContent: testHandle.readDiskContent,
+        simulateExternalChange: testHandle.simulateExternalChange,
+        sourceLabel: "test writable local file"
+      }
+    );
   },
   memorySave,
   simulateExternalConflict,
@@ -318,6 +409,92 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
     });
   }
 };
+
+async function openLocalMarkdownFile(): Promise<void> {
+  if (!canUseFileSystemAccess()) {
+    lastSaveAction = "File System Access unavailable; use Import copy and Download";
+    logEvent("File System Access API unavailable. Import copy keeps the original file untouched.");
+    renderSaveState();
+    return;
+  }
+
+  try {
+    const opened = await openWritableMarkdownFile();
+    loadOpenedMarkdownFile(opened, {
+      sourceLabel: "local writable file"
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      lastSaveAction = "open cancelled";
+      logEvent("Open local file cancelled.");
+    } else {
+      lastSaveAction = `open failed: ${errorMessage(error)}`;
+      logEvent(`Open local file failed: ${errorMessage(error)}`);
+    }
+    renderSaveState();
+  }
+}
+
+async function importMarkdownCopy(file: File): Promise<void> {
+  const content = await file.text();
+  loadOpenedMarkdownFile(createImportedCopyDocument({ content, fileName: file.name }), {
+    sourceLabel: "fallback import"
+  });
+}
+
+function loadOpenedMarkdownFile(
+  opened: WebOpenedMarkdownFile,
+  options: {
+    readonly readDiskContent?: () => string;
+    readonly simulateExternalChange?: (content: string) => void;
+    readonly sourceLabel?: string;
+  } = {}
+): void {
+  clearAutosaveTimer();
+  let nextDocument: ActiveDemoDocument = {
+    fileName: opened.fileName,
+    mode: opened.mode,
+    pathLabel: opened.pathLabel
+  };
+  if (options.readDiskContent) {
+    nextDocument = {
+      ...nextDocument,
+      readDiskContent: options.readDiskContent
+    };
+  }
+  if (options.simulateExternalChange) {
+    nextDocument = {
+      ...nextDocument,
+      simulateExternalChange: options.simulateExternalChange
+    };
+  }
+  activeDocument = nextDocument;
+  saveTarget = opened.target;
+  saveEngine = createSaveEngine({
+    autosaveDelayMs: 1000,
+    content: opened.content,
+    target: saveTarget
+  });
+  lastCopiedMarkdown = null;
+  lastSaveAction = `opened ${documentModeLabel(opened.mode)} document`;
+  replaceEditorDocument(opened.content);
+  logEvent(`Opened ${opened.fileName} as ${documentModeLabel(opened.mode)} via ${options.sourceLabel ?? "document loader"}.`);
+  renderSaveState();
+  updateRoundTripStatus();
+}
+
+function replaceEditorDocument(content: string): void {
+  editor.dispatch({
+    changes: {
+      from: 0,
+      insert: content,
+      to: editor.state.doc.length
+    },
+    selection: {
+      anchor: 0
+    }
+  });
+}
 
 function continueMarkdownList(view: EditorView): boolean {
   const { state } = view;
@@ -433,10 +610,12 @@ function downloadMarkdown(): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = "source-mode-fixture.md";
+  anchor.download = activeDocument.fileName;
   anchor.click();
   URL.revokeObjectURL(url);
-  logEvent("Generated Markdown download. Original fixture was not persisted.");
+  lastSaveAction = "download/export generated; original target unchanged";
+  logEvent("Generated Markdown download/export. Original target was unchanged.");
+  renderSaveState();
 }
 
 function memorySave(source: "button" | "keyboard shortcut"): void {
@@ -449,8 +628,8 @@ async function flushSave(reason: SaveFlushReason, source?: "button" | "keyboard 
     reason
   });
   if (result.status === "saved") {
-    lastSaveAction = `${source ?? reason} flush wrote memory-only target`;
-    logEvent(`Flushed ${source ?? reason} save to memory-only target.`);
+    lastSaveAction = `${source ?? reason} flush wrote ${saveFlushTargetLabel(result.state)}`;
+    logEvent(`Flushed ${source ?? reason} save to ${saveFlushTargetLabel(result.state)}.`);
   } else if (result.status === "noop") {
     lastSaveAction = `${source ?? reason} flush found no dirty changes`;
     logEvent(`Save Engine ${source ?? reason} flush found no dirty changes.`);
@@ -489,7 +668,15 @@ function clearAutosaveTimer(): void {
 }
 
 function simulateExternalConflict(): void {
-  saveTarget.simulateExternalChange(`${saveTarget.readContent()}\n<!-- simulated external edit -->\n`);
+  if (!activeDocument.simulateExternalChange) {
+    lastSaveAction = `external conflict simulation unavailable for ${documentModeLabel(activeDocument.mode)}`;
+    logEvent(`External conflict simulation is unavailable for ${documentModeLabel(activeDocument.mode)}.`);
+    renderSaveState();
+    return;
+  }
+
+  const externalBase = activeDocument.readDiskContent?.() ?? getMarkdown();
+  activeDocument.simulateExternalChange(`${externalBase}\n<!-- simulated external edit -->\n`);
   lastSaveAction = "external target changed; next save must detect conflict";
   logEvent("Simulated external target change; the next dirty save must report conflict.");
   renderSaveState();
@@ -498,6 +685,9 @@ function simulateExternalConflict(): void {
 function renderSaveState(): void {
   const state = saveEngine.getState();
   const label = persistenceTargetLabel(state);
+  documentNameElement.textContent = activeDocument.fileName;
+  documentPathElement.textContent = activeDocument.pathLabel;
+  documentModeElement.textContent = documentModeLabel(activeDocument.mode);
   saveStateElement.textContent = label;
   dirtyStateElement.textContent = dirtyStateLabel(state);
   persistenceTargetElement.textContent = documentTargetLabel(state);
@@ -520,6 +710,15 @@ function documentTargetLabel(state: SaveState): string {
   if (state.target === "conflict") {
     return "conflict, not overwritten";
   }
+  if (activeDocument.mode === "writable-file" || state.target === "disk") {
+    return "disk, original file writable";
+  }
+  if (activeDocument.mode === "imported-copy" || state.target === "download-required") {
+    return "imported copy, download/export required";
+  }
+  if (activeDocument.mode === "unsupported" || state.target === "unsupported") {
+    return "unsupported, use import/download";
+  }
   if (state.target === "memory-only") {
     return "fixture, memory only, not persisted";
   }
@@ -533,7 +732,86 @@ function saveEngineStatusLabel(state: SaveState): string {
   if (state.status === "saved" && state.target === "disk") {
     return "disk saved";
   }
+  if (state.target === "download-required") {
+    return state.status === "dirty" ? "dirty, download required" : "download required";
+  }
+  if (state.target === "unsupported") {
+    return "unsupported";
+  }
   return state.status;
+}
+
+function saveFlushTargetLabel(state: SaveState): string {
+  if (state.target === "disk") {
+    return "disk target";
+  }
+  if (state.target === "memory-only") {
+    return "memory-only target";
+  }
+  if (state.target === "download-required") {
+    return "download/export target";
+  }
+  return `${state.target} target`;
+}
+
+function documentModeLabel(mode: DemoDocumentMode): string {
+  if (mode === "fixture") {
+    return "fixture";
+  }
+  if (mode === "writable-file") {
+    return "writable local file";
+  }
+  if (mode === "imported-copy") {
+    return "imported copy";
+  }
+  return "unsupported local file";
+}
+
+function createTestWritableFileHandle(
+  fileName: string,
+  content: string
+): {
+  readonly handle: WebFileHandleLike;
+  readonly readDiskContent: () => string;
+  readonly simulateExternalChange: (nextContent: string) => void;
+} {
+  let diskContent = content;
+  const handle: WebFileHandleLike = {
+    kind: "file",
+    name: fileName,
+    async createWritable() {
+      let nextContent = "";
+      return {
+        async close() {
+          diskContent = nextContent;
+        },
+        async write(value) {
+          nextContent = value;
+        }
+      };
+    },
+    async getFile() {
+      return {
+        name: fileName,
+        async text() {
+          return diskContent;
+        }
+      };
+    }
+  };
+  return {
+    handle,
+    readDiskContent() {
+      return diskContent;
+    },
+    simulateExternalChange(nextContent: string) {
+      diskContent = nextContent;
+    }
+  };
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "unknown error";
 }
 
 function shortHash(hash: string): string {
@@ -546,9 +824,10 @@ function updateRoundTripStatus(): void {
   });
   const result = roundTripMarkdown(getMarkdown(), {
     formatter: markdownAstFormatter,
-    fixtureId: "source-mode-fixture",
+    fixtureId: activeDocument.fileName,
     mode: "strict"
   });
+  roundTripFixtureElement.textContent = activeDocument.fileName;
   roundTripModeElement.textContent = result.mode;
   parserStatusElement.textContent = parserStatusLabel(result);
   serializerStatusElement.textContent = serializerStatusLabel(result);
@@ -637,6 +916,11 @@ declare global {
       editor: EditorView;
       flushSave: (reason: SaveFlushReason) => Promise<void>;
       forceStatusRefresh: () => void;
+      getActiveDocument: () => {
+        readonly fileName: string;
+        readonly mode: DemoDocumentMode;
+        readonly pathLabel: string;
+      };
       getLastCopiedMarkdown: () => string | null;
       getMarkdown: () => string;
       getSaveState: () => SaveState;
@@ -646,6 +930,9 @@ declare global {
         readonly head: number;
         readonly to: number;
       };
+      getTestDiskContent: () => string | null;
+      loadImportedCopyForTest: (fileName: string, content: string) => void;
+      loadWritableMarkdownFileForTest: (fileName: string, content: string) => void;
       memorySave: (source: "button" | "keyboard shortcut") => void;
       simulateExternalConflict: () => void;
       setCursorAfterText: (text: string) => void;

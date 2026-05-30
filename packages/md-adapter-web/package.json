@@ -19,6 +19,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@momentarise/md-core": "0.0.0"
+    "@momentarise/md-core": "0.0.0",
+    "@momentarise/md-save": "0.0.0"
   }
 }

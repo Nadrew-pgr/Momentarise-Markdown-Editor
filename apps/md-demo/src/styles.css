@@ -73,6 +73,14 @@ h1 {
   justify-content: flex-end;
 }
 
+.file-input {
+  inline-size: 1px;
+  block-size: 1px;
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .button {
   min-height: 38px;
   padding: 0 14px;

@@ -8,6 +8,9 @@
   "references": [
     {
       "path": "../md-core"
+    },
+    {
+      "path": "../md-save"
     }
   ],
   "include": [

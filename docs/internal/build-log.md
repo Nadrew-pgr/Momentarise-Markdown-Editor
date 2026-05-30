@@ -677,3 +677,74 @@
   - Human review is required before considering MME-0008 accepted and before moving to MME-0009.
 - Suggested commit message:
   - `feat: add save engine truthfulness`
+
+## MME-0009 — Local file open/save in mini web demo
+
+- Timestamp: 2026-05-30T06:50:24Z
+- Summary: Added web local-file adapter behavior and wired the mini demo to open Markdown through File System Access API where supported, import fallback copies when direct write is unavailable, save writable handles through the Save Engine, and show truthful file mode/status labels.
+- Files changed:
+  - `package.json`
+  - `package-lock.json`
+  - `packages/md-adapter-web/package.json`
+  - `packages/md-adapter-web/tsconfig.json`
+  - `packages/md-adapter-web/src/index.ts`
+  - `apps/md-demo/package.json`
+  - `apps/md-demo/tsconfig.json`
+  - `apps/md-demo/src/main.ts`
+  - `apps/md-demo/src/styles.css`
+  - `tests/web-file-access.test.mjs`
+  - `scripts/visual-check-mme0009.mjs`
+  - `docs/internal/visual-checks/MME-0009/README.md`
+  - `docs/internal/visual-checks/MME-0009/local-file-controls-initial.png`
+  - `docs/internal/visual-checks/MME-0009/writable-file-opened.png`
+  - `docs/internal/visual-checks/MME-0009/writable-file-saved-to-disk-target.png`
+  - `docs/internal/visual-checks/MME-0009/imported-copy-opened.png`
+  - `docs/internal/visual-checks/MME-0009/imported-copy-download-required.png`
+  - `docs/internal/build-log.md`
+- Behavior to prove before implementation:
+  - Browser support detection identifies File System Access API availability.
+  - Opening a supported local `.md` reads content from the selected handle and creates a disk persistence target.
+  - `Cmd/Ctrl+S` and Save write edited content back through the original writable handle.
+  - External disk changes are detected as conflicts and are not overwritten silently.
+  - Imported fallback copies use `download-required` persistence and never claim to overwrite the original file.
+  - File mode/status is visible in the document strip and Save Engine panel.
+  - Permission/setup failures while creating a writable stream become visible Save Engine errors instead of escaping as unhandled promise rejections.
+- Test-first evidence:
+  - `npm run test:web-file-access` initially failed before implementation because `@momentarise/md-adapter-web` did not export `canUseFileSystemAccess`.
+  - Reviewer then identified that `createWritable()` failures could escape the target write path. A new failing permission-denied test reproduced it; moving handle setup into the target `try` block made the test pass.
+- Tests/checks run:
+  - `npm run test:web-file-access`
+  - `npm run test:demo-baseline`
+  - `npm run build:demo`
+  - `npm test`
+  - `curl -I http://127.0.0.1:5174/`
+  - `MME_DEMO_URL=http://127.0.0.1:5174/ npm run visual:mme-0009`
+  - in-app browser reload/state check of `http://127.0.0.1:5174/`
+  - `git diff --check`
+- Manual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`
+  - Local URL: `http://127.0.0.1:5174/`
+  - The server was intentionally left running on `5174`.
+  - Confirmed the server returned `HTTP/1.1 200 OK`.
+  - In-app browser check confirmed `Open .md`, `Import copy`, `Save`, document mode, and target status are visible on `http://127.0.0.1:5174/`.
+  - Automated visual check used a writable file-handle test double for repeatable disk-write proof and fallback import proof.
+  - Human OS-backed smoke test is still required before final acceptance: in a headed browser with File System Access API support, click `Open .md`, choose a real local Markdown file, edit, use `Cmd/Ctrl+S`, close/reopen outside the demo, and confirm disk content changed.
+- Visual artifacts:
+  - `docs/internal/visual-checks/MME-0009/local-file-controls-initial.png` proves the action bar exposes `Open .md`, `Import copy`, `Download`, and `Save` while the fixture remains honestly memory-only.
+  - `docs/internal/visual-checks/MME-0009/writable-file-opened.png` proves a writable Markdown document shows disk mode, original-file status, and the opened filename/path.
+  - `docs/internal/visual-checks/MME-0009/writable-file-saved-to-disk-target.png` proves editing plus `Cmd/Ctrl+S` writes through a writable file target and returns to disk-saved state.
+  - `docs/internal/visual-checks/MME-0009/imported-copy-opened.png` proves fallback import mode is labeled as an imported copy requiring download/export.
+  - `docs/internal/visual-checks/MME-0009/imported-copy-download-required.png` proves fallback save is blocked honestly and does not claim to overwrite the original file.
+- Reviewer/subagent used and result:
+  - UX/process reviewer subagent initially failed the slice on two points: manual QA documentation read as pending-only, and `createWritable()` could reject outside the target error path. Both were fixed.
+  - Reviewer re-check passed with no blocking findings. Confirmed permission/setup failure now returns Save Engine `error`, the new test covers it, QA status is documented honestly, screenshots exist, `visual:mme-0009` is wired, and `test:web-file-access` passes.
+- Visual impact:
+  - Editing surface: CodeMirror can now swap from the built-in fixture to an opened/imported Markdown document while preserving the same source editor behavior. The visible document content changes to the selected file/copy, and `Cmd/Ctrl+S` flushes according to the active persistence target.
+  - General UI/inspector: the action bar adds `Open .md` and `Import copy`, renames the primary save action to `Save`, and the document strip plus Save Engine panel now distinguish fixture, writable local file, imported copy, disk saved, and download/export required states.
+- Deviations from PRD:
+  - The automated visual proof uses a writable handle test double because headless Chrome cannot exercise the native OS file picker. The real OS-backed picker path exists in code but still requires human headed-browser smoke verification before final acceptance.
+  - Conflict resolution UI remains out of scope; conflict detection/no-overwrite behavior is covered through Save Engine and adapter tests.
+- Open questions:
+  - Human review is required before considering MME-0009 accepted, specifically for the native OS-backed File System Access picker and real disk smoke test.
+- Suggested commit message:
+  - `feat: add local markdown file open save`
