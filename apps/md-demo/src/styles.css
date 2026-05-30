@@ -34,6 +34,10 @@ button {
   font: inherit;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .shell {
   min-height: 100vh;
   display: grid;
@@ -182,6 +186,48 @@ h1 {
   border-bottom: 1px solid var(--line);
 }
 
+.properties-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.properties-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.properties-header .label {
+  margin-bottom: 0;
+}
+
+.properties-controls {
+  display: inline-flex;
+  gap: 4px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.property-mode {
+  min-height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.property-mode[aria-pressed="true"] {
+  background: var(--accent);
+  color: white;
+}
+
 .label {
   margin: 0 0 8px;
   color: var(--muted);
@@ -237,6 +283,28 @@ h1 {
   margin: 0;
   font-weight: 650;
   overflow-wrap: anywhere;
+}
+
+.frontmatter-source {
+  max-height: 220px;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.properties-hidden-state {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .baseline-list {

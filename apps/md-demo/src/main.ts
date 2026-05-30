@@ -91,6 +91,21 @@ app.innerHTML = `
           <p class="label">Dirty state</p>
           <p class="status-value" data-testid="dirty-state">clean</p>
         </section>
+        <section class="status-block properties-panel" data-testid="properties-panel">
+          <div class="properties-header">
+            <p class="label">Properties</p>
+            <div class="properties-controls" role="group" aria-label="Properties display mode">
+              <button class="property-mode" type="button" data-testid="properties-mode-visible">List</button>
+              <button class="property-mode" type="button" data-testid="properties-mode-hidden">Hide</button>
+              <button class="property-mode" type="button" data-testid="properties-mode-source">YAML</button>
+            </div>
+          </div>
+          <dl class="frontmatter-list" data-testid="frontmatter-list" aria-live="polite"></dl>
+          <pre class="frontmatter-source" data-testid="frontmatter-source" hidden></pre>
+          <p class="properties-hidden-state" data-testid="properties-hidden-state" hidden>
+            Properties hidden. Raw YAML remains visible in source mode.
+          </p>
+        </section>
         <section class="status-block">
           <p class="label">Save Engine</p>
           <div class="status-lines" data-testid="save-engine-status">
@@ -115,10 +130,6 @@ app.innerHTML = `
             <p><span>Parser</span><strong data-testid="parser-status">pending</strong></p>
             <p><span>Serializer</span><strong data-testid="serializer-status">pending</strong></p>
           </div>
-        </section>
-        <section class="status-block">
-          <p class="label">Frontmatter</p>
-          <dl class="frontmatter-list" data-testid="frontmatter-list" aria-live="polite"></dl>
         </section>
         <section class="status-block">
           <p class="label">Diagnostics</p>
@@ -172,12 +183,18 @@ const parserStatusElement = queryRequired<HTMLElement>('[data-testid="parser-sta
 const serializerStatusElement = queryRequired<HTMLElement>('[data-testid="serializer-status"]');
 const roundTripModeElement = queryRequired<HTMLElement>('[data-testid="roundtrip-mode"]');
 const frontmatterElement = queryRequired<HTMLElement>('[data-testid="frontmatter-list"]');
+const frontmatterSourceElement = queryRequired<HTMLPreElement>('[data-testid="frontmatter-source"]');
+const propertiesHiddenElement = queryRequired<HTMLElement>('[data-testid="properties-hidden-state"]');
+const propertiesModeVisibleButton = queryRequired<HTMLButtonElement>('[data-testid="properties-mode-visible"]');
+const propertiesModeHiddenButton = queryRequired<HTMLButtonElement>('[data-testid="properties-mode-hidden"]');
+const propertiesModeSourceButton = queryRequired<HTMLButtonElement>('[data-testid="properties-mode-source"]');
 const diagnosticsElement = queryRequired<HTMLOListElement>('[data-testid="roundtrip-diagnostics"]');
 
 let eventCounter = 0;
 let lastCopiedMarkdown: string | null = null;
 const markdownAstFormatter = createMarkdownAstFormatter();
 type DemoDocumentMode = "fixture" | WebOpenedMarkdownMode;
+type PropertiesDisplayMode = "visible" | "hidden" | "source";
 
 interface ActiveDemoDocument {
   readonly fileName: string;
@@ -205,7 +222,8 @@ let activeDocument: ActiveDemoDocument = {
   simulateExternalChange: fixtureSaveTarget.simulateExternalChange
 };
 let lastSaveAction = "loaded fixture";
-let autosaveTimer: ReturnType<typeof window.setTimeout> | undefined;
+let propertiesDisplayMode: PropertiesDisplayMode = "visible";
+let autosaveTimer: number | undefined;
 
 const sourceKeymap = [
   {
@@ -301,6 +319,18 @@ simulateConflictButton.addEventListener("click", () => {
   simulateExternalConflict();
 });
 
+propertiesModeVisibleButton.addEventListener("click", () => {
+  setPropertiesDisplayMode("visible");
+});
+
+propertiesModeHiddenButton.addEventListener("click", () => {
+  setPropertiesDisplayMode("hidden");
+});
+
+propertiesModeSourceButton.addEventListener("click", () => {
+  setPropertiesDisplayMode("source");
+});
+
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden" && saveEngine.shouldBlockClose()) {
     void flushSave("tab-switch");
@@ -334,6 +364,15 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   },
   getSaveState() {
     return saveEngine.getState();
+  },
+  getPropertiesState() {
+    return {
+      hiddenText: propertiesHiddenElement.textContent ?? "",
+      listText: frontmatterElement.textContent ?? "",
+      mode: propertiesDisplayMode,
+      rawSource: frontmatterSourceElement.textContent ?? "",
+      sourceHidden: frontmatterSourceElement.hidden
+    };
   },
   getTestDiskContent() {
     return activeDocument.readDiskContent?.() ?? null;
@@ -843,7 +882,7 @@ function updateRoundTripStatus(): void {
   roundTripModeElement.textContent = result.mode;
   parserStatusElement.textContent = parserStatusLabel(result);
   serializerStatusElement.textContent = serializerStatusLabel(result);
-  renderFrontmatter(parseResult);
+  renderPropertiesPanel(parseResult);
   renderDiagnostics(result);
 }
 
@@ -855,7 +894,30 @@ function serializerStatusLabel(result: FixtureRoundTripResult): string {
   return result.status === "pass" ? "pass (source preserved)" : "fail";
 }
 
-function renderFrontmatter(parseResult: ParseResult): void {
+function setPropertiesDisplayMode(mode: PropertiesDisplayMode): void {
+  propertiesDisplayMode = mode;
+  renderPropertiesPanel(
+    markdownAstFormatter.parse(getMarkdown(), {
+      dialect: "momentarise-enhanced"
+    })
+  );
+  logEvent(`Properties panel switched to ${mode} mode.`);
+}
+
+function renderPropertiesPanel(parseResult: ParseResult): void {
+  propertiesModeVisibleButton.setAttribute("aria-pressed", String(propertiesDisplayMode === "visible"));
+  propertiesModeHiddenButton.setAttribute("aria-pressed", String(propertiesDisplayMode === "hidden"));
+  propertiesModeSourceButton.setAttribute("aria-pressed", String(propertiesDisplayMode === "source"));
+
+  frontmatterElement.hidden = propertiesDisplayMode !== "visible";
+  frontmatterSourceElement.hidden = propertiesDisplayMode !== "source";
+  propertiesHiddenElement.hidden = propertiesDisplayMode !== "hidden";
+
+  renderFrontmatterList(parseResult);
+  frontmatterSourceElement.textContent = extractFrontmatterSource(getMarkdown());
+}
+
+function renderFrontmatterList(parseResult: ParseResult): void {
   const frontmatter = parseResult.document.frontmatter;
   if (!frontmatter || Object.keys(frontmatter).length === 0) {
     frontmatterElement.replaceChildren(emptyValue("none"));
@@ -903,6 +965,11 @@ function formatFrontmatterValue(value: FrontmatterRecord[string]): string {
   return String(value);
 }
 
+function extractFrontmatterSource(markdownText: string): string {
+  const match = markdownText.match(/^---\r?\n[\s\S]*?\r?\n---(?=\r?\n|$)/);
+  return match ? match[0] : "No YAML frontmatter in source.";
+}
+
 function getMarkdown(): string {
   return editor.state.doc.toString();
 }
@@ -935,6 +1002,13 @@ declare global {
       };
       getLastCopiedMarkdown: () => string | null;
       getMarkdown: () => string;
+      getPropertiesState: () => {
+        readonly hiddenText: string;
+        readonly listText: string;
+        readonly mode: PropertiesDisplayMode;
+        readonly rawSource: string;
+        readonly sourceHidden: boolean;
+      };
       getSaveState: () => SaveState;
       getSelectionRange: () => {
         readonly anchor: number;

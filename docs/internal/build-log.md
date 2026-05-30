@@ -895,3 +895,59 @@
   - None.
 - Suggested commit message:
   - `fix: improve visual chrome portability`
+
+## MME-0011 — Properties UI basics
+
+- Timestamp: 2026-05-30T13:59:51Z
+- Summary: Added a basic properties panel to the mini web demo that displays YAML frontmatter as parsed properties, supports List/Hide/YAML display modes, keeps the raw YAML visible in CodeMirror source mode, and proves body edits preserve frontmatter through the existing round-trip path.
+- Files changed:
+  - `package.json`
+  - `apps/md-demo/src/main.ts`
+  - `apps/md-demo/src/styles.css`
+  - `tests/properties-ui-baseline.test.mjs`
+  - `scripts/visual-check-mme0011.mjs`
+  - `docs/internal/visual-checks/MME-0011/README.md`
+  - `docs/internal/visual-checks/MME-0011/properties-visible-frontmatter.png`
+  - `docs/internal/visual-checks/MME-0011/properties-hidden.png`
+  - `docs/internal/visual-checks/MME-0011/properties-source-yaml.png`
+  - `docs/internal/visual-checks/MME-0011/properties-roundtrip-after-edit.png`
+  - `docs/internal/build-log.md`
+- Behavior to prove before implementation:
+  - A frontmatter document displays parsed YAML fields in the inspector.
+  - Properties can be hidden and shown without mutating Markdown source.
+  - YAML mode shows the raw frontmatter block.
+  - CodeMirror source mode still shows raw YAML.
+  - Body edits preserve frontmatter and keep round-trip status passing.
+- Test-first evidence:
+  - `npm run test:properties-ui` failed before implementation because `scripts/visual-check-mme0011.mjs` did not exist.
+- Tests/checks run:
+  - `npm run test:properties-ui`
+  - `npm run test:demo-baseline`
+  - `npm run test:architecture`
+  - `npm run build:demo`
+  - `npm test`
+  - `curl -I http://127.0.0.1:5174/`
+  - `MME_DEMO_URL=http://127.0.0.1:5174/ npm run visual:mme-0011`
+- Manual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`
+  - Local URL: `http://127.0.0.1:5174/`
+  - The server was intentionally left running on `5174`.
+  - Confirmed the server returned `HTTP/1.1 200 OK`.
+  - Inspected generated screenshots for List, Hide, YAML, and post-edit round-trip states.
+- Visual artifacts:
+  - `docs/internal/visual-checks/MME-0011/properties-visible-frontmatter.png` proves parsed YAML properties are visible in the inspector.
+  - `docs/internal/visual-checks/MME-0011/properties-hidden.png` proves properties can be hidden while raw YAML remains in source mode.
+  - `docs/internal/visual-checks/MME-0011/properties-source-yaml.png` proves raw YAML frontmatter can be inspected from the properties panel.
+  - `docs/internal/visual-checks/MME-0011/properties-roundtrip-after-edit.png` proves body edits keep frontmatter in source and round-trip status remains passing.
+- Reviewer/subagent used and result:
+  - UX/Test reviewer initially found the acceptance evidence did not prove that toggling Properties leaves Markdown unmodified. Fixed by strengthening `scripts/visual-check-mme0011.mjs` to compare exact Markdown before and after Hide/YAML toggles, then reran `visual:mme-0011` successfully.
+  - Residual risks documented by reviewer: screenshot coverage is desktop-only; the properties list currently displays the first six frontmatter fields; raw YAML extraction targets standard leading `---` frontmatter only.
+- Visual impact:
+  - Editing surface: CodeMirror continues to show raw YAML frontmatter and Markdown body. No editor mode change or rich editing was added.
+  - General UI/inspector: the inspector now includes a Properties panel near the top with List, Hide, and YAML segmented controls. It shows parsed YAML fields, a hidden-state message, or raw YAML depending on the selected mode.
+- Deviations from PRD:
+  - Properties are display-only in this slice. Editing YAML properties through form fields is intentionally out of scope.
+- Open questions:
+  - Human review is required before considering MME-0011 accepted because this is the first properties UI slice.
+- Suggested commit message:
+  - `feat: add properties ui basics`
