@@ -1198,3 +1198,33 @@
   - `code-complete/pending human review`. Required before starting MME-0013.
 - Suggested commit message:
   - `feat: add rich mode prosemirror spike`
+
+## Docs follow-up — Rich editor UX benchmark/backlog
+
+- Timestamp: 2026-05-30T21:16:39Z
+- Summary: Recorded human acceptance for MME-0012 and added an explicit rich editor UX backlog so advanced input rules and block affordances are not lost before moving to MME-0013.
+- Files changed:
+  - `README.md`
+  - `docs/internal/PRD.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+- Behavior to prove before implementation:
+  - Rich editor UX expectations inspired by Notion, Obsidian, BlockNote, and similar editors are documented without weakening the Markdown source-of-truth contract.
+- Test-first evidence:
+  - Documentation-only follow-up. No TDD required.
+- Tests/checks run:
+  - `rg -n "MME-0013.5|Notion|Obsidian|BlockNote|input rules|code-block controls|checkbox rows" README.md docs/internal/PRD.md docs/internal/ISSUES.md docs/internal/build-log.md`
+  - `git diff --check`
+- Manual verification:
+  - Confirmed MME-0012 is now recorded as human-accepted and README points to MME-0013 as the current slice.
+  - Confirmed MME-0013.5 captures live Markdown input rules, rich todo rendering/toggling, code block language/meta controls, and inserting after final framed blocks.
+- Visual artifacts:
+  - None. Documentation-only follow-up.
+- Reviewer/subagent used and result:
+  - Self-review only for a narrow documentation and status update.
+- Visual impact:
+  - No visible editing or general UI changes.
+- Human review status:
+  - MME-0012: `accepted` by user on 2026-05-30 before starting MME-0013.
+- Suggested commit message:
+  - `docs: track rich editor ux follow-up`

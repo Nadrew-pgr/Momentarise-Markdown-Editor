@@ -22,10 +22,11 @@ Completed slices:
 - MME-0010: CLI V0 with init, check, fixture tests, inspect, format dry-run/write, fixture creation, and machine-readable JSON output for agents.
 - MME-0011: Properties UI basics in the mini web demo, code-complete with human review status tracked in the build log.
 - MME-0011.5: Alignment gate before rich mode, resolving policy/source-package/parser/status drift before `MME-0012`.
+- MME-0012: Rich mode ProseMirror spike with source/rich switching, basic rich editing, visual QA, reviewer fixes, and human acceptance.
 
 Current slice:
 
-- MME-0012: Rich mode ProseMirror spike is code-complete and pending required human review before `MME-0013`.
+- MME-0013: Slash menu and toolbar V0.
 
 See `docs/internal/build-log.md` for the latest completed issue and current progress.
 

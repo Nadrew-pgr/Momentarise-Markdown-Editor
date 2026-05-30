@@ -616,6 +616,38 @@ Toolbar: heading, bold, italic, list, todo, quote, code, callout, link, image, s
 
 UX Reviewer.
 
+## MME-0013.5 — Rich editor UX input rules and block affordances
+
+### Goal
+
+Make rich mode feel like a serious Markdown editor, using leading editors such as Notion, Obsidian, and BlockNote as UX references while preserving Markdown as the source of truth.
+
+### Scope
+
+Rich-mode Markdown input rules, todo affordances, code-block controls, and block-boundary editing behavior.
+
+### Acceptance criteria
+
+- Typing safe Markdown prefixes in rich mode transforms the current block live for headings, lists, todos, quotes, and code blocks.
+- Existing todos render as checkbox rows in rich mode.
+- Todo checkbox toggles update Markdown task syntax.
+- Code blocks expose language/meta controls for the hidden fence info string.
+- Users can add content after the last code block, callout, opaque block, or framed block.
+- Backspace, Enter, paste, selection, and undo/redo remain predictable around transformed blocks.
+- Markdown output remains valid and unsupported syntax is not silently destroyed.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: UX Reviewer and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this changes core rich editor feel.
+
+### Reviewer
+
+UX Reviewer and Test Reviewer.
+
 ## MME-0014 — Folding UI and toggle block distinction
 
 ### Goal

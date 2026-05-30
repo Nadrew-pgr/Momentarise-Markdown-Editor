@@ -329,6 +329,8 @@ Rich mode must not start until parser/serializer/range-preservation gates pass.
 
 ProseMirror is the first spike engine.
 
+Rich editing UX should be benchmarked against leading Markdown/rich editors such as Notion, Obsidian, and BlockNote, without copying their product model or compromising Markdown as the durable source.
+
 V0 rich subset:
 
 - paragraph;
@@ -354,6 +356,15 @@ Mandatory rich baseline:
 - editing around code fences does not corrupt Markdown;
 - source/rich switching preserves content;
 - unsupported blocks remain safe.
+
+Advanced rich editing backlog:
+
+- Markdown input rules: typing `#`, `##`, `-`, `1.`, `- [ ]`, `>`, and code-fence patterns should transform the current rich block live when safe;
+- todos should render as checkbox rows and toggle checked state without losing Markdown task syntax;
+- code blocks should expose language/meta controls for the hidden fence info string;
+- users must be able to insert a paragraph after the last code block, callout, opaque/raw block, or other framed block;
+- keyboard behavior around block boundaries, backspace, Enter, paste, and selection must feel editor-grade;
+- the UI may take inspiration from Notion, Obsidian, BlockNote, and similar editors, but the persisted Markdown contract remains stricter than those products.
 
 ### Slash menu and toolbar
 
