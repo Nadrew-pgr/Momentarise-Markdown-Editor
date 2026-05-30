@@ -6,6 +6,9 @@
   "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "mme": "./dist/index.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -19,6 +22,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@momentarise/md-core": "0.0.0"
+    "@momentarise/md-core": "0.0.0",
+    "@momentarise/md-format": "0.0.0"
   }
 }

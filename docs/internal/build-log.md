@@ -802,3 +802,53 @@
   - Human OS-backed smoke test is still required on a real local file before considering MME-0009 fully accepted.
 - Suggested commit message:
   - `fix: stabilize local file save feedback`
+
+## MME-0010 — CLI V0 for developers and coding agents
+
+- Timestamp: 2026-05-30T12:18:58Z
+- Summary: Added the first executable `mme` CLI for developer and agent workflows. The CLI now supports project init, project check, fixture round-trip checks, Markdown inspection, explicit dry-run/write formatting, and fixture scaffolding. It remains host/editor independent and provides `--json` output for automation.
+- Files changed:
+  - `README.md`
+  - `package.json`
+  - `package-lock.json`
+  - `packages/md-cli/package.json`
+  - `packages/md-cli/tsconfig.json`
+  - `packages/md-cli/src/index.ts`
+  - `tests/cli-v0.test.mjs`
+  - `tests/no-host-imports.mjs`
+  - `docs/internal/build-log.md`
+- Behavior to prove before implementation:
+  - `@momentarise/md-cli` exposes an executable `mme` binary.
+  - CLI source imports no Theia, VS Code, CodeMirror, ProseMirror, Electron, or browser-only host APIs.
+  - `mme test:fixtures` invokes the fixture round-trip harness and reports summary/modes.
+  - `mme inspect <file>` reports file, dialect, hash, frontmatter, diagnostics, and opaque nodes.
+  - `mme format <file>` is dry-run and does not write.
+  - `mme format <file> --write` is the only formatting path that writes.
+  - `mme init` and `mme create-fixture <name>` create repo-local files intentionally.
+  - README documents the CLI quickstart.
+- Test-first evidence:
+  - `npm run test:cli` failed before implementation because `packages/md-cli/package.json` did not expose `bin.mme`.
+  - Strengthened architecture coverage initially flagged a false positive on `result.document`; the browser-global detector was refined to distinguish globals from object properties, and `packages/md-cli/src` remains covered for host/editor imports.
+- Tests/checks run:
+  - `npm run test:cli`
+  - `npm run test:architecture`
+  - `npm run build`
+  - `npm test`
+  - `node packages/md-cli/dist/index.js inspect fixtures/002-yaml-frontmatter/input.md --json`
+- Manual verification:
+  - Ran the built CLI directly with `node packages/md-cli/dist/index.js inspect fixtures/002-yaml-frontmatter/input.md --json`.
+  - Confirmed JSON output includes `momentarise-enhanced` dialect, YAML frontmatter, parser diagnostics, hash, and opaque node list.
+- Visual artifacts:
+  - None. MME-0010 is CLI-only.
+- Reviewer/subagent used and result:
+  - DX/Test reviewer initially failed the slice because `mme test:fixtures` used the identity formatter instead of the real AST formatter path, and because fixture/check failures could still exit successfully.
+  - Fixed by switching `test:fixtures` to `createMarkdownAstFormatter()`, adding CLI tests that assert AST diagnostics appear, and making `check`/`test:fixtures` return non-zero when fixture validation fails.
+  - Reviewer re-check passed with no blocking findings. Followed up on residual risk by adding an automated assertion that both `mme check` and `mme test:fixtures` exit non-zero when fixture validation fails.
+- Visual impact:
+  - No visible editing or general UI changes.
+- Deviations from PRD:
+  - CLI V0 is intentionally minimal. It uses the current parser/serializer and a conservative final-newline formatting normalization; richer formatting behavior remains future work.
+- Open questions:
+  - None blocking unless reviewer finds CLI semantics too broad or too narrow.
+- Suggested commit message:
+  - `feat: add cli v0`

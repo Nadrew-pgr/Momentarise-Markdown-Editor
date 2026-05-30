@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const checkedSourceRoots = ["packages/md-core/src", "packages/md-save/src"];
+const checkedSourceRoots = ["packages/md-core/src", "packages/md-save/src", "packages/md-cli/src"];
 
 const forbiddenImports = [
   "react",
@@ -14,12 +14,12 @@ const forbiddenImports = [
 ];
 
 const forbiddenGlobalUsages = [
-  ["window", [String.raw`\bwindow\s*\.`, String.raw`\btypeof\s+window\b`]],
-  ["document", [String.raw`\bdocument\s*\.`, String.raw`\btypeof\s+document\b`]],
-  ["navigator", [String.raw`\bnavigator\s*\.`, String.raw`\btypeof\s+navigator\b`]],
-  ["localStorage", [String.raw`\blocalStorage\s*\.`, String.raw`\btypeof\s+localStorage\b`]],
-  ["sessionStorage", [String.raw`\bsessionStorage\s*\.`, String.raw`\btypeof\s+sessionStorage\b`]],
-  ["indexedDB", [String.raw`\bindexedDB\s*\.`, String.raw`\btypeof\s+indexedDB\b`]],
+  ["window", [String.raw`(?<!\.)\bwindow\s*\.`, String.raw`\btypeof\s+window\b`]],
+  ["document", [String.raw`(?<!\.)\bdocument\s*\.`, String.raw`\btypeof\s+document\b`]],
+  ["navigator", [String.raw`(?<!\.)\bnavigator\s*\.`, String.raw`\btypeof\s+navigator\b`]],
+  ["localStorage", [String.raw`(?<!\.)\blocalStorage\s*\.`, String.raw`\btypeof\s+localStorage\b`]],
+  ["sessionStorage", [String.raw`(?<!\.)\bsessionStorage\s*\.`, String.raw`\btypeof\s+sessionStorage\b`]],
+  ["indexedDB", [String.raw`(?<!\.)\bindexedDB\s*\.`, String.raw`\btypeof\s+indexedDB\b`]],
   ["HTMLElement", [String.raw`\bHTMLElement\b`]],
   ["HTMLDocument", [String.raw`\bHTMLDocument\b`]],
   ["FileReader", [String.raw`\bFileReader\b`]],
