@@ -280,7 +280,10 @@ class DefaultSaveEngine implements SaveEngine {
   }
 
   shouldBlockClose(): boolean {
-    return this.status === "dirty" || this.status === "saving" || this.status === "conflict";
+    if (this.status === "dirty" || this.status === "saving" || this.status === "conflict") {
+      return true;
+    }
+    return this.status === "error" && this.currentHash !== this.lastSavedHash;
   }
 
   updateContent(content: string, options: SaveUpdateOptions = {}): SaveState {
@@ -358,7 +361,19 @@ class DefaultSaveEngine implements SaveEngine {
       };
     }
 
-    const externalHash = await this.target.readExternalHash?.();
+    let externalHash: DocumentHash | null | undefined;
+    try {
+      externalHash = await this.target.readExternalHash?.();
+    } catch (error) {
+      this.status = "error";
+      this.targetState = "error";
+      this.errorMessage = error instanceof Error ? error.message : "Failed to read external save target.";
+      return {
+        message: this.errorMessage,
+        state: this.toState(),
+        status: "error"
+      };
+    }
     if (externalHash) {
       this.externalHash = externalHash;
     }
@@ -388,7 +403,19 @@ class DefaultSaveEngine implements SaveEngine {
       writeRequest.previousSavedHash = previousSavedHash;
     }
 
-    const result = await this.target.write(writeRequest);
+    let result: SaveTargetWriteResult;
+    try {
+      result = await this.target.write(writeRequest);
+    } catch (error) {
+      this.status = "error";
+      this.targetState = "error";
+      this.errorMessage = error instanceof Error ? error.message : "Unexpected save target failure.";
+      return {
+        message: this.errorMessage,
+        state: this.toState(),
+        status: "error"
+      };
+    }
 
     if (result.status === "conflict") {
       return this.markConflict(result.externalHash, result.message ?? "External content changed during save.");

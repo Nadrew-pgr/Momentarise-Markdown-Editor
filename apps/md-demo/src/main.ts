@@ -24,6 +24,8 @@ import {
   canUseFileSystemAccess,
   createImportedCopyDocument,
   createWritableFileSaveTarget,
+  detectMarkdownLineEnding,
+  normalizeMarkdownLineEndings,
   openWritableMarkdownFile,
   type WebFileHandleLike,
   type WebOpenedMarkdownFile,
@@ -359,14 +361,16 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   },
   loadWritableMarkdownFileForTest(fileName: string, content: string) {
     const testHandle = createTestWritableFileHandle(fileName, content);
+    const lineEnding = detectMarkdownLineEnding(content);
     loadOpenedMarkdownFile(
       {
-        content,
+        content: normalizeMarkdownLineEndings(content),
         fileName,
         mode: "writable-file",
         pathLabel: `disk://${fileName}`,
         target: createWritableFileSaveTarget({
           handle: testHandle.handle,
+          lineEnding,
           targetLabel: `disk://${fileName}`
         })
       },
@@ -624,9 +628,17 @@ function memorySave(source: "button" | "keyboard shortcut"): void {
 
 async function flushSave(reason: SaveFlushReason, source?: "button" | "keyboard shortcut"): Promise<void> {
   clearAutosaveTimer();
-  const result = await saveEngine.flush({
-    reason
-  });
+  let result: Awaited<ReturnType<SaveEngine["flush"]>>;
+  try {
+    result = await saveEngine.flush({
+      reason
+    });
+  } catch (error) {
+    lastSaveAction = `${source ?? reason} flush failed unexpectedly`;
+    logEvent(`Save failed unexpectedly: ${errorMessage(error)}`);
+    renderSaveState();
+    return;
+  }
   if (result.status === "saved") {
     lastSaveAction = `${source ?? reason} flush wrote ${saveFlushTargetLabel(result.state)}`;
     logEvent(`Flushed ${source ?? reason} save to ${saveFlushTargetLabel(result.state)}.`);

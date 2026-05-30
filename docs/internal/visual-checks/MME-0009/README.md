@@ -12,6 +12,7 @@
 ## Expected artifacts
 
 - `local-file-controls-initial.png` — proves the visible UI exposes local open/import controls before a file is selected.
+- `writable-crlf-opened-clean.png` — proves a CRLF writable document opens clean instead of becoming dirty from line-ending normalization.
 - `writable-file-opened.png` — proves a writable Markdown document shows disk mode, original-file status, and the opened filename/path.
 - `writable-file-saved-to-disk-target.png` — proves editing plus `Cmd/Ctrl+S` writes through a writable file target and returns to disk-saved state.
 - `imported-copy-opened.png` — proves fallback import mode is labeled as an imported copy requiring download/export.

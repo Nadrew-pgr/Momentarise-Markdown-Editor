@@ -283,6 +283,24 @@ async function main() {
 
     await evaluate(
       cdp,
+      `window.__MME_DEMO_VISUAL_CHECK__.loadWritableMarkdownFileForTest("visual-crlf.md", "# Visual CRLF\\r\\n\\r\\nInitial CRLF body.\\r\\n")`
+    );
+    const crlfOpened = await waitForSnapshot(
+      cdp,
+      (snapshot) =>
+        snapshot.status === "saved" &&
+        snapshot.target === "disk" &&
+        snapshot.activeDocument.mode === "writable-file" &&
+        String(snapshot.diskContent).includes("\r\n"),
+      "CRLF writable file opened clean"
+    );
+    assertIncludes(crlfOpened.documentName, "visual-crlf.md", "CRLF writable file name");
+    assertIncludes(crlfOpened.dirtyLabel, "clean", "CRLF clean dirty label");
+    assertIncludes(crlfOpened.targetLabel, "original file writable", "CRLF writable target label");
+    await screenshot(cdp, "writable-crlf-opened-clean.png");
+
+    await evaluate(
+      cdp,
       `window.__MME_DEMO_VISUAL_CHECK__.loadWritableMarkdownFileForTest("visual-local.md", "# Visual local\\n\\nInitial disk body.\\n")`
     );
     const writableOpened = await waitForSnapshot(

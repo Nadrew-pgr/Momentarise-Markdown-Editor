@@ -214,6 +214,38 @@ assertState(dirtyDuringSaveEngine.getState(), {
   target: "memory-only"
 });
 
+const throwingTargetEngine = createSaveEngine({
+  content: initialContent,
+  now: date("2026-05-30T00:04:00.000Z"),
+  target: {
+    persistenceTarget: "disk",
+    targetLabel: "disk://throwing.md",
+    async write() {
+      throw new Error("Unexpected target failure.");
+    }
+  }
+});
+throwingTargetEngine.updateContent(editedContent, {
+  now: date("2026-05-30T00:04:01.000Z")
+});
+const throwingTargetResult = await throwingTargetEngine.flush({
+  now: date("2026-05-30T00:04:02.000Z"),
+  reason: "manual"
+});
+if (throwingTargetResult.status !== "error") {
+  throw new Error(`Expected throwing target to return error, got ${throwingTargetResult.status}.`);
+}
+assertState(throwingTargetEngine.getState(), {
+  currentHash: hashMarkdownContent(editedContent),
+  lastSavedHash: hashMarkdownContent(initialContent),
+  status: "error",
+  target: "error"
+});
+assertIncludes(throwingTargetEngine.getState().errorMessage, "Unexpected target failure", "throwing target error");
+if (!throwingTargetEngine.shouldBlockClose()) {
+  throw new Error("Unexpected target failure with unsaved content must block close.");
+}
+
 function assertState(actual, expected) {
   for (const [key, value] of Object.entries(expected)) {
     if (actual[key] !== value) {

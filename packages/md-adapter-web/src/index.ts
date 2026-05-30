@@ -67,6 +67,7 @@ export interface WebOpenedMarkdownFile {
 
 export interface CreateWritableFileSaveTargetOptions {
   readonly handle: WebFileHandleLike;
+  readonly lineEnding?: MarkdownLineEnding;
   readonly targetLabel?: string;
 }
 
@@ -75,6 +76,8 @@ export interface CreateImportedCopyDocumentOptions {
   readonly fileName: string;
 }
 
+export type MarkdownLineEnding = "crlf" | "lf";
+
 export function canUseFileSystemAccess(host: WebFileAccessHostLike = defaultWebFileAccessHost()): boolean {
   return typeof host.showOpenFilePicker === "function";
 }
@@ -82,13 +85,14 @@ export function canUseFileSystemAccess(host: WebFileAccessHostLike = defaultWebF
 export function createImportedCopyDocument(
   options: CreateImportedCopyDocumentOptions
 ): WebOpenedMarkdownFile {
+  const content = normalizeMarkdownLineEndings(options.content);
   return {
-    content: options.content,
+    content,
     fileName: options.fileName,
     mode: "imported-copy",
     pathLabel: `imported-copy://${options.fileName}`,
     target: createDownloadRequiredSaveTarget({
-      initialContent: options.content,
+      initialContent: content,
       targetLabel: `imported-copy://${options.fileName}`
     })
   };
@@ -98,12 +102,13 @@ export function createWritableFileSaveTarget(
   options: CreateWritableFileSaveTargetOptions
 ): SaveTarget {
   const targetLabel = options.targetLabel ?? `disk://${options.handle.name}`;
+  const lineEnding = options.lineEnding ?? "lf";
   return {
     persistenceTarget: "disk",
     targetLabel,
     async readExternalHash() {
       const file = await options.handle.getFile();
-      return hashMarkdownContent(await file.text());
+      return hashMarkdownContent(normalizeMarkdownLineEndings(await file.text()));
     },
     async write(request: SaveTargetWriteRequest): Promise<SaveTargetWriteResult> {
       if (!options.handle.createWritable) {
@@ -116,7 +121,7 @@ export function createWritableFileSaveTarget(
 
       let writable: WebFileWritableLike | undefined;
       try {
-        const beforeWriteHash = hashMarkdownContent(await (await options.handle.getFile()).text());
+        const beforeWriteHash = hashMarkdownContent(normalizeMarkdownLineEndings(await (await options.handle.getFile()).text()));
         if (request.previousSavedHash && beforeWriteHash !== request.previousSavedHash) {
           return {
             externalHash: beforeWriteHash,
@@ -126,7 +131,19 @@ export function createWritableFileSaveTarget(
         }
 
         writable = await options.handle.createWritable();
-        await writable.write(request.content);
+        const afterWritableHash = hashMarkdownContent(
+          normalizeMarkdownLineEndings(await (await options.handle.getFile()).text())
+        );
+        if (request.previousSavedHash && afterWritableHash !== request.previousSavedHash) {
+          await writable.abort?.();
+          return {
+            externalHash: afterWritableHash,
+            message: "External file content changed before writable stream commit.",
+            status: "conflict"
+          };
+        }
+
+        await writable.write(restoreMarkdownLineEndings(request.content, lineEnding));
         await writable.close();
       } catch (error) {
         await writable?.abort?.();
@@ -179,7 +196,9 @@ export async function openWritableMarkdownFile(
   }
 
   const file = await handle.getFile();
-  const content = await file.text();
+  const rawContent = await file.text();
+  const lineEnding = detectMarkdownLineEnding(rawContent);
+  const content = normalizeMarkdownLineEndings(rawContent);
   return {
     content,
     fileName: file.name || handle.name,
@@ -187,9 +206,23 @@ export async function openWritableMarkdownFile(
     pathLabel: `disk://${file.name || handle.name}`,
     target: createWritableFileSaveTarget({
       handle,
+      lineEnding,
       targetLabel: `disk://${file.name || handle.name}`
     })
   };
+}
+
+export function detectMarkdownLineEnding(content: string): MarkdownLineEnding {
+  return content.includes("\r\n") ? "crlf" : "lf";
+}
+
+export function normalizeMarkdownLineEndings(content: string): string {
+  return content.replace(/\r\n?/g, "\n");
+}
+
+export function restoreMarkdownLineEndings(content: string, lineEnding: MarkdownLineEnding): string {
+  const normalized = normalizeMarkdownLineEndings(content);
+  return lineEnding === "crlf" ? normalized.replace(/\n/g, "\r\n") : normalized;
 }
 
 function defaultWebFileAccessHost(): WebFileAccessHostLike {
