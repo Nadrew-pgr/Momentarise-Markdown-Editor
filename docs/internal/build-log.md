@@ -949,7 +949,7 @@
 - Deviations from PRD:
   - Properties are display-only in this slice. Editing YAML properties through form fields is intentionally out of scope.
 - Open questions:
-  - Human review status: `code-complete/pending human review` because this is the first properties UI slice.
+  - Human review status: `accepted` by user on 2026-05-30 before starting MME-0012.
 - Suggested commit message:
   - `feat: add properties ui basics`
 
@@ -1044,8 +1044,8 @@
   - MME-0002: `code-complete/pending human review`.
   - MME-0007: `code-complete/pending human review`.
   - MME-0009: `accepted` based on the recorded headed Google Chrome smoke verification in the MME-0009 follow-up.
-  - MME-0011: `code-complete/pending human review`.
-  - MME-0011.5: `code-complete/pending human review`.
+  - MME-0011: `accepted` by user on 2026-05-30 before starting MME-0012.
+  - MME-0011.5: `accepted` by user on 2026-05-30 before starting MME-0012.
 - Alignment matrix:
   - Policy gate incoherent -> added minimal `@momentarise/md-policy` baseline before rich mode -> `packages/md-policy/*`, `package.json`, `tsconfig*`, `tests/policy-baseline.test.mjs` -> proof: `npm run test:policy`.
   - CodeMirror only in demo -> extracted reusable `@momentarise/md-source-codemirror` and consumed it from the demo -> `packages/md-source-codemirror/*`, `apps/md-demo/src/main.ts`, `tests/source-codemirror-package.test.mjs`, `tests/demo-source-baseline.mjs` -> proof: `npm run test:source-codemirror`, `npm run test:demo-baseline`.
@@ -1063,9 +1063,9 @@
   - The policy baseline is intentionally minimal: hard-deny/default/frontmatter override/audit behavior only. Complete policy work still belongs before AI writing.
   - Vite still warns that the CodeMirror demo bundle is over 500 kB; this remains acceptable for the mini demo.
 - Stop condition:
-  - Do not start MME-0012/rich mode until MME-0011.5 receives human acceptance.
+  - Cleared on 2026-05-30 by user approval to proceed to MME-0012 if MME-0011 and MME-0011.5 are OK.
 - Open questions:
-  - Human review status: `code-complete/pending human review`.
+  - Human review status: `accepted` by user on 2026-05-30 before starting MME-0012.
 - Suggested commit message:
   - `chore: align pre-rich gates`
 
