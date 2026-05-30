@@ -6,6 +6,7 @@ import type {
   FrontmatterValue,
   KnownNode,
   MomentariseNode,
+  NodeAttributes,
   OpaqueNode,
   ParseOptions,
   ParseResult,
@@ -111,6 +112,13 @@ type MdastLikeNode = {
   };
   readonly value?: string;
   readonly lang?: string | null;
+  readonly meta?: string | null;
+  readonly depth?: number;
+  readonly ordered?: boolean;
+  readonly checked?: boolean | null;
+  readonly url?: string;
+  readonly title?: string | null;
+  readonly alt?: string | null;
 };
 
 export function createMarkdownAstParser(): MarkdownParser {
@@ -516,13 +524,56 @@ function mapMdastNode(node: MdastLikeNode, source: string, id: string): Momentar
 
   const children = (node.children ?? []).map((child, index) => mapMdastNode(child, source, `${id}-${index}`));
   const sourceRange = rangeFromMdastPosition(node.position);
+  const attributes = attributesForMdastNode(node);
   return {
+    ...(attributes ? { attributes } : {}),
     ...(children.length > 0 ? { children } : {}),
     ...(sourceRange ? { sourceRange } : {}),
     id,
     kind: kindForMdastType(node.type),
     type: typeForMdastType(node.type)
   };
+}
+
+function attributesForMdastNode(node: MdastLikeNode): NodeAttributes | null {
+  const attributes: Record<string, string | number | boolean | null> = {};
+
+  if (node.type === "heading" && typeof node.depth === "number") {
+    attributes.depth = node.depth;
+  }
+  if (node.type === "list" && typeof node.ordered === "boolean") {
+    attributes.ordered = node.ordered;
+  }
+  if (node.type === "listItem" && typeof node.checked === "boolean") {
+    attributes.checked = node.checked;
+  }
+  if (node.type === "code") {
+    attributes.value = node.value ?? "";
+    if (node.lang) {
+      attributes.language = node.lang;
+    }
+    if (node.meta) {
+      attributes.meta = node.meta;
+    }
+  }
+  if (node.type === "inlineCode" || node.type === "text") {
+    attributes.value = node.value ?? "";
+  }
+  if (node.type === "link") {
+    attributes.url = node.url ?? "";
+    if (node.title) {
+      attributes.title = node.title;
+    }
+  }
+  if (node.type === "image") {
+    attributes.url = node.url ?? "";
+    attributes.alt = node.alt ?? "";
+    if (node.title) {
+      attributes.title = node.title;
+    }
+  }
+
+  return Object.keys(attributes).length > 0 ? attributes : null;
 }
 
 function opaqueReasonForMdastNode(node: MdastLikeNode): string | null {
@@ -920,6 +971,7 @@ export type {
   FrontmatterRecord,
   MomentariseDocument,
   MomentariseNode,
+  NodeAttributes,
   OpaqueNode,
   ParseOptions,
   ParseResult,

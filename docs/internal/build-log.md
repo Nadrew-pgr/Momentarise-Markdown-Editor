@@ -233,7 +233,7 @@
   - Source mode auto-closing pairs are enabled through CodeMirror `closeBrackets`.
   - Production chunk size warning remains: the CodeMirror demo bundle is over Vite's 500 kB warning threshold. This is acceptable for the mini demo and should be revisited before production packaging.
 - Open questions:
-  - Human review is required before accepting MME-0002 and before moving to the next UI-heavy issue.
+  - Human review status: `code-complete/pending human review`. MME-0002 has automated visual proof and reviewer pass, but no explicit human acceptance record is stored in the build log.
 - Suggested commit message:
   - `feat: add CodeMirror source demo`
 
@@ -595,7 +595,7 @@
   - No local disk open/save behavior is implemented in this issue; that belongs to the Save Engine and real-file persistence issues.
   - `test:source-ux` is a static guard for required scripts/hooks/documentation. Behavioral UX proof requires the Chrome-backed visual scenario.
 - Open questions:
-  - Human review is required before considering MME-0007 accepted and before moving to the next issue.
+  - Human review status: `code-complete/pending human review`. MME-0007 has automated visual proof and reviewer pass, but no explicit human acceptance record is stored in the build log.
 - Suggested commit message:
   - `feat: improve source editing baseline`
 
@@ -939,6 +939,7 @@
   - `docs/internal/visual-checks/MME-0011/properties-hidden.png` proves properties can be hidden while raw YAML remains in source mode.
   - `docs/internal/visual-checks/MME-0011/properties-source-yaml.png` proves raw YAML frontmatter can be inspected from the properties panel.
   - `docs/internal/visual-checks/MME-0011/properties-roundtrip-after-edit.png` proves body edits keep frontmatter in source and round-trip status remains passing.
+  - `docs/internal/visual-checks/MME-0011/unsupported-local-file-state.png` proves unsupported local file access is labeled as unsupported, not fixture-backed or saved to disk.
 - Reviewer/subagent used and result:
   - UX/Test reviewer initially found the acceptance evidence did not prove that toggling Properties leaves Markdown unmodified. Fixed by strengthening `scripts/visual-check-mme0011.mjs` to compare exact Markdown before and after Hide/YAML toggles, then reran `visual:mme-0011` successfully.
   - Residual risks documented by reviewer: screenshot coverage is desktop-only; the properties list currently displays the first six frontmatter fields; raw YAML extraction targets standard leading `---` frontmatter only.
@@ -948,6 +949,122 @@
 - Deviations from PRD:
   - Properties are display-only in this slice. Editing YAML properties through form fields is intentionally out of scope.
 - Open questions:
-  - Human review is required before considering MME-0011 accepted because this is the first properties UI slice.
+  - Human review status: `code-complete/pending human review` because this is the first properties UI slice.
 - Suggested commit message:
   - `feat: add properties ui basics`
+
+## MME-0011.5 — Alignment gate before rich mode
+
+- Timestamp: 2026-05-30T17:00:34Z
+- Summary: Added a pre-rich-mode alignment gate and corrected the highest-priority drift between docs, gates, issues, and code before starting MME-0012. This slice did not start ProseMirror or rich mode.
+- Files changed:
+  - `README.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+  - `docs/internal/visual-checks/MME-0011/README.md`
+  - `docs/internal/visual-checks/MME-0011/unsupported-local-file-state.png`
+  - `docs/internal/visual-checks/MME-0011.5/README.md`
+  - `docs/internal/visual-checks/MME-0011.5/properties-visible-frontmatter.png`
+  - `docs/internal/visual-checks/MME-0011.5/unsupported-local-file-state.png`
+  - `package.json`
+  - `package-lock.json`
+  - `tsconfig.json`
+  - `tsconfig.base.json`
+  - `apps/md-demo/package.json`
+  - `apps/md-demo/src/main.ts`
+  - `apps/md-demo/src/styles.css`
+  - `apps/md-demo/tsconfig.json`
+  - `packages/md-policy/src/index.ts`
+  - `packages/md-policy/package.json`
+  - `packages/md-policy/tsconfig.json`
+  - `packages/md-source-codemirror/src/index.ts`
+  - `packages/md-source-codemirror/package.json`
+  - `packages/md-source-codemirror/tsconfig.json`
+  - `packages/md-cli/src/index.ts`
+  - `packages/md-core/src/index.ts`
+  - `packages/md-format/src/index.ts`
+  - `scripts/visual-check-mme0011.mjs`
+  - `tests/alignment-gate.test.mjs`
+  - `tests/cli-v0.test.mjs`
+  - `tests/demo-source-baseline.mjs`
+  - `tests/no-host-imports.mjs`
+  - `tests/parser-foundation.test.mjs`
+  - `tests/policy-baseline.test.mjs`
+  - `tests/source-codemirror-package.test.mjs`
+  - `tests/source-editing-ux-baseline.test.mjs`
+  - `tests/type-contracts.test.ts`
+  - `tests/visual-chrome-portability.test.mjs`
+- Behavior to prove before implementation:
+  - Rich mode cannot start while policy/source package/parser/status drift remains unresolved.
+  - A minimal Document Access Policy package exists before rich mode and has regression tests.
+  - CodeMirror source mode is reusable through `@momentarise/md-source-codemirror`, not only hardwired in the demo.
+  - Parser nodes expose rich-mode-ready attributes for headings, todos, links, images, code, and text.
+  - The serializer limitation is explicit: targeted edits are proven pre-rich, full model serialization remains future work.
+  - Human review statuses are explicit.
+  - UI labels for fixture/imported/unsupported states and properties truncation are truthful.
+- Test-first evidence:
+  - `npm run test:policy` failed before implementation because `@momentarise/md-policy` did not exist.
+  - `npm run test:source-codemirror` failed before implementation because `@momentarise/md-source-codemirror` did not exist.
+  - `npm run test:alignment` failed before implementation because MME-0011.5 was missing from `docs/internal/ISSUES.md`.
+  - Strengthened `npm run test:alignment` failed before the build-log update because the MME-0011.5 build-log entry and alignment matrix were missing.
+- Tests/checks run:
+  - `npm i`
+  - `npm run test:alignment`
+  - `npm run test:visual-portability`
+  - `npm run test:source-codemirror`
+  - `npm run test:parser`
+  - `npm run test:demo-baseline`
+  - `npm run test:policy`
+  - `npm run test:cli`
+  - `npm run test:architecture`
+  - `npm run test:source-ux`
+  - `npm run test:properties-ui`
+  - `npm run build:demo`
+  - `npm test`
+  - `MME_DEMO_URL=http://127.0.0.1:5174/ npm run visual:mme-0011`
+  - `MME_VISUAL_DIR=docs/internal/visual-checks/MME-0011.5 MME_DEMO_URL=http://127.0.0.1:5174/ npm run visual:mme-0011`
+- Manual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174 --strictPort`
+  - Local URL: `http://127.0.0.1:5174/`
+  - The server was intentionally left running on `5174`.
+  - Reloaded the in-app browser on `http://localhost:5174/` and confirmed the fresh source demo loaded.
+  - Inspected `properties-visible-frontmatter.png` and confirmed the imported-copy label and `+1 more fields` frontmatter overflow note.
+  - Inspected `unsupported-local-file-state.png` and confirmed unsupported file access is labeled as unsupported, not saved or fixture-backed.
+- Visual artifacts:
+  - `docs/internal/visual-checks/MME-0011.5/properties-visible-frontmatter.png` proves imported-copy labeling and disclosed frontmatter overflow.
+  - `docs/internal/visual-checks/MME-0011.5/unsupported-local-file-state.png` proves unsupported local file access is represented honestly.
+- Reviewer/subagent used and result:
+  - Architecture/Test reviewer result before final fixes: failed process gate because MME-0011.5 had no build-log entry/matrix and human review statuses were not explicit. Code-level checks passed for policy, CodeMirror extraction, parser attributes, serializer readiness limitation, no rich mode started, and demo labels.
+  - UX/Process reviewer result before final fixes: failed process gate because MME-0011.5 had no build-log entry/matrix, MME-0011 human review status was implicit, and unsupported local-file state lacked visual proof. Passed imported-copy labeling and properties overflow once visual assertions existed.
+  - Fixes applied after reviewer findings: added the MME-0011.5 build-log entry and alignment matrix, made human review statuses explicit, added unsupported-state visual proof, and strengthened `test:alignment` so the build-log/matrix cannot be omitted silently.
+- Visual impact:
+  - Editing surface: no rich mode, ProseMirror, or editor behavior change was introduced. Source editing still uses CodeMirror 6.
+  - General UI/inspector: imported-copy and unsupported states are labeled more truthfully in the round-trip/status surfaces, and long frontmatter lists now show an overflow note instead of silently truncating.
+- Human review status cleanup:
+  - MME-0002: `code-complete/pending human review`.
+  - MME-0007: `code-complete/pending human review`.
+  - MME-0009: `accepted` based on the recorded headed Google Chrome smoke verification in the MME-0009 follow-up.
+  - MME-0011: `code-complete/pending human review`.
+  - MME-0011.5: `code-complete/pending human review`.
+- Alignment matrix:
+  - Policy gate incoherent -> added minimal `@momentarise/md-policy` baseline before rich mode -> `packages/md-policy/*`, `package.json`, `tsconfig*`, `tests/policy-baseline.test.mjs` -> proof: `npm run test:policy`.
+  - CodeMirror only in demo -> extracted reusable `@momentarise/md-source-codemirror` and consumed it from the demo -> `packages/md-source-codemirror/*`, `apps/md-demo/src/main.ts`, `tests/source-codemirror-package.test.mjs`, `tests/demo-source-baseline.mjs` -> proof: `npm run test:source-codemirror`, `npm run test:demo-baseline`.
+  - Parser model too thin before rich mode -> added `NodeAttributes` and mapped heading depth, list/todo state, code value/language/meta, link/image URL/title/alt, and text values -> `packages/md-core/src/index.ts`, `packages/md-format/src/index.ts`, `tests/parser-foundation.test.mjs` -> proof: `npm run test:parser`.
+  - Serializer pass-through ambiguity -> kept targeted edited-range serializer as the pre-rich proof and documented full model serialization as future work -> `docs/internal/ISSUES.md`, existing serializer tests -> proof: `npm run test:serializer` through `npm test`.
+  - Human review ambiguity -> recorded explicit `accepted` or `code-complete/pending human review` statuses -> `docs/internal/build-log.md`, `docs/internal/visual-checks/MME-0011/README.md`, `docs/internal/visual-checks/MME-0011.5/README.md` -> proof: `npm run test:alignment`.
+  - Misleading fixture/imported labels -> replaced hardcoded Round-trip `Fixture` label with source-mode-aware labels -> `apps/md-demo/src/main.ts`, `tests/alignment-gate.test.mjs`, visual artifacts -> proof: `npm run test:alignment`, `MME_VISUAL_DIR=docs/internal/visual-checks/MME-0011.5 MME_DEMO_URL=http://127.0.0.1:5174/ npm run visual:mme-0011`.
+  - Unsupported file access not visible enough -> added first-class unsupported demo state and screenshot proof -> `apps/md-demo/src/main.ts`, `scripts/visual-check-mme0011.mjs`, `docs/internal/visual-checks/MME-0011.5/unsupported-local-file-state.png` -> proof: visual script.
+  - README stale -> updated repository status through MME-0011.5 -> `README.md`, `tests/alignment-gate.test.mjs` -> proof: `npm run test:alignment`.
+  - Visual script coverage gap for MME-0011 -> added MME-0011 to Chrome portability guard and added MME-0011.5 visual artifact directory -> `tests/visual-chrome-portability.test.mjs`, `docs/internal/visual-checks/MME-0011.5/README.md` -> proof: `npm run test:visual-portability`.
+  - Properties truncation silent -> added overflow note and visual assertion -> `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `scripts/visual-check-mme0011.mjs` -> proof: `npm run test:properties-ui`, visual script.
+  - CLI fixture definition too loose -> fixture CLI now requires `expectations.md` and test covers missing expectations -> `packages/md-cli/src/index.ts`, `tests/cli-v0.test.mjs` -> proof: `npm run test:cli`.
+- Deviations from PRD:
+  - Full model-based Markdown serialization remains incomplete and is not claimed complete. Only targeted edited-range serialization is proven before rich mode.
+  - The policy baseline is intentionally minimal: hard-deny/default/frontmatter override/audit behavior only. Complete policy work still belongs before AI writing.
+  - Vite still warns that the CodeMirror demo bundle is over 500 kB; this remains acceptable for the mini demo.
+- Stop condition:
+  - Do not start MME-0012/rich mode until MME-0011.5 receives human acceptance.
+- Open questions:
+  - Human review status: `code-complete/pending human review`.
+- Suggested commit message:
+  - `chore: align pre-rich gates`

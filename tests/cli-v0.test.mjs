@@ -109,6 +109,24 @@ try {
   if (failedFixtureCheck.status === 0) {
     throw new Error("mme test:fixtures must exit non-zero when fixture checks fail.");
   }
+
+  const missingExpectationsRoot = await mkdtemp(join(tmpdir(), "mme-cli-missing-expectations-"));
+  const missingFixtureRoot = join(missingExpectationsRoot, "fixtures", "missing-expectations");
+  await mkdir(missingFixtureRoot, {
+    recursive: true
+  });
+  await writeFile(join(missingFixtureRoot, "input.md"), "# Missing Expectations\n", "utf8");
+  const missingExpectationsCheck = spawnSync(process.execPath, [cliPath, "test:fixtures", "--json"], {
+    cwd: missingExpectationsRoot,
+    encoding: "utf8"
+  });
+  if (missingExpectationsCheck.status === 0) {
+    throw new Error("mme test:fixtures must fail when a fixture has no expectations.md.");
+  }
+  await rm(missingExpectationsRoot, {
+    force: true,
+    recursive: true
+  });
 } finally {
   await rm(tempRoot, {
     force: true,

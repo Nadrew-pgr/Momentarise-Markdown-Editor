@@ -3,7 +3,8 @@ import { existsSync, readFileSync } from "node:fs";
 const requiredFiles = [
   "scripts/visual-check-mme0007.mjs",
   "docs/internal/visual-checks/MME-0007/README.md",
-  "apps/md-demo/src/main.ts"
+  "apps/md-demo/src/main.ts",
+  "packages/md-source-codemirror/src/index.ts"
 ];
 
 for (const file of requiredFiles) {
@@ -18,9 +19,9 @@ if (packageJson.scripts["visual:mme-0007"] !== "node scripts/visual-check-mme000
 }
 
 const main = readFileSync("apps/md-demo/src/main.ts", "utf8");
-const sourceRequirements = [
-  ["empty list exit", "exitEmptyMarkdownListItem"],
-  ["empty checkbox exit", "exitEmptyCheckboxItem"],
+const sourcePackage = readFileSync("packages/md-source-codemirror/src/index.ts", "utf8");
+const mainRequirements = [
+  ["source package adapter", "@momentarise/md-source-codemirror"],
   ["status refresh test hook", "forceStatusRefresh"],
   ["selection read test hook", "getSelectionRange"],
   ["cursor text test hook", "setCursorAfterText"],
@@ -29,9 +30,25 @@ const sourceRequirements = [
   ["baseline copy lists code fence editing", "Code fence editing"]
 ];
 
-for (const [label, snippet] of sourceRequirements) {
+for (const [label, snippet] of mainRequirements) {
   if (!main.includes(snippet)) {
     throw new Error(`MME-0007 source UX baseline missing ${label}: ${snippet}`);
+  }
+}
+
+const packageRequirements = [
+  ["empty list exit", "exitEmptyMarkdownListItem"],
+  ["empty checkbox exit", "exitEmptyCheckboxItem"],
+  ["list continuation", "continueMarkdownList"],
+  ["save shortcut delegation", "Mod-s"],
+  ["CodeMirror markdown language", "markdown()"],
+  ["close brackets", "closeBrackets()"],
+  ["history keymap", "historyKeymap"]
+];
+
+for (const [label, snippet] of packageRequirements) {
+  if (!sourcePackage.includes(snippet)) {
+    throw new Error(`MME-0007 source package baseline missing ${label}: ${snippet}`);
   }
 }
 

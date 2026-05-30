@@ -9,6 +9,7 @@
 5. Switch the Properties panel to hidden mode and verify the source editor content does not change.
 6. Switch the Properties panel to YAML mode and verify raw frontmatter is visible.
 7. Edit body Markdown, verify raw YAML remains in CodeMirror source mode, and verify round-trip status still passes.
+8. Trigger the unsupported local-file state and verify the UI does not call it saved or fixture-backed.
 
 ## Expected artifacts
 
@@ -16,6 +17,7 @@
 - `properties-hidden.png` — proves properties can be hidden without changing the editor source.
 - `properties-source-yaml.png` — proves raw YAML frontmatter can be inspected from the properties panel while still remaining in source mode.
 - `properties-roundtrip-after-edit.png` — proves body edits keep frontmatter in source and round-trip status remains passing.
+- `unsupported-local-file-state.png` — proves unsupported local file access is labeled as unsupported, not fixture or saved-to-disk.
 
 ## Commands used
 
@@ -25,4 +27,4 @@
 
 ## Human review status
 
-Human review is required because MME-0011 is the first properties UI slice.
+MME-0011 status is `code-complete/pending human review` because this is the first properties UI slice.

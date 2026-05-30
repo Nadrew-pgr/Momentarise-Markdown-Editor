@@ -1,9 +1,5 @@
-import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
-import { defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { markdown } from "@codemirror/lang-markdown";
-import { bracketMatching, indentOnInput } from "@codemirror/language";
-import { EditorState, Transaction } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import {
   createMarkdownAstFormatter,
   roundTripMarkdown,
@@ -31,7 +27,7 @@ import {
   type WebOpenedMarkdownFile,
   type WebOpenedMarkdownMode
 } from "@momentarise/md-adapter-web";
-import { basicSetup } from "codemirror";
+import { createMomentariseSourceExtensions } from "@momentarise/md-source-codemirror";
 import "./styles.css";
 
 const fixtureMarkdown = `---
@@ -125,7 +121,7 @@ app.innerHTML = `
         <section class="status-block">
           <p class="label">Round-trip</p>
           <div class="status-lines" data-testid="roundtrip-status">
-            <p><span>Fixture</span><strong data-testid="roundtrip-fixture">source-mode-fixture.md</strong></p>
+            <p><span data-testid="roundtrip-source-label">Source</span><strong data-testid="roundtrip-fixture">source-mode-fixture.md</strong></p>
             <p><span>Mode</span><strong data-testid="roundtrip-mode">strict</strong></p>
             <p><span>Parser</span><strong data-testid="parser-status">pending</strong></p>
             <p><span>Serializer</span><strong data-testid="serializer-status">pending</strong></p>
@@ -178,6 +174,7 @@ const saveEngineLastSavedHashElement = queryRequired<HTMLElement>('[data-testid=
 const saveEngineExternalHashElement = queryRequired<HTMLElement>('[data-testid="save-engine-external-hash"]');
 const saveEngineLastActionElement = queryRequired<HTMLElement>('[data-testid="save-engine-last-action"]');
 const eventLogElement = queryRequired<HTMLOListElement>('[data-testid="event-log"]');
+const roundTripSourceLabelElement = queryRequired<HTMLElement>('[data-testid="roundtrip-source-label"]');
 const roundTripFixtureElement = queryRequired<HTMLElement>('[data-testid="roundtrip-fixture"]');
 const parserStatusElement = queryRequired<HTMLElement>('[data-testid="parser-status"]');
 const serializerStatusElement = queryRequired<HTMLElement>('[data-testid="serializer-status"]');
@@ -225,39 +222,17 @@ let lastSaveAction = "loaded fixture";
 let propertiesDisplayMode: PropertiesDisplayMode = "visible";
 let autosaveTimer: number | undefined;
 
-const sourceKeymap = [
-  {
-    key: "Enter",
-    run: continueMarkdownList
-  },
-  {
-    key: "Mod-s",
-    preventDefault: true,
-    run: () => {
-      memorySave("keyboard shortcut");
-      return true;
-    }
-  }
-];
-
 const editor = new EditorView({
   parent: editorHost,
   state: EditorState.create({
     doc: fixtureMarkdown,
     extensions: [
-      basicSetup,
-      markdown(),
-      bracketMatching(),
-      closeBrackets(),
-      indentOnInput(),
-      keymap.of([
-        ...sourceKeymap,
-        ...closeBracketsKeymap,
-        indentWithTab,
-        ...historyKeymap,
-        ...defaultKeymap
-      ]),
-      EditorView.lineWrapping,
+      ...createMomentariseSourceExtensions({
+        onSave: () => {
+          memorySave("keyboard shortcut");
+          return true;
+        }
+      }),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           saveEngine.updateContent(getMarkdown());
@@ -266,23 +241,6 @@ const editor = new EditorView({
           updateRoundTripStatus();
         }
       }),
-      EditorView.theme({
-        "&": {
-          height: "100%"
-        },
-        ".cm-scroller": {
-          fontFamily: "var(--font-mono)",
-          fontSize: "14px",
-          lineHeight: "1.6"
-        },
-        ".cm-content": {
-          padding: "24px 28px"
-        },
-        ".cm-gutters": {
-          backgroundColor: "transparent",
-          borderRight: "1px solid var(--line)"
-        }
-      })
     ]
   })
 });
@@ -398,6 +356,9 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
       sourceLabel: "test imported copy"
     });
   },
+  showUnsupportedLocalFileStateForTest() {
+    showUnsupportedLocalFileState();
+  },
   loadWritableMarkdownFileForTest(fileName: string, content: string) {
     const testHandle = createTestWritableFileHandle(fileName, content);
     const lineEnding = detectMarkdownLineEnding(content);
@@ -455,9 +416,7 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
 
 async function openLocalMarkdownFile(): Promise<void> {
   if (!canUseFileSystemAccess()) {
-    lastSaveAction = "File System Access unavailable; use Import copy and Download";
-    logEvent("File System Access API unavailable. Import copy keeps the original file untouched.");
-    renderSaveState();
+    showUnsupportedLocalFileState();
     return;
   }
 
@@ -476,6 +435,30 @@ async function openLocalMarkdownFile(): Promise<void> {
     }
     renderSaveState();
   }
+}
+
+function showUnsupportedLocalFileState(): void {
+  clearAutosaveTimer();
+  const content = getMarkdown();
+  const unsupportedTarget: SaveTarget = {
+    persistenceTarget: "unsupported",
+    targetLabel: "unsupported://local-file-access"
+  };
+  activeDocument = {
+    fileName: activeDocument.fileName,
+    mode: "unsupported",
+    pathLabel: "unsupported://local-file-access"
+  };
+  saveTarget = unsupportedTarget;
+  saveEngine = createSaveEngine({
+    autosaveDelayMs: 1000,
+    content,
+    target: saveTarget
+  });
+  lastSaveAction = "File System Access unavailable; use Import copy and Download";
+  logEvent("File System Access API unavailable. Import copy keeps the original file untouched.");
+  renderSaveState();
+  updateRoundTripStatus();
 }
 
 async function importMarkdownCopy(file: File): Promise<void> {
@@ -537,102 +520,6 @@ function replaceEditorDocument(content: string): void {
       anchor: 0
     }
   });
-}
-
-function continueMarkdownList(view: EditorView): boolean {
-  const { state } = view;
-  const selection = state.selection.main;
-  if (!selection.empty) {
-    return false;
-  }
-
-  const line = state.doc.lineAt(selection.from);
-  const beforeCursor = state.sliceDoc(line.from, selection.from);
-  const afterCursor = state.sliceDoc(selection.from, line.to);
-  if (exitEmptyCheckboxItem(beforeCursor, afterCursor) || exitEmptyMarkdownListItem(beforeCursor, afterCursor)) {
-    view.dispatch(
-      state.update({
-        changes: {
-          from: line.from,
-          insert: "",
-          to: selection.from
-        },
-        selection: {
-          anchor: line.from
-        },
-        annotations: Transaction.userEvent.of("input")
-      })
-    );
-    return true;
-  }
-
-  const checkboxInsertion = continueCheckboxItem(beforeCursor);
-  const listInsertion = checkboxInsertion ?? continueListItem(beforeCursor);
-
-  if (!listInsertion) {
-    return false;
-  }
-
-  view.dispatch(
-    state.update({
-      changes: {
-        from: selection.from,
-        insert: listInsertion
-      },
-      selection: {
-        anchor: selection.from + listInsertion.length
-      },
-      annotations: Transaction.userEvent.of("input")
-    })
-  );
-  return true;
-}
-
-function exitEmptyCheckboxItem(beforeCursor: string, afterCursor: string): boolean {
-  return /^(\s*)([-*+])\s+\[(?: |x|X)\]\s*$/.test(beforeCursor) && afterCursor.trim() === "";
-}
-
-function exitEmptyMarkdownListItem(beforeCursor: string, afterCursor: string): boolean {
-  return /^(\s*)(?:[-*+]|\d+[.)])\s+$/.test(beforeCursor) && afterCursor.trim() === "";
-}
-
-function continueCheckboxItem(beforeCursor: string): string | null {
-  const match = beforeCursor.match(/^(\s*)([-*+])\s+\[(?: |x|X)\]\s+/);
-  if (!match) {
-    return null;
-  }
-  const indent = match[1] ?? "";
-  const marker = match[2];
-  if (!marker) {
-    return null;
-  }
-  return `\n${indent}${marker} [ ] `;
-}
-
-function continueListItem(beforeCursor: string): string | null {
-  const unordered = beforeCursor.match(/^(\s*)([-*+])\s+/);
-  if (unordered) {
-    const indent = unordered[1] ?? "";
-    const marker = unordered[2];
-    if (!marker) {
-      return null;
-    }
-    return `\n${indent}${marker} `;
-  }
-
-  const ordered = beforeCursor.match(/^(\s*)(\d+)([.)])\s+/);
-  if (ordered) {
-    const indent = ordered[1] ?? "";
-    const number = ordered[2];
-    const marker = ordered[3];
-    if (!number || !marker) {
-      return null;
-    }
-    const nextNumber = Number.parseInt(number, 10) + 1;
-    return `\n${indent}${nextNumber}${marker} `;
-  }
-
-  return null;
 }
 
 async function copyMarkdown(): Promise<void> {
@@ -878,12 +765,26 @@ function updateRoundTripStatus(): void {
     fixtureId: activeDocument.fileName,
     mode: "strict"
   });
+  roundTripSourceLabelElement.textContent = roundTripSourceLabel(activeDocument.mode);
   roundTripFixtureElement.textContent = activeDocument.fileName;
   roundTripModeElement.textContent = result.mode;
   parserStatusElement.textContent = parserStatusLabel(result);
   serializerStatusElement.textContent = serializerStatusLabel(result);
   renderPropertiesPanel(parseResult);
   renderDiagnostics(result);
+}
+
+function roundTripSourceLabel(mode: DemoDocumentMode): string {
+  if (mode === "fixture") {
+    return "Fixture";
+  }
+  if (mode === "writable-file") {
+    return "Writable file";
+  }
+  if (mode === "imported-copy") {
+    return "Imported copy";
+  }
+  return "Unsupported";
 }
 
 function parserStatusLabel(result: FixtureRoundTripResult): string {
@@ -924,10 +825,12 @@ function renderFrontmatterList(parseResult: ParseResult): void {
     return;
   }
 
+  const entries = Object.entries(frontmatter);
+  const visibleEntries = entries.slice(0, 6);
+  const overflowCount = entries.length - visibleEntries.length;
   frontmatterElement.replaceChildren(
-    ...Object.entries(frontmatter)
-      .slice(0, 6)
-      .flatMap(([key, value]) => frontmatterRow(key, value))
+    ...visibleEntries.flatMap(([key, value]) => frontmatterRow(key, value)),
+    ...(overflowCount > 0 ? [propertiesOverflowNote(overflowCount)] : [])
   );
 }
 
@@ -952,6 +855,14 @@ function frontmatterRow(key: string, value: FrontmatterRecord[string]): readonly
 function emptyValue(value: string): HTMLElement {
   const item = document.createElement("dd");
   item.textContent = value;
+  return item;
+}
+
+function propertiesOverflowNote(count: number): HTMLElement {
+  const item = document.createElement("dd");
+  item.className = "properties-overflow-note";
+  item.dataset.testid = "properties-overflow-note";
+  item.textContent = `+${count} more fields; switch to YAML for the full frontmatter.`;
   return item;
 }
 
@@ -1020,6 +931,7 @@ declare global {
       loadImportedCopyForTest: (fileName: string, content: string) => void;
       loadWritableMarkdownFileForTest: (fileName: string, content: string) => void;
       memorySave: (source: "button" | "keyboard shortcut") => void;
+      showUnsupportedLocalFileStateForTest: () => void;
       simulateExternalConflict: () => void;
       setCursorAfterText: (text: string) => void;
       setCursorToEnd: () => void;

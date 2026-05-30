@@ -285,6 +285,12 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.frontmatter-list .properties-overflow-note {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-weight: 500;
+}
+
 .frontmatter-source {
   max-height: 220px;
   margin: 0;

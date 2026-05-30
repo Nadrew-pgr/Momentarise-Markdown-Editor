@@ -52,7 +52,22 @@ export interface MomentariseNodeBase {
   readonly kind: NodeKind;
   readonly type: string;
   readonly sourceRange?: SourceRange;
+  readonly attributes?: NodeAttributes;
 }
+
+export type NodeAttributeValue =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly NodeAttributeValue[]
+  | {
+      readonly [key: string]: NodeAttributeValue;
+    };
+
+export type NodeAttributes = {
+  readonly [key: string]: NodeAttributeValue;
+};
 
 export interface KnownNode extends MomentariseNodeBase {
   readonly kind: "root" | "block" | "inline";

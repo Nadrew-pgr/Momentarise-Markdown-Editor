@@ -347,10 +347,14 @@ async function loadFixtures(fixturesRoot: string): Promise<readonly RoundTripFix
   });
   const directories = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
   return Promise.all(
-    directories.map(async (fixtureId) => ({
-      fixtureId,
-      input: await readFile(join(fixturesRoot, fixtureId, "input.md"), "utf8")
-    }))
+    directories.map(async (fixtureId) => {
+      const fixtureRoot = join(fixturesRoot, fixtureId);
+      await access(join(fixtureRoot, "expectations.md"), fsConstants.R_OK);
+      return {
+        fixtureId,
+        input: await readFile(join(fixtureRoot, "input.md"), "utf8")
+      };
+    })
   );
 }
 

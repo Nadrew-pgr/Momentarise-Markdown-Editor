@@ -11,6 +11,12 @@
       "path": "packages/md-save"
     },
     {
+      "path": "packages/md-policy"
+    },
+    {
+      "path": "packages/md-source-codemirror"
+    },
+    {
       "path": "packages/md-adapter-web"
     },
     {

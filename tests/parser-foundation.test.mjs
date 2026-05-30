@@ -40,6 +40,33 @@ if (!Array.isArray(frontmatterRecord.tags) || !frontmatterRecord.tags.includes("
   throw new Error("YAML frontmatter tags must be extracted as a list.");
 }
 
+const simpleHeading = findNodeByType(findFixture("001-simple-markdown").result.document.root, "heading");
+if (simpleHeading.attributes?.depth !== 1) {
+  throw new Error("Heading nodes must expose Momentarise-native depth before rich mode.");
+}
+
+const taskListItem = findNodeByType(findFixture("003-gfm-task-list").result.document.root, "listItem", (node) =>
+  Object.prototype.hasOwnProperty.call(node.attributes ?? {}, "checked")
+);
+if (typeof taskListItem.attributes?.checked !== "boolean") {
+  throw new Error("Task list items must expose Momentarise-native checked state before rich mode.");
+}
+
+const codeFence = findNodeByType(findFixture("005-code-fence-language").result.document.root, "codeFence");
+if (codeFence.attributes?.language !== "ts" || typeof codeFence.attributes?.value !== "string") {
+  throw new Error("Code fence nodes must expose language and value before rich mode.");
+}
+
+const link = findNodeByType(findFixture("009-link-image").result.document.root, "link");
+if (link.attributes?.url !== "../docs/public/GLOSSARY.md") {
+  throw new Error("Link nodes must expose URL before rich mode.");
+}
+
+const image = findNodeByType(findFixture("009-link-image").result.document.root, "image");
+if (!image.attributes?.url || !image.attributes?.alt) {
+  throw new Error("Image nodes must expose URL and alt text before rich mode.");
+}
+
 const unsupportedFixtures = [
   {
     fixtureId: "007-obsidian-callout",
@@ -101,6 +128,19 @@ function collectOpaqueNodes(node) {
     return [node];
   }
   return (node.children ?? []).flatMap((child) => collectOpaqueNodes(child));
+}
+
+function findNodeByType(node, type, predicate = () => true) {
+  if (node.type === type && predicate(node)) {
+    return node;
+  }
+  for (const child of node.children ?? []) {
+    const found = findNodeByType(child, type, predicate);
+    if (found) {
+      return found;
+    }
+  }
+  return null;
 }
 
 function assertNoThirdPartyAstLeak(node, fixtureId) {

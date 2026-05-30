@@ -30,6 +30,12 @@
       "@momentarise/md-save": [
         "packages/md-save/src/index.ts"
       ],
+      "@momentarise/md-policy": [
+        "packages/md-policy/src/index.ts"
+      ],
+      "@momentarise/md-source-codemirror": [
+        "packages/md-source-codemirror/src/index.ts"
+      ],
       "@momentarise/md-adapter-web": [
         "packages/md-adapter-web/src/index.ts"
       ],

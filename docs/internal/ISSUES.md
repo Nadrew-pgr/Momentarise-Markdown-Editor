@@ -505,6 +505,52 @@ Visible/hidden/source modes.
 
 UX Reviewer.
 
+## MME-0011.5 — Alignment gate before rich mode
+
+### Goal
+
+Resolve code/document/process drift before starting rich mode.
+
+### Scope
+
+This is a corrective alignment slice, not a product feature slice.
+
+Address:
+
+- pre-rich Document Access Policy baseline;
+- reusable `@momentarise/md-source-codemirror` package boundary or a documented blocking plan;
+- Momentarise-native parser attributes needed by rich mode;
+- serializer readiness decision for targeted edits versus full model serialization;
+- human review status cleanup;
+- truthful demo labels for fixture/imported/writable/unsupported states;
+- README/build-log status alignment.
+
+### Acceptance criteria
+
+- `MME-0012` is not started.
+- Minimal `@momentarise/md-policy` baseline exists with automated tests.
+- Source CodeMirror setup is reusable outside the demo, or a strict follow-up blocker is documented.
+- Parser model exposes native attributes for heading depth, todo checked state, links/images, code fences, and text values without leaking third-party AST keys.
+- Targeted serializer edit tests remain the pre-rich serializer proof; full model serialization remains explicitly documented as future work before rich mode can be production-grade.
+- Human review statuses are explicit: accepted, rejected, or code-complete/pending human.
+- Demo labels do not call non-fixture documents fixtures.
+- Unsupported local file state is visible when File System Access is unavailable.
+- Properties truncation is visible rather than silent.
+- README status matches the build log.
+- Build log includes an alignment matrix: gap, decision, files changed, and proof.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no, unless the alignment decision changes scope or weakens a gate.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, UX Reviewer.
+
 ## MME-0012 — Rich mode ProseMirror spike
 
 ### Goal

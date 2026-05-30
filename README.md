@@ -20,6 +20,8 @@ Completed slices:
 - MME-0008: Host-independent Save Engine with dirty/autosave/manual flush/conflict/no-overwrite tests and truthful persistence UI.
 - MME-0009: Local Markdown file open/save in the mini web demo, including File System Access support, fallback import/export, truthful disk/error states, CRLF preservation, and visual QA artifacts.
 - MME-0010: CLI V0 with init, check, fixture tests, inspect, format dry-run/write, fixture creation, and machine-readable JSON output for agents.
+- MME-0011: Properties UI basics in the mini web demo, code-complete with human review status tracked in the build log.
+- MME-0011.5: Alignment gate before rich mode, resolving policy/source-package/parser/status drift before `MME-0012`.
 
 See `docs/internal/build-log.md` for the latest completed issue and current progress.
 

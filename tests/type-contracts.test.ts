@@ -8,7 +8,9 @@ import type {
   SourceRange
 } from "@momentarise/md-core";
 import type { MarkdownFormatContract } from "@momentarise/md-format";
+import type { PolicyContract } from "@momentarise/md-policy";
 import type { SaveEngineContract } from "@momentarise/md-save";
+import type { MomentariseSourceCodeMirrorContract } from "@momentarise/md-source-codemirror";
 import type { WebAdapterContract } from "@momentarise/md-adapter-web";
 import type { CliContract } from "@momentarise/md-cli";
 
@@ -71,6 +73,16 @@ const saveEngineContract: SaveEngineContract = {
   dependsOnCore: true
 };
 
+const policyContract: PolicyContract = {
+  packageName: "@momentarise/md-policy",
+  dependsOnCore: true
+};
+
+const sourceCodeMirrorContract: MomentariseSourceCodeMirrorContract = {
+  packageName: "@momentarise/md-source-codemirror",
+  sourceMode: "codemirror6"
+};
+
 const cliContract: CliContract = {
   packageName: "@momentarise/md-cli",
   dependsOnCore: true,
@@ -81,5 +93,7 @@ void opaqueNode;
 void snapshot;
 void formatContract;
 void saveEngineContract;
+void policyContract;
+void sourceCodeMirrorContract;
 void webAdapterContract;
 void cliContract;

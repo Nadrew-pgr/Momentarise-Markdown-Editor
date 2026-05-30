@@ -5,7 +5,7 @@ import { requireChromeExecutable } from "./chrome-helpers.mjs";
 
 const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
-const visualDir = "docs/internal/visual-checks/MME-0011";
+const visualDir = process.env.MME_VISUAL_DIR ?? "docs/internal/visual-checks/MME-0011";
 const port = 11500 + Math.floor(Math.random() * 500);
 const userDataDir = `/tmp/mme-visual-0011-${Date.now()}`;
 const frontmatterFixture = `---
@@ -15,6 +15,9 @@ tags:
   - markdown
   - preservation
 updated: 2026-05-29
+owner: docs-team
+priority: high
+review: pending
 ---
 
 # Frontmatter Document
@@ -110,7 +113,12 @@ async function getSnapshot(cdp) {
     `(() => ({
       markdown: window.__MME_DEMO_VISUAL_CHECK__.getMarkdown(),
       properties: window.__MME_DEMO_VISUAL_CHECK__.getPropertiesState(),
+      documentMode: document.querySelector('[data-testid="document-mode"]').textContent,
+      persistenceTarget: document.querySelector('[data-testid="persistence-target"]').textContent,
       parserStatus: document.querySelector('[data-testid="parser-status"]').textContent,
+      roundTripSourceLabel: document.querySelector('[data-testid="roundtrip-source-label"]').textContent,
+      saveEngineTarget: document.querySelector('[data-testid="save-engine-target"]').textContent,
+      saveState: document.querySelector('[data-testid="save-state"]').textContent,
       serializerStatus: document.querySelector('[data-testid="serializer-status"]').textContent
     }))()`
   );
@@ -252,6 +260,7 @@ async function main() {
     );
     const markdownBeforeToggle = visible.markdown;
     assertIncludes(visible.properties.listText, "markdown, preservation", "visible properties tags");
+    assertIncludes(visible.properties.listText, "+1 more fields", "frontmatter overflow notice");
     await screenshot(cdp, "properties-visible-frontmatter.png");
 
     await evaluate(cdp, `document.querySelector('[data-testid="properties-mode-hidden"]').click()`);
@@ -294,6 +303,21 @@ async function main() {
     );
     assertIncludes(edited.markdown, "title: Fixture With Frontmatter", "edited source frontmatter");
     await screenshot(cdp, "properties-roundtrip-after-edit.png");
+
+    await evaluate(cdp, "window.__MME_DEMO_VISUAL_CHECK__.showUnsupportedLocalFileStateForTest()");
+    const unsupported = await waitForSnapshot(
+      cdp,
+      (snapshot) =>
+        String(snapshot.documentMode).includes("unsupported") &&
+        String(snapshot.persistenceTarget).includes("unsupported") &&
+        String(snapshot.roundTripSourceLabel).includes("Unsupported") &&
+        String(snapshot.saveEngineTarget).includes("unsupported") &&
+        String(snapshot.saveState).includes("unsupported"),
+      "unsupported local file state"
+    );
+    assertIncludes(unsupported.persistenceTarget, "use import/download", "unsupported user label");
+    assertIncludes(unsupported.saveEngineTarget, "unsupported", "unsupported target label");
+    await screenshot(cdp, "unsupported-local-file-state.png");
 
     cdp.close();
     console.log(`MME-0011 visual artifacts saved to ${visualDir}`);

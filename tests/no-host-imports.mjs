@@ -1,7 +1,13 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const checkedSourceRoots = ["packages/md-core/src", "packages/md-save/src", "packages/md-cli/src"];
+const checkedSourceRoots = [
+  "packages/md-core/src",
+  "packages/md-format/src",
+  "packages/md-save/src",
+  "packages/md-policy/src",
+  "packages/md-cli/src"
+];
 
 const forbiddenImports = [
   "react",

@@ -19,6 +19,7 @@ const packageJson = JSON.parse(readFileSync("apps/md-demo/package.json", "utf8")
 assertScript(packageJson, "dev");
 assertScript(packageJson, "build");
 assertDependency(packageJson, "codemirror");
+assertDependency(packageJson, "@momentarise/md-source-codemirror");
 assertDependency(packageJson, "@codemirror/lang-markdown");
 assertDependency(packageJson, "@codemirror/autocomplete");
 assertDependency(packageJson, "@codemirror/commands");
@@ -32,10 +33,9 @@ const main = readFileSync("apps/md-demo/src/main.ts", "utf8");
 const sourceRequirements = [
   ["CodeMirror editor", "EditorView"],
   ["CodeMirror state", "EditorState"],
-  ["Markdown language support", "markdown("],
-  ["auto-closing pairs", "closeBrackets("],
-  ["undo/redo keymap", "historyKeymap"],
-  ["save shortcut", "Mod-s"],
+  ["reusable source package", "@momentarise/md-source-codemirror"],
+  ["source extension setup", "createMomentariseSourceExtensions"],
+  ["save shortcut delegate", "memorySave(\"keyboard shortcut\")"],
   ["Save Engine import", "@momentarise/md-save"],
   ["Save Engine creation", "createSaveEngine"],
   ["truthful persistence label", "persistenceTargetLabel"],
@@ -43,8 +43,7 @@ const sourceRequirements = [
   ["external conflict simulation", "simulateExternalConflict"],
   ["tab switch flush", "visibilitychange"],
   ["close guard", "beforeunload"],
-  ["list continuation", "continueMarkdownList"],
-  ["checkbox continuation", "continueCheckboxItem"],
+  ["source package import", "createMomentariseSourceExtensions"],
   ["dirty state", "dirty"],
   ["copy action", "copyMarkdown"],
   ["download action", "downloadMarkdown"],

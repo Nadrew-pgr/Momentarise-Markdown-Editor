@@ -6,7 +6,8 @@ const visualScripts = [
   "scripts/visual-check-mme0005.mjs",
   "scripts/visual-check-mme0007.mjs",
   "scripts/visual-check-mme0008.mjs",
-  "scripts/visual-check-mme0009.mjs"
+  "scripts/visual-check-mme0009.mjs",
+  "scripts/visual-check-mme0011.mjs"
 ];
 
 const chromeHelpers = await import("../scripts/chrome-helpers.mjs");
