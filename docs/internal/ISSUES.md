@@ -750,3 +750,40 @@ Integrate the same core into Theia.
 ### Reviewer
 
 Architecture Reviewer.
+
+## MME-0019 — Host adapter external-change strategy
+
+### Goal
+
+Define and prove the host-adapter contract for external document changes without moving host-specific watching into the core.
+
+This issue was added after MME-0011.5 from product discussion: local web, Theia/IDE, database-backed apps, and Chrome extensions do not observe external changes the same way.
+
+### Scope
+
+- Define the adapter-level contract for external changes: focus refresh, polling, host file events, realtime sync events, and save-time hash verification.
+- Document which strategies apply to `@momentarise/md-adapter-web`, `@momentarise/md-adapter-theia`, `@momentarise/md-adapter-vscode`, and future `@momentarise/md-adapter-chrome-extension`.
+- Keep the core Save Engine responsible for hashes, dirty state, conflict state, and safe no-overwrite behavior.
+- Keep host watchers, browser extension APIs, IDE file services, and database realtime subscriptions out of core packages.
+
+### Acceptance criteria
+
+- PRD explains that external-change handling is adapter-owned.
+- Adapter contract distinguishes local-file, IDE, database/realtime, and Chrome extension strategies.
+- Web adapter has a documented hybrid plan: focus refresh, optional polling, and save-time verification.
+- Theia/IDE adapters can use host file events when available.
+- Database-backed hosts can use realtime server events when available.
+- Chrome extension adapter is listed as a future candidate, with explicit permission/API limits.
+- Core packages still import no host-specific watcher, database, Theia, VS Code, Chrome extension, or browser-extension APIs.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Architecture Reviewer and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this defines adapter behavior and user trust around external edits.
+
+### Reviewer
+
+Architecture Reviewer.

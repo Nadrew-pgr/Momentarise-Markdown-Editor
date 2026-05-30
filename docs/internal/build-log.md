@@ -1068,3 +1068,34 @@
   - Human review status: `code-complete/pending human review`.
 - Suggested commit message:
   - `chore: align pre-rich gates`
+
+## Docs follow-up — Adapter external-change strategy
+
+- Timestamp: 2026-05-30T19:56:05Z
+- Summary: Documented that external-change observation belongs to host adapters, not Markdown core, and added a future Chrome extension adapter candidate.
+- Files changed:
+  - `docs/internal/PRD.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+- Behavior to prove before implementation:
+  - Local web, IDE/Theia, database/realtime, and Chrome extension hosts can use different external-change strategies without coupling core packages to host APIs.
+- Test-first evidence:
+  - Documentation-only follow-up. No TDD required.
+- Tests/checks run:
+  - `rg -n "external-change|md-adapter-chrome-extension|Chrome extension|MME-0019" docs/internal/PRD.md docs/internal/ISSUES.md docs/internal/build-log.md`
+  - `git diff --check`
+- Manual verification:
+  - Confirmed Chrome extension is recorded as a future adapter candidate, not a V0 core dependency.
+  - Confirmed the web hybrid plan is documented as focus refresh, optional polling, and save-time verification.
+- Visual artifacts:
+  - None. Documentation-only follow-up.
+- Reviewer/subagent used and result:
+  - Self-review only for a narrow documentation addition.
+- Visual impact:
+  - No visible editing or general UI changes.
+- Deviations from PRD:
+  - None.
+- Open questions:
+  - Whether `MME-0019` should happen before or after the first Theia adapter depends on product priority.
+- Suggested commit message:
+  - `docs: add adapter external change strategy`

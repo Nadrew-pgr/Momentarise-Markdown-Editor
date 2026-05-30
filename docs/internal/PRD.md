@@ -188,6 +188,10 @@ Forbidden in core:
 - `@momentarise/md-adapter-theia`
 - `@momentarise/md-adapter-vscode`
 
+Future host adapter candidates, not required for V0 unless promoted by an issue:
+
+- `@momentarise/md-adapter-chrome-extension`
+
 ### Dialects
 
 V0 dialects:
@@ -298,6 +302,17 @@ Triggers:
 - mode switch sync.
 
 Default autosave: 800–1500 ms unless host overrides.
+
+External change handling is adapter-owned, not Markdown-core-owned.
+
+Each host adapter must document its external-change strategy:
+
+- local web file adapter: File System Access handle plus focus refresh, periodic polling when appropriate, and save-time hash verification;
+- Theia or IDE adapter: workspace/file-service events when the host exposes them;
+- database or realtime sync adapter: server events, WebSocket, SSE, polling, CRDT, or app-specific sync state;
+- Chrome extension adapter: extension permissions and browser APIs, with explicit limits for pages that cannot expose local file handles.
+
+The core Save Engine owns dirty/conflict/error state and hash comparison. It must not depend on a specific watcher, database, IDE, browser extension, or OS API.
 
 ### Rich mode
 
