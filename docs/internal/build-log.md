@@ -1099,3 +1099,33 @@
   - Whether `MME-0019` should happen before or after the first Theia adapter depends on product priority.
 - Suggested commit message:
   - `docs: add adapter external change strategy`
+
+## Docs follow-up — Default Markdown reader/editor registration
+
+- Timestamp: 2026-05-30T19:59:11Z
+- Summary: Documented that host adapters may register Momentarise Markdown Editor as the default Markdown reader/editor when the host supports that capability.
+- Files changed:
+  - `docs/internal/PRD.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+- Behavior to prove before implementation:
+  - Default `.md` reader/editor registration is host-owned and must not become a core package assumption.
+- Test-first evidence:
+  - Documentation-only follow-up. No TDD required.
+- Tests/checks run:
+  - `rg -n "default Markdown reader|default Markdown reader/editor|default editor|file associations" docs/internal/PRD.md docs/internal/ISSUES.md docs/internal/build-log.md`
+  - `git diff --check`
+- Manual verification:
+  - Confirmed Theia/IDE, desktop, and Chrome extension limits are documented separately.
+- Visual artifacts:
+  - None. Documentation-only follow-up.
+- Reviewer/subagent used and result:
+  - Self-review only for a narrow documentation addition.
+- Visual impact:
+  - No visible editing or general UI changes.
+- Deviations from PRD:
+  - None.
+- Open questions:
+  - Whether default-editor registration belongs in MME-0019 or a later adapter-specific issue can be decided when adapter work starts.
+- Suggested commit message:
+  - `docs: note default markdown editor adapters`

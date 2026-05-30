@@ -765,6 +765,7 @@ This issue was added after MME-0011.5 from product discussion: local web, Theia/
 - Document which strategies apply to `@momentarise/md-adapter-web`, `@momentarise/md-adapter-theia`, `@momentarise/md-adapter-vscode`, and future `@momentarise/md-adapter-chrome-extension`.
 - Keep the core Save Engine responsible for hashes, dirty state, conflict state, and safe no-overwrite behavior.
 - Keep host watchers, browser extension APIs, IDE file services, and database realtime subscriptions out of core packages.
+- Document that adapters may register MME as the default Markdown reader/editor when the host allows it, without making the core assume default-editor ownership.
 
 ### Acceptance criteria
 
@@ -774,6 +775,7 @@ This issue was added after MME-0011.5 from product discussion: local web, Theia/
 - Theia/IDE adapters can use host file events when available.
 - Database-backed hosts can use realtime server events when available.
 - Chrome extension adapter is listed as a future candidate, with explicit permission/API limits.
+- Default Markdown reader/editor registration is documented as adapter-owned for hosts that support it.
 - Core packages still import no host-specific watcher, database, Theia, VS Code, Chrome extension, or browser-extension APIs.
 
 ### Execution model

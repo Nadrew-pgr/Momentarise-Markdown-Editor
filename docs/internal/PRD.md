@@ -314,6 +314,15 @@ Each host adapter must document its external-change strategy:
 
 The core Save Engine owns dirty/conflict/error state and hash comparison. It must not depend on a specific watcher, database, IDE, browser extension, or OS API.
 
+Host adapters may also register Momentarise Markdown Editor as the default Markdown reader/editor when the host allows it.
+This is adapter-owned:
+
+- Theia or IDE adapters may register default `.md` editor contributions or workspace associations;
+- desktop adapters may register OS file associations when the app owns that installer flow;
+- Chrome extension adapters may offer browser/extension entrypoints where permissions allow, but cannot replace OS-level defaults by themselves.
+
+The core must not assume it is the default editor. Default-reader/editor registration is a host integration capability, not a parser, serializer, or Save Engine responsibility.
+
 ### Rich mode
 
 Rich mode must not start until parser/serializer/range-preservation gates pass.
