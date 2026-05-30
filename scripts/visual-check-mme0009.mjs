@@ -1,18 +1,13 @@
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { requireChromeExecutable } from "./chrome-helpers.mjs";
 
-const chromePath =
-  process.env.CHROME_BIN ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
 const visualDir = "docs/internal/visual-checks/MME-0009";
 const port = 11000 + Math.floor(Math.random() * 500);
 const userDataDir = `/tmp/mme-visual-0009-${Date.now()}`;
-
-if (!existsSync(chromePath)) {
-  throw new Error(`Chrome executable not found: ${chromePath}`);
-}
 
 class CdpClient {
   static async connect(url) {

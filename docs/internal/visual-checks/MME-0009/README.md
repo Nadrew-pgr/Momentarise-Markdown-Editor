@@ -26,7 +26,7 @@
 
 ## Human review status
 
-Human review is required because MME-0009 opens and saves real local files.
+Human review accepted on 2026-05-30 for Google Chrome headed-browser behavior. The Codex in-app browser may still fail or report errors for native File System Access API persistence; that is treated as a host limitation, not as proof that the Chrome path is broken.
 
 ## QA status
 
@@ -39,6 +39,7 @@ Completed:
 - In-app browser check confirmed `Open .md`, `Import copy`, `Save`, document mode, and target status are visible on `http://127.0.0.1:5174/`.
 - Automated adapter test covers writable open, writable save, external conflict, fallback import, and permission-denied writable stream errors.
 
-Human OS-backed smoke test required before final acceptance:
+Human OS-backed smoke test result:
 
-- In a headed browser that supports File System Access API, click `Open .md`, choose a real local Markdown file, edit, use `Cmd/Ctrl+S`, close/reopen outside the demo, and confirm disk content changed.
+- Accepted in Google Chrome: open a real local Markdown file, edit it, save, and verify disk content changed.
+- Known limitation: the Codex in-app browser is not considered authoritative for native file-handle persistence.

@@ -8,3 +8,5 @@ Each UI issue should create a folder such as `docs/internal/visual-checks/MME-00
 - equivalent links and explanations in `docs/internal/build-log.md`.
 
 Do not mark an issue visually verified if the browser or screenshot tooling was unavailable.
+
+Visual scripts resolve Chrome/Chromium through the shared `scripts/chrome-helpers.mjs` helper. Set `CHROME_BIN` when Chrome is installed in a non-standard location.

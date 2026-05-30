@@ -852,3 +852,46 @@
   - None blocking unless reviewer finds CLI semantics too broad or too narrow.
 - Suggested commit message:
   - `feat: add cli v0`
+
+## MME-0009 follow-up — Human acceptance and visual Chrome portability
+
+- Timestamp: 2026-05-30T12:40:19Z
+- Summary: Closed the pending MME-0009 human-review item based on headed Google Chrome smoke verification and made visual scripts use a shared cross-platform Chrome resolver instead of hardcoding only the macOS Chrome path in each issue script.
+- Files changed:
+  - `package.json`
+  - `scripts/chrome-helpers.mjs`
+  - `scripts/visual-check-mme0002.mjs`
+  - `scripts/visual-check-mme0004.mjs`
+  - `scripts/visual-check-mme0005.mjs`
+  - `scripts/visual-check-mme0007.mjs`
+  - `scripts/visual-check-mme0008.mjs`
+  - `scripts/visual-check-mme0009.mjs`
+  - `tests/visual-chrome-portability.test.mjs`
+  - `docs/internal/visual-checks/README.md`
+  - `docs/internal/visual-checks/MME-0009/README.md`
+  - `docs/internal/build-log.md`
+- Behavior to prove before implementation:
+  - Visual scripts honor `CHROME_BIN` before platform defaults.
+  - Visual scripts include Linux, macOS, and Windows Chrome/Chromium candidates.
+  - Visual scripts no longer duplicate or hardcode the macOS Chrome path in each issue script.
+  - Missing Chrome errors tell the agent to set `CHROME_BIN` and list attempted candidates.
+  - MME-0009 human review status is recorded truthfully.
+- Test-first evidence:
+  - `node tests/visual-chrome-portability.test.mjs` failed before implementation because `scripts/chrome-helpers.mjs` did not exist.
+- Tests/checks run:
+  - `npm run test:visual-portability`
+- Manual verification:
+  - User reported headed Google Chrome behavior works for first save and real disk persistence.
+  - User reported Codex in-app browser behavior differs; recorded as host/environment limitation for native file-handle persistence.
+- Visual artifacts:
+  - None. This is a script/documentation/process follow-up.
+- Reviewer/subagent used and result:
+  - Self-review only for this targeted DX/process follow-up.
+- Visual impact:
+  - No visible editing or general UI changes.
+- Deviations from PRD:
+  - None.
+- Open questions:
+  - None.
+- Suggested commit message:
+  - `fix: improve visual chrome portability`

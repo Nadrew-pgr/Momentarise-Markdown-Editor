@@ -11,7 +11,7 @@
   "scripts": {
     "build": "tsc -b packages/md-core packages/md-format packages/md-save packages/md-adapter-web packages/md-cli",
     "build:demo": "npm run build -w @momentarise/md-demo",
-    "test": "npm run test:contracts && npm run test:architecture && npm run test:demo-baseline && npm run test:fixtures && npm run test:roundtrip && npm run test:parser && npm run test:serializer && npm run test:source-ux && npm run test:save-engine && npm run test:web-file-access && npm run test:cli && npm run build && npm run build:demo",
+    "test": "npm run test:contracts && npm run test:architecture && npm run test:demo-baseline && npm run test:fixtures && npm run test:roundtrip && npm run test:parser && npm run test:serializer && npm run test:source-ux && npm run test:visual-portability && npm run test:save-engine && npm run test:web-file-access && npm run test:cli && npm run build && npm run build:demo",
     "test:architecture": "node tests/no-host-imports.mjs",
     "test:contracts": "tsc -p tsconfig.tests.json --noEmit",
     "test:demo-baseline": "node tests/demo-source-baseline.mjs",
@@ -20,6 +20,7 @@
     "test:roundtrip": "npm run build && node tests/roundtrip-harness.test.mjs",
     "test:serializer": "npm run build && node tests/serializer-edited-range.test.mjs",
     "test:save-engine": "npm run build && node tests/save-engine.test.mjs",
+    "test:visual-portability": "node tests/visual-chrome-portability.test.mjs",
     "test:web-file-access": "npm run build && node tests/web-file-access.test.mjs",
     "test:cli": "npm run build && node tests/cli-v0.test.mjs",
     "test:source-ux": "node tests/source-editing-ux-baseline.test.mjs",
