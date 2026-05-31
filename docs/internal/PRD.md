@@ -369,6 +369,8 @@ Advanced rich editing backlog:
 - rich/source/live-preview naming and labels must be reviewed for user clarity and host integration;
 - the UI may take inspiration from Notion, Obsidian, BlockNote, and similar editors, but the persisted Markdown contract remains stricter than those products.
 
+Final editor UI/UX/DX hardening is required after the core feature set is in place. That pass must revisit indentation, nested lists/todos, Tab/Shift+Tab, Enter/Backspace/paste/selection, live preview refresh, block insertion handles, toolbar/slash density, mode labels, host settings, and developer integration ergonomics as one coherent editor-quality review.
+
 ### Slash menu and toolbar
 
 Slash menu is keyboard-first, fuzzy, compact, toolbar-friendly, and supports aliases `/h1`, `/H1`, `/heading`, `/todo`, `/quote`, `/code`, `/callout`, `/image`.

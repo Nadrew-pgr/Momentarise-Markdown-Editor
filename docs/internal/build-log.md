@@ -1385,3 +1385,28 @@
   - MME-0013.5 is `code-complete/visually verified/human review pending`.
 - Suggested commit message:
   - `feat: add rich markdown input rules`
+
+## Docs follow-up — Final editor UI/UX/DX hardening pass
+
+- Timestamp: 2026-05-31T19:25:03Z
+- Summary: Recorded that MME-0013.5 is not the final editor ergonomics pass and added a dedicated end-of-V0 issue for indentation, nested lists/todos, keyboard behavior, live preview, toolbar/slash density, host settings, and DX.
+- Files changed:
+  - `docs/internal/PRD.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+- Behavior to prove before implementation:
+  - Final editor polish remains explicitly tracked instead of being implied by MME-0013.5.
+  - Indentation and nested editing behavior must be revisited as part of a coherent UI/UX/DX gate.
+- Test-first evidence:
+  - Documentation-only follow-up. No TDD required.
+- Tests/checks run:
+  - `rg -n "MME-0020|Final editor UI/UX/DX|indentation|Nested list" docs/internal/PRD.md docs/internal/ISSUES.md docs/internal/build-log.md`
+  - `git diff --check`
+- Manual verification:
+  - Confirmed `MME-0020` is listed after adapter external-change strategy as the final editor ergonomics gate.
+- Visual impact:
+  - No visible editing or general UI changes.
+- Human review status:
+  - Not applicable. Documentation follow-up only.
+- Suggested commit message:
+  - `docs: add final editor ux hardening issue`

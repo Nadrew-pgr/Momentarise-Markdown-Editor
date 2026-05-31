@@ -825,3 +825,48 @@ This issue was added after MME-0011.5 from product discussion: local web, Theia/
 ### Reviewer
 
 Architecture Reviewer.
+
+## MME-0020 — Final editor UI/UX/DX hardening pass
+
+### Goal
+
+Run a dedicated end-of-V0 editor-quality pass after the major core, rich, adapter, preview, and AI-writing slices exist.
+
+This issue exists because MME-0013.5 creates serious rich editor primitives, but it is not the final ergonomics pass. Indentation, nested lists, todo flows, block boundaries, live preview, toolbar density, host settings, and DX need to be judged together once more of the editor exists.
+
+### Scope
+
+- Source, Rich, and Live Preview editing ergonomics.
+- Indentation and outdent behavior with Tab/Shift+Tab.
+- Nested bullet lists, ordered lists, and todos.
+- Enter, Backspace, paste, selection, undo/redo around headings, lists, todos, quotes, code blocks, callouts, opaque blocks, and inserted media.
+- Live preview refresh behavior for Markdown constructs typed in rich mode.
+- Slash menu placement, empty states, labels, grouping, keyboard navigation, and fuzzy matching.
+- Toolbar visibility, density, contextual behavior, settings/host configuration, and command grouping.
+- Block insertion affordances before/after framed blocks and at document end.
+- Source/Rich/Live Preview naming and mode transitions.
+- Developer integration ergonomics for host apps configuring rich UX defaults.
+
+### Acceptance criteria
+
+- A UI/UX/DX audit matrix compares current behavior against Notion, Obsidian, BlockNote, and the PRD's Markdown-source-of-truth constraints.
+- Indentation and outdent behavior is documented and tested for source mode, rich mode, lists, todos, and code fences.
+- Nested list/todo creation, indent, outdent, continuation, and exit flows are proven by automated tests when practical and visual/manual checks where automation is not realistic.
+- Enter, Backspace, paste, selection, undo/redo, and block-boundary behavior are reviewed and fixed for core editing constructs.
+- Live preview behavior is reviewed so common Markdown constructs do not require surprising mode switches.
+- Slash menu and toolbar presentation are reviewed as final editor UX, not just functional command surfaces.
+- Host-configurable editor UX options are documented or implemented where needed.
+- Visual artifacts cover the final interaction decisions.
+- Human review accepts or rejects the final editor interaction direction before V0 is considered editor-complete.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: UX Reviewer, DX Reviewer, and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this is the final editor ergonomics gate.
+
+### Reviewer
+
+UX Reviewer, DX Reviewer, and Test Reviewer.
