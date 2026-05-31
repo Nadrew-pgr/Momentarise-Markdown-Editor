@@ -139,7 +139,7 @@ h1 {
   min-height: 0;
   display: grid;
   position: relative;
-  grid-template-rows: auto auto auto 1fr;
+  grid-template-rows: auto auto auto auto 1fr;
 }
 
 .document-strip {
@@ -244,6 +244,49 @@ h1 {
 .toolbar-menu-item {
   justify-content: flex-start;
   text-align: left;
+}
+
+.rich-block-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 24px;
+  border-bottom: 1px solid var(--line);
+  background: #f6f8f9;
+}
+
+.code-block-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.code-block-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.code-block-controls input {
+  inline-size: 112px;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.code-block-controls input:focus {
+  border-color: var(--accent);
+  outline: 2px solid rgba(22, 107, 122, 0.16);
 }
 
 .slash-command-menu {
@@ -370,15 +413,33 @@ h1 {
   margin: 0 0 12px;
 }
 
-.ProseMirror [data-type="todo-item"]::before {
-  content: "\2610";
+.ProseMirror [data-todo-toggle] {
+  inline-size: 18px;
+  block-size: 18px;
+  margin: 4px 0 0;
+  padding: 0;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--surface);
   color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
   font-weight: 800;
-  line-height: 1.65;
+  line-height: 1;
 }
 
-.ProseMirror [data-type="todo-item"][data-checked="true"]::before {
-  content: "\2611";
+.ProseMirror [data-todo-toggle][aria-pressed="true"] {
+  background: var(--accent);
+  color: white;
+}
+
+.ProseMirror [data-todo-toggle]:focus {
+  outline: 2px solid rgba(22, 107, 122, 0.22);
+  outline-offset: 2px;
+}
+
+.ProseMirror [data-todo-content] {
+  min-width: 0;
 }
 
 .ProseMirror [data-type="todo-item"] p {

@@ -28,11 +28,16 @@ import {
   type WebOpenedMarkdownMode
 } from "@momentarise/md-adapter-web";
 import {
+  canInsertParagraphAfterCurrentBlock,
   createRichMarkdownState,
   filterRichMarkdownCommands,
+  getCurrentCodeBlockInfo,
+  insertParagraphAfterCurrentBlock,
   richCommandRegistry,
   runRichMarkdownCommand,
   serializeRichMarkdownState,
+  setCurrentCodeBlockInfo,
+  toggleCurrentTodoItem,
   type ApplyRichMarkdownCommandOptions,
   type RichCommandId,
   type RichMarkdownCommand,
@@ -114,6 +119,19 @@ app.innerHTML = `
               <button class="toolbar-menu-item" type="button" data-rich-command="inlineCode">Inline code</button>
             </div>
           </div>
+        </div>
+        <div class="rich-block-controls" data-testid="rich-block-controls" aria-label="Rich block controls" hidden>
+          <div class="code-block-controls" data-testid="code-block-controls" hidden>
+            <label>
+              Language
+              <input type="text" data-testid="code-language-input" autocomplete="off" spellcheck="false" />
+            </label>
+            <label>
+              Meta
+              <input type="text" data-testid="code-meta-input" autocomplete="off" spellcheck="false" />
+            </label>
+          </div>
+          <button class="toolbar-button" type="button" data-testid="insert-after-block-button">Add paragraph</button>
         </div>
         <div class="slash-command-menu" data-testid="slash-command-menu" hidden>
           <p class="slash-command-query" data-testid="slash-command-query">/</p>
@@ -206,6 +224,11 @@ const richModeButton = queryRequired<HTMLButtonElement>('[data-testid="rich-mode
 const richCommandToolbar = queryRequired<HTMLDivElement>('[data-testid="rich-command-toolbar"]');
 const toolbarMoreButton = queryRequired<HTMLButtonElement>('[data-testid="toolbar-more-button"]');
 const toolbarMoreMenu = queryRequired<HTMLDivElement>('[data-testid="toolbar-more-menu"]');
+const richBlockControls = queryRequired<HTMLDivElement>('[data-testid="rich-block-controls"]');
+const codeBlockControls = queryRequired<HTMLDivElement>('[data-testid="code-block-controls"]');
+const codeLanguageInput = queryRequired<HTMLInputElement>('[data-testid="code-language-input"]');
+const codeMetaInput = queryRequired<HTMLInputElement>('[data-testid="code-meta-input"]');
+const insertAfterBlockButton = queryRequired<HTMLButtonElement>('[data-testid="insert-after-block-button"]');
 const slashCommandMenu = queryRequired<HTMLDivElement>('[data-testid="slash-command-menu"]');
 const slashCommandQueryElement = queryRequired<HTMLElement>('[data-testid="slash-command-query"]');
 const slashCommandItemsElement = queryRequired<HTMLDivElement>("[data-slash-command-items]");
@@ -352,6 +375,18 @@ toolbarMoreButton.addEventListener("click", () => {
   setToolbarMoreOpen(!expanded);
 });
 
+codeLanguageInput.addEventListener("input", () => {
+  updateCurrentCodeBlockInfoFromControls();
+});
+
+codeMetaInput.addEventListener("input", () => {
+  updateCurrentCodeBlockInfoFromControls();
+});
+
+insertAfterBlockButton.addEventListener("click", () => {
+  insertParagraphAfterCurrentRichBlock();
+});
+
 slashCommandItemsElement.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) {
@@ -449,6 +484,15 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
       commands: richCommandRegistry.map((command) => command.id),
       moreOpen: !toolbarMoreMenu.hidden,
       visible: !richCommandToolbar.hidden
+    };
+  },
+  getRichUxState() {
+    return {
+      blockControlsVisible: !richBlockControls.hidden,
+      codeControlsVisible: !codeBlockControls.hidden,
+      codeLanguage: codeLanguageInput.value,
+      codeMeta: codeMetaInput.value,
+      markdown: getMarkdown()
     };
   },
   getLastCopiedMarkdown() {
@@ -561,6 +605,12 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   },
   runRichCommand(commandId: RichCommandId, options?: ApplyRichMarkdownCommandOptions) {
     runRichCommand(commandId, options);
+  },
+  insertParagraphAfterCurrentRichBlock() {
+    insertParagraphAfterCurrentRichBlock();
+  },
+  toggleCurrentRichTodo() {
+    toggleCurrentRichTodo();
   },
   switchEditorMode(mode: DemoEditorMode) {
     switchEditorMode(mode);
@@ -707,12 +757,14 @@ function renderEditorMode(): void {
   editorHost.hidden = editorMode !== "source";
   richEditorHost.hidden = editorMode !== "rich";
   richCommandToolbar.hidden = editorMode !== "rich";
+  richBlockControls.hidden = editorMode !== "rich";
   sourceModeButton.setAttribute("aria-pressed", String(editorMode === "source"));
   richModeButton.setAttribute("aria-pressed", String(editorMode === "rich"));
   editorSurfaceStateElement.textContent = editorMode === "rich" ? "ProseMirror rich mode" : "CodeMirror source mode";
   if (editorMode !== "rich") {
     closeSlashMenu();
     setToolbarMoreOpen(false);
+    renderRichBlockControls();
   }
 }
 
@@ -744,9 +796,11 @@ function mountRichEditor(markdown: string): void {
         syncRichMarkdownToSource("rich edit");
       }
       updateSlashMenuFromRichState();
+      renderRichBlockControls();
     }
   });
   updateSlashMenuFromRichState();
+  renderRichBlockControls();
 }
 
 function syncRichMarkdownToSource(source: "rich edit" | "mode switch"): void {
@@ -759,6 +813,96 @@ function syncRichMarkdownToSource(source: "rich edit" | "mode switch"): void {
   if (source === "mode switch") {
     logEvent("Serialized rich mode back to Markdown source.");
   }
+}
+
+function currentRichStateFromEditor(): RichMarkdownState | null {
+  if (!richEditor) {
+    return null;
+  }
+  return {
+    ...richState,
+    editorState: richEditor.state
+  };
+}
+
+function applyPackageRichState(nextState: RichMarkdownState, eventMessage?: string, focusEditor = true): void {
+  if (!richEditor) {
+    return;
+  }
+  richState = nextState;
+  richEditor.updateState(nextState.editorState);
+  richChanged = true;
+  renderRichBlockControls();
+  syncRichMarkdownToSource("rich edit");
+  if (focusEditor) {
+    richEditor.focus();
+  }
+  if (eventMessage) {
+    logEvent(eventMessage);
+  }
+}
+
+function renderRichBlockControls(): void {
+  const currentRichState = currentRichStateFromEditor();
+  richBlockControls.hidden = editorMode !== "rich" || !currentRichState;
+  if (richBlockControls.hidden || !currentRichState) {
+    codeBlockControls.hidden = true;
+    return;
+  }
+
+  const codeInfo = getCurrentCodeBlockInfo(currentRichState);
+  const canInsertAfter = canInsertParagraphAfterCurrentBlock(currentRichState);
+  richBlockControls.hidden = !codeInfo && !canInsertAfter;
+  if (richBlockControls.hidden) {
+    codeBlockControls.hidden = true;
+    insertAfterBlockButton.hidden = true;
+    return;
+  }
+  codeBlockControls.hidden = !codeInfo;
+  insertAfterBlockButton.hidden = !canInsertAfter;
+  if (!codeInfo) {
+    return;
+  }
+  if (document.activeElement !== codeLanguageInput) {
+    codeLanguageInput.value = codeInfo.language ?? "";
+  }
+  if (document.activeElement !== codeMetaInput) {
+    codeMetaInput.value = codeInfo.meta ?? "";
+  }
+}
+
+function updateCurrentCodeBlockInfoFromControls(): void {
+  const currentRichState = currentRichStateFromEditor();
+  if (!currentRichState || !getCurrentCodeBlockInfo(currentRichState)) {
+    return;
+  }
+  applyPackageRichState(
+    setCurrentCodeBlockInfo(currentRichState, {
+      language: codeLanguageInput.value,
+      meta: codeMetaInput.value
+    }),
+    undefined,
+    false
+  );
+}
+
+function insertParagraphAfterCurrentRichBlock(): void {
+  const currentRichState = currentRichStateFromEditor();
+  if (!currentRichState) {
+    return;
+  }
+  applyPackageRichState(
+    insertParagraphAfterCurrentBlock(currentRichState),
+    "Inserted paragraph after the current rich block."
+  );
+}
+
+function toggleCurrentRichTodo(): void {
+  const currentRichState = currentRichStateFromEditor();
+  if (!currentRichState) {
+    return;
+  }
+  applyPackageRichState(toggleCurrentTodoItem(currentRichState), "Toggled current rich todo.");
 }
 
 function runRichCommand(commandId: RichCommandId, options: ApplyRichMarkdownCommandOptions = {}): void {
@@ -780,6 +924,7 @@ function runRichCommand(commandId: RichCommandId, options: ApplyRichMarkdownComm
   richChanged = true;
   closeSlashMenu();
   setToolbarMoreOpen(false);
+  renderRichBlockControls();
   syncRichMarkdownToSource("rich edit");
   richEditor.focus();
   logEvent(`Ran rich command: ${commandLabel(commandId)}.`);
@@ -1422,6 +1567,13 @@ declare global {
         readonly moreOpen: boolean;
         readonly visible: boolean;
       };
+      getRichUxState: () => {
+        readonly blockControlsVisible: boolean;
+        readonly codeControlsVisible: boolean;
+        readonly codeLanguage: string;
+        readonly codeMeta: string;
+        readonly markdown: string;
+      };
       getPropertiesState: () => {
         readonly hiddenText: string;
         readonly listText: string;
@@ -1441,6 +1593,7 @@ declare global {
       loadImportedCopyForTest: (fileName: string, content: string) => void;
       loadWritableMarkdownFileForTest: (fileName: string, content: string) => void;
       memorySave: (source: "button" | "keyboard shortcut") => void;
+      insertParagraphAfterCurrentRichBlock: () => void;
       openSlashMenuForTest: (query: string) => void;
       runRichCommand: (commandId: RichCommandId, options?: ApplyRichMarkdownCommandOptions) => void;
       showUnsupportedLocalFileStateForTest: () => void;
@@ -1450,6 +1603,7 @@ declare global {
       setRichSelectionAfterText: (text: string) => void;
       setSelection: (anchor: number, head: number) => void;
       switchEditorMode: (mode: DemoEditorMode) => void;
+      toggleCurrentRichTodo: () => void;
     };
   }
 }

@@ -23,7 +23,7 @@ import {
 import { history, redo, undo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
 import { Mark, Node as ProseMirrorNode, Schema, type MarkSpec, type NodeSpec } from "prosemirror-model";
-import { EditorState, Plugin, TextSelection, type Transaction } from "prosemirror-state";
+import { EditorState, NodeSelection, Plugin, PluginKey, TextSelection, type Transaction } from "prosemirror-state";
 
 export interface MomentariseRichProseMirrorContract {
   readonly packageName: "@momentarise/md-rich-prosemirror";
@@ -61,6 +61,16 @@ export interface ApplyRichMarkdownCommandOptions {
   readonly language?: string;
   readonly src?: string;
   readonly title?: string;
+}
+
+export interface RichCodeBlockInfo {
+  readonly language: string | null;
+  readonly meta: string | null;
+}
+
+export interface SetRichCodeBlockInfoOptions {
+  readonly language?: string | null;
+  readonly meta?: string | null;
 }
 
 export interface RichMarkdownCommandResult {
@@ -213,6 +223,8 @@ export function createMomentariseRichSchema(): MomentariseRichSchema {
 
 export function createMomentariseRichPlugins(): Plugin[] {
   return [
+    createRichInputRulesPlugin(),
+    createTodoTogglePlugin(),
     keymap({
       "Mod-z": undo,
       "Mod-y": redo,
@@ -349,6 +361,90 @@ export function selectFirstRichText(state: RichMarkdownState, search: string): R
     ...state,
     editorState
   };
+}
+
+export function toggleCurrentTodoItem(state: RichMarkdownState): RichMarkdownState {
+  const range = currentAncestorBlockRange(state.editorState, "todo_item");
+  if (!range) {
+    return state;
+  }
+  const editorState = state.editorState.apply(
+    state.editorState.tr.setNodeMarkup(range.from, undefined, {
+      ...range.node.attrs,
+      checked: !Boolean(range.node.attrs.checked)
+    })
+  );
+  return {
+    ...state,
+    editorState
+  };
+}
+
+export function getCurrentCodeBlockInfo(state: RichMarkdownState): RichCodeBlockInfo | null {
+  const range = currentAncestorBlockRange(state.editorState, "code_block");
+  if (!range) {
+    return null;
+  }
+  return {
+    language: stringAttribute(range.node.attrs.language),
+    meta: stringAttribute(range.node.attrs.meta)
+  };
+}
+
+export function setCurrentCodeBlockInfo(
+  state: RichMarkdownState,
+  options: SetRichCodeBlockInfoOptions
+): RichMarkdownState {
+  const range = currentAncestorBlockRange(state.editorState, "code_block");
+  if (!range) {
+    return state;
+  }
+  const language =
+    options.language === undefined
+      ? stringAttribute(range.node.attrs.language)
+      : normalizeOptionalString(options.language);
+  const meta =
+    options.meta === undefined
+      ? stringAttribute(range.node.attrs.meta)
+      : normalizeOptionalString(options.meta);
+  const editorState = state.editorState.apply(
+    state.editorState.tr.setNodeMarkup(range.from, undefined, {
+      ...range.node.attrs,
+      language,
+      meta
+    })
+  );
+  return {
+    ...state,
+    editorState
+  };
+}
+
+export function insertParagraphAfterCurrentBlock(state: RichMarkdownState, text = ""): RichMarkdownState {
+  const range = currentTopLevelBlockRange(state.editorState);
+  if (!range) {
+    return state;
+  }
+  const paragraph = text
+    ? state.editorState.schema.nodes.paragraph!.create(null, [state.editorState.schema.text(text)])
+    : state.editorState.schema.nodes.paragraph!.create();
+  const transaction = state.editorState.tr.insert(range.to, paragraph);
+  const selectionPosition = Math.min(range.to + 1 + text.length, transaction.doc.content.size);
+  const editorState = state.editorState.apply(
+    transaction.setSelection(TextSelection.near(transaction.doc.resolve(selectionPosition)))
+  );
+  return {
+    ...state,
+    editorState
+  };
+}
+
+export function canInsertParagraphAfterCurrentBlock(state: RichMarkdownState): boolean {
+  const range = currentTopLevelBlockRange(state.editorState);
+  if (!range) {
+    return false;
+  }
+  return ["blockquote", "code_block", "horizontal_rule", "unsupported_block"].includes(range.node.type.name);
 }
 
 export function serializeRichMarkdownState(state: RichMarkdownState): {
@@ -496,6 +592,338 @@ function executeRichMarkdownCommand(
   }
 }
 
+const richInputRulesPluginKey = new PluginKey("momentarise-rich-input-rules");
+
+type RichMarkdownInputRule =
+  | { readonly kind: "blockquote"; readonly prefixLength: number }
+  | { readonly kind: "bullet_list"; readonly prefixLength: number }
+  | { readonly kind: "code_block"; readonly language: string | null; readonly prefixLength: number }
+  | { readonly kind: "heading"; readonly level: number; readonly prefixLength: number }
+  | { readonly kind: "ordered_list"; readonly prefixLength: number }
+  | { readonly checked: boolean; readonly kind: "todo_item"; readonly prefixLength: number };
+
+function createRichInputRulesPlugin(): Plugin {
+  return new Plugin({
+    appendTransaction(transactions, _oldState, state) {
+      if (transactions.some((transaction) => transaction.getMeta(richInputRulesPluginKey))) {
+        return null;
+      }
+      if (!transactions.some((transaction) => transaction.docChanged)) {
+        return null;
+      }
+      if (!(state.selection instanceof TextSelection) || !state.selection.empty) {
+        return null;
+      }
+      const { $from } = state.selection;
+      if ($from.parent.type !== state.schema.nodes.paragraph) {
+        return null;
+      }
+      if ($from.parentOffset !== $from.parent.content.size) {
+        return null;
+      }
+
+      const text = $from.parent.textBetween(0, $from.parent.content.size, "\n", "\n");
+      const listTodoRule = todoInputRuleForListItemText(text);
+      if (listTodoRule) {
+        return createListTodoInputRuleTransaction(state, listTodoRule);
+      }
+
+      const rule = markdownInputRuleForText(text);
+      if (!rule) {
+        return null;
+      }
+
+      const from = $from.before();
+      const to = $from.after();
+      const prefixFrom = $from.start();
+      const prefixTo = prefixFrom + rule.prefixLength;
+      const transaction = state.tr.delete(prefixFrom, prefixTo).setMeta(richInputRulesPluginKey, true);
+      const mappedFrom = transaction.mapping.map(from);
+      const mappedTo = transaction.mapping.map(to);
+
+      if (rule.kind === "heading") {
+        transaction.setBlockType(mappedFrom, mappedTo, state.schema.nodes.heading!, {
+          level: rule.level
+        });
+        return transaction;
+      }
+
+      const retainedParagraph = transaction.doc.nodeAt(mappedFrom);
+      const replacement = replacementForInputRule(
+        rule,
+        state.schema,
+        retainedParagraph?.type === state.schema.nodes.paragraph ? retainedParagraph : state.schema.nodes.paragraph!.create()
+      );
+      if (!replacement) {
+        return null;
+      }
+      transaction.replaceWith(mappedFrom, mappedTo, replacement);
+      const selectionPosition = Math.min(
+        mappedFrom + selectionOffsetForInputRule(rule) + replacement.textContent.length,
+        transaction.doc.content.size
+      );
+      return transaction.setSelection(TextSelection.near(transaction.doc.resolve(selectionPosition)));
+    },
+    key: richInputRulesPluginKey,
+    props: {
+      handleKeyDown(view, event) {
+        if (event.key !== "Enter") {
+          return false;
+        }
+        const transaction = createCodeFenceEnterTransaction(view.state);
+        if (!transaction) {
+          return false;
+        }
+        event.preventDefault();
+        view.dispatch(transaction);
+        return true;
+      }
+    }
+  });
+}
+
+function createTodoTogglePlugin(): Plugin {
+  return new Plugin({
+    props: {
+      handleClick(view, _position, event) {
+        const target = event.target;
+        if (!(target instanceof Element)) {
+          return false;
+        }
+        const toggle = target.closest("[data-todo-toggle]");
+        if (!toggle) {
+          return false;
+        }
+        const todoElement = toggle.closest('[data-type="todo-item"]');
+        if (!todoElement) {
+          return false;
+        }
+        const position = view.posAtDOM(todoElement, 0);
+        const match = findNodePositionAround(view.state.doc, position, "todo_item");
+        if (!match) {
+          return false;
+        }
+        view.dispatch(
+          view.state.tr.setNodeMarkup(match.position, undefined, {
+            ...match.node.attrs,
+            checked: !Boolean(match.node.attrs.checked)
+          })
+        );
+        return true;
+      }
+    }
+  });
+}
+
+function markdownInputRuleForText(text: string): RichMarkdownInputRule | null {
+  const heading = text.match(/^(#{1,3}) $/);
+  if (heading) {
+    return {
+      kind: "heading",
+      level: heading[1]!.length,
+      prefixLength: text.length
+    };
+  }
+
+  if (text === "- [ ] ") {
+    return {
+      checked: false,
+      kind: "todo_item",
+      prefixLength: text.length
+    };
+  }
+
+  if (/^- \[[xX]\] $/.test(text)) {
+    return {
+      checked: true,
+      kind: "todo_item",
+      prefixLength: text.length
+    };
+  }
+
+  if (text === "- ") {
+    return {
+      kind: "bullet_list",
+      prefixLength: text.length
+    };
+  }
+
+  if (text === "1. ") {
+    return {
+      kind: "ordered_list",
+      prefixLength: text.length
+    };
+  }
+
+  if (text === "> ") {
+    return {
+      kind: "blockquote",
+      prefixLength: text.length
+    };
+  }
+
+  const codeFence = text.match(/^```([A-Za-z0-9_-]*) $/);
+  if (codeFence) {
+    const language = codeFence[1] ?? "";
+    return {
+      kind: "code_block",
+      language: normalizeOptionalString(language),
+      prefixLength: text.length
+    };
+  }
+
+  return null;
+}
+
+function todoInputRuleForListItemText(
+  text: string
+): { readonly checked: boolean; readonly prefixLength: number } | null {
+  if (text === "[ ] ") {
+    return {
+      checked: false,
+      prefixLength: text.length
+    };
+  }
+  if (/^\[[xX]\] $/.test(text)) {
+    return {
+      checked: true,
+      prefixLength: text.length
+    };
+  }
+  return null;
+}
+
+function createListTodoInputRuleTransaction(
+  state: EditorState,
+  rule: { readonly checked: boolean; readonly prefixLength: number }
+): Transaction | null {
+  const { $from } = state.selection;
+  if ($from.depth < 3 || $from.node($from.depth - 1).type !== state.schema.nodes.list_item) {
+    return null;
+  }
+  const listItemDepth = $from.depth - 1;
+  const listDepth = $from.depth - 2;
+  const listNode = $from.node(listDepth);
+  if (![state.schema.nodes.bullet_list, state.schema.nodes.ordered_list].includes(listNode.type)) {
+    return null;
+  }
+
+  const prefixFrom = $from.start();
+  const prefixTo = prefixFrom + rule.prefixLength;
+  const transaction = state.tr.delete(prefixFrom, prefixTo).setMeta(richInputRulesPluginKey, true);
+  const listItemFrom = transaction.mapping.map($from.before(listItemDepth));
+  const listItemTo = transaction.mapping.map($from.after(listItemDepth));
+  const retainedListItem = transaction.doc.nodeAt(listItemFrom);
+  if (!retainedListItem || retainedListItem.type !== state.schema.nodes.list_item) {
+    return null;
+  }
+  const todoItem = state.schema.nodes.todo_item!.create(
+    { checked: rule.checked },
+    retainedListItem.content
+  );
+
+  if (listNode.childCount === 1 && $from.node(listDepth - 1).type === state.schema.nodes.doc) {
+    const listFrom = transaction.mapping.map($from.before(listDepth));
+    const listTo = transaction.mapping.map($from.after(listDepth));
+    transaction.replaceWith(listFrom, listTo, todoItem);
+    const selectionPosition = Math.min(listFrom + 2, transaction.doc.content.size);
+    return transaction.setSelection(TextSelection.near(transaction.doc.resolve(selectionPosition)));
+  }
+
+  transaction.replaceWith(listItemFrom, listItemTo, todoItem);
+  const selectionPosition = Math.min(listItemFrom + 2, transaction.doc.content.size);
+  return transaction.setSelection(TextSelection.near(transaction.doc.resolve(selectionPosition)));
+}
+
+function createCodeFenceEnterTransaction(state: EditorState): Transaction | null {
+  if (!(state.selection instanceof TextSelection) || !state.selection.empty) {
+    return null;
+  }
+  const { $from } = state.selection;
+  if ($from.parent.type !== state.schema.nodes.paragraph || $from.parentOffset !== $from.parent.content.size) {
+    return null;
+  }
+  const text = $from.parent.textBetween(0, $from.parent.content.size, "\n", "\n");
+  const codeFence = text.match(/^```([A-Za-z0-9_-]*)$/);
+  if (!codeFence) {
+    return null;
+  }
+  const from = $from.before();
+  const to = $from.after();
+  const language = normalizeOptionalString(codeFence[1] ?? null);
+  const codeBlock = state.schema.nodes.code_block!.create({
+    language,
+    meta: null
+  });
+  const transaction = state.tr.replaceWith(from, to, codeBlock).setMeta(richInputRulesPluginKey, true);
+  const selectionPosition = Math.min(from + 1, transaction.doc.content.size);
+  return transaction.setSelection(TextSelection.near(transaction.doc.resolve(selectionPosition)));
+}
+
+function replacementForInputRule(
+  rule: Exclude<RichMarkdownInputRule, { readonly kind: "heading" }>,
+  schema: MomentariseRichSchema,
+  paragraph: ProseMirrorNode
+): ProseMirrorNode | null {
+  switch (rule.kind) {
+    case "blockquote":
+      return schema.nodes.blockquote!.create(null, [paragraph]);
+    case "bullet_list":
+      return schema.nodes.bullet_list!.create(null, [
+        schema.nodes.list_item!.create(null, [paragraph])
+      ]);
+    case "code_block":
+      return schema.nodes.code_block!.create(
+        {
+          language: rule.language,
+          meta: null
+        },
+        paragraph.textContent ? [schema.text(paragraph.textContent)] : undefined
+      );
+    case "ordered_list":
+      return schema.nodes.ordered_list!.create({ order: 1 }, [
+        schema.nodes.list_item!.create(null, [paragraph])
+      ]);
+    case "todo_item":
+      return schema.nodes.todo_item!.create({ checked: rule.checked }, [paragraph]);
+  }
+}
+
+function selectionOffsetForInputRule(rule: Exclude<RichMarkdownInputRule, { readonly kind: "heading" }>): number {
+  switch (rule.kind) {
+    case "blockquote":
+    case "todo_item":
+      return 2;
+    case "bullet_list":
+    case "ordered_list":
+      return 3;
+    case "code_block":
+      return 1;
+  }
+}
+
+function findNodePositionAround(
+  doc: ProseMirrorNode,
+  position: number,
+  typeName: string
+): {
+  readonly node: ProseMirrorNode;
+  readonly position: number;
+} | null {
+  let match: { node: ProseMirrorNode; position: number } | null = null;
+  doc.descendants((node, nodePosition) => {
+    if (node.type.name === typeName && nodePosition <= position && nodePosition + node.nodeSize > position) {
+      match = {
+        node,
+        position: nodePosition
+      };
+      return false;
+    }
+    return true;
+  });
+  return match;
+}
+
 function normalizeCommandQuery(query: string): string {
   return query.trim().replace(/^\/+/, "").toLowerCase().replace(/[\s_-]+/g, "");
 }
@@ -536,6 +964,60 @@ function currentBlockRange(state: EditorState): {
         from: $from.before(depth),
         node,
         parent: $from.node(depth - 1),
+        to: $from.after(depth)
+      };
+    }
+  }
+  return null;
+}
+
+function currentAncestorBlockRange(
+  state: EditorState,
+  typeName: string
+): {
+  readonly from: number;
+  readonly node: ProseMirrorNode;
+  readonly parent: ProseMirrorNode;
+  readonly to: number;
+} | null {
+  const { $from } = state.selection;
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const node = $from.node(depth);
+    if (node.type.name === typeName) {
+      return {
+        from: $from.before(depth),
+        node,
+        parent: $from.node(depth - 1),
+        to: $from.after(depth)
+      };
+    }
+  }
+  return null;
+}
+
+function currentTopLevelBlockRange(state: EditorState): {
+  readonly from: number;
+  readonly node: ProseMirrorNode;
+  readonly parent: ProseMirrorNode;
+  readonly to: number;
+} | null {
+  if (state.selection instanceof NodeSelection && state.selection.node.isBlock) {
+    return {
+      from: state.selection.from,
+      node: state.selection.node,
+      parent: state.doc,
+      to: state.selection.to
+    };
+  }
+  const { $from } = state.selection;
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const parent = $from.node(depth - 1);
+    if (parent.type === state.schema.nodes.doc) {
+      const node = $from.node(depth);
+      return {
+        from: $from.before(depth),
+        node,
+        parent,
         to: $from.after(depth)
       };
     }
@@ -659,7 +1141,33 @@ const richNodes: Record<string, NodeSpec> = {
     content: "paragraph block*",
     defining: true,
     group: "block",
-    toDOM: (node) => ["div", { "data-checked": String(Boolean(node.attrs.checked)), "data-type": "todo-item" }, 0]
+    parseDOM: [
+      {
+        tag: '[data-type="todo-item"]',
+        getAttrs: (element) => ({
+          checked: element instanceof HTMLElement ? element.dataset.checked === "true" : false
+        })
+      }
+    ],
+    toDOM: (node) => {
+      const checked = Boolean(node.attrs.checked);
+      return [
+        "div",
+        { "data-checked": String(checked), "data-type": "todo-item" },
+        [
+          "button",
+          {
+            "aria-label": checked ? "Mark todo incomplete" : "Mark todo complete",
+            "aria-pressed": String(checked),
+            "contenteditable": "false",
+            "data-todo-toggle": "true",
+            type: "button"
+          },
+          checked ? "\u2713" : ""
+        ],
+        ["div", { "data-todo-content": "true" }, 0]
+      ];
+    }
   },
   image: {
     attrs: {
@@ -1022,6 +1530,14 @@ function rawFromRange(node: MomentariseNode): string {
 
 function stringAttribute(value: NodeAttributeValue | undefined): string | null {
   return typeof value === "string" ? value : null;
+}
+
+function normalizeOptionalString(value: string | null | undefined): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
 }
 
 function extractLeadingFrontmatterSource(source: string): string | null {

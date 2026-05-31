@@ -1319,3 +1319,69 @@
   - MME-0013 remains `code-complete/visually verified/human review pending`.
 - Suggested commit message:
   - `docs: require human-facing url for visual gates`
+
+## MME-0013.5 — Rich editor UX input rules and block affordances
+
+- Timestamp: 2026-05-31T16:20:23Z
+- Summary: Added live rich-mode Markdown input rules, todo checkbox affordances, code block language/meta controls, and a contextual add-paragraph affordance for framed rich blocks. The slice is code-complete and visually verified; human review remains required before accepting the rich editor UX direction.
+- Files changed:
+  - `packages/md-rich-prosemirror/src/index.ts`
+  - `apps/md-demo/src/main.ts`
+  - `apps/md-demo/src/styles.css`
+  - `package.json`
+  - `tests/rich-input-rules.test.mjs`
+  - `tests/demo-rich-ux-baseline.test.mjs`
+  - `scripts/visual-check-mme00135.mjs`
+  - `docs/internal/visual-checks/MME-0013.5/*`
+  - `README.md`
+- Behavior to prove before implementation:
+  - Typing safe Markdown prefixes in rich mode creates real ProseMirror structures, not plain text that merely serializes similarly.
+  - `- [ ] ` creates an interactive todo row without switching Source/Rich modes.
+  - Todo checkbox toggles update Markdown task syntax and do not toggle the wrong adjacent item.
+  - Code fence input supports language/meta controls without losing existing hidden info string fields.
+  - Users can add content after code and selected opaque/callout blocks.
+- Test-first evidence:
+  - Added `tests/rich-input-rules.test.mjs` before implementation. It initially failed on missing rich UX exports, then was expanded after reviewer feedback to assert ProseMirror node shape, prefix-time list/quote rules, normal code-fence Enter flow, partial code-info updates, and selected opaque/callout insertion.
+  - Added `tests/demo-rich-ux-baseline.test.mjs` before implementation to require the demo controls, visual script, and visual artifact contract.
+  - Added `scripts/visual-check-mme00135.mjs` before implementation and tightened it after visual review to assert DOM structure, not just serialized Markdown.
+- Tests/checks run:
+  - `npm run test:rich-input-rules`
+  - `npm run test:demo-rich-ux`
+  - `npm run build:demo`
+  - `npm run visual:mme-0013.5`
+  - `npm test`
+- Visual/manual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host :: --port 5174 --strictPort`
+  - Local URL: `http://localhost:5174/`
+  - The server is intentionally left running on `5174`.
+  - Visual gate command: `npm run visual:mme-0013.5`
+  - The visual script uses the human-facing URL by default and was run with Chrome headless permission.
+  - In-app browser was able to open a fresh `http://localhost:5174/` tab after the server was relaunched outside the sandbox. It showed the current demo shell, rich toolbar, and rich block controls, but the test hook was not visible in that Browser plugin context; the headless visual gate and escalated `curl` verified the served bundle includes `__MME_DEMO_VISUAL_CHECK__`.
+- Visual artifacts:
+  - `docs/internal/visual-checks/MME-0013.5/rich-heading-live-input-rule.png`
+  - `docs/internal/visual-checks/MME-0013.5/rich-todo-live-input-rule.png`
+  - `docs/internal/visual-checks/MME-0013.5/rich-todo-toggled.png`
+  - `docs/internal/visual-checks/MME-0013.5/rich-code-controls.png`
+  - `docs/internal/visual-checks/MME-0013.5/rich-paragraph-after-code.png`
+- Reviewer/subagent used and result:
+  - UX Reviewer found one High issue: insertion after selected opaque/callout/framed blocks was not covered because top-level atom selections were missed. Fixed by supporting `NodeSelection` in the top-level block range helper and adding a regression test.
+  - UX Reviewer found one Medium issue: partial code block info updates could clear omitted fields. Fixed by preserving omitted `language`/`meta` fields and adding a partial-update regression test.
+  - UX Reviewer found one Low issue: the Add paragraph strip was too visible under ordinary rich selections. Fixed by making the block-control strip contextual to code/framed insertion states.
+  - Architecture/Test Reviewer found one High issue: adjacent todo click mapping could match the previous todo at a boundary. Fixed by using an exclusive upper bound in the DOM-position matcher and adding an adjacent-todo visual assertion.
+  - Architecture/Test Reviewer found one High issue: list/quote input rules fired only after a content character and normal code fence + Enter was not covered. Fixed by transforming `- `, `1. `, and `> ` at prefix time, adding list-item todo conversion for `- [ ]`, and adding code-fence Enter handling.
+  - Architecture/Test Reviewer found one Medium issue: tests proved serialized Markdown more than rich structure. Fixed by asserting ProseMirror node paths and todo DOM rows in the automated/visual checks.
+- Visual impact:
+  - Editing surface: in Rich mode, typing `# `, `## `, `### `, `- `, `1. `, `> `, `- [ ] `, `- [x] `, and code fence patterns now changes the editor structure live without switching back to Source mode.
+  - Todo rows now show a real clickable checkbox button instead of a pseudo-element. Toggling the checkbox updates the Markdown task marker.
+  - Code blocks now expose a compact contextual control strip with `Language`, `Meta`, and `Add paragraph` controls when the selection is inside a code block.
+  - General UI: the Add paragraph affordance is contextual instead of always visible under headings/todos, reducing toolbar density in ordinary rich editing.
+  - Save workflow: no persistence behavior changed in this slice.
+- Deviations/follow-ups:
+  - Host-configurable rich UX options are still only partly represented: the package installs input rules/todo toggle by default. A later settings/adapter pass should decide opt-out/tuning APIs.
+  - Undo/redo, paste, Backspace, and Enter around every transformed block are covered by existing rich/source baselines only partially; deeper editor ergonomics remain part of future UI/UX polish.
+  - The demo bundle still warns over 500 kB after ProseMirror. Accepted for the mini demo.
+- Human review status:
+  - MME-0013 accepted by user on 2026-05-31 before starting this slice.
+  - MME-0013.5 is `code-complete/visually verified/human review pending`.
+- Suggested commit message:
+  - `feat: add rich markdown input rules`
