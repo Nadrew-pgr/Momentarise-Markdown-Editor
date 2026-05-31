@@ -1542,3 +1542,18 @@
   - Not used; docs-only backlog clarification from human feedback.
 - Suggested commit message:
   - `docs: note editor status polish`
+
+## Docs follow-up — MME-0020 full document metadata/status section
+
+- Issue: MME-0020 follow-up.
+- Summary: Clarified that the MME-0020 status polish applies to the whole permanent document metadata/status section, not only to `disk` persistence wording. This covers fixture, memory-only, URI, adapter, writability, and persistence details for any opened file type.
+- Files changed:
+  - `docs/internal/ISSUES.md`
+- Verification:
+  - `rg -n "Document identity and persistence status section|persistent technical metadata/status section" docs/internal/ISSUES.md`
+- Visual impact:
+  - No current UI change. Future MME-0020 work must redesign the whole permanent metadata/status section into an editor-grade status pattern while keeping save truthfulness clear.
+- Reviewer/subagent used and result:
+  - Not used; docs-only clarification from human feedback.
+- Suggested commit message:
+  - `docs: clarify document status section polish`
