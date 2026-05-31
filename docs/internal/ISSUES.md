@@ -834,6 +834,10 @@ Run a dedicated end-of-V0 editor-quality pass after the major core, rich, adapte
 
 This issue exists because MME-0013.5 creates serious rich editor primitives, but it is not the final ergonomics pass. Indentation, nested lists, todo flows, block boundaries, live preview, toolbar density, host settings, and DX need to be judged together once more of the editor exists.
 
+MME-0020 is not a closed list. It is the container for the final editor pass.
+
+The target level is at least Obsidian default Live Preview behavior, with real Markdown behind it. The differentiators are Momentarise's toolbar, slash command, and a better structured block layer, without losing `.md` as the source of truth.
+
 ### Scope
 
 - Source, Rich, and Live Preview editing ergonomics.

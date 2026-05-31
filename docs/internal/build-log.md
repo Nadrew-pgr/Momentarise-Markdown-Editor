@@ -1410,3 +1410,27 @@
   - Not applicable. Documentation follow-up only.
 - Suggested commit message:
   - `docs: add final editor ux hardening issue`
+
+## Docs follow-up — MME-0020 Obsidian Live Preview target
+
+- Timestamp: 2026-05-31T20:01:39Z
+- Summary: Clarified that MME-0020 is not a closed checklist and that the final editor pass must target at least Obsidian default Live Preview behavior while preserving real Markdown as the source of truth.
+- Files changed:
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+- Behavior to prove before implementation:
+  - MME-0020 remains an extensible final editor-quality container.
+  - The benchmark is explicit: Obsidian-level Live Preview baseline plus Momentarise toolbar, slash command, and structured block-layer differentiation.
+- Test-first evidence:
+  - Documentation-only follow-up. No TDD required.
+- Tests/checks run:
+  - `rg -n "MME-0020 is not a closed list|Obsidian default Live Preview|source of truth" docs/internal/ISSUES.md docs/internal/build-log.md`
+  - `git diff --check`
+- Manual verification:
+  - Confirmed the target language is inside the MME-0020 issue, not only in conversation context.
+- Visual impact:
+  - No visible editing or general UI changes.
+- Human review status:
+  - Not applicable. Documentation follow-up only.
+- Suggested commit message:
+  - `docs: clarify final editor live preview target`
