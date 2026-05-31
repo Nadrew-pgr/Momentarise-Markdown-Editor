@@ -139,7 +139,7 @@ h1 {
   min-height: 0;
   display: grid;
   position: relative;
-  grid-template-rows: auto auto auto auto 1fr;
+  grid-template-rows: auto auto auto auto auto 1fr;
 }
 
 .document-strip {
@@ -254,6 +254,23 @@ h1 {
   padding: 6px 24px;
   border-bottom: 1px solid var(--line);
   background: #f6f8f9;
+}
+
+.folding-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 6px 24px;
+  border-bottom: 1px solid var(--line);
+  background: #fbfcfc;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.folding-strip strong {
+  color: var(--ink);
+  font-weight: 720;
 }
 
 .code-block-controls {
@@ -380,9 +397,64 @@ h1 {
 
 .ProseMirror h1,
 .ProseMirror h2,
-.ProseMirror h3 {
+.ProseMirror h3,
+.ProseMirror h4,
+.ProseMirror h5,
+.ProseMirror h6 {
   margin: 0 0 16px;
   line-height: 1.22;
+}
+
+.ProseMirror .rich-fold-heading {
+  position: relative;
+  padding-left: 24px;
+}
+
+.ProseMirror .rich-fold-heading[data-rich-folded="true"]::after {
+  content: attr(data-fold-summary);
+  margin-left: 8px;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.rich-fold-toggle {
+  position: absolute;
+  left: 0;
+  top: 0.14em;
+  inline-size: 18px;
+  block-size: 18px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.rich-fold-toggle::before {
+  content: "▾";
+  display: block;
+  font-size: 13px;
+  line-height: 16px;
+}
+
+.rich-fold-toggle[aria-expanded="false"]::before {
+  content: "▸";
+}
+
+.rich-fold-toggle:hover,
+.rich-fold-toggle:focus {
+  border-color: var(--line);
+  background: var(--surface-muted);
+  color: var(--accent-strong);
+  outline: none;
+}
+
+.rich-fold-hidden {
+  display: none !important;
 }
 
 .ProseMirror p {

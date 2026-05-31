@@ -1461,3 +1461,68 @@
   - Not applicable. Documentation follow-up only.
 - Suggested commit message:
   - `docs: specify hierarchical heading folding`
+
+## MME-0014 — Folding UI and toggle block distinction
+
+- Timestamp: 2026-05-31T20:39:17Z
+- Summary: Added hierarchical rich-mode Markdown section folding for H1 through H6 as sidecar/session state, plus an explicit toggle-block command that emits `<details><summary>...</summary></details>` only when requested. The slice is code-complete, visually verified, and reviewer-passed.
+- Files changed:
+  - `README.md`
+  - `package.json`
+  - `packages/md-rich-prosemirror/src/index.ts`
+  - `apps/md-demo/src/main.ts`
+  - `apps/md-demo/src/styles.css`
+  - `tests/rich-folding.test.mjs`
+  - `tests/demo-folding-baseline.test.mjs`
+  - `scripts/visual-check-mme0014.mjs`
+  - `docs/internal/visual-checks/MME-0014/README.md`
+  - `docs/internal/visual-checks/MME-0014/*.png`
+- Behavior to prove before implementation:
+  - Folding any heading H1-H6 hides descendant section content until the next heading with depth less than or equal to the folded heading.
+  - Nested parent/child fold state remains predictable.
+  - Fold/unfold does not dirty the document, change save hashes, or serialize fold state into Markdown.
+  - Toggle blocks are document content and emit `<details>` only through an explicit command.
+- Test-first evidence:
+  - Added `tests/rich-folding.test.mjs` before implementation; it initially failed on missing MME-0014 exports.
+  - Added `tests/demo-folding-baseline.test.mjs` before implementation to require demo UI hooks, styles, visual script coverage, and visual artifacts.
+  - Added `scripts/visual-check-mme0014.mjs` before implementation to define the manual/automated UI scenario.
+- Tests/checks run:
+  - `npm run test:rich-folding`
+  - `npm run test:demo-folding`
+  - `npm run build:demo`
+  - `npm run visual:mme-0014`
+  - `npm test`
+- Visual/manual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host :: --port 5174 --strictPort`
+  - Local URL: `http://localhost:5174/`
+  - The server is intentionally left running on `5174`.
+  - Visual gate command: `npm run visual:mme-0014`
+  - The visual script uses the human-facing URL by default and was run with Chrome headless permission.
+  - In-app browser was refreshed on `http://localhost:5174/`; it saw the current demo shell, rich toolbar, and `Section folds` strip. The in-app browser context still does not expose the test hook, so DOM/assertion proof remains the headless visual script.
+- Visual artifacts:
+  - `docs/internal/visual-checks/MME-0014/folding-h1-h6-loaded.png`
+  - `docs/internal/visual-checks/MME-0014/folding-h3-collapsed.png`
+  - `docs/internal/visual-checks/MME-0014/folding-nested-parent-collapsed.png`
+  - `docs/internal/visual-checks/MME-0014/folding-nested-child-still-collapsed.png`
+  - `docs/internal/visual-checks/MME-0014/folding-h1-collapsed.png`
+  - `docs/internal/visual-checks/MME-0014/toggle-block-explicit-details.png`
+- Sidecar/session location:
+  - Demo fold state is held in runtime `foldStates: readonly FoldState[]`.
+  - The state uses the `@momentarise/md-core` `FoldState` contract and belongs under `SidecarState.folds` for host adapters that persist session sidecars.
+  - The rich package receives folds as input and computes visibility; folds are not serialized into Markdown.
+- Reviewer/subagent used and result:
+  - UX/visual reviewer initially blocked because nested parent/child visual evidence was incomplete. Fixed by adding `folding-nested-parent-collapsed.png` and `folding-nested-child-still-collapsed.png`, updating the visual README, and changing the UI label from a technical sidecar phrase to `Section folds`. Re-review passed with no remaining UX/visual findings.
+  - Architecture/Test reviewer initially blocked because fold IDs used global ordinal IDs, save/hash behavior was under-proven, H4-H6 direct folding was under-tested, and build-log/sidecar documentation was pending. Fixed by deriving fold IDs from heading path/level/text, adding an inserted-sibling stability regression, adding direct H4/H5/H6 assertions, adding visual script checks for Markdown/currentHash/lastSavedHash/dirtySince stability after fold toggles, and documenting sidecar/session location. Re-review passed.
+- Visual impact:
+  - Editing surface: Rich mode headings now show disclosure triangles. Collapsed headings hide descendant section content and show a hidden-block count. H1-H6 section hierarchy is respected.
+  - General UI: Rich mode gains a compact `Section folds` strip with hidden-count status and a `Clear folds` action. The More menu gains an explicit `Toggle block` command.
+  - Save workflow: fold/unfold is visual/session-only and does not dirty the document or change save hashes. The explicit toggle-block command does modify Markdown and therefore marks the document dirty.
+- Deviations/follow-ups:
+  - Code block and callout folding were left out of this slice because heading section folding was the core acceptance item; they can be added later if still desired.
+  - Duplicate same-level headings with identical text under the same parent still rely on occurrence order for fold identity. This is safer than global ordinal IDs, but stronger identity semantics may be needed for production sidecar persistence.
+  - The demo bundle still warns over 500 kB after ProseMirror. Accepted for the mini demo.
+- Human review status:
+  - MME-0013.5 was accepted by the user implicitly by requesting MME-0014 on 2026-05-31.
+  - MME-0014 does not require mandatory human review per `ISSUES.md`; status is `code-complete/visually verified/reviewer-passed`.
+- Suggested commit message:
+  - `feat: add hierarchical rich folding`

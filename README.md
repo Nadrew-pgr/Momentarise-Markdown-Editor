@@ -24,10 +24,12 @@ Completed slices:
 - MME-0011.5: Alignment gate before rich mode, resolving policy/source-package/parser/status drift before `MME-0012`.
 - MME-0012: Rich mode ProseMirror spike with source/rich switching, basic rich editing, visual QA, reviewer fixes, and human acceptance.
 - MME-0013: Slash menu and toolbar V0 with rich command registry/API, visual QA, reviewer fixes, and human acceptance.
+- MME-0013.5: Rich editor UX input rules and block affordances with live Markdown prefix transforms, todo checkboxes, code controls, visual QA, and reviewer fixes.
+- MME-0014: Hierarchical H1-H6 rich-mode section folding as sidecar/session state, with explicit toggle-block distinction, visual QA, and reviewer fixes.
 
 Current slice:
 
-- MME-0013.5: Rich editor UX input rules and block affordances, code-complete and visually verified; human review pending.
+- MME-0015: HTML File Reader and sandbox preview.
 
 See `docs/internal/build-log.md` for the latest completed issue and current progress.
 

@@ -16,6 +16,7 @@ import {
   type SaveState,
   type SaveTarget
 } from "@momentarise/md-save";
+import type { FoldState } from "@momentarise/md-core";
 import {
   canUseFileSystemAccess,
   createImportedCopyDocument,
@@ -32,20 +33,25 @@ import {
   createRichMarkdownState,
   filterRichMarkdownCommands,
   getCurrentCodeBlockInfo,
+  getRichFoldVisibility,
+  getRichHeadingFoldItems,
   insertParagraphAfterCurrentBlock,
   richCommandRegistry,
   runRichMarkdownCommand,
   serializeRichMarkdownState,
   setCurrentCodeBlockInfo,
+  toggleRichHeadingFold,
   toggleCurrentTodoItem,
   type ApplyRichMarkdownCommandOptions,
+  type RichFoldVisibility,
+  type RichHeadingFoldItem,
   type RichCommandId,
   type RichMarkdownCommand,
   type RichMarkdownState
 } from "@momentarise/md-rich-prosemirror";
 import { createMomentariseSourceExtensions } from "@momentarise/md-source-codemirror";
-import { TextSelection } from "prosemirror-state";
-import { EditorView as ProseMirrorEditorView } from "prosemirror-view";
+import { Plugin, PluginKey, TextSelection, type EditorState as ProseMirrorEditorState } from "prosemirror-state";
+import { Decoration, DecorationSet, EditorView as ProseMirrorEditorView } from "prosemirror-view";
 import "./styles.css";
 
 const fixtureMarkdown = `---
@@ -115,6 +121,7 @@ app.innerHTML = `
               <button class="toolbar-menu-item" type="button" data-rich-command="heading3">H3</button>
               <button class="toolbar-menu-item" type="button" data-rich-command="orderedList">Numbered list</button>
               <button class="toolbar-menu-item" type="button" data-rich-command="callout">Callout</button>
+              <button class="toolbar-menu-item" type="button" data-rich-command="toggleBlock" data-testid="toolbar-command-toggleBlock">Toggle block</button>
               <button class="toolbar-menu-item" type="button" data-rich-command="image">Image</button>
               <button class="toolbar-menu-item" type="button" data-rich-command="inlineCode">Inline code</button>
             </div>
@@ -132,6 +139,11 @@ app.innerHTML = `
             </label>
           </div>
           <button class="toolbar-button" type="button" data-testid="insert-after-block-button">Add paragraph</button>
+        </div>
+        <div class="folding-strip" data-testid="folding-session-state" hidden>
+          <span>Section folds</span>
+          <strong data-testid="fold-state-summary">0 folded headings</strong>
+          <button class="toolbar-button" type="button" data-testid="fold-clear-button">Clear folds</button>
         </div>
         <div class="slash-command-menu" data-testid="slash-command-menu" hidden>
           <p class="slash-command-query" data-testid="slash-command-query">/</p>
@@ -229,6 +241,9 @@ const codeBlockControls = queryRequired<HTMLDivElement>('[data-testid="code-bloc
 const codeLanguageInput = queryRequired<HTMLInputElement>('[data-testid="code-language-input"]');
 const codeMetaInput = queryRequired<HTMLInputElement>('[data-testid="code-meta-input"]');
 const insertAfterBlockButton = queryRequired<HTMLButtonElement>('[data-testid="insert-after-block-button"]');
+const foldingSessionState = queryRequired<HTMLDivElement>('[data-testid="folding-session-state"]');
+const foldStateSummary = queryRequired<HTMLElement>('[data-testid="fold-state-summary"]');
+const foldClearButton = queryRequired<HTMLButtonElement>('[data-testid="fold-clear-button"]');
 const slashCommandMenu = queryRequired<HTMLDivElement>('[data-testid="slash-command-menu"]');
 const slashCommandQueryElement = queryRequired<HTMLElement>('[data-testid="slash-command-query"]');
 const slashCommandItemsElement = queryRequired<HTMLDivElement>("[data-slash-command-items]");
@@ -314,6 +329,7 @@ let richState: RichMarkdownState = createRichMarkdownState(fixtureMarkdown, {
   dialect: "momentarise-enhanced"
 });
 let richEditor: ProseMirrorEditorView | null = null;
+let foldStates: readonly FoldState[] = [];
 let richBaselineMarkdown = fixtureMarkdown;
 let richChanged = false;
 let slashCommandState: SlashCommandState = {
@@ -324,6 +340,7 @@ let slashCommandState: SlashCommandState = {
   to: 0
 };
 let slashCommandSelectedIndex = 0;
+const richFoldingPluginKey = new PluginKey<DecorationSet>("momentarise-demo-rich-folding");
 
 const editor = new CodeMirrorEditorView({
   parent: editorHost,
@@ -385,6 +402,12 @@ codeMetaInput.addEventListener("input", () => {
 
 insertAfterBlockButton.addEventListener("click", () => {
   insertParagraphAfterCurrentRichBlock();
+});
+
+foldClearButton.addEventListener("click", () => {
+  foldStates = [];
+  renderRichFoldingUi();
+  logEvent("Cleared rich folding sidecar/session state.");
 });
 
 slashCommandItemsElement.addEventListener("click", (event) => {
@@ -493,6 +516,15 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
       codeLanguage: codeLanguageInput.value,
       codeMeta: codeMetaInput.value,
       markdown: getMarkdown()
+    };
+  },
+  getFoldState() {
+    const visibility = getRichFoldVisibility(richState, foldStates);
+    return {
+      ...visibility,
+      folds: foldStates,
+      items: getRichHeadingFoldItems(richState, foldStates),
+      summary: foldStateSummary.textContent ?? ""
     };
   },
   getLastCopiedMarkdown() {
@@ -612,6 +644,9 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   toggleCurrentRichTodo() {
     toggleCurrentRichTodo();
   },
+  toggleRichFoldForText(text: string) {
+    toggleRichFoldForText(text);
+  },
   switchEditorMode(mode: DemoEditorMode) {
     switchEditorMode(mode);
   }
@@ -704,6 +739,7 @@ function loadOpenedMarkdownFile(
     content: opened.content,
     target: saveTarget
   });
+  foldStates = [];
   lastCopiedMarkdown = null;
   lastSaveAction = `opened ${documentModeLabel(opened.mode)} document`;
   replaceEditorDocument(opened.content);
@@ -766,14 +802,21 @@ function renderEditorMode(): void {
     setToolbarMoreOpen(false);
     renderRichBlockControls();
   }
+  renderRichFoldingUi();
 }
 
 function mountRichEditor(markdown: string): void {
   richEditor?.destroy();
   richEditorHost.replaceChildren();
-  richState = createRichMarkdownState(markdown, {
+  const baseRichState = createRichMarkdownState(markdown, {
     dialect: "momentarise-enhanced"
   });
+  richState = {
+    ...baseRichState,
+    editorState: baseRichState.editorState.reconfigure({
+      plugins: [...baseRichState.editorState.plugins, createRichFoldingPlugin()]
+    })
+  };
   richBaselineMarkdown = markdown;
   richChanged = false;
   richEditor = new ProseMirrorEditorView(richEditorHost, {
@@ -797,10 +840,12 @@ function mountRichEditor(markdown: string): void {
       }
       updateSlashMenuFromRichState();
       renderRichBlockControls();
+      renderRichFoldingUi(false);
     }
   });
   updateSlashMenuFromRichState();
   renderRichBlockControls();
+  renderRichFoldingUi(false);
 }
 
 function syncRichMarkdownToSource(source: "rich edit" | "mode switch"): void {
@@ -833,6 +878,7 @@ function applyPackageRichState(nextState: RichMarkdownState, eventMessage?: stri
   richEditor.updateState(nextState.editorState);
   richChanged = true;
   renderRichBlockControls();
+  renderRichFoldingUi();
   syncRichMarkdownToSource("rich edit");
   if (focusEditor) {
     richEditor.focus();
@@ -869,6 +915,136 @@ function renderRichBlockControls(): void {
   if (document.activeElement !== codeMetaInput) {
     codeMetaInput.value = codeInfo.meta ?? "";
   }
+}
+
+function renderRichFoldingUi(refreshDecorations = true): void {
+  const currentRichState = currentRichStateFromEditor();
+  if (editorMode !== "rich" || !richEditor || !currentRichState) {
+    foldingSessionState.hidden = true;
+    return;
+  }
+
+  const items = getRichHeadingFoldItems(currentRichState, foldStates);
+  const visibility = getRichFoldVisibility(currentRichState, foldStates);
+  const foldedCount = items.filter((item) => item.folded).length;
+  foldingSessionState.hidden = items.length === 0;
+  foldStateSummary.textContent = `${foldedCount} folded headings, ${visibility.hiddenBlockCount} hidden blocks`;
+
+  if (refreshDecorations) {
+    richEditor.dispatch(richEditor.state.tr.setMeta(richFoldingPluginKey, true));
+  }
+}
+
+function createRichFoldingPlugin(): Plugin {
+  return new Plugin({
+    key: richFoldingPluginKey,
+    props: {
+      decorations(state) {
+        return richFoldingPluginKey.getState(state) ?? DecorationSet.empty;
+      }
+    },
+    state: {
+      apply(transaction, previous, _oldState, nextState) {
+        if (transaction.docChanged || transaction.getMeta(richFoldingPluginKey)) {
+          return createRichFoldingDecorations(nextState);
+        }
+        return previous.map(transaction.mapping, transaction.doc);
+      },
+      init(_config, state) {
+        return createRichFoldingDecorations(state);
+      }
+    }
+  });
+}
+
+function createRichFoldingDecorations(editorState: ProseMirrorEditorState): DecorationSet {
+  const stateWithCurrentDoc: RichMarkdownState = {
+    ...richState,
+    editorState
+  };
+  const visibility = getRichFoldVisibility(stateWithCurrentDoc, foldStates);
+  const items = getRichHeadingFoldItems(stateWithCurrentDoc, foldStates);
+  const itemByNodeId = new Map(items.map((item) => [item.nodeId, item]));
+  const decorations: Decoration[] = [];
+
+  for (const block of visibility.blocks) {
+    const classes = [
+      block.hidden ? "rich-fold-hidden" : "",
+      block.type === "heading" ? "rich-fold-heading" : ""
+    ]
+      .filter(Boolean)
+      .join(" ");
+    if (classes) {
+      const item = itemByNodeId.get(block.nodeId);
+      const attributes: Record<string, string> = {
+        class: classes
+      };
+      if (block.hidden) {
+        attributes["aria-hidden"] = "true";
+      }
+      if (block.type === "heading") {
+        attributes["data-rich-folded"] = String(block.folded);
+        attributes["data-fold-summary"] = item && item.hiddenBlockCount > 0 ? `${item.hiddenBlockCount} hidden` : "";
+      }
+      decorations.push(
+        Decoration.node(block.position, block.to, attributes)
+      );
+    }
+
+    if (block.type === "heading") {
+      decorations.push(
+        Decoration.widget(block.position + 1, () => createRichFoldToggleButton(block), {
+          key: `fold-toggle:${block.nodeId}:${block.folded}`,
+          side: -1
+        })
+      );
+    }
+  }
+
+  return DecorationSet.create(editorState.doc, decorations);
+}
+
+function createRichFoldToggleButton(block: { readonly folded: boolean; readonly headingLevel: number | null; readonly nodeId: string; readonly text: string }): HTMLElement {
+  const button = document.createElement("button");
+  button.className = "rich-fold-toggle";
+  button.contentEditable = "false";
+  button.dataset.foldNodeId = block.nodeId;
+  button.setAttribute("aria-expanded", String(!block.folded));
+  button.setAttribute("aria-label", `${block.folded ? "Expand" : "Collapse"} ${block.text || `H${block.headingLevel ?? 1}`}`);
+  button.title = block.folded ? "Expand section" : "Collapse section";
+  button.type = "button";
+  button.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+  });
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleRichFoldByNodeId(block.nodeId);
+  });
+  return button;
+}
+
+function toggleRichFoldByNodeId(nodeId: string): void {
+  const currentRichState = currentRichStateFromEditor();
+  if (!currentRichState) {
+    return;
+  }
+  const item = getRichHeadingFoldItems(currentRichState, foldStates).find((candidate) => candidate.nodeId === nodeId);
+  foldStates = toggleRichHeadingFold(foldStates, nodeId);
+  renderRichFoldingUi();
+  logEvent(`${item?.folded ? "Expanded" : "Collapsed"} rich heading section: ${item?.text ?? nodeId}.`);
+}
+
+function toggleRichFoldForText(text: string): void {
+  const currentRichState = currentRichStateFromEditor();
+  if (!currentRichState) {
+    throw new Error("Rich editor is not mounted.");
+  }
+  const item = getRichHeadingFoldItems(currentRichState, foldStates).find((candidate) => candidate.text === text);
+  if (!item) {
+    throw new Error(`Cannot find foldable heading: ${text}`);
+  }
+  toggleRichFoldByNodeId(item.nodeId);
 }
 
 function updateCurrentCodeBlockInfoFromControls(): void {
@@ -1574,6 +1750,11 @@ declare global {
         readonly codeMeta: string;
         readonly markdown: string;
       };
+      getFoldState: () => RichFoldVisibility & {
+        readonly folds: readonly FoldState[];
+        readonly items: readonly RichHeadingFoldItem[];
+        readonly summary: string;
+      };
       getPropertiesState: () => {
         readonly hiddenText: string;
         readonly listText: string;
@@ -1604,6 +1785,7 @@ declare global {
       setSelection: (anchor: number, head: number) => void;
       switchEditorMode: (mode: DemoEditorMode) => void;
       toggleCurrentRichTodo: () => void;
+      toggleRichFoldForText: (text: string) => void;
     };
   }
 }
