@@ -29,7 +29,13 @@ import {
 } from "@momentarise/md-adapter-web";
 import {
   createRichMarkdownState,
+  filterRichMarkdownCommands,
+  richCommandRegistry,
+  runRichMarkdownCommand,
   serializeRichMarkdownState,
+  type ApplyRichMarkdownCommandOptions,
+  type RichCommandId,
+  type RichMarkdownCommand,
   type RichMarkdownState
 } from "@momentarise/md-rich-prosemirror";
 import { createMomentariseSourceExtensions } from "@momentarise/md-source-codemirror";
@@ -85,6 +91,33 @@ app.innerHTML = `
         <div class="mode-switch" role="group" aria-label="Editor mode">
           <button class="mode-button" type="button" data-testid="source-mode-button">Source</button>
           <button class="mode-button" type="button" data-testid="rich-mode-button">Rich</button>
+        </div>
+        <div class="rich-command-toolbar" data-testid="rich-command-toolbar" aria-label="Rich editing toolbar" hidden>
+          <button class="toolbar-button" type="button" data-rich-command="heading1" data-testid="toolbar-command-heading1">H1</button>
+          <button class="toolbar-button" type="button" data-rich-command="heading2" data-testid="toolbar-command-heading2">H2</button>
+          <button class="toolbar-button" type="button" data-rich-command="bold" data-testid="toolbar-command-bold">B</button>
+          <button class="toolbar-button" type="button" data-rich-command="italic" data-testid="toolbar-command-italic">I</button>
+          <button class="toolbar-button" type="button" data-rich-command="todo" data-testid="toolbar-command-todo">Todo</button>
+          <button class="toolbar-button" type="button" data-rich-command="bulletList" data-testid="toolbar-command-bulletList">List</button>
+          <button class="toolbar-button" type="button" data-rich-command="blockquote" data-testid="toolbar-command-blockquote">Quote</button>
+          <button class="toolbar-button" type="button" data-rich-command="codeBlock" data-testid="toolbar-command-codeBlock">Code block</button>
+          <button class="toolbar-button" type="button" data-rich-command="link" data-testid="toolbar-command-link">Link</button>
+          <button class="toolbar-button" type="button" data-rich-command="divider" data-testid="toolbar-command-divider">Divider</button>
+          <div class="toolbar-more">
+            <button class="toolbar-button" type="button" data-testid="toolbar-more-button" aria-expanded="false">More</button>
+            <div class="toolbar-more-menu" data-testid="toolbar-more-menu" hidden>
+              <button class="toolbar-menu-item" type="button" data-rich-command="paragraph">Paragraph</button>
+              <button class="toolbar-menu-item" type="button" data-rich-command="heading3">H3</button>
+              <button class="toolbar-menu-item" type="button" data-rich-command="orderedList">Numbered list</button>
+              <button class="toolbar-menu-item" type="button" data-rich-command="callout">Callout</button>
+              <button class="toolbar-menu-item" type="button" data-rich-command="image">Image</button>
+              <button class="toolbar-menu-item" type="button" data-rich-command="inlineCode">Inline code</button>
+            </div>
+          </div>
+        </div>
+        <div class="slash-command-menu" data-testid="slash-command-menu" hidden>
+          <p class="slash-command-query" data-testid="slash-command-query">/</p>
+          <div class="slash-command-items" data-slash-command-items></div>
         </div>
         <div class="editor-host" data-editor-host data-testid="editor-host"></div>
         <div class="rich-editor-host" data-testid="rich-editor-host" hidden></div>
@@ -166,9 +199,16 @@ app.innerHTML = `
 `;
 
 const editorHost = queryRequired<HTMLDivElement>("[data-editor-host]");
+const editorRegion = queryRequired<HTMLDivElement>(".editor-region");
 const richEditorHost = queryRequired<HTMLDivElement>('[data-testid="rich-editor-host"]');
 const sourceModeButton = queryRequired<HTMLButtonElement>('[data-testid="source-mode-button"]');
 const richModeButton = queryRequired<HTMLButtonElement>('[data-testid="rich-mode-button"]');
+const richCommandToolbar = queryRequired<HTMLDivElement>('[data-testid="rich-command-toolbar"]');
+const toolbarMoreButton = queryRequired<HTMLButtonElement>('[data-testid="toolbar-more-button"]');
+const toolbarMoreMenu = queryRequired<HTMLDivElement>('[data-testid="toolbar-more-menu"]');
+const slashCommandMenu = queryRequired<HTMLDivElement>('[data-testid="slash-command-menu"]');
+const slashCommandQueryElement = queryRequired<HTMLElement>('[data-testid="slash-command-query"]');
+const slashCommandItemsElement = queryRequired<HTMLDivElement>("[data-slash-command-items]");
 const openLocalFileButton = queryRequired<HTMLButtonElement>('[data-testid="open-local-file-button"]');
 const importCopyButton = queryRequired<HTMLButtonElement>('[data-testid="import-copy-button"]');
 const importCopyInput = queryRequired<HTMLInputElement>('[data-testid="import-copy-input"]');
@@ -210,6 +250,14 @@ type DemoDocumentMode = "fixture" | WebOpenedMarkdownMode;
 type DemoEditorMode = "source" | "rich";
 type PropertiesDisplayMode = "visible" | "hidden" | "source";
 
+interface SlashCommandState {
+  readonly from: number;
+  readonly items: readonly RichMarkdownCommand[];
+  readonly open: boolean;
+  readonly query: string;
+  readonly to: number;
+}
+
 interface ActiveDemoDocument {
   readonly fileName: string;
   readonly mode: DemoDocumentMode;
@@ -245,6 +293,14 @@ let richState: RichMarkdownState = createRichMarkdownState(fixtureMarkdown, {
 let richEditor: ProseMirrorEditorView | null = null;
 let richBaselineMarkdown = fixtureMarkdown;
 let richChanged = false;
+let slashCommandState: SlashCommandState = {
+  from: 0,
+  items: [],
+  open: false,
+  query: "",
+  to: 0
+};
+let slashCommandSelectedIndex = 0;
 
 const editor = new CodeMirrorEditorView({
   parent: editorHost,
@@ -277,6 +333,35 @@ sourceModeButton.addEventListener("click", () => {
 
 richModeButton.addEventListener("click", () => {
   switchEditorMode("rich");
+});
+
+richCommandToolbar.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const commandElement = target.closest<HTMLElement>("[data-rich-command]");
+  if (!commandElement) {
+    return;
+  }
+  runRichCommand(commandElement.dataset.richCommand as RichCommandId);
+});
+
+toolbarMoreButton.addEventListener("click", () => {
+  const expanded = toolbarMoreButton.getAttribute("aria-expanded") === "true";
+  setToolbarMoreOpen(!expanded);
+});
+
+slashCommandItemsElement.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const commandElement = target.closest<HTMLElement>("[data-slash-command]");
+  if (!commandElement) {
+    return;
+  }
+  runRichCommand(commandElement.dataset.slashCommand as RichCommandId);
 });
 
 openLocalFileButton.addEventListener("click", () => {
@@ -349,6 +434,22 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   },
   getRichText() {
     return richEditor?.state.doc.textContent ?? "";
+  },
+  getSlashMenuState() {
+    return {
+      items: slashCommandState.items.map((item) => item.id),
+      open: slashCommandState.open,
+      query: slashCommandState.query,
+      selectedId: slashCommandState.items[slashCommandSelectedIndex]?.id ?? null,
+      selectedIndex: slashCommandSelectedIndex
+    };
+  },
+  getToolbarState() {
+    return {
+      commands: richCommandRegistry.map((command) => command.id),
+      moreOpen: !toolbarMoreMenu.hidden,
+      visible: !richCommandToolbar.hidden
+    };
   },
   getLastCopiedMarkdown() {
     return lastCopiedMarkdown;
@@ -454,6 +555,12 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   },
   setRichSelectionAfterText(text: string) {
     setRichSelectionAfterText(text);
+  },
+  openSlashMenuForTest(query: string) {
+    openSlashMenuForTest(query);
+  },
+  runRichCommand(commandId: RichCommandId, options?: ApplyRichMarkdownCommandOptions) {
+    runRichCommand(commandId, options);
   },
   switchEditorMode(mode: DemoEditorMode) {
     switchEditorMode(mode);
@@ -599,9 +706,14 @@ function switchEditorMode(mode: DemoEditorMode): void {
 function renderEditorMode(): void {
   editorHost.hidden = editorMode !== "source";
   richEditorHost.hidden = editorMode !== "rich";
+  richCommandToolbar.hidden = editorMode !== "rich";
   sourceModeButton.setAttribute("aria-pressed", String(editorMode === "source"));
   richModeButton.setAttribute("aria-pressed", String(editorMode === "rich"));
   editorSurfaceStateElement.textContent = editorMode === "rich" ? "ProseMirror rich mode" : "CodeMirror source mode";
+  if (editorMode !== "rich") {
+    closeSlashMenu();
+    setToolbarMoreOpen(false);
+  }
 }
 
 function mountRichEditor(markdown: string): void {
@@ -614,6 +726,9 @@ function mountRichEditor(markdown: string): void {
   richChanged = false;
   richEditor = new ProseMirrorEditorView(richEditorHost, {
     state: richState.editorState,
+    handleKeyDown(_view, event) {
+      return handleSlashMenuKeyboard(event);
+    },
     dispatchTransaction(transaction) {
       if (!richEditor) {
         return;
@@ -628,8 +743,10 @@ function mountRichEditor(markdown: string): void {
         richChanged = true;
         syncRichMarkdownToSource("rich edit");
       }
+      updateSlashMenuFromRichState();
     }
   });
+  updateSlashMenuFromRichState();
 }
 
 function syncRichMarkdownToSource(source: "rich edit" | "mode switch"): void {
@@ -642,6 +759,214 @@ function syncRichMarkdownToSource(source: "rich edit" | "mode switch"): void {
   if (source === "mode switch") {
     logEvent("Serialized rich mode back to Markdown source.");
   }
+}
+
+function runRichCommand(commandId: RichCommandId, options: ApplyRichMarkdownCommandOptions = {}): void {
+  if (!richEditor) {
+    return;
+  }
+  if (editorMode !== "rich") {
+    switchEditorMode("rich");
+  }
+  const commandState = richStateForCommand();
+  const result = runRichMarkdownCommand(commandState, commandId, optionsForCommand(commandId, options));
+  if (!result.handled) {
+    closeSlashMenu();
+    logEvent(`Rich command unavailable: ${commandLabel(commandId)}.`);
+    return;
+  }
+  richState = result.state;
+  richEditor.updateState(result.state.editorState);
+  richChanged = true;
+  closeSlashMenu();
+  setToolbarMoreOpen(false);
+  syncRichMarkdownToSource("rich edit");
+  richEditor.focus();
+  logEvent(`Ran rich command: ${commandLabel(commandId)}.`);
+}
+
+function optionsForCommand(
+  commandId: RichCommandId,
+  options: ApplyRichMarkdownCommandOptions
+): ApplyRichMarkdownCommandOptions {
+  if (commandId === "image" && !options.src) {
+    return {
+      ...options,
+      alt: options.alt ?? "Image",
+      src: "image.png"
+    };
+  }
+  if (commandId === "link" && !options.href) {
+    return {
+      ...options,
+      href: "https://example.invalid"
+    };
+  }
+  return options;
+}
+
+function commandLabel(commandId: RichCommandId): string {
+  return richCommandRegistry.find((command) => command.id === commandId)?.label ?? commandId;
+}
+
+function updateSlashMenuFromRichState(): void {
+  const nextState = detectSlashCommandState();
+  const previousQuery = slashCommandState.query;
+  slashCommandState = nextState;
+  if (!slashCommandState.open || slashCommandState.query !== previousQuery) {
+    slashCommandSelectedIndex = 0;
+  } else {
+    slashCommandSelectedIndex = Math.min(slashCommandSelectedIndex, slashCommandState.items.length - 1);
+  }
+  renderSlashMenu();
+}
+
+function detectSlashCommandState(): SlashCommandState {
+  if (!richEditor || editorMode !== "rich" || !richEditor.state.selection.empty) {
+    return closedSlashCommandState();
+  }
+  const selection = richEditor.state.selection;
+  const textBefore = selection.$from.parent.textBetween(0, selection.$from.parentOffset, "\n", "\n");
+  const match = textBefore.match(/\/([A-Za-z0-9_-]*)$/);
+  if (!match) {
+    return closedSlashCommandState();
+  }
+  const query = match[1] ?? "";
+  const from = selection.from - query.length - 1;
+  const items = filterRichMarkdownCommands(query).slice(0, 8);
+  return {
+    from,
+    items,
+    open: items.length > 0,
+    query,
+    to: selection.from
+  };
+}
+
+function closedSlashCommandState(): SlashCommandState {
+  return {
+    from: 0,
+    items: [],
+    open: false,
+    query: "",
+    to: 0
+  };
+}
+
+function renderSlashMenu(): void {
+  slashCommandMenu.hidden = !slashCommandState.open;
+  slashCommandQueryElement.textContent = `/${slashCommandState.query}`;
+  slashCommandItemsElement.replaceChildren(
+    ...slashCommandState.items.map((command, index) => {
+      const button = document.createElement("button");
+      button.className = "slash-command-item";
+      button.dataset.selected = String(index === slashCommandSelectedIndex);
+      button.dataset.slashCommand = command.id;
+      button.dataset.testid = `slash-command-item-${command.id}`;
+      button.type = "button";
+      const label = document.createElement("strong");
+      label.textContent = command.label;
+      const aliases = document.createElement("span");
+      aliases.textContent = command.aliases.slice(0, 3).join(", ");
+      button.append(label, aliases);
+      return button;
+    })
+  );
+  positionSlashMenu();
+}
+
+function closeSlashMenu(): void {
+  slashCommandState = closedSlashCommandState();
+  slashCommandSelectedIndex = 0;
+  renderSlashMenu();
+}
+
+function positionSlashMenu(): void {
+  if (!richEditor || !slashCommandState.open) {
+    slashCommandMenu.style.removeProperty("--slash-menu-left");
+    slashCommandMenu.style.removeProperty("--slash-menu-top");
+    return;
+  }
+  const regionRect = editorRegion.getBoundingClientRect();
+  const menuWidth = Math.min(320, Math.max(220, regionRect.width - 24));
+  let caretRect: { readonly bottom: number; readonly left: number };
+  try {
+    caretRect = richEditor.coordsAtPos(richEditor.state.selection.from);
+  } catch {
+    const editorRect = richEditorHost.getBoundingClientRect();
+    caretRect = {
+      bottom: editorRect.top + 36,
+      left: editorRect.left + 24
+    };
+  }
+  const left = Math.min(Math.max(caretRect.left - regionRect.left, 12), Math.max(12, regionRect.width - menuWidth - 12));
+  const top = Math.max(caretRect.bottom - regionRect.top + 8, 12);
+  slashCommandMenu.style.setProperty("--slash-menu-left", `${Math.round(left)}px`);
+  slashCommandMenu.style.setProperty("--slash-menu-top", `${Math.round(top)}px`);
+}
+
+function richStateForCommand(): RichMarkdownState {
+  if (!richEditor || !slashCommandState.open) {
+    return {
+      ...richState,
+      editorState: richEditor?.state ?? richState.editorState
+    };
+  }
+  const editorState = richEditor.state.apply(richEditor.state.tr.delete(slashCommandState.from, slashCommandState.to));
+  return {
+    ...richState,
+    editorState
+  };
+}
+
+function openSlashMenuForTest(query: string): void {
+  slashCommandState = {
+    from: 0,
+    items: filterRichMarkdownCommands(query).slice(0, 8),
+    open: true,
+    query,
+    to: 0
+  };
+  slashCommandSelectedIndex = 0;
+  renderSlashMenu();
+}
+
+function setToolbarMoreOpen(open: boolean): void {
+  toolbarMoreButton.setAttribute("aria-expanded", String(open));
+  toolbarMoreMenu.hidden = !open;
+}
+
+function handleSlashMenuKeyboard(event: KeyboardEvent): boolean {
+  if (!slashCommandState.open) {
+    return false;
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeSlashMenu();
+    return true;
+  }
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    slashCommandSelectedIndex = (slashCommandSelectedIndex + 1) % slashCommandState.items.length;
+    renderSlashMenu();
+    return true;
+  }
+  if (event.key === "ArrowUp") {
+    event.preventDefault();
+    slashCommandSelectedIndex =
+      (slashCommandSelectedIndex - 1 + slashCommandState.items.length) % slashCommandState.items.length;
+    renderSlashMenu();
+    return true;
+  }
+  if (event.key === "Enter") {
+    event.preventDefault();
+    const command = slashCommandState.items[slashCommandSelectedIndex];
+    if (command) {
+      runRichCommand(command.id);
+    }
+    return true;
+  }
+  return false;
 }
 
 function setRichSelectionAfterText(text: string): void {
@@ -1085,6 +1410,18 @@ declare global {
       getEditorMode: () => DemoEditorMode;
       getLastCopiedMarkdown: () => string | null;
       getMarkdown: () => string;
+      getSlashMenuState: () => {
+        readonly items: readonly RichCommandId[];
+        readonly open: boolean;
+        readonly query: string;
+        readonly selectedId: RichCommandId | null;
+        readonly selectedIndex: number;
+      };
+      getToolbarState: () => {
+        readonly commands: readonly RichCommandId[];
+        readonly moreOpen: boolean;
+        readonly visible: boolean;
+      };
       getPropertiesState: () => {
         readonly hiddenText: string;
         readonly listText: string;
@@ -1104,6 +1441,8 @@ declare global {
       loadImportedCopyForTest: (fileName: string, content: string) => void;
       loadWritableMarkdownFileForTest: (fileName: string, content: string) => void;
       memorySave: (source: "button" | "keyboard shortcut") => void;
+      openSlashMenuForTest: (query: string) => void;
+      runRichCommand: (commandId: RichCommandId, options?: ApplyRichMarkdownCommandOptions) => void;
       showUnsupportedLocalFileStateForTest: () => void;
       simulateExternalConflict: () => void;
       setCursorAfterText: (text: string) => void;

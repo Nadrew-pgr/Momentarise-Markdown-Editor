@@ -1228,3 +1228,94 @@
   - MME-0012: `accepted` by user on 2026-05-30 before starting MME-0013.
 - Suggested commit message:
   - `docs: track rich editor ux follow-up`
+
+## MME-0013 — Slash menu and toolbar V0
+
+- Timestamp: 2026-05-30T22:32:48Z
+- Summary: Added the first reusable rich command registry/API and wired a V0 command UI into the mini web demo: toolbar actions, More menu, slash-menu filtering, keyboard navigation, and Markdown serialization for supported commands. The slice is code-complete and visually verified; human review remains required before accepting MME-0013.
+- Files changed:
+  - `package.json`
+  - `packages/md-rich-prosemirror/src/index.ts`
+  - `apps/md-demo/src/main.ts`
+  - `apps/md-demo/src/styles.css`
+  - `tests/rich-commands.test.mjs`
+  - `tests/demo-slash-toolbar-baseline.test.mjs`
+  - `scripts/visual-check-mme0013.mjs`
+  - `docs/internal/visual-checks/MME-0013/README.md`
+- Behavior to prove before implementation:
+  - `/h1`, `/H1`, and `/heading` find heading commands.
+  - Supported rich commands transform selected text or the current top-level block and keep Markdown output valid.
+  - Toolbar actions affect the current selection or block.
+  - Slash-menu keyboard navigation works from the rich editor.
+  - Unsupported/no-op commands do not silently mutate the document state.
+- Test-first evidence:
+  - Added `tests/rich-commands.test.mjs` before implementation to require command exports, aliases, command transformations, inline marks, no-op behavior in code blocks, and unsafe nested-list replacement no-ops.
+  - Added `tests/demo-slash-toolbar-baseline.test.mjs` before implementation to require the demo command UI, visual script, and visual artifact contract.
+  - Added `scripts/visual-check-mme0013.mjs` before implementation to define the manual/automated UI scenario.
+- Tests/checks run:
+  - `npm run test:contracts`
+  - `npm run test:demo-commands`
+  - `npm run test:rich-commands`
+  - `npm test`
+  - `git diff --check`
+- Visual/manual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host :: --port 5174 --strictPort`
+  - Local URL: `http://localhost:5174/`
+  - The server was restarted on the same `5174` port after a stale Vite process served an old page, and it was intentionally left running.
+  - `MME_DEMO_URL=http://localhost:5174/ npm run visual:mme-0013` passed after the final reviewer fixes with Chrome headless permission.
+  - A stale `localhost:5174` in-app browser tab showed the old `Source demo` UI while a prior automated gate had used `127.0.0.1`. Root cause: `localhost` could resolve through IPv6 while the earlier server was IPv4-only. The final review server now binds with `--host ::`, and IPv4 plus IPv6 loopback checks both serve the current bundle.
+  - Final status: `code-complete, visually verified, human review pending`.
+- Visual artifacts:
+  - `docs/internal/visual-checks/MME-0013/rich-toolbar-loaded.png`
+  - `docs/internal/visual-checks/MME-0013/toolbar-more-menu-open.png`
+  - `docs/internal/visual-checks/MME-0013/slash-menu-keyboard-navigation.png`
+  - `docs/internal/visual-checks/MME-0013/slash-menu-heading-query.png`
+  - `docs/internal/visual-checks/MME-0013/heading-command-applied.png`
+  - `docs/internal/visual-checks/MME-0013/toolbar-todo-code-applied.png`
+- Reviewer/subagent used and result:
+  - Test/Architecture Reviewer found two medium issues: slash no-op could desynchronize temporary state, and block replacement could mutate unsafe list contexts. Fixed by using a temporary command state only after `handled=true` and by refusing non-doc parent block replacements.
+  - UX Reviewer found a high issue with fixed slash-menu placement plus medium issues around More-menu coverage and the misleading `Code` label. Fixed in source by anchoring the menu to ProseMirror caret coordinates, adding More-menu visual coverage, and changing the button to `Code block` without default `ts` injection.
+  - Re-review after fixes: no source-level UX or test/architecture blockers remained. Visual script then passed and regenerated the screenshot set.
+- Visual impact:
+  - Editing surface: rich mode gains a compact toolbar with H1/H2, bold/italic, todo, list, quote, code block, link, divider, and a More menu for secondary commands. A slash menu appears near the rich editor caret and can be navigated with ArrowUp/ArrowDown, Escape, and Enter.
+  - General UI: the command toolbar appears only in Rich mode. The code command is labeled `Code block` and creates an untyped fenced block unless a caller supplies a language.
+  - Save workflow: no persistence behavior changed in this slice.
+- Deviations/follow-ups:
+  - Advanced rich editor UX remains in `MME-0013.5`: live Markdown input rules, checkbox toggles, code block language controls, adding after the last framed block, slash/toolbar polish, toolbar visibility/settings, mode-label review, and Notion/Obsidian/BlockNote-level polish.
+  - MME-0013 still requires human review to accept the command UI direction.
+- Human review status:
+  - `code-complete/visually verified/human review pending`.
+- Suggested commit message:
+  - `feat: add rich command toolbar and slash menu`
+
+## MME-0013 follow-up — Human-facing localhost gate and rich UX scope
+
+- Timestamp: 2026-05-31T12:14:09Z
+- Summary: Fixed the visual review process after the human-facing `localhost:5174` tab showed stale UI while a previous automated gate had passed on `127.0.0.1`. The demo server and MME-0013 visual proof now use `http://localhost:5174/`, and the process docs require visual verification against the same URL the human reviewer opens.
+- Files changed:
+  - `AGENT.md`
+  - `docs/internal/QUALITY_GATES.md`
+  - `docs/internal/PRD.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/visual-checks/MME-0013/README.md`
+  - `docs/internal/build-log.md`
+  - `.learnings/ERRORS.md`
+  - `.learnings/LEARNINGS.md`
+  - `.learnings/FEATURE_REQUESTS.md`
+- Behavior to prove before implementation:
+  - The MME-0013 visual gate uses the human-facing URL, `http://localhost:5174/`.
+  - Future UI gates cannot claim visual verification on one loopback alias while the human-facing tab shows stale or different UI.
+  - The upcoming rich editor UX pass explicitly covers slash menu polish, toolbar visibility/settings, mode labels, live Markdown input rules, and todo checkbox live rendering.
+- Test/check evidence:
+  - `MME_DEMO_URL=http://localhost:5174/ npm run visual:mme-0013`
+  - `curl --ipv4 http://localhost:5174/src/main.ts` confirmed the served bundle contains `Markdown editor demo`, `rich-command-toolbar`, `Code block`, and `__MME_DEMO_VISUAL_CHECK__`.
+- Manual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host :: --port 5174 --strictPort`
+  - Local URL: `http://localhost:5174/`
+  - The earlier `localhost` tab stayed stale because the previous server binding was IPv4-only while the browser could prefer IPv6. The server was relaunched with `--host ::`; both `curl --ipv4 http://localhost:5174/src/main.ts` and `curl -6 http://localhost:5174/src/main.ts` now serve the current command UI bundle.
+- Visual impact:
+  - No new product UI changes beyond the already verified MME-0013 command UI. This follow-up changes the served/reviewed URL and process documentation.
+- Human review status:
+  - MME-0013 remains `code-complete/visually verified/human review pending`.
+- Suggested commit message:
+  - `docs: require human-facing url for visual gates`

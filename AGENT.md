@@ -218,6 +218,8 @@ For every issue that creates or changes visible UI, the issue is not complete un
 8. asked a reviewer/subagent to inspect the screenshot or UI behavior when available;
 9. documented whether human review is required.
 
+The local URL used for visual verification must be the same URL the human reviewer is expected to open. If `localhost`, `127.0.0.1`, and host-network aliases are all available, verify the human-facing URL or verify both aliases. When using `localhost`, prefer a dual-stack dev server binding such as Vite `--host ::` or explicitly verify both IPv4 and IPv6 loopback. Do not mark the issue visually verified when screenshots pass on one loopback alias but the human-facing browser tab still shows stale or different UI.
+
 If browser or screenshot tooling is unavailable, the issue must not be marked visually verified. It must be marked `code-complete, visual verification pending`.
 
 Store UI screenshots and visual verification artifacts under `docs/internal/visual-checks/<issue-id>/`.

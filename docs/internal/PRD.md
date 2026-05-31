@@ -360,10 +360,13 @@ Mandatory rich baseline:
 Advanced rich editing backlog:
 
 - Markdown input rules: typing `#`, `##`, `-`, `1.`, `- [ ]`, `>`, and code-fence patterns should transform the current rich block live when safe;
+- live rich editing must not require switching to Source and back to see common Markdown constructs such as headings, todos, lists, quotes, and code fences;
 - todos should render as checkbox rows and toggle checked state without losing Markdown task syntax;
 - code blocks should expose language/meta controls for the hidden fence info string;
 - users must be able to insert a paragraph after the last code block, callout, opaque/raw block, or other framed block;
 - keyboard behavior around block boundaries, backspace, Enter, paste, and selection must feel editor-grade;
+- toolbar and slash menu presentation must be reviewed as editor UX, including whether controls are always visible, contextual, compact, configurable by host settings, or exposed through preferences;
+- rich/source/live-preview naming and labels must be reviewed for user clarity and host integration;
 - the UI may take inspiration from Notion, Obsidian, BlockNote, and similar editors, but the persisted Markdown contract remains stricter than those products.
 
 ### Slash menu and toolbar

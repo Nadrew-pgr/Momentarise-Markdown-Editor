@@ -624,15 +624,19 @@ Make rich mode feel like a serious Markdown editor, using leading editors such a
 
 ### Scope
 
-Rich-mode Markdown input rules, todo affordances, code-block controls, and block-boundary editing behavior.
+Rich-mode Markdown input rules, todo affordances, code-block controls, block-boundary editing behavior, command UI polish, and host-configurable editor UX.
 
 ### Acceptance criteria
 
 - Typing safe Markdown prefixes in rich mode transforms the current block live for headings, lists, todos, quotes, and code blocks.
+- Typing `- [ ] ` in rich mode renders a todo checkbox row immediately without requiring a Source/Rich mode switch.
 - Existing todos render as checkbox rows in rich mode.
 - Todo checkbox toggles update Markdown task syntax.
 - Code blocks expose language/meta controls for the hidden fence info string.
 - Users can add content after the last code block, callout, opaque block, or framed block.
+- Slash menu placement, styling, keyboard focus, empty states, and command labels are reviewed against Notion, Obsidian, BlockNote, and similar editor-grade references.
+- Toolbar visibility and density are reviewed, including always-visible vs contextual behavior and whether hosts/settings can configure command groups.
+- Source/Rich/Live Preview naming and user-facing mode labels are reviewed for clarity.
 - Backspace, Enter, paste, selection, and undo/redo remain predictable around transformed blocks.
 - Markdown output remains valid and unsupported syntax is not silently destroyed.
 

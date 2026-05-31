@@ -9,15 +9,63 @@ import type {
   SourceRange
 } from "@momentarise/md-core";
 import { createMarkdownAstFormatter } from "@momentarise/md-format";
-import { baseKeymap, chainCommands, createParagraphNear, liftEmptyBlock, newlineInCode, splitBlock } from "prosemirror-commands";
+import {
+  baseKeymap,
+  chainCommands,
+  createParagraphNear,
+  liftEmptyBlock,
+  newlineInCode,
+  setBlockType,
+  splitBlock,
+  toggleMark,
+  wrapIn
+} from "prosemirror-commands";
 import { history, redo, undo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
 import { Mark, Node as ProseMirrorNode, Schema, type MarkSpec, type NodeSpec } from "prosemirror-model";
-import { EditorState, Plugin } from "prosemirror-state";
+import { EditorState, Plugin, TextSelection, type Transaction } from "prosemirror-state";
 
 export interface MomentariseRichProseMirrorContract {
   readonly packageName: "@momentarise/md-rich-prosemirror";
   readonly richMode: "prosemirror";
+}
+
+export type RichCommandId =
+  | "blockquote"
+  | "bold"
+  | "bulletList"
+  | "callout"
+  | "codeBlock"
+  | "divider"
+  | "heading1"
+  | "heading2"
+  | "heading3"
+  | "image"
+  | "inlineCode"
+  | "italic"
+  | "link"
+  | "orderedList"
+  | "paragraph"
+  | "todo";
+
+export interface RichMarkdownCommand {
+  readonly aliases: readonly string[];
+  readonly group: "block" | "inline" | "insert";
+  readonly id: RichCommandId;
+  readonly label: string;
+}
+
+export interface ApplyRichMarkdownCommandOptions {
+  readonly alt?: string;
+  readonly href?: string;
+  readonly language?: string;
+  readonly src?: string;
+  readonly title?: string;
+}
+
+export interface RichMarkdownCommandResult {
+  readonly handled: boolean;
+  readonly state: RichMarkdownState;
 }
 
 export interface CreateRichMarkdownStateOptions {
@@ -56,6 +104,105 @@ export const momentariseRichProseMirrorPackage: MomentariseRichProseMirrorContra
   packageName: "@momentarise/md-rich-prosemirror",
   richMode: "prosemirror"
 };
+
+export const richCommandRegistry: readonly RichMarkdownCommand[] = [
+  {
+    aliases: ["p", "paragraph", "text"],
+    group: "block",
+    id: "paragraph",
+    label: "Paragraph"
+  },
+  {
+    aliases: ["h1", "H1", "heading", "heading1", "title"],
+    group: "block",
+    id: "heading1",
+    label: "Heading 1"
+  },
+  {
+    aliases: ["h2", "H2", "heading2", "subtitle"],
+    group: "block",
+    id: "heading2",
+    label: "Heading 2"
+  },
+  {
+    aliases: ["h3", "H3", "heading3"],
+    group: "block",
+    id: "heading3",
+    label: "Heading 3"
+  },
+  {
+    aliases: ["todo", "task", "checkbox", "check"],
+    group: "block",
+    id: "todo",
+    label: "Todo"
+  },
+  {
+    aliases: ["bullet", "ul", "list"],
+    group: "block",
+    id: "bulletList",
+    label: "Bullet list"
+  },
+  {
+    aliases: ["ordered", "ol", "numbered"],
+    group: "block",
+    id: "orderedList",
+    label: "Numbered list"
+  },
+  {
+    aliases: ["quote", "blockquote"],
+    group: "block",
+    id: "blockquote",
+    label: "Quote"
+  },
+  {
+    aliases: ["code", "codeblock", "fence"],
+    group: "block",
+    id: "codeBlock",
+    label: "Code block"
+  },
+  {
+    aliases: ["callout", "note", "aside"],
+    group: "insert",
+    id: "callout",
+    label: "Callout"
+  },
+  {
+    aliases: ["image", "img", "picture"],
+    group: "insert",
+    id: "image",
+    label: "Image"
+  },
+  {
+    aliases: ["divider", "hr", "rule"],
+    group: "insert",
+    id: "divider",
+    label: "Divider"
+  },
+  {
+    aliases: ["bold", "strong"],
+    group: "inline",
+    id: "bold",
+    label: "Bold"
+  },
+  {
+    aliases: ["italic", "em"],
+    group: "inline",
+    id: "italic",
+    label: "Italic"
+  },
+  {
+    aliases: ["inlinecode", "monospace"],
+    group: "inline",
+    id: "inlineCode",
+    label: "Inline code"
+  },
+  {
+    aliases: ["link", "url"],
+    group: "inline",
+    id: "link",
+    label: "Link"
+  }
+];
 
 export function createMomentariseRichSchema(): MomentariseRichSchema {
   return new Schema({
@@ -109,6 +256,45 @@ export function createRichMarkdownState(
   };
 }
 
+export function filterRichMarkdownCommands(query: string): readonly RichMarkdownCommand[] {
+  const normalized = normalizeCommandQuery(query);
+  if (!normalized) {
+    return richCommandRegistry;
+  }
+  return richCommandRegistry.filter((command) =>
+    [command.id, command.label, ...command.aliases].some((candidate) => normalizeCommandQuery(candidate).includes(normalized))
+  );
+}
+
+export function applyRichMarkdownCommand(
+  state: RichMarkdownState,
+  commandId: RichCommandId,
+  options: ApplyRichMarkdownCommandOptions = {}
+): RichMarkdownState {
+  return runRichMarkdownCommand(state, commandId, options).state;
+}
+
+export function runRichMarkdownCommand(
+  state: RichMarkdownState,
+  commandId: RichCommandId,
+  options: ApplyRichMarkdownCommandOptions = {}
+): RichMarkdownCommandResult {
+  let editorState = state.editorState;
+  const dispatch = (transaction: Transaction): void => {
+    editorState = editorState.apply(transaction);
+  };
+  const handled = executeRichMarkdownCommand(commandId, editorState, dispatch, options);
+  return {
+    handled,
+    state: handled
+      ? {
+          ...state,
+          editorState
+        }
+      : state
+  };
+}
+
 export function replaceFirstRichText(
   state: RichMarkdownState,
   search: string,
@@ -132,6 +318,33 @@ export function replaceFirstRichText(
     throw new Error(`Could not find rich text: ${search}`);
   }
   const editorState = state.editorState.apply(state.editorState.tr.insertText(replacement, from, to));
+  return {
+    ...state,
+    editorState
+  };
+}
+
+export function selectFirstRichText(state: RichMarkdownState, search: string): RichMarkdownState {
+  let from: number | null = null;
+  let to: number | null = null;
+  state.editorState.doc.descendants((node, position) => {
+    if (!node.isText || typeof node.text !== "string") {
+      return true;
+    }
+    const index = node.text.indexOf(search);
+    if (index < 0) {
+      return true;
+    }
+    from = position + index;
+    to = from + search.length;
+    return false;
+  });
+  if (from === null || to === null) {
+    throw new Error(`Could not select rich text: ${search}`);
+  }
+  const editorState = state.editorState.apply(
+    state.editorState.tr.setSelection(TextSelection.create(state.editorState.doc, from, to))
+  );
   return {
     ...state,
     editorState
@@ -199,6 +412,152 @@ function rangeStrictlyContains(outer: SourceRange, inner: SourceRange): boolean 
     rangeCovers(outer, inner) &&
     (outer.start.offset < inner.start.offset || outer.end.offset > inner.end.offset)
   );
+}
+
+function executeRichMarkdownCommand(
+  commandId: RichCommandId,
+  state: EditorState,
+  dispatch: (transaction: Transaction) => void,
+  options: ApplyRichMarkdownCommandOptions
+): boolean {
+  const { schema } = state;
+  switch (commandId) {
+    case "paragraph":
+      return setBlockType(schema.nodes.paragraph!)(state, dispatch);
+    case "heading1":
+      return setBlockType(schema.nodes.heading!, { level: 1 })(state, dispatch);
+    case "heading2":
+      return setBlockType(schema.nodes.heading!, { level: 2 })(state, dispatch);
+    case "heading3":
+      return setBlockType(schema.nodes.heading!, { level: 3 })(state, dispatch);
+    case "blockquote":
+      return wrapIn(schema.nodes.blockquote!)(state, dispatch);
+    case "codeBlock":
+      return setBlockType(schema.nodes.code_block!, {
+        language: options.language ?? null,
+        meta: options.title ?? null
+      })(state, dispatch);
+    case "todo":
+      return replaceCurrentBlock(
+        state,
+        dispatch,
+        schema.nodes.todo_item!.create({ checked: false }, [paragraphFromCurrentBlock(state)])
+      );
+    case "bulletList":
+      return replaceCurrentBlock(
+        state,
+        dispatch,
+        schema.nodes.bullet_list!.create(null, [
+          schema.nodes.list_item!.create(null, [paragraphFromCurrentBlock(state)])
+        ])
+      );
+    case "orderedList":
+      return replaceCurrentBlock(
+        state,
+        dispatch,
+        schema.nodes.ordered_list!.create({ order: 1 }, [
+          schema.nodes.list_item!.create(null, [paragraphFromCurrentBlock(state)])
+        ])
+      );
+    case "divider":
+      return replaceCurrentBlock(state, dispatch, schema.nodes.horizontal_rule!.create());
+    case "callout":
+      return replaceCurrentBlock(
+        state,
+        dispatch,
+        schema.nodes.unsupported_block!.create({
+          raw: `> [!NOTE] ${currentBlockText(state) || "Callout"}\n> `,
+          reason: "callout command raw fallback"
+        })
+      );
+    case "image":
+      return replaceCurrentBlock(
+        state,
+        dispatch,
+        schema.nodes.paragraph!.create(null, [
+          schema.nodes.image!.create({
+            alt: options.alt ?? currentBlockText(state) ?? "Image",
+            src: options.src ?? "image.png",
+            title: options.title ?? null
+          })
+        ])
+      );
+    case "bold":
+      return toggleMark(schema.marks.strong!)(state, dispatch);
+    case "italic":
+      return toggleMark(schema.marks.em!)(state, dispatch);
+    case "inlineCode":
+      return toggleMark(schema.marks.code!)(state, dispatch);
+    case "link":
+      return toggleMark(schema.marks.link!, {
+        href: options.href ?? "https://example.invalid",
+        title: options.title ?? null
+      })(state, dispatch);
+  }
+}
+
+function normalizeCommandQuery(query: string): string {
+  return query.trim().replace(/^\/+/, "").toLowerCase().replace(/[\s_-]+/g, "");
+}
+
+function replaceCurrentBlock(
+  state: EditorState,
+  dispatch: (transaction: Transaction) => void,
+  replacement: ProseMirrorNode
+): boolean {
+  const range = currentBlockRange(state);
+  if (!range) {
+    return false;
+  }
+  if (range.parent.type !== state.schema.nodes.doc) {
+    return false;
+  }
+  try {
+    const transaction = state.tr.replaceWith(range.from, range.to, replacement);
+    const selectionPosition = Math.min(range.from + 1, transaction.doc.content.size);
+    dispatch(transaction.setSelection(TextSelection.near(transaction.doc.resolve(selectionPosition))));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function currentBlockRange(state: EditorState): {
+  readonly from: number;
+  readonly node: ProseMirrorNode;
+  readonly parent: ProseMirrorNode;
+  readonly to: number;
+} | null {
+  const { $from } = state.selection;
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const node = $from.node(depth);
+    if (node.isBlock) {
+      return {
+        from: $from.before(depth),
+        node,
+        parent: $from.node(depth - 1),
+        to: $from.after(depth)
+      };
+    }
+  }
+  return null;
+}
+
+function paragraphFromCurrentBlock(state: EditorState): ProseMirrorNode {
+  const paragraph = state.schema.nodes.paragraph!;
+  const range = currentBlockRange(state);
+  if (!range) {
+    return paragraph.create();
+  }
+  if (range.node.type === paragraph) {
+    return range.node;
+  }
+  const text = range.node.textContent;
+  return text ? paragraph.create(null, [state.schema.text(text)]) : paragraph.create();
+}
+
+function currentBlockText(state: EditorState): string {
+  return currentBlockRange(state)?.node.textContent.trim() ?? "";
 }
 
 const richNodes: Record<string, NodeSpec> = {

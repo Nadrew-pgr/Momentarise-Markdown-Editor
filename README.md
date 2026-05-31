@@ -26,7 +26,7 @@ Completed slices:
 
 Current slice:
 
-- MME-0013: Slash menu and toolbar V0.
+- MME-0013: Slash menu and toolbar V0, code-complete and visually verified; human review pending.
 
 See `docs/internal/build-log.md` for the latest completed issue and current progress.
 
