@@ -138,7 +138,7 @@ As an end user, I can type `/` and find commands via aliases such as `/h1`, `/H1
 
 ### Folding
 
-As an end user, I can fold headings, sections, code blocks, and callouts without modifying the Markdown source.
+As an end user, I can fold Markdown sections hierarchically from any heading depth, plus code blocks and callouts where supported, without modifying the Markdown source.
 
 ### HTML reader
 
@@ -380,6 +380,8 @@ Toolbar V0 includes heading, bold, italic, list, todo, quote, code, callout, lin
 ### Folding and toggles
 
 Folding UI is a sidecar/session state and does not modify Markdown.
+
+Heading folding is hierarchical section folding for every heading depth from H1 through H6. A folded heading hides every following block until the next heading of the same or higher depth. Folding an H1 hides its H2/H3/H4/H5/H6 descendants and their content until the next H1. Folding an H3 hides its descendant H4/H5/H6 sections and content until the next H3, H2, or H1.
 
 Toggle blocks are content and emit `<details><summary>...</summary>...</details>` only when explicitly inserted.
 

@@ -656,17 +656,28 @@ UX Reviewer and Test Reviewer.
 
 ### Goal
 
-Implement or specify folding behavior without mutating Markdown.
+Implement hierarchical Markdown section folding without mutating Markdown.
 
 ### Scope
 
-Folding for headings/code/callouts if feasible. Toggle block emitted only when explicitly inserted.
+- Heading section folding for every heading depth, H1 through H6.
+- A folded heading hides every following block until the next heading of the same or higher depth.
+- Parent heading folds hide child headings and their descendants.
+- Code block and callout folding if feasible after heading section folding is proven.
+- Toggle block emitted only when explicitly inserted.
 
 ### Acceptance criteria
 
+- Folding any heading level from H1 through H6 hides its descendant section content until the next heading with depth less than or equal to the folded heading.
+- Folding an H1 hides H2/H3/H4/H5/H6 descendants and their content until the next H1.
+- Folding an H3 hides H4/H5/H6 descendants and their content until the next H3, H2, or H1.
+- Folding one H2 does not hide the next sibling H2 or any following higher-level heading.
+- Nested fold state behaves predictably when a parent and child heading are both folded/unfolded.
 - Folding state does not change Markdown.
+- Fold/unfold does not dirty the document, change save hashes, or serialize into the `.md` content.
 - Toggle block emits `<details><summary>...</summary>...</details>` only by explicit command.
 - Sidecar/session location documented.
+- Fixture or demo document includes H1 through H6 nested sections for repeatable tests.
 
 ### Execution model
 

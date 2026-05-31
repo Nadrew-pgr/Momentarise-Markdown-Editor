@@ -1434,3 +1434,30 @@
   - Not applicable. Documentation follow-up only.
 - Suggested commit message:
   - `docs: clarify final editor live preview target`
+
+## Docs follow-up — MME-0014 hierarchical heading folding
+
+- Timestamp: 2026-05-31T20:14:35Z
+- Summary: Clarified that MME-0014 must implement/specify hierarchical Markdown section folding for every heading depth, H1 through H6, not just single-line heading folding.
+- Files changed:
+  - `docs/internal/PRD.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+- Behavior to prove before implementation:
+  - Folding any heading hides the section until the next heading of the same or higher level.
+  - Folding a parent heading hides child headings and descendant content.
+  - Fold/unfold remains UI/session/sidecar state and never mutates Markdown or save hashes.
+  - Toggle blocks remain separate content emitted only by explicit command.
+- Test-first evidence:
+  - Documentation-only follow-up. No TDD required.
+- Tests/checks run:
+  - `rg -n "H1 through H6|same or higher depth|hierarchical Markdown section folding|Fold/unfold does not dirty" docs/internal/PRD.md docs/internal/ISSUES.md docs/internal/build-log.md`
+  - `git diff --check`
+- Manual verification:
+  - Confirmed MME-0014 acceptance criteria now covers H1/H2/H3+ sibling/descendant behavior and requires a nested H1-H6 fixture or demo document.
+- Visual impact:
+  - No visible editing or general UI changes.
+- Human review status:
+  - Not applicable. Documentation follow-up only.
+- Suggested commit message:
+  - `docs: specify hierarchical heading folding`
