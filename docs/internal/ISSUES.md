@@ -862,6 +862,7 @@ The target level is at least Obsidian default Live Preview behavior, with real M
 - Source/Rich/Live Preview naming and mode transitions.
 - Mode switching presentation: replace the current demo-style `Source`/`Rich` segmented text buttons with a more editor-grade control, such as a compact toggle, icon button, status menu, or host-configurable mode picker.
 - Folding polish: benchmark against Obsidian/CodeMirror-style left-gutter folding affordances. Fold controls should live in a subtle editor gutter/margin, appear on hover/focus, avoid heavy borders/shadows, and use a minimal collapsed marker such as `...` rather than visible hidden-count text or debug strips.
+- Document identity and persistence status presentation: file name, URI, access mode, and adapter details such as `disk://...`, `disk`, or `original file writable` must not remain as a permanent debug-like strip in the normal editor UI. Move this information into a discreet status affordance, toast, hover/detail menu, inspector, or dev/debug surface while preserving truthful save-state communication.
 - Optional document stats: evaluate a small bottom-right word/character counter that can be shown, hidden, or disabled by host/settings.
 - Developer integration ergonomics for host apps configuring rich UX defaults.
 
@@ -875,6 +876,7 @@ The target level is at least Obsidian default Live Preview behavior, with real M
 - Slash menu and toolbar presentation are reviewed as final editor UX, not just functional command surfaces.
 - Folding affordances are reviewed against Obsidian default behavior and do not expose implementation/debug state in normal editing UI.
 - Source/Rich/Live Preview switching is redesigned or explicitly accepted with visual evidence.
+- File identity and persistence details are visible only through an editor-grade status pattern, not a persistent technical strip, while save truthfulness remains clear.
 - Word/character count behavior is decided and either implemented or documented as host-configurable future work.
 - Host-configurable editor UX options are documented or implemented where needed.
 - Visual artifacts cover the final interaction decisions.

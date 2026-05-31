@@ -1527,3 +1527,18 @@
   - MME-0014 does not require mandatory human review per `ISSUES.md`; status is `code-complete/visually verified/reviewer-passed`.
 - Suggested commit message:
   - `feat: add hierarchical rich folding`
+
+## Docs follow-up — MME-0020 document status presentation
+
+- Issue: MME-0020 follow-up.
+- Summary: Added the persistent document identity/save adapter strip to the final editor UI/UX/DX hardening pass so technical details such as file URI, adapter kind, and writability do not stay exposed as permanent normal-editor chrome.
+- Files changed:
+  - `docs/internal/ISSUES.md`
+- Verification:
+  - `rg -n "Document identity and persistence status presentation|File identity and persistence details" docs/internal/ISSUES.md`
+- Visual impact:
+  - No current UI change. The future MME-0020 pass must redesign this as a discreet status affordance, toast, hover/detail menu, inspector, or dev/debug surface while preserving truthful save-state communication.
+- Reviewer/subagent used and result:
+  - Not used; docs-only backlog clarification from human feedback.
+- Suggested commit message:
+  - `docs: note editor status polish`
