@@ -2,28 +2,13 @@ import { spawn } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { sandboxAllowsScripts } from "../packages/md-preview-html/dist/index.js";
 
 const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
-const visualDir = "docs/internal/visual-checks/MME-0012";
-const port = 11800 + Math.floor(Math.random() * 500);
-const userDataDir = `/tmp/mme-visual-0012-${Date.now()}`;
-const richFixture = `---
-title: Rich Mode Fixture
----
-
-# Rich Heading
-
-First paragraph.
-
-\`\`\`ts
-const before = true;
-\`\`\`
-
-:::momentarise-card kind="decision"
-Keep custom extension raw.
-:::
-`;
+const visualDir = "docs/internal/visual-checks/MME-0015";
+const port = 11000 + Math.floor(Math.random() * 500);
+const userDataDir = `/tmp/mme-visual-0015-${Date.now()}`;
 
 class CdpClient {
   static async connect(url) {
@@ -79,18 +64,9 @@ class CdpClient {
   send(method, params = {}) {
     const id = this.nextId;
     this.nextId += 1;
-    this.socket.send(
-      JSON.stringify({
-        id,
-        method,
-        params
-      })
-    );
+    this.socket.send(JSON.stringify({ id, method, params }));
     return new Promise((resolve, reject) => {
-      this.pending.set(id, {
-        reject,
-        resolve
-      });
+      this.pending.set(id, { reject, resolve });
     });
   }
 }
@@ -102,7 +78,8 @@ async function evaluate(cdp, expression) {
     returnByValue: true
   });
   if (result.exceptionDetails) {
-    throw new Error(`Runtime evaluation failed: ${expression}`);
+    const description = result.exceptionDetails.exception?.description ?? result.exceptionDetails.text ?? "unknown exception";
+    throw new Error(`Runtime evaluation failed: ${expression}\n${description}`);
   }
   return result.result.value;
 }
@@ -110,17 +87,24 @@ async function evaluate(cdp, expression) {
 async function getSnapshot(cdp) {
   return evaluate(
     cdp,
-    `(() => ({
-      editorMode: window.__MME_DEMO_VISUAL_CHECK__.getEditorMode(),
-      markdown: window.__MME_DEMO_VISUAL_CHECK__.getMarkdown(),
-      richText: window.__MME_DEMO_VISUAL_CHECK__.getRichText(),
-      parserStatus: document.querySelector('[data-testid="parser-status"]').textContent,
-      serializerStatus: document.querySelector('[data-testid="serializer-status"]').textContent,
-      dirtyState: document.querySelector('[data-testid="dirty-state"]').textContent,
-      primaryAction: document.querySelector('[data-testid="memory-save-button"]').textContent,
-      sourcePressed: document.querySelector('[data-testid="source-mode-button"]').getAttribute("aria-pressed"),
-      richPressed: document.querySelector('[data-testid="rich-mode-button"]').getAttribute("aria-pressed")
-    }))()`
+    `(() => {
+      const frame = document.querySelector('[data-testid="html-preview-frame"]');
+      const previewState = window.__MME_DEMO_VISUAL_CHECK__.getHtmlPreviewState();
+      return {
+        activeDocument: window.__MME_DEMO_VISUAL_CHECK__.getActiveDocument(),
+        bannerText: document.querySelector('[data-testid="html-preview-banner"]')?.textContent ?? "",
+        editorMode: window.__MME_DEMO_VISUAL_CHECK__.getEditorMode(),
+        frameHidden: frame?.hidden ?? null,
+        frameSandbox: frame?.getAttribute("sandbox") ?? null,
+        frameSrcdoc: frame?.getAttribute("srcdoc") ?? "",
+        markdown: window.__MME_DEMO_VISUAL_CHECK__.getMarkdown(),
+        previewButtonPressed: document.querySelector('[data-testid="preview-mode-button"]')?.getAttribute("aria-pressed") ?? null,
+        previewState,
+        richButtonDisabled: document.querySelector('[data-testid="rich-mode-button"]')?.disabled ?? null,
+        scriptRan: window.__MME_HTML_PREVIEW_SCRIPT_RAN__ === true,
+        statusText: document.querySelector('[data-testid="html-preview-status"]')?.textContent ?? ""
+      };
+    })()`
   );
 }
 
@@ -176,24 +160,21 @@ async function waitForSnapshot(cdp, predicate, label) {
   throw new Error(`Timed out waiting for ${label}.\nLast snapshot:\n${JSON.stringify(snapshot, null, 2)}`);
 }
 
-async function dispatchKey(cdp, key, options = {}) {
-  const modifiers = (options.meta ? 4 : 0) + (options.shift ? 8 : 0);
-  const code = key.length === 1 ? `Key${key.toUpperCase()}` : key;
-  const windowsVirtualKeyCode = key.length === 1 ? key.toUpperCase().charCodeAt(0) : 13;
-  await cdp.send("Input.dispatchKeyEvent", {
-    code,
-    key,
-    modifiers,
-    type: "keyDown",
-    windowsVirtualKeyCode
-  });
-  await cdp.send("Input.dispatchKeyEvent", {
-    code,
-    key,
-    modifiers,
-    type: "keyUp",
-    windowsVirtualKeyCode
-  });
+async function waitForExpression(cdp, expression, label) {
+  const start = Date.now();
+  while (Date.now() - start < 6000) {
+    if (await evaluate(cdp, expression)) {
+      return;
+    }
+    await wait(100);
+  }
+  throw new Error(`Timed out waiting for ${label}`);
+}
+
+function assertIncludes(value, expected, label) {
+  if (!String(value).includes(expected)) {
+    throw new Error(`Expected ${label} to include ${JSON.stringify(expected)}.\nActual: ${String(value)}`);
+  }
 }
 
 async function main() {
@@ -213,9 +194,7 @@ async function main() {
       "--window-size=1280,820",
       "about:blank"
     ],
-    {
-      stdio: ["ignore", "ignore", "pipe"]
-    }
+    { stdio: ["ignore", "ignore", "pipe"] }
   );
   const chromeExit = new Promise((resolve) => {
     chrome.once("exit", resolve);
@@ -238,9 +217,7 @@ async function main() {
       timeoutMs: 30000
     });
     const browserCdp = await CdpClient.connect(version.webSocketDebuggerUrl);
-    const { targetId } = await browserCdp.send("Target.createTarget", {
-      url: "about:blank"
-    });
+    const { targetId } = await browserCdp.send("Target.createTarget", { url: "about:blank" });
     browserCdp.close();
     const targets = await waitForJson(`http://127.0.0.1:${port}/json/list`);
     const target = targets.find((candidate) => candidate.id === targetId);
@@ -252,108 +229,76 @@ async function main() {
     await cdp.send("Page.enable");
     await cdp.send("Runtime.enable");
     const loadEvent = cdp.once("Page.loadEventFired");
-    await cdp.send("Page.navigate", {
-      url: demoUrl
-    });
+    await cdp.send("Page.navigate", { url: demoUrl });
     await loadEvent;
-    await wait(200);
+    await waitForExpression(
+      cdp,
+      `Boolean(window.__MME_DEMO_VISUAL_CHECK__?.loadHtmlArtifactForTest)`,
+      "MME demo visual hook"
+    );
+
+    const hostileHtml = `<!doctype html>
+<html>
+  <head><title>Unsafe visual fixture</title></head>
+  <body>
+    <h1>Sandboxed HTML artifact</h1>
+    <p>The preview should render this text.</p>
+    <script>
+      document.body.dataset.scriptRan = "true";
+      document.body.insertAdjacentHTML("beforeend", "<p>SCRIPT RAN</p>");
+      try {
+        window.top.__MME_HTML_PREVIEW_SCRIPT_RAN__ = true;
+      } catch {}
+    </script>
+  </body>
+</html>`;
 
     await evaluate(
       cdp,
-      `window.__MME_DEMO_VISUAL_CHECK__.loadImportedCopyForTest("rich-mode.md", ${JSON.stringify(
-        richFixture
-      )})`
+      `(() => {
+        window.__MME_HTML_PREVIEW_SCRIPT_RAN__ = false;
+        window.__MME_DEMO_VISUAL_CHECK__.loadHtmlArtifactForTest("unsafe-visual.html", ${JSON.stringify(hostileHtml)});
+      })()`
     );
-    await waitForSnapshot(
+    const sourceOpened = await waitForSnapshot(
       cdp,
       (snapshot) =>
+        snapshot.activeDocument.kind === "html-artifact" &&
         snapshot.editorMode === "source" &&
-        snapshot.primaryAction === "Export" &&
-        snapshot.sourcePressed === "true" &&
-        snapshot.richPressed === "false",
-      "source mode selected with honest imported-copy action"
+        snapshot.markdown.includes("<script>") &&
+        snapshot.richButtonDisabled === true &&
+        snapshot.previewState.scriptsEnabled === false,
+      "HTML artifact source opened"
     );
-    await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.switchEditorMode("rich")`);
-    await waitForSnapshot(
-      cdp,
-      (snapshot) => snapshot.editorMode === "rich" && String(snapshot.richText).includes("Rich Heading"),
-      "rich mode loaded"
-    );
-    await screenshot(cdp, "rich-mode-loaded.png");
+    assertIncludes(sourceOpened.statusText, "HTML artifact", "HTML preview status");
+    await screenshot(cdp, "html-source-opened.png");
 
-    await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.setRichSelectionAfterText("Rich Heading")`);
-    await cdp.send("Input.insertText", {
-      text: " Edited"
-    });
-    await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.setRichSelectionAfterText("First paragraph.")`);
-    await dispatchKey(cdp, "Enter");
-    await cdp.send("Input.insertText", {
-      text: "Second paragraph from rich."
-    });
-    const edited = await waitForSnapshot(
+    await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.switchEditorMode("preview")`);
+    const previewOpened = await waitForSnapshot(
       cdp,
       (snapshot) =>
-        String(snapshot.markdown).includes("# Rich Heading Edited") &&
-        String(snapshot.markdown).includes("Second paragraph from rich.") &&
-        String(snapshot.dirtyState).includes("dirty"),
-      "rich heading and paragraph edited"
+        snapshot.editorMode === "preview" &&
+        snapshot.previewButtonPressed === "true" &&
+        snapshot.frameSandbox !== null &&
+        snapshot.frameSrcdoc.includes("Sandboxed HTML artifact") &&
+        snapshot.scriptRan === false,
+      "sandboxed HTML preview opened"
     );
-    await screenshot(cdp, "rich-heading-paragraph-edited.png");
-
-    await dispatchKey(cdp, "z", {
-      meta: true
-    });
-    await waitForSnapshot(
-      cdp,
-      (snapshot) => !String(snapshot.markdown).includes("Second paragraph from rich."),
-      "rich undo"
-    );
-    await dispatchKey(cdp, "z", {
-      meta: true,
-      shift: true
-    });
-    await waitForSnapshot(
-      cdp,
-      (snapshot) => String(snapshot.markdown).includes("Second paragraph from rich."),
-      "rich redo"
-    );
-
-    await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.setRichSelectionAfterText("const before = true;")`);
-    await cdp.send("Input.insertText", {
-      text: "\nconst after = true;"
-    });
-    await waitForSnapshot(
-      cdp,
-      (snapshot) =>
-        String(snapshot.markdown).includes("const after = true;") &&
-        String(snapshot.markdown).includes(':::momentarise-card kind="decision"'),
-      "rich code fence edit"
-    );
-    await screenshot(cdp, "rich-code-fence-edited.png");
-
-    await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.switchEditorMode("source")`);
-    const source = await waitForSnapshot(
-      cdp,
-      (snapshot) =>
-        snapshot.editorMode === "source" &&
-        String(snapshot.markdown).includes("# Rich Heading Edited") &&
-        String(snapshot.markdown).includes("const after = true;") &&
-        String(snapshot.markdown).includes(':::momentarise-card kind="decision"') &&
-        String(snapshot.parserStatus).includes("pass") &&
-        String(snapshot.serializerStatus).includes("pass"),
-      "source after rich round-trip"
-    );
-    if (!String(source.markdown).includes("---\ntitle: Rich Mode Fixture\n---")) {
-      throw new Error("Frontmatter did not survive rich round-trip.");
+    if (sandboxAllowsScripts(previewOpened.frameSandbox)) {
+      throw new Error(`HTML preview sandbox must not allow scripts: ${previewOpened.frameSandbox}`);
     }
-    const unsupportedOccurrences = String(source.markdown).match(/:::momentarise-card/g)?.length ?? 0;
-    if (unsupportedOccurrences !== 1) {
-      throw new Error(`Unsupported extension syntax should appear exactly once, got ${unsupportedOccurrences}.`);
+    if (previewOpened.previewState.scriptsEnabled !== false) {
+      throw new Error("HTML preview state must report scripts disabled.");
     }
-    await screenshot(cdp, "source-after-rich-roundtrip.png");
+    await wait(1000);
+    const afterScriptWait = await getSnapshot(cdp);
+    if (afterScriptWait.scriptRan) {
+      throw new Error("Sandboxed HTML preview script ran unexpectedly.");
+    }
+    await screenshot(cdp, "html-sandbox-preview.png");
 
     cdp.close();
-    console.log(`MME-0012 visual artifacts saved to ${visualDir}`);
+    console.log(`MME-0015 visual artifacts saved to ${visualDir}`);
   } catch (error) {
     if (stderr.trim()) {
       console.error(stderr.trim());

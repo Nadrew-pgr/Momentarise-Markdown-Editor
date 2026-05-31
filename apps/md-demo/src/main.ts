@@ -8,6 +8,7 @@ import {
   type ParseResult
 } from "@momentarise/md-format";
 import {
+  createDownloadRequiredSaveTarget,
   createMemorySaveTarget,
   createSaveEngine,
   persistenceTargetLabel,
@@ -28,6 +29,12 @@ import {
   type WebOpenedMarkdownFile,
   type WebOpenedMarkdownMode
 } from "@momentarise/md-adapter-web";
+import {
+  createSandboxedHtmlPreview,
+  isHtmlFileName,
+  sandboxAllowsScripts,
+  type SandboxedHtmlPreviewDescriptor
+} from "@momentarise/md-preview-html";
 import {
   canInsertParagraphAfterCurrentBlock,
   createRichMarkdownState,
@@ -83,8 +90,10 @@ app.innerHTML = `
       </div>
       <div class="topbar-actions" aria-label="Document actions">
         <button class="button secondary" type="button" data-testid="open-local-file-button">Open .md</button>
+        <button class="button secondary" type="button" data-testid="open-html-file-button">Open .html</button>
         <button class="button secondary" type="button" data-testid="import-copy-button">Import copy</button>
         <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain" data-testid="import-copy-input" />
+        <input class="file-input" type="file" accept=".html,.htm,text/html" data-testid="html-file-input" />
         <button class="button secondary" type="button" data-testid="copy-button">Copy</button>
         <button class="button secondary" type="button" data-testid="download-button">Download</button>
         <button class="button secondary" type="button" data-testid="simulate-conflict-button">Simulate conflict</button>
@@ -102,6 +111,7 @@ app.innerHTML = `
         <div class="mode-switch" role="group" aria-label="Editor mode">
           <button class="mode-button" type="button" data-testid="source-mode-button">Source</button>
           <button class="mode-button" type="button" data-testid="rich-mode-button">Rich</button>
+          <button class="mode-button" type="button" data-testid="preview-mode-button">Preview</button>
         </div>
         <div class="rich-command-toolbar" data-testid="rich-command-toolbar" aria-label="Rich editing toolbar" hidden>
           <button class="toolbar-button" type="button" data-rich-command="heading1" data-testid="toolbar-command-heading1">H1</button>
@@ -146,6 +156,18 @@ app.innerHTML = `
         </div>
         <div class="editor-host" data-editor-host data-testid="editor-host"></div>
         <div class="rich-editor-host" data-testid="rich-editor-host" hidden></div>
+        <div class="html-preview-host" data-testid="html-preview-host" hidden>
+          <div class="html-preview-banner" data-testid="html-preview-banner">
+            HTML artifact preview · sandboxed · scripts disabled
+          </div>
+          <iframe
+            class="html-preview-frame"
+            data-testid="html-preview-frame"
+            referrerpolicy="no-referrer"
+            sandbox=""
+            title="Sandboxed HTML preview"
+          ></iframe>
+        </div>
       </div>
 
       <aside class="inspector" aria-label="Document status">
@@ -188,6 +210,10 @@ app.innerHTML = `
           <p class="label">Editor surface</p>
           <p class="status-value" data-testid="editor-surface-state">CodeMirror source mode</p>
         </section>
+        <section class="status-block html-preview-status-block" data-testid="html-preview-status-block" hidden>
+          <p class="label">HTML Preview</p>
+          <p class="status-value" data-testid="html-preview-status">HTML artifact preview unavailable</p>
+        </section>
         <section class="status-block">
           <p class="label">Round-trip</p>
           <div class="status-lines" data-testid="roundtrip-status">
@@ -226,8 +252,12 @@ app.innerHTML = `
 const editorHost = queryRequired<HTMLDivElement>("[data-editor-host]");
 const editorRegion = queryRequired<HTMLDivElement>(".editor-region");
 const richEditorHost = queryRequired<HTMLDivElement>('[data-testid="rich-editor-host"]');
+const htmlPreviewHost = queryRequired<HTMLDivElement>('[data-testid="html-preview-host"]');
+const htmlPreviewBanner = queryRequired<HTMLDivElement>('[data-testid="html-preview-banner"]');
+const htmlPreviewFrame = queryRequired<HTMLIFrameElement>('[data-testid="html-preview-frame"]');
 const sourceModeButton = queryRequired<HTMLButtonElement>('[data-testid="source-mode-button"]');
 const richModeButton = queryRequired<HTMLButtonElement>('[data-testid="rich-mode-button"]');
+const previewModeButton = queryRequired<HTMLButtonElement>('[data-testid="preview-mode-button"]');
 const richCommandToolbar = queryRequired<HTMLDivElement>('[data-testid="rich-command-toolbar"]');
 const toolbarMoreButton = queryRequired<HTMLButtonElement>('[data-testid="toolbar-more-button"]');
 const toolbarMoreMenu = queryRequired<HTMLDivElement>('[data-testid="toolbar-more-menu"]');
@@ -240,8 +270,10 @@ const slashCommandMenu = queryRequired<HTMLDivElement>('[data-testid="slash-comm
 const slashCommandQueryElement = queryRequired<HTMLElement>('[data-testid="slash-command-query"]');
 const slashCommandItemsElement = queryRequired<HTMLDivElement>("[data-slash-command-items]");
 const openLocalFileButton = queryRequired<HTMLButtonElement>('[data-testid="open-local-file-button"]');
+const openHtmlFileButton = queryRequired<HTMLButtonElement>('[data-testid="open-html-file-button"]');
 const importCopyButton = queryRequired<HTMLButtonElement>('[data-testid="import-copy-button"]');
 const importCopyInput = queryRequired<HTMLInputElement>('[data-testid="import-copy-input"]');
+const htmlFileInput = queryRequired<HTMLInputElement>('[data-testid="html-file-input"]');
 const copyButton = queryRequired<HTMLButtonElement>('[data-testid="copy-button"]');
 const downloadButton = queryRequired<HTMLButtonElement>('[data-testid="download-button"]');
 const memorySaveButton = queryRequired<HTMLButtonElement>('[data-testid="memory-save-button"]');
@@ -272,12 +304,15 @@ const propertiesModeHiddenButton = queryRequired<HTMLButtonElement>('[data-testi
 const propertiesModeSourceButton = queryRequired<HTMLButtonElement>('[data-testid="properties-mode-source"]');
 const diagnosticsElement = queryRequired<HTMLOListElement>('[data-testid="roundtrip-diagnostics"]');
 const editorSurfaceStateElement = queryRequired<HTMLElement>('[data-testid="editor-surface-state"]');
+const htmlPreviewStatusBlock = queryRequired<HTMLElement>('[data-testid="html-preview-status-block"]');
+const htmlPreviewStatusElement = queryRequired<HTMLElement>('[data-testid="html-preview-status"]');
 
 let eventCounter = 0;
 let lastCopiedMarkdown: string | null = null;
 const markdownAstFormatter = createMarkdownAstFormatter();
 type DemoDocumentMode = "fixture" | WebOpenedMarkdownMode;
-type DemoEditorMode = "source" | "rich";
+type DemoDocumentKind = "markdown" | "html-artifact";
+type DemoEditorMode = "source" | "rich" | "preview";
 type PropertiesDisplayMode = "visible" | "hidden" | "source";
 
 interface SlashCommandState {
@@ -290,6 +325,7 @@ interface SlashCommandState {
 
 interface ActiveDemoDocument {
   readonly fileName: string;
+  readonly kind: DemoDocumentKind;
   readonly mode: DemoDocumentMode;
   readonly pathLabel: string;
   readonly readDiskContent?: () => string;
@@ -308,6 +344,7 @@ let saveEngine: SaveEngine = createSaveEngine({
 });
 let activeDocument: ActiveDemoDocument = {
   fileName: "source-mode-fixture.md",
+  kind: "markdown",
   mode: "fixture",
   pathLabel: "fixture://source-mode-fixture.md",
   readDiskContent: fixtureSaveTarget.readContent,
@@ -322,6 +359,7 @@ let richState: RichMarkdownState = createRichMarkdownState(fixtureMarkdown, {
 });
 let richEditor: ProseMirrorEditorView | null = null;
 let foldStates: readonly FoldState[] = [];
+let htmlPreviewDescriptor: SandboxedHtmlPreviewDescriptor | null = null;
 let richBaselineMarkdown = fixtureMarkdown;
 let richChanged = false;
 let slashCommandState: SlashCommandState = {
@@ -351,6 +389,9 @@ const editor = new CodeMirrorEditorView({
           renderSaveState();
           scheduleAutosave();
           updateRoundTripStatus();
+          if (activeDocument.kind === "html-artifact") {
+            renderHtmlPreview();
+          }
         }
       }),
     ]
@@ -365,6 +406,10 @@ sourceModeButton.addEventListener("click", () => {
 
 richModeButton.addEventListener("click", () => {
   switchEditorMode("rich");
+});
+
+previewModeButton.addEventListener("click", () => {
+  switchEditorMode("preview");
 });
 
 richCommandToolbar.addEventListener("click", (event) => {
@@ -412,6 +457,10 @@ openLocalFileButton.addEventListener("click", () => {
   void openLocalMarkdownFile();
 });
 
+openHtmlFileButton.addEventListener("click", () => {
+  htmlFileInput.click();
+});
+
 importCopyButton.addEventListener("click", () => {
   importCopyInput.click();
 });
@@ -421,6 +470,14 @@ importCopyInput.addEventListener("change", () => {
   importCopyInput.value = "";
   if (file) {
     void importMarkdownCopy(file);
+  }
+});
+
+htmlFileInput.addEventListener("change", () => {
+  const [file] = Array.from(htmlFileInput.files ?? []);
+  htmlFileInput.value = "";
+  if (file) {
+    void importHtmlArtifact(file);
   }
 });
 
@@ -518,8 +575,22 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   getActiveDocument() {
     return {
       fileName: activeDocument.fileName,
+      kind: activeDocument.kind,
       mode: activeDocument.mode,
       pathLabel: activeDocument.pathLabel
+    };
+  },
+  getHtmlPreviewState() {
+    return {
+      available: activeDocument.kind === "html-artifact",
+      bannerText: htmlPreviewBanner.textContent ?? "",
+      fileName: htmlPreviewDescriptor?.fileName ?? null,
+      frameSandbox: htmlPreviewFrame.getAttribute("sandbox"),
+      frameSrcdocLength: htmlPreviewFrame.getAttribute("srcdoc")?.length ?? 0,
+      sandbox: htmlPreviewDescriptor?.sandbox ?? null,
+      scriptsEnabled: htmlPreviewDescriptor?.scriptsEnabled ?? false,
+      statusText: htmlPreviewStatusElement.textContent ?? "",
+      warnings: htmlPreviewDescriptor?.warnings.map((warning) => warning.code) ?? []
     };
   },
   getSaveState() {
@@ -557,6 +628,9 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
     loadOpenedMarkdownFile(createImportedCopyDocument({ content, fileName }), {
       sourceLabel: "test imported copy"
     });
+  },
+  loadHtmlArtifactForTest(fileName: string, content: string) {
+    loadHtmlArtifact(fileName, content, "test HTML artifact");
   },
   showUnsupportedLocalFileStateForTest() {
     showUnsupportedLocalFileState();
@@ -669,9 +743,14 @@ function showUnsupportedLocalFileState(): void {
   };
   activeDocument = {
     fileName: activeDocument.fileName,
+    kind: "markdown",
     mode: "unsupported",
     pathLabel: "unsupported://local-file-access"
   };
+  htmlPreviewDescriptor = null;
+  if (editorMode === "preview") {
+    editorMode = "source";
+  }
   saveTarget = unsupportedTarget;
   saveEngine = createSaveEngine({
     autosaveDelayMs: 1000,
@@ -680,6 +759,7 @@ function showUnsupportedLocalFileState(): void {
   });
   lastSaveAction = "File System Access unavailable; use Import copy and Download";
   logEvent("File System Access API unavailable. Import copy keeps the original file untouched.");
+  renderEditorMode();
   renderSaveState();
   updateRoundTripStatus();
 }
@@ -689,6 +769,49 @@ async function importMarkdownCopy(file: File): Promise<void> {
   loadOpenedMarkdownFile(createImportedCopyDocument({ content, fileName: file.name }), {
     sourceLabel: "fallback import"
   });
+}
+
+async function importHtmlArtifact(file: File): Promise<void> {
+  const content = await file.text();
+  if (!isHtmlFileName(file.name)) {
+    logEvent(`Opened ${file.name} through the HTML artifact reader based on explicit user selection.`);
+  }
+  loadHtmlArtifact(file.name, content, "HTML file reader");
+}
+
+function loadHtmlArtifact(fileName: string, content: string, sourceLabel: string): void {
+  clearAutosaveTimer();
+  const targetLabel = `html-artifact://${fileName}`;
+  activeDocument = {
+    fileName,
+    kind: "html-artifact",
+    mode: "imported-copy",
+    pathLabel: targetLabel
+  };
+  saveTarget = createDownloadRequiredSaveTarget({
+    initialContent: content,
+    targetLabel
+  });
+  saveEngine = createSaveEngine({
+    autosaveDelayMs: 1000,
+    content,
+    target: saveTarget
+  });
+  foldStates = [];
+  lastCopiedMarkdown = null;
+  lastSaveAction = "opened HTML artifact preview; original file is not overwritten";
+  replaceEditorDocument(content);
+  destroyRichEditor();
+  editorMode = "source";
+  htmlPreviewDescriptor = createSandboxedHtmlPreview({
+    fileName,
+    html: content
+  });
+  renderHtmlPreview();
+  logEvent(`Opened ${fileName} as HTML artifact via ${sourceLabel}; preview is sandboxed and scripts are disabled.`);
+  renderEditorMode();
+  renderSaveState();
+  updateRoundTripStatus();
 }
 
 function loadOpenedMarkdownFile(
@@ -702,6 +825,7 @@ function loadOpenedMarkdownFile(
   clearAutosaveTimer();
   let nextDocument: ActiveDemoDocument = {
     fileName: opened.fileName,
+    kind: "markdown",
     mode: opened.mode,
     pathLabel: opened.pathLabel
   };
@@ -725,15 +849,27 @@ function loadOpenedMarkdownFile(
     target: saveTarget
   });
   foldStates = [];
+  htmlPreviewDescriptor = null;
   lastCopiedMarkdown = null;
   lastSaveAction = `opened ${documentModeLabel(opened.mode)} document`;
   replaceEditorDocument(opened.content);
+  if (editorMode === "preview") {
+    editorMode = "source";
+  }
   if (editorMode === "rich") {
     mountRichEditor(opened.content);
   }
   logEvent(`Opened ${opened.fileName} as ${documentModeLabel(opened.mode)} via ${options.sourceLabel ?? "document loader"}.`);
+  renderEditorMode();
   renderSaveState();
   updateRoundTripStatus();
+}
+
+function destroyRichEditor(): void {
+  richEditor?.destroy();
+  richEditor = null;
+  richEditorHost.replaceChildren();
+  richChanged = false;
 }
 
 function replaceEditorDocument(content: string): void {
@@ -753,15 +889,32 @@ function switchEditorMode(mode: DemoEditorMode): void {
   if (editorMode === mode) {
     return;
   }
+  if (mode === "rich" && activeDocument.kind !== "markdown") {
+    logEvent("Rich mode is unavailable for HTML artifacts; use Source or Preview.");
+    renderEditorMode();
+    return;
+  }
+  if (mode === "preview" && activeDocument.kind !== "html-artifact") {
+    logEvent("Preview mode is only available for HTML artifacts in this V0 slice.");
+    renderEditorMode();
+    return;
+  }
 
   if (mode === "rich") {
     mountRichEditor(editor.state.doc.toString());
     editorMode = "rich";
     logEvent("Switched to ProseMirror rich mode.");
+  } else if (mode === "preview") {
+    if (richChanged) {
+      syncRichMarkdownToSource("mode switch");
+    }
+    renderHtmlPreview();
+    editorMode = "preview";
+    logEvent("Switched to sandboxed HTML preview mode.");
   } else {
     if (richChanged) {
       syncRichMarkdownToSource("mode switch");
-    } else {
+    } else if (editorMode === "rich") {
       replaceEditorDocument(richBaselineMarkdown);
     }
     editorMode = "source";
@@ -777,17 +930,48 @@ function switchEditorMode(mode: DemoEditorMode): void {
 function renderEditorMode(): void {
   editorHost.hidden = editorMode !== "source";
   richEditorHost.hidden = editorMode !== "rich";
+  htmlPreviewHost.hidden = editorMode !== "preview";
   richCommandToolbar.hidden = editorMode !== "rich";
   richBlockControls.hidden = editorMode !== "rich";
   sourceModeButton.setAttribute("aria-pressed", String(editorMode === "source"));
   richModeButton.setAttribute("aria-pressed", String(editorMode === "rich"));
-  editorSurfaceStateElement.textContent = editorMode === "rich" ? "ProseMirror rich mode" : "CodeMirror source mode";
+  previewModeButton.setAttribute("aria-pressed", String(editorMode === "preview"));
+  richModeButton.disabled = activeDocument.kind !== "markdown";
+  previewModeButton.disabled = activeDocument.kind !== "html-artifact";
+  htmlPreviewStatusBlock.hidden = activeDocument.kind !== "html-artifact";
+  if (editorMode === "preview") {
+    editorSurfaceStateElement.textContent = "Sandboxed HTML preview";
+  } else {
+    editorSurfaceStateElement.textContent = editorMode === "rich" ? "ProseMirror rich mode" : "CodeMirror source mode";
+  }
   if (editorMode !== "rich") {
     closeSlashMenu();
     setToolbarMoreOpen(false);
     renderRichBlockControls();
   }
+  if (editorMode === "preview") {
+    renderHtmlPreview();
+  }
   renderRichFoldingUi();
+}
+
+function renderHtmlPreview(): void {
+  if (activeDocument.kind !== "html-artifact") {
+    htmlPreviewFrame.removeAttribute("srcdoc");
+    htmlPreviewFrame.setAttribute("sandbox", "");
+    htmlPreviewBanner.textContent = "HTML artifact preview unavailable";
+    htmlPreviewStatusElement.textContent = "HTML artifact preview unavailable";
+    return;
+  }
+
+  htmlPreviewDescriptor = createSandboxedHtmlPreview({
+    fileName: activeDocument.fileName,
+    html: editor.state.doc.toString()
+  });
+  htmlPreviewFrame.setAttribute("sandbox", htmlPreviewDescriptor.sandbox);
+  htmlPreviewFrame.setAttribute("srcdoc", htmlPreviewDescriptor.srcdoc);
+  htmlPreviewBanner.textContent = `${activeDocument.fileName} · HTML artifact preview · sandboxed · scripts disabled`;
+  htmlPreviewStatusElement.textContent = htmlPreviewStatusLabel(htmlPreviewDescriptor);
 }
 
 function mountRichEditor(markdown: string): void {
@@ -1300,7 +1484,7 @@ async function copyMarkdown(): Promise<void> {
 
 function downloadMarkdown(): void {
   const blob = new Blob([getMarkdown()], {
-    type: "text/markdown;charset=utf-8"
+    type: `${activeDocument.kind === "html-artifact" ? "text/html" : "text/markdown"};charset=utf-8`
   });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -1309,7 +1493,11 @@ function downloadMarkdown(): void {
   anchor.click();
   URL.revokeObjectURL(url);
   lastSaveAction = "download/export generated; original target unchanged";
-  logEvent("Generated Markdown download/export. Original target was unchanged.");
+  logEvent(
+    activeDocument.kind === "html-artifact"
+      ? "Generated HTML artifact download/export. Original target was unchanged."
+      : "Generated Markdown download/export. Original target was unchanged."
+  );
   renderSaveState();
 }
 
@@ -1417,7 +1605,7 @@ function renderSaveState(): void {
 
 function primaryActionLabel(state: SaveState): string {
   if (activeDocument.mode === "imported-copy" || state.target === "download-required") {
-    return "Download";
+    return "Export";
   }
   if (activeDocument.mode === "unsupported" || state.target === "unsupported") {
     return "Save unavailable";
@@ -1436,6 +1624,9 @@ function documentTargetLabel(state: SaveState): string {
   if (state.target === "conflict") {
     return "conflict, not overwritten";
   }
+  if (activeDocument.kind === "html-artifact") {
+    return "HTML artifact, sandbox preview, download/export required";
+  }
   if (activeDocument.mode === "writable-file" || state.target === "disk") {
     return "disk, original file writable";
   }
@@ -1449,6 +1640,11 @@ function documentTargetLabel(state: SaveState): string {
     return "fixture, memory only, not persisted";
   }
   return persistenceTargetLabel(state);
+}
+
+function htmlPreviewStatusLabel(descriptor: SandboxedHtmlPreviewDescriptor): string {
+  const scriptStatus = sandboxAllowsScripts(descriptor.sandbox) ? "scripts allowed" : "scripts disabled";
+  return `HTML artifact preview, sandboxed, ${scriptStatus}`;
 }
 
 function saveEngineStatusLabel(state: SaveState): string {
@@ -1545,6 +1741,10 @@ function shortHash(hash: string): string {
 }
 
 function updateRoundTripStatus(): void {
+  if (activeDocument.kind === "html-artifact") {
+    renderHtmlArtifactStatus();
+    return;
+  }
   const parseResult = markdownAstFormatter.parse(getMarkdown(), {
     dialect: "momentarise-enhanced"
   });
@@ -1560,6 +1760,26 @@ function updateRoundTripStatus(): void {
   serializerStatusElement.textContent = serializerStatusLabel(result);
   renderPropertiesPanel(parseResult);
   renderDiagnostics(result);
+}
+
+function renderHtmlArtifactStatus(): void {
+  const descriptor = htmlPreviewDescriptor ?? createSandboxedHtmlPreview({
+    fileName: activeDocument.fileName,
+    html: getMarkdown()
+  });
+  roundTripSourceLabelElement.textContent = "HTML artifact";
+  roundTripFixtureElement.textContent = activeDocument.fileName;
+  roundTripModeElement.textContent = "sandbox preview";
+  parserStatusElement.textContent = "not run for HTML artifact";
+  serializerStatusElement.textContent = "not run for HTML artifact";
+  renderHtmlArtifactProperties();
+  diagnosticsElement.replaceChildren(
+    ...descriptor.warnings.slice(0, 4).map((warning) => {
+      const item = document.createElement("li");
+      item.textContent = `${warning.severity}: ${warning.code}`;
+      return item;
+    })
+  );
 }
 
 function roundTripSourceLabel(mode: DemoDocumentMode): string {
@@ -1585,6 +1805,11 @@ function serializerStatusLabel(result: FixtureRoundTripResult): string {
 
 function setPropertiesDisplayMode(mode: PropertiesDisplayMode): void {
   propertiesDisplayMode = mode;
+  if (activeDocument.kind === "html-artifact") {
+    renderHtmlArtifactProperties();
+    logEvent(`Properties panel switched to ${mode} mode.`);
+    return;
+  }
   renderPropertiesPanel(
     markdownAstFormatter.parse(getMarkdown(), {
       dialect: "momentarise-enhanced"
@@ -1604,6 +1829,18 @@ function renderPropertiesPanel(parseResult: ParseResult): void {
 
   renderFrontmatterList(parseResult);
   frontmatterSourceElement.textContent = extractFrontmatterSource(getMarkdown());
+}
+
+function renderHtmlArtifactProperties(): void {
+  propertiesModeVisibleButton.setAttribute("aria-pressed", String(propertiesDisplayMode === "visible"));
+  propertiesModeHiddenButton.setAttribute("aria-pressed", String(propertiesDisplayMode === "hidden"));
+  propertiesModeSourceButton.setAttribute("aria-pressed", String(propertiesDisplayMode === "source"));
+
+  frontmatterElement.hidden = propertiesDisplayMode !== "visible";
+  frontmatterSourceElement.hidden = propertiesDisplayMode !== "source";
+  propertiesHiddenElement.hidden = propertiesDisplayMode !== "hidden";
+  frontmatterElement.replaceChildren(emptyValue("HTML artifact; no Markdown frontmatter."));
+  frontmatterSourceElement.textContent = "HTML artifact source has no YAML frontmatter.";
 }
 
 function renderFrontmatterList(parseResult: ParseResult): void {
@@ -1699,6 +1936,7 @@ declare global {
       forceStatusRefresh: () => void;
       getActiveDocument: () => {
         readonly fileName: string;
+        readonly kind: DemoDocumentKind;
         readonly mode: DemoDocumentMode;
         readonly pathLabel: string;
       };
@@ -1728,6 +1966,17 @@ declare global {
         readonly folds: readonly FoldState[];
         readonly items: readonly RichHeadingFoldItem[];
       };
+      getHtmlPreviewState: () => {
+        readonly available: boolean;
+        readonly bannerText: string;
+        readonly fileName: string | null;
+        readonly frameSandbox: string | null;
+        readonly frameSrcdocLength: number;
+        readonly sandbox: string | null;
+        readonly scriptsEnabled: boolean;
+        readonly statusText: string;
+        readonly warnings: readonly string[];
+      };
       getPropertiesState: () => {
         readonly hiddenText: string;
         readonly listText: string;
@@ -1744,6 +1993,7 @@ declare global {
         readonly to: number;
       };
       getTestDiskContent: () => string | null;
+      loadHtmlArtifactForTest: (fileName: string, content: string) => void;
       loadImportedCopyForTest: (fileName: string, content: string) => void;
       loadWritableMarkdownFileForTest: (fileName: string, content: string) => void;
       memorySave: (source: "button" | "keyboard shortcut") => void;
@@ -1760,5 +2010,6 @@ declare global {
       toggleCurrentRichTodo: () => void;
       toggleRichFoldForText: (text: string) => void;
     };
+    __MME_HTML_PREVIEW_SCRIPT_RAN__?: boolean;
   }
 }

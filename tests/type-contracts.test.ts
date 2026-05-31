@@ -9,6 +9,7 @@ import type {
 } from "@momentarise/md-core";
 import type { MarkdownFormatContract } from "@momentarise/md-format";
 import type { PolicyContract } from "@momentarise/md-policy";
+import type { HtmlPreviewContract } from "@momentarise/md-preview-html";
 import type { MomentariseRichProseMirrorContract } from "@momentarise/md-rich-prosemirror";
 import type { SaveEngineContract } from "@momentarise/md-save";
 import type { MomentariseSourceCodeMirrorContract } from "@momentarise/md-source-codemirror";
@@ -79,6 +80,12 @@ const policyContract: PolicyContract = {
   dependsOnCore: true
 };
 
+const htmlPreviewContract: HtmlPreviewContract = {
+  packageName: "@momentarise/md-preview-html",
+  dependsOnCore: true,
+  previewKind: "html"
+};
+
 const richProseMirrorContract: MomentariseRichProseMirrorContract = {
   packageName: "@momentarise/md-rich-prosemirror",
   richMode: "prosemirror"
@@ -100,6 +107,7 @@ void snapshot;
 void formatContract;
 void saveEngineContract;
 void policyContract;
+void htmlPreviewContract;
 void richProseMirrorContract;
 void sourceCodeMirrorContract;
 void webAdapterContract;

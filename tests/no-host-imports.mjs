@@ -6,6 +6,7 @@ const checkedSourceRoots = [
   "packages/md-format/src",
   "packages/md-save/src",
   "packages/md-policy/src",
+  "packages/md-preview-html/src",
   "packages/md-cli/src"
 ];
 

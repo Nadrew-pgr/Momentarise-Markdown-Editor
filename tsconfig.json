@@ -14,6 +14,9 @@
       "path": "packages/md-policy"
     },
     {
+      "path": "packages/md-preview-html"
+    },
+    {
       "path": "packages/md-rich-prosemirror"
     },
     {

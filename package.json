@@ -9,9 +9,9 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "tsc -b packages/md-core packages/md-format packages/md-save packages/md-policy packages/md-rich-prosemirror packages/md-source-codemirror packages/md-adapter-web packages/md-cli",
+    "build": "tsc -b packages/md-core packages/md-format packages/md-save packages/md-policy packages/md-preview-html packages/md-rich-prosemirror packages/md-source-codemirror packages/md-adapter-web packages/md-cli",
     "build:demo": "npm run build -w @momentarise/md-demo",
-    "test": "npm run test:contracts && npm run test:architecture && npm run test:alignment && npm run test:demo-baseline && npm run test:fixtures && npm run test:roundtrip && npm run test:parser && npm run test:serializer && npm run test:source-ux && npm run test:source-codemirror && npm run test:rich-prosemirror && npm run test:rich-commands && npm run test:rich-input-rules && npm run test:rich-folding && npm run test:demo-rich && npm run test:demo-commands && npm run test:demo-rich-ux && npm run test:demo-folding && npm run test:visual-portability && npm run test:properties-ui && npm run test:policy && npm run test:save-engine && npm run test:web-file-access && npm run test:cli && npm run build && npm run build:demo",
+    "test": "npm run test:contracts && npm run test:architecture && npm run test:alignment && npm run test:demo-baseline && npm run test:fixtures && npm run test:roundtrip && npm run test:parser && npm run test:serializer && npm run test:source-ux && npm run test:source-codemirror && npm run test:html-preview && npm run test:rich-prosemirror && npm run test:rich-commands && npm run test:rich-input-rules && npm run test:rich-folding && npm run test:demo-rich && npm run test:demo-commands && npm run test:demo-rich-ux && npm run test:demo-folding && npm run test:demo-html-preview && npm run test:visual-portability && npm run test:properties-ui && npm run test:policy && npm run test:save-engine && npm run test:web-file-access && npm run test:cli && npm run build && npm run build:demo",
     "test:alignment": "node tests/alignment-gate.test.mjs",
     "test:architecture": "node tests/no-host-imports.mjs",
     "test:contracts": "tsc -p tsconfig.tests.json --noEmit",
@@ -24,6 +24,7 @@
     "test:serializer": "npm run build && node tests/serializer-edited-range.test.mjs",
     "test:save-engine": "npm run build && node tests/save-engine.test.mjs",
     "test:source-codemirror": "npm run build && node tests/source-codemirror-package.test.mjs",
+    "test:html-preview": "npm run build && node tests/html-preview.test.mjs",
     "test:rich-prosemirror": "npm run build && node tests/rich-prosemirror-package.test.mjs",
     "test:rich-commands": "npm run build && node tests/rich-commands.test.mjs",
     "test:rich-input-rules": "npm run build && node tests/rich-input-rules.test.mjs",
@@ -32,6 +33,7 @@
     "test:demo-commands": "node tests/demo-slash-toolbar-baseline.test.mjs",
     "test:demo-rich-ux": "node tests/demo-rich-ux-baseline.test.mjs",
     "test:demo-folding": "node tests/demo-folding-baseline.test.mjs",
+    "test:demo-html-preview": "node tests/demo-html-preview-baseline.test.mjs",
     "test:visual-portability": "node tests/visual-chrome-portability.test.mjs",
     "test:web-file-access": "npm run build && node tests/web-file-access.test.mjs",
     "test:cli": "npm run build && node tests/cli-v0.test.mjs",
@@ -46,7 +48,8 @@
     "visual:mme-0012": "node scripts/visual-check-mme0012.mjs",
     "visual:mme-0013": "node scripts/visual-check-mme0013.mjs",
     "visual:mme-0013.5": "node scripts/visual-check-mme00135.mjs",
-    "visual:mme-0014": "node scripts/visual-check-mme0014.mjs"
+    "visual:mme-0014": "node scripts/visual-check-mme0014.mjs",
+    "visual:mme-0015": "node scripts/visual-check-mme0015.mjs"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

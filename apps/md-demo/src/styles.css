@@ -192,6 +192,11 @@ h1 {
   color: white;
 }
 
+.mode-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .rich-command-toolbar {
   display: flex;
   align-items: center;
@@ -353,6 +358,31 @@ h1 {
   min-height: 560px;
   overflow: auto;
   background: var(--surface);
+}
+
+.html-preview-host {
+  min-height: 560px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: var(--surface);
+}
+
+.html-preview-banner {
+  min-height: 42px;
+  padding: 11px 24px;
+  border-bottom: 1px solid var(--line);
+  background: #fbfcfc;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.html-preview-frame {
+  inline-size: 100%;
+  block-size: 100%;
+  min-height: 518px;
+  border: 0;
+  background: white;
 }
 
 .cm-editor {

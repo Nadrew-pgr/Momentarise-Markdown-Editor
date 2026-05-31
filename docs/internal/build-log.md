@@ -1557,3 +1557,76 @@
   - Not used; docs-only clarification from human feedback.
 - Suggested commit message:
   - `docs: clarify document status section polish`
+
+## MME-0015 — HTML File Reader and sandbox preview
+
+- Timestamp: 2026-05-31T23:07:25Z
+- Summary: Added a host-independent `@momentarise/md-preview-html` package and wired the mini web demo to open `.html` artifacts in source mode with a sandboxed iframe preview. Scripts are disabled by default and HTML remains marked as artifact/preview, not Markdown durable source.
+- Files changed:
+  - `README.md`
+  - `package.json`
+  - `package-lock.json`
+  - `tsconfig.json`
+  - `tsconfig.base.json`
+  - `packages/md-preview-html/package.json`
+  - `packages/md-preview-html/tsconfig.json`
+  - `packages/md-preview-html/src/index.ts`
+  - `apps/md-demo/package.json`
+  - `apps/md-demo/tsconfig.json`
+  - `apps/md-demo/src/main.ts`
+  - `apps/md-demo/src/styles.css`
+  - `tests/html-preview.test.mjs`
+  - `tests/demo-html-preview-baseline.test.mjs`
+  - `tests/type-contracts.test.ts`
+  - `tests/no-host-imports.mjs`
+  - `tests/alignment-gate.test.mjs`
+  - `scripts/visual-check-mme0015.mjs`
+  - `docs/internal/visual-checks/MME-0015/README.md`
+  - `docs/internal/visual-checks/MME-0015/html-source-opened.png`
+  - `docs/internal/visual-checks/MME-0015/html-sandbox-preview.png`
+- Behavior to prove before implementation:
+  - `.html` source can be loaded into the source editor.
+  - HTML preview uses an iframe sandbox that does not include `allow-scripts`.
+  - Source containing `<script>` remains visible in source mode but script side effects do not execute in preview.
+  - The UI labels the loaded file as an HTML artifact/preview and disables Markdown rich mode for it.
+- Test-first evidence:
+  - Added `tests/html-preview.test.mjs` before implementation; it initially failed because `packages/md-preview-html/tsconfig.json` did not exist.
+  - Added `tests/demo-html-preview-baseline.test.mjs` before implementation; it initially failed because the demo had no `@momentarise/md-preview-html` integration or HTML preview UI hooks.
+  - Added `scripts/visual-check-mme0015.mjs` before implementation to define the manual/automated UI scenario.
+- Tests/checks run:
+  - `npm run test:html-preview`
+  - `npm run test:demo-html-preview`
+  - `npm run build:demo`
+  - `npm run visual:mme-0015`
+  - `npm test`
+  - `git diff --check`
+- Visual/manual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host :: --port 5174 --strictPort`
+  - Local URL: `http://localhost:5174/`
+  - The server was restarted on the same port `5174` after adding the new workspace package, because Vite could not resolve `@momentarise/md-preview-html` until `npm i` created the local workspace link and the dependency graph restarted.
+  - The server is intentionally left running on `5174`.
+  - Visual gate command: `npm run visual:mme-0015`
+  - In-app browser was reloaded on `http://localhost:5174/` and showed the current UI with `Open .html`, `Preview`, and the HTML preview frame present.
+- Visual artifacts:
+  - `docs/internal/visual-checks/MME-0015/html-source-opened.png`
+  - `docs/internal/visual-checks/MME-0015/html-sandbox-preview.png`
+- Visual impact:
+  - Editing surface: The demo can now open an HTML artifact in CodeMirror source mode. Rich mode is disabled for HTML artifacts. Preview mode displays the HTML in a sandboxed iframe with a compact banner stating sandbox/scripts-disabled status.
+  - General UI: The top bar gains an `Open .html` action and the mode switch gains `Preview`. The inspector gains HTML artifact status when an HTML file is active. Existing technical document/status strips remain visible for now and are tracked under MME-0020 for final UI polish.
+  - Save workflow: HTML artifact imports are download/export-required; the original file is not overwritten in this slice.
+- Security notes:
+  - `@momentarise/md-preview-html` returns a descriptor with `scriptsEnabled: false`.
+  - The default iframe sandbox string is empty, so it grants no `allow-scripts` capability.
+  - The visual scenario loads HTML with a script that would append visible `SCRIPT RAN` text and set `window.top.__MME_HTML_PREVIEW_SCRIPT_RAN__` if scripts executed; the flag remains false after preview and the rendered preview does not show the sentinel.
+- Reviewer/subagent used and result:
+  - Security Reviewer: passed with no blocking findings. P3 noted that the hostile visual fixture should mutate visible iframe content before attempting `window.top`; fixed by adding the visible `SCRIPT RAN` sentinel first and wrapping the parent write in `try/catch`.
+  - UX/Visual Reviewer: initially blocked because the visual README overclaimed that the screenshot alone proved script blocking, and noted duplicate `Download` actions. Fixed by clarifying that the harness asserts script blocking while screenshots prove UI/rendering, and by renaming the download-required primary action to `Export`.
+- Human review status:
+  - Human review required by `ISSUES.md` because this is the HTML preview security/UI gate.
+  - Current status before human acceptance: `code-complete/visually verified/reviewer-passed/pending human review`.
+- Deviations/follow-ups:
+  - Advanced HTML artifact templates remain out of scope.
+  - Local writable `.html` handles are out of scope for this slice; HTML imports use download/export-required persistence.
+  - The demo bundle still warns over 500 kB after ProseMirror. Accepted for the mini demo.
+- Suggested commit message:
+  - `feat: add sandboxed HTML preview`
