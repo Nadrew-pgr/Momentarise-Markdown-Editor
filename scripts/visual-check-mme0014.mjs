@@ -93,6 +93,7 @@ async function getSnapshot(cdp) {
       richText: window.__MME_DEMO_VISUAL_CHECK__.getRichText(),
       hiddenText: Array.from(document.querySelectorAll(".rich-fold-hidden")).map((element) => element.textContent.trim()),
       visibleText: Array.from(document.querySelectorAll(".ProseMirror > :not(.rich-fold-hidden)")).map((element) => element.textContent.trim()),
+      hasPersistentFoldStrip: Boolean(document.querySelector('[data-testid="folding-session-state"]')),
       toggleCommandVisible: Boolean(document.querySelector('[data-rich-command="toggleBlock"]'))
     }))()`
   );
@@ -133,6 +134,28 @@ async function clickByTestId(cdp, testId) {
     button: "left",
     clickCount: 1,
     type: "mouseReleased",
+    x: box.x,
+    y: box.y
+  });
+}
+
+async function hoverHeading(cdp, text) {
+  const box = await evaluate(
+    cdp,
+    `(() => {
+      const heading = Array.from(document.querySelectorAll(".ProseMirror h1, .ProseMirror h2, .ProseMirror h3, .ProseMirror h4, .ProseMirror h5, .ProseMirror h6")).find((element) => element.textContent.trim().startsWith(${JSON.stringify(text)}));
+      if (!heading) {
+        return null;
+      }
+      const rect = heading.getBoundingClientRect();
+      return { x: rect.left + 8, y: rect.top + rect.height / 2 };
+    })()`
+  );
+  if (!box) {
+    throw new Error(`Cannot find heading for hover: ${text}`);
+  }
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
     x: box.x,
     y: box.y
   });
@@ -280,13 +303,20 @@ async function main() {
     await loadRichFixture(cdp, "folding-h1-h6.md", foldingMarkdown);
     const baselineSnapshot = await waitForSnapshot(
       cdp,
-      (snapshot) => snapshot.foldState.items.length >= 8 && snapshot.saveState.status === "saved",
+      (snapshot) =>
+        snapshot.foldState.items.length >= 8 &&
+        snapshot.saveState.status === "saved" &&
+        snapshot.hasPersistentFoldStrip === false,
       "fold headings loaded"
     );
     const baselineMarkdown = baselineSnapshot.markdown;
     const baselineCurrentHash = baselineSnapshot.saveState.currentHash;
     const baselineLastSavedHash = baselineSnapshot.saveState.lastSavedHash;
     await screenshot(cdp, "folding-h1-h6-loaded.png");
+
+    await hoverHeading(cdp, "Root");
+    await wait(150);
+    await screenshot(cdp, "folding-hover-affordance.png");
 
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.toggleRichFoldForText("Alpha child")`);
     await waitForSnapshot(

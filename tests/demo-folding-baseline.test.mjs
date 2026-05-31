@@ -18,8 +18,6 @@ for (const snippet of [
   "getRichFoldVisibility",
   "getRichHeadingFoldItems",
   "toggleRichHeadingFold",
-  "data-testid=\"folding-session-state\"",
-  "data-testid=\"fold-clear-button\"",
   "getFoldState",
   "toggleRichFoldForText"
 ]) {
@@ -31,12 +29,26 @@ for (const snippet of [
 for (const snippet of [
   ".rich-fold-toggle",
   ".rich-fold-hidden",
-  ".folding-strip",
   "[data-rich-folded=\"true\"]"
 ]) {
   if (!styles.includes(snippet)) {
     throw new Error(`Demo styles missing MME-0014 folding snippet: ${snippet}`);
   }
+}
+
+for (const forbiddenSnippet of [
+  "data-testid=\"folding-session-state\"",
+  "data-testid=\"fold-clear-button\"",
+  "Section folds",
+  "hidden blocks"
+]) {
+  if (demoSource.includes(forbiddenSnippet)) {
+    throw new Error(`Demo must not expose a persistent folding debug strip: ${forbiddenSnippet}`);
+  }
+}
+
+if (!styles.includes("content: \"...\"")) {
+  throw new Error("Collapsed headings must use a subtle ellipsis marker instead of hidden-count text.");
 }
 
 const visualReadme = "docs/internal/visual-checks/MME-0014/README.md";
@@ -46,6 +58,7 @@ if (!existsSync(visualReadme)) {
 
 const visualScript = readFileSync("scripts/visual-check-mme0014.mjs", "utf8");
 for (const artifact of [
+  "folding-hover-affordance.png",
   "folding-h1-h6-loaded.png",
   "folding-h3-collapsed.png",
   "folding-nested-parent-collapsed.png",

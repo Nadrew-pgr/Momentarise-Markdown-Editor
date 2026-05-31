@@ -367,9 +367,11 @@ Advanced rich editing backlog:
 - keyboard behavior around block boundaries, backspace, Enter, paste, and selection must feel editor-grade;
 - toolbar and slash menu presentation must be reviewed as editor UX, including whether controls are always visible, contextual, compact, configurable by host settings, or exposed through preferences;
 - rich/source/live-preview naming and labels must be reviewed for user clarity and host integration;
+- folding affordances should benchmark against Obsidian/CodeMirror-style editor gutters: subtle left-margin controls, hover/focus reveal, minimal collapsed markers, and no persistent debug strip in normal editing UI;
+- optional word/character document stats may be exposed as a small hideable editor status control when useful;
 - the UI may take inspiration from Notion, Obsidian, BlockNote, and similar editors, but the persisted Markdown contract remains stricter than those products.
 
-Final editor UI/UX/DX hardening is required after the core feature set is in place. That pass must revisit indentation, nested lists/todos, Tab/Shift+Tab, Enter/Backspace/paste/selection, live preview refresh, block insertion handles, toolbar/slash density, mode labels, host settings, and developer integration ergonomics as one coherent editor-quality review.
+Final editor UI/UX/DX hardening is required after the core feature set is in place. That pass must revisit indentation, nested lists/todos, Tab/Shift+Tab, Enter/Backspace/paste/selection, live preview refresh, block insertion handles, folding affordances, toolbar/slash density, mode-switch presentation, optional document stats, host settings, and developer integration ergonomics as one coherent editor-quality review.
 
 ### Slash menu and toolbar
 

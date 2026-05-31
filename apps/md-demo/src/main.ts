@@ -140,11 +140,6 @@ app.innerHTML = `
           </div>
           <button class="toolbar-button" type="button" data-testid="insert-after-block-button">Add paragraph</button>
         </div>
-        <div class="folding-strip" data-testid="folding-session-state" hidden>
-          <span>Section folds</span>
-          <strong data-testid="fold-state-summary">0 folded headings</strong>
-          <button class="toolbar-button" type="button" data-testid="fold-clear-button">Clear folds</button>
-        </div>
         <div class="slash-command-menu" data-testid="slash-command-menu" hidden>
           <p class="slash-command-query" data-testid="slash-command-query">/</p>
           <div class="slash-command-items" data-slash-command-items></div>
@@ -241,9 +236,6 @@ const codeBlockControls = queryRequired<HTMLDivElement>('[data-testid="code-bloc
 const codeLanguageInput = queryRequired<HTMLInputElement>('[data-testid="code-language-input"]');
 const codeMetaInput = queryRequired<HTMLInputElement>('[data-testid="code-meta-input"]');
 const insertAfterBlockButton = queryRequired<HTMLButtonElement>('[data-testid="insert-after-block-button"]');
-const foldingSessionState = queryRequired<HTMLDivElement>('[data-testid="folding-session-state"]');
-const foldStateSummary = queryRequired<HTMLElement>('[data-testid="fold-state-summary"]');
-const foldClearButton = queryRequired<HTMLButtonElement>('[data-testid="fold-clear-button"]');
 const slashCommandMenu = queryRequired<HTMLDivElement>('[data-testid="slash-command-menu"]');
 const slashCommandQueryElement = queryRequired<HTMLElement>('[data-testid="slash-command-query"]');
 const slashCommandItemsElement = queryRequired<HTMLDivElement>("[data-slash-command-items]");
@@ -404,12 +396,6 @@ insertAfterBlockButton.addEventListener("click", () => {
   insertParagraphAfterCurrentRichBlock();
 });
 
-foldClearButton.addEventListener("click", () => {
-  foldStates = [];
-  renderRichFoldingUi();
-  logEvent("Cleared rich folding sidecar/session state.");
-});
-
 slashCommandItemsElement.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) {
@@ -523,8 +509,7 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
     return {
       ...visibility,
       folds: foldStates,
-      items: getRichHeadingFoldItems(richState, foldStates),
-      summary: foldStateSummary.textContent ?? ""
+      items: getRichHeadingFoldItems(richState, foldStates)
     };
   },
   getLastCopiedMarkdown() {
@@ -920,15 +905,8 @@ function renderRichBlockControls(): void {
 function renderRichFoldingUi(refreshDecorations = true): void {
   const currentRichState = currentRichStateFromEditor();
   if (editorMode !== "rich" || !richEditor || !currentRichState) {
-    foldingSessionState.hidden = true;
     return;
   }
-
-  const items = getRichHeadingFoldItems(currentRichState, foldStates);
-  const visibility = getRichFoldVisibility(currentRichState, foldStates);
-  const foldedCount = items.filter((item) => item.folded).length;
-  foldingSessionState.hidden = items.length === 0;
-  foldStateSummary.textContent = `${foldedCount} folded headings, ${visibility.hiddenBlockCount} hidden blocks`;
 
   if (refreshDecorations) {
     richEditor.dispatch(richEditor.state.tr.setMeta(richFoldingPluginKey, true));
@@ -963,8 +941,6 @@ function createRichFoldingDecorations(editorState: ProseMirrorEditorState): Deco
     editorState
   };
   const visibility = getRichFoldVisibility(stateWithCurrentDoc, foldStates);
-  const items = getRichHeadingFoldItems(stateWithCurrentDoc, foldStates);
-  const itemByNodeId = new Map(items.map((item) => [item.nodeId, item]));
   const decorations: Decoration[] = [];
 
   for (const block of visibility.blocks) {
@@ -975,7 +951,6 @@ function createRichFoldingDecorations(editorState: ProseMirrorEditorState): Deco
       .filter(Boolean)
       .join(" ");
     if (classes) {
-      const item = itemByNodeId.get(block.nodeId);
       const attributes: Record<string, string> = {
         class: classes
       };
@@ -984,7 +959,6 @@ function createRichFoldingDecorations(editorState: ProseMirrorEditorState): Deco
       }
       if (block.type === "heading") {
         attributes["data-rich-folded"] = String(block.folded);
-        attributes["data-fold-summary"] = item && item.hiddenBlockCount > 0 ? `${item.hiddenBlockCount} hidden` : "";
       }
       decorations.push(
         Decoration.node(block.position, block.to, attributes)
@@ -1753,7 +1727,6 @@ declare global {
       getFoldState: () => RichFoldVisibility & {
         readonly folds: readonly FoldState[];
         readonly items: readonly RichHeadingFoldItem[];
-        readonly summary: string;
       };
       getPropertiesState: () => {
         readonly hiddenText: string;

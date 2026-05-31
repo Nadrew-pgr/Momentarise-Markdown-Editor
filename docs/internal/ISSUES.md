@@ -860,6 +860,9 @@ The target level is at least Obsidian default Live Preview behavior, with real M
 - Toolbar visibility, density, contextual behavior, settings/host configuration, and command grouping.
 - Block insertion affordances before/after framed blocks and at document end.
 - Source/Rich/Live Preview naming and mode transitions.
+- Mode switching presentation: replace the current demo-style `Source`/`Rich` segmented text buttons with a more editor-grade control, such as a compact toggle, icon button, status menu, or host-configurable mode picker.
+- Folding polish: benchmark against Obsidian/CodeMirror-style left-gutter folding affordances. Fold controls should live in a subtle editor gutter/margin, appear on hover/focus, avoid heavy borders/shadows, and use a minimal collapsed marker such as `...` rather than visible hidden-count text or debug strips.
+- Optional document stats: evaluate a small bottom-right word/character counter that can be shown, hidden, or disabled by host/settings.
 - Developer integration ergonomics for host apps configuring rich UX defaults.
 
 ### Acceptance criteria
@@ -870,6 +873,9 @@ The target level is at least Obsidian default Live Preview behavior, with real M
 - Enter, Backspace, paste, selection, undo/redo, and block-boundary behavior are reviewed and fixed for core editing constructs.
 - Live preview behavior is reviewed so common Markdown constructs do not require surprising mode switches.
 - Slash menu and toolbar presentation are reviewed as final editor UX, not just functional command surfaces.
+- Folding affordances are reviewed against Obsidian default behavior and do not expose implementation/debug state in normal editing UI.
+- Source/Rich/Live Preview switching is redesigned or explicitly accepted with visual evidence.
+- Word/character count behavior is decided and either implemented or documented as host-configurable future work.
 - Host-configurable editor UX options are documented or implemented where needed.
 - Visual artifacts cover the final interaction decisions.
 - Human review accepts or rejects the final editor interaction direction before V0 is considered editor-complete.

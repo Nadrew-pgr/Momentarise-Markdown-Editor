@@ -1498,9 +1498,10 @@
   - The server is intentionally left running on `5174`.
   - Visual gate command: `npm run visual:mme-0014`
   - The visual script uses the human-facing URL by default and was run with Chrome headless permission.
-  - In-app browser was refreshed on `http://localhost:5174/`; it saw the current demo shell, rich toolbar, and `Section folds` strip. The in-app browser context still does not expose the test hook, so DOM/assertion proof remains the headless visual script.
+  - In-app browser was refreshed on `http://localhost:5174/`; it saw the current demo shell and rich toolbar. The in-app browser context still does not expose the test hook, so DOM/assertion proof remains the headless visual script.
 - Visual artifacts:
   - `docs/internal/visual-checks/MME-0014/folding-h1-h6-loaded.png`
+  - `docs/internal/visual-checks/MME-0014/folding-hover-affordance.png`
   - `docs/internal/visual-checks/MME-0014/folding-h3-collapsed.png`
   - `docs/internal/visual-checks/MME-0014/folding-nested-parent-collapsed.png`
   - `docs/internal/visual-checks/MME-0014/folding-nested-child-still-collapsed.png`
@@ -1511,11 +1512,11 @@
   - The state uses the `@momentarise/md-core` `FoldState` contract and belongs under `SidecarState.folds` for host adapters that persist session sidecars.
   - The rich package receives folds as input and computes visibility; folds are not serialized into Markdown.
 - Reviewer/subagent used and result:
-  - UX/visual reviewer initially blocked because nested parent/child visual evidence was incomplete. Fixed by adding `folding-nested-parent-collapsed.png` and `folding-nested-child-still-collapsed.png`, updating the visual README, and changing the UI label from a technical sidecar phrase to `Section folds`. Re-review passed with no remaining UX/visual findings.
+  - UX/visual reviewer initially blocked because nested parent/child visual evidence was incomplete. Fixed by adding `folding-nested-parent-collapsed.png` and `folding-nested-child-still-collapsed.png`, updating the visual README, and removing the visible folding debug strip. Re-review passed with no remaining UX/visual findings.
   - Architecture/Test reviewer initially blocked because fold IDs used global ordinal IDs, save/hash behavior was under-proven, H4-H6 direct folding was under-tested, and build-log/sidecar documentation was pending. Fixed by deriving fold IDs from heading path/level/text, adding an inserted-sibling stability regression, adding direct H4/H5/H6 assertions, adding visual script checks for Markdown/currentHash/lastSavedHash/dirtySince stability after fold toggles, and documenting sidecar/session location. Re-review passed.
 - Visual impact:
-  - Editing surface: Rich mode headings now show disclosure triangles. Collapsed headings hide descendant section content and show a hidden-block count. H1-H6 section hierarchy is respected.
-  - General UI: Rich mode gains a compact `Section folds` strip with hidden-count status and a `Clear folds` action. The More menu gains an explicit `Toggle block` command.
+  - Editing surface: Rich mode headings now expose a subtle left-margin disclosure control on hover/focus. Collapsed headings hide descendant section content and show a minimal `...` marker. H1-H6 section hierarchy is respected.
+  - General UI: No persistent folding debug/status strip is shown. The More menu gains an explicit `Toggle block` command.
   - Save workflow: fold/unfold is visual/session-only and does not dirty the document or change save hashes. The explicit toggle-block command does modify Markdown and therefore marks the document dirty.
 - Deviations/follow-ups:
   - Code block and callout folding were left out of this slice because heading section folding was the core acceptance item; they can be added later if still desired.
