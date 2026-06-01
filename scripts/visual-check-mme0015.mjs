@@ -117,6 +117,25 @@ async function screenshot(cdp, filename) {
   await writeFile(join(visualDir, filename), Buffer.from(result.data, "base64"));
 }
 
+async function setFileInputFiles(cdp, selector, files) {
+  await cdp.send("DOM.enable");
+  const { root } = await cdp.send("DOM.getDocument", {
+    depth: -1,
+    pierce: true
+  });
+  const { nodeId } = await cdp.send("DOM.querySelector", {
+    nodeId: root.nodeId,
+    selector
+  });
+  if (!nodeId) {
+    throw new Error(`Cannot find file input: ${selector}`);
+  }
+  await cdp.send("DOM.setFileInputFiles", {
+    files,
+    nodeId
+  });
+}
+
 async function wait(ms) {
   await new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -252,14 +271,16 @@ async function main() {
     </script>
   </body>
 </html>`;
+    const hostileHtmlPath = join(userDataDir, "unsafe-visual.html");
+    await writeFile(hostileHtmlPath, hostileHtml);
 
     await evaluate(
       cdp,
       `(() => {
         window.__MME_HTML_PREVIEW_SCRIPT_RAN__ = false;
-        window.__MME_DEMO_VISUAL_CHECK__.loadHtmlArtifactForTest("unsafe-visual.html", ${JSON.stringify(hostileHtml)});
       })()`
     );
+    await setFileInputFiles(cdp, '[data-testid="html-file-input"]', [hostileHtmlPath]);
     const sourceOpened = await waitForSnapshot(
       cdp,
       (snapshot) =>

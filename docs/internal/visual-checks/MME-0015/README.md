@@ -1,6 +1,6 @@
 # MME-0015 Visual Checks
 
-Artifacts in this folder prove HTML source loading and sandboxed preview behavior:
+Artifacts in this folder prove HTML source loading and sandboxed preview behavior. The visual harness loads the fixture through the real hidden HTML file input, not only through a test-only document loader.
 
 - `html-source-opened.png` shows an imported `.html` artifact opened in source mode with HTML-specific status.
 - `html-sandbox-preview.png` shows the same artifact rendered in the sandbox preview with sandbox/scripts-disabled UI labeling.

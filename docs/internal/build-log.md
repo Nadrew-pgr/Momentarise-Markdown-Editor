@@ -1630,3 +1630,29 @@
   - The demo bundle still warns over 500 kB after ProseMirror. Accepted for the mini demo.
 - Suggested commit message:
   - `feat: add sandboxed HTML preview`
+
+## MME-0015 follow-up — Real HTML file input verification
+
+- Timestamp: 2026-06-01T00:00:00Z
+- Summary: Investigated human feedback that HTML opening did not work. The original MME-0015 visual gate loaded HTML through the internal test hook, which proved the HTML reader/render path but did not prove the real hidden `.html` file input path. Updated the visual gate to set an actual `.html` file on `data-testid="html-file-input"` through Chrome DevTools Protocol, then verified the same source and preview flow.
+- Files changed:
+  - `scripts/visual-check-mme0015.mjs`
+  - `tests/demo-html-preview-baseline.test.mjs`
+  - `docs/internal/visual-checks/MME-0015/README.md`
+  - `docs/internal/visual-checks/MME-0015/html-source-opened.png`
+  - `docs/internal/visual-checks/MME-0015/html-sandbox-preview.png`
+- Tests/checks run:
+  - `npm run visual:mme-0015`
+  - `npm run test:demo-html-preview`
+  - `npm run test:html-preview`
+  - `npm test`
+  - `git diff --check`
+- Result:
+  - The real HTML file input path is verified in Chrome headless.
+  - If `Open .html` does not open a native picker in the Codex in-app browser, the remaining suspected cause is the embedded browser environment's native file-picker support, not the framework HTML reader path.
+- Visual impact:
+  - No intended visible UI change. Visual artifacts were regenerated and still show `Open .html`, HTML source mode, `Preview`, disabled `Rich`, sandbox labeling, and `Export` as the download-required primary action.
+- Reviewer/subagent used and result:
+  - Not used for this follow-up; this directly addresses human feedback and strengthens the existing visual gate.
+- Suggested commit message:
+  - `test: verify HTML preview file input`

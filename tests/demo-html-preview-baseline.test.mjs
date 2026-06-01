@@ -63,7 +63,8 @@ for (const artifact of ["html-source-opened.png", "html-sandbox-preview.png"]) {
 const visualScript = readFileSync("scripts/visual-check-mme0015.mjs", "utf8");
 for (const snippet of [
   "__MME_HTML_PREVIEW_SCRIPT_RAN__",
-  "loadHtmlArtifactForTest",
+  "DOM.setFileInputFiles",
+  "html-file-input",
   "html-source-opened.png",
   "html-sandbox-preview.png",
   "sandboxAllowsScripts"
