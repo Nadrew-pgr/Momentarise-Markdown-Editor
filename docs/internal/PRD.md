@@ -399,7 +399,9 @@ HTML artifact templates are future work.
 
 The normal HTML preview surface should read like a document, not a debug panel. Technical sandbox/script/persistence details must remain truthful and discoverable, but they should move into an editor-grade status affordance during the final UI/UX pass.
 
-### Future document formats
+### Future file and document formats
+
+Plain text and adjacent lightweight file types such as `.txt`, `.text`, `.log`, `.csv`, `.tsv`, `.json`, `.yaml`, `.yml`, and `.toml` are future source/preview candidates. Each type must define whether it is editable source, preview-only, import-to-Markdown, or adapter-specific.
 
 Non-Markdown formats such as `.docx`, `.pptx`, Google Docs, PDF, and similar documents are future adapter/converter work. They are not V0 core behavior.
 
@@ -428,6 +430,8 @@ Capabilities:
 Policy sources: framework defaults, app defaults, workspace rules, folder rules, future database rules, document properties, user settings, host constraints, hard-deny rules.
 
 Hard deny includes `.env`, secrets, tokens, keys, identity documents, banking documents, and private folders.
+
+Repo-control files such as `.gitignore` are not hard-denied by default, but they are policy-sensitive. Hosts may allow read while denying write, share, export, AI sending, or indexing depending on workspace rules.
 
 ### AI writing
 

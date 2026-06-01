@@ -724,10 +724,17 @@ Security Reviewer.
 
 Implement policy resolver and minimal enforcement.
 
+### Clarification
+
+MME-0016 is not about editing `.env` files as product documents. `.env` is a negative security fixture: it proves the policy layer can hard-deny obvious secret-bearing files before AI, indexing, export, or sharing touches them.
+
+`.gitignore` is a different class of file. It is usually not secret by itself, but it can affect repository behavior and should be represented as a policy-sensitive repo-control fixture. The baseline should prove it can be treated differently from `.env`: for example, read may be allowed while write/share/export can be denied by policy depending on host rules.
+
 ### Acceptance criteria
 
 - Effective policy resolves from defaults, document properties, hard deny.
-- `.env` fixture denied.
+- `.env` fixture is hard-denied for sensitive actions.
+- `.gitignore` fixture is covered as a repo-control/policy-sensitive file, not as a blanket hard-deny.
 - Read allowed but share denied case works.
 - Denied action returns reason and audit record.
 
@@ -838,98 +845,67 @@ This issue was added after MME-0011.5 from product discussion: local web, Theia/
 
 Architecture Reviewer.
 
-## MME-0020 — Final editor UI/UX/DX hardening pass
+## MME-BACKLOG — Future split candidates
 
-### Goal
+This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.
 
-Run a dedicated end-of-V0 editor-quality pass after the major core, rich, adapter, preview, and AI-writing slices exist.
+### Editor UX / live preview
 
-This issue exists because MME-0013.5 creates serious rich editor primitives, but it is not the final ergonomics pass. Indentation, nested lists, todo flows, block boundaries, live preview, toolbar density, host settings, and DX need to be judged together once more of the editor exists.
-
-MME-0020 is not a closed list. It is the container for the final editor pass.
-
-The target level is at least Obsidian default Live Preview behavior, with real Markdown behind it. The differentiators are Momentarise's toolbar, slash command, and a better structured block layer, without losing `.md` as the source of truth.
-
-### Scope
-
+- Target at least Obsidian default Live Preview behavior, with real Markdown behind it.
+- Keep Momentarise differentiation: toolbar, slash command, better structured block layer, and `.md` as source of truth.
 - Source, Rich, and Live Preview editing ergonomics.
-- Indentation and outdent behavior with Tab/Shift+Tab.
+- Indentation/outdent with Tab/Shift+Tab.
 - Nested bullet lists, ordered lists, and todos.
-- Enter, Backspace, paste, selection, undo/redo around headings, lists, todos, quotes, code blocks, callouts, opaque blocks, and inserted media.
-- Live preview refresh behavior for Markdown constructs typed in rich mode.
+- Enter, Backspace, paste, selection, undo/redo around headings, lists, todos, quotes, code blocks, callouts, opaque blocks, inserted media, and document end.
+- Live preview refresh for Markdown constructs typed in rich mode.
+- Obsidian-like live preview for raw inline/block HTML inside Markdown where policy allows rendering, while preserving raw HTML in source.
+- Block insertion affordances before/after framed blocks and at document end.
+
+### Toolbar / slash / mode controls
+
 - Slash menu placement, empty states, labels, grouping, keyboard navigation, and fuzzy matching.
 - Toolbar visibility, density, contextual behavior, settings/host configuration, and command grouping.
-- Block insertion affordances before/after framed blocks and at document end.
-- Source/Rich/Live Preview naming and mode transitions.
-- Mode switching presentation: replace the current demo-style `Source`/`Rich` segmented text buttons with a more editor-grade control, such as a compact toggle, icon button, status menu, or host-configurable mode picker.
-- Mode controls must be document-kind aware. Markdown should expose the relevant Source/Rich/Live Preview choices, while HTML artifacts should expose Source/Preview without showing a disabled or confusing Rich mode. Prefer one editor-grade mode control over separate demo tabs.
-- Open controls must be unified before the demo is considered editor-grade. Replace separate `Open .md` and `Open .html` primary buttons with a single Open action that detects supported file types, with secondary menu/filter behavior only if needed.
-- HTML preview polish: remove the permanent technical HTML status strip/banner from the normal preview surface. Sandbox/script/persistence truth must remain available through a discreet status affordance, inspector, hover/detail menu, toast, or debug surface.
-- HTML preview scrolling must feel like normal document reading. Avoid nested/conflicting scroll regions and avoid large blank preview gutters; the preview should use the available app viewport naturally.
-- Folding polish: benchmark against Obsidian/CodeMirror-style left-gutter folding affordances. Fold controls should live in a subtle editor gutter/margin, appear on hover/focus, avoid heavy borders/shadows, and use a minimal collapsed marker such as `...` rather than visible hidden-count text or debug strips.
-- Document identity and persistence status section: the entire permanent document metadata/status section that currently exposes file name, URI, access mode, adapter kind, writability, and persistence details such as `fixture://...`, `disk://...`, `fixture`, `memory only`, `not persisted`, `disk`, or `original file writable` must not remain as normal editor chrome for any opened file type. Move the section into a discreet status affordance, toast, hover/detail menu, inspector, or dev/debug surface while preserving truthful save-state communication.
-- Optional document stats: evaluate a small bottom-right word/character counter that can be shown, hidden, or disabled by host/settings.
-- Developer integration ergonomics for host apps configuring rich UX defaults.
+- Source/Rich/Live Preview naming and transitions.
+- Replace demo-style segmented mode buttons with an editor-grade compact toggle, icon button, status menu, or host-configurable mode picker.
+- Mode controls must be document-kind aware: Markdown exposes relevant Source/Rich/Live Preview choices; HTML exposes Source/Preview without disabled/confusing Rich mode.
+- Unify `Open .md` and `Open .html` into one Open action with type detection or a secondary menu/filter.
 
-### Acceptance criteria
+### HTML preview / reading surface
 
-- A UI/UX/DX audit matrix compares current behavior against Notion, Obsidian, BlockNote, and the PRD's Markdown-source-of-truth constraints.
-- Indentation and outdent behavior is documented and tested for source mode, rich mode, lists, todos, and code fences.
-- Nested list/todo creation, indent, outdent, continuation, and exit flows are proven by automated tests when practical and visual/manual checks where automation is not realistic.
-- Enter, Backspace, paste, selection, undo/redo, and block-boundary behavior are reviewed and fixed for core editing constructs.
-- Live preview behavior is reviewed so common Markdown constructs do not require surprising mode switches.
-- Slash menu and toolbar presentation are reviewed as final editor UX, not just functional command surfaces.
-- Folding affordances are reviewed against Obsidian default behavior and do not expose implementation/debug state in normal editing UI.
-- Source/Rich/Live Preview switching is redesigned or explicitly accepted with visual evidence.
-- Open-file controls are unified and verified for Markdown and HTML artifacts.
-- HTML preview technical status chrome is removed from the normal reading surface while save/sandbox truth remains discoverable.
-- HTML preview scroll behavior is reviewed and no longer creates confusing nested app/document scroll conflicts.
-- File identity and persistence details are visible only through an editor-grade status pattern, not a persistent technical metadata/status section, while save truthfulness remains clear.
-- Word/character count behavior is decided and either implemented or documented as host-configurable future work.
-- Host-configurable editor UX options are documented or implemented where needed.
-- Visual artifacts cover the final interaction decisions.
-- Human review accepts or rejects the final editor interaction direction before V0 is considered editor-complete.
+- Remove permanent technical HTML status strip/banner from normal preview reading surface.
+- Keep sandbox/script/save truth discoverable through a discreet status affordance, inspector, hover/detail menu, toast, or debug surface.
+- Avoid nested/conflicting scroll regions and large blank preview gutters.
+- Preview should use the available app viewport naturally for daily reading, not device/debug controls.
 
-### Execution model
+### Folding / document status
 
-- Implementation: sequential only.
-- Fresh agent required: yes.
-- Reviewer subagents: UX Reviewer, DX Reviewer, and Test Reviewer allowed.
-- Parallel implementation: forbidden unless human-approved.
-- Human review required: yes, because this is the final editor ergonomics gate.
+- Folding polish benchmarked against Obsidian/CodeMirror-style left-gutter affordances.
+- Fold controls should live in a subtle editor gutter/margin, appear on hover/focus, avoid heavy borders/shadows, and use a minimal collapsed marker such as `...`.
+- The permanent document metadata/status section must not remain normal editor chrome for any opened file type.
+- Move file name, URI, adapter kind, writability, persistence target, and save details into an editor-grade status pattern while preserving save truthfulness.
+- Evaluate optional bottom-right word/character counter that can be shown, hidden, or disabled by host/settings.
 
-### Reviewer
+### Plain text and adjacent lightweight files
 
-UX Reviewer, DX Reviewer, and Test Reviewer.
+- Add `.txt` reading/import support as a lightweight source-mode document type.
+- Consider `.text`, `.log`, `.csv`, `.tsv`, `.json`, `.yaml`, `.yml`, `.toml`, and similar text-like files as future source/preview candidates.
+- Decide per extension whether the file is editable source, preview-only, import-to-Markdown, or adapter-specific.
+- Keep Save Engine truthfulness: do not imply Markdown round-trip if the file is plain text or another syntax.
 
-## MME-0021 — Future document format adapters backlog
+### Future document format adapters
 
-### Goal
-
-Track post-V0 support for non-Markdown document formats without weakening the `.md` source-of-truth contract.
-
-### Scope
-
-- Read/import `.docx`, `.pptx`, Google Docs, PDF, and similar document formats when a host adapter or converter supports them.
-- Define which formats are read-only preview, import-to-Markdown, export-from-Markdown, or true round-trip editable formats.
+- Track post-V0 support for `.docx`, `.pptx`, Google Docs, PDF, and similar document formats without weakening the `.md` source-of-truth contract.
+- Define whether each format is preview-only, import-to-Markdown, export-from-Markdown, or true round-trip editable with a real format-preserving adapter.
 - Keep conversion provenance and lossiness visible to users.
-- Avoid pretending a converted document can be safely overwritten unless the adapter can actually preserve the source format.
+- Warn before overwrite/export if conversion may lose layout, comments, tracked changes, speaker notes, formulas, embedded media, or source-format semantics.
+- Never claim an imported/converted document was saved back to the original source format unless the adapter actually did that.
 
-### Acceptance criteria
+### Potential future splits
 
-- PRD documents non-Markdown document formats as future adapter/converter work, not V0 core behavior.
-- Each supported future format declares whether it is preview-only, import/export, or editable round-trip.
-- Save truthfulness covers converted/imported documents.
-- Any conversion that may lose layout, comments, tracked changes, speaker notes, formulas, or embedded media must warn before overwrite/export.
-
-### Execution model
-
-- Implementation: sequential only.
-- Fresh agent required: yes.
-- Reviewer subagents: Architecture Reviewer, UX Reviewer, and Security/Policy Reviewer allowed.
-- Parallel implementation: forbidden unless human-approved.
-- Human review required: yes, because this affects user trust around document conversion and persistence.
-
-### Reviewer
-
-Architecture Reviewer, UX Reviewer, and Security/Policy Reviewer.
+- Editor live preview parity.
+- Toolbar/slash/menu final UX.
+- Unified Open flow and file-type routing.
+- HTML preview reading polish.
+- Plain text/lightweight file adapter.
+- Office/PDF/Google Docs adapter research.
+- Document status/save truth UI.

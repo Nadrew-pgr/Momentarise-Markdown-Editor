@@ -1746,3 +1746,22 @@
   - No current UI change. These are MME-0020/MME-0021 planning updates for future slices.
 - Suggested commit message:
   - `docs: track final UI chrome and document format backlog`
+
+## Docs follow-up — Rename final issue to backlog
+
+- Timestamp: 2026-06-01T18:22:00Z
+- Summary: Converted the final numbered UI/UX issue and the future document-format issue into a single non-strict `MME-BACKLOG` holding area, because these topics need later splitting rather than immediate implementation as one slice.
+- Files changed:
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/PRD.md`
+  - `docs/internal/build-log.md`
+- Decisions recorded:
+  - MME-0016 `.env` is clarified as a hard-deny security fixture, not a document editing target.
+  - `.gitignore` is tracked as a repo-control/policy-sensitive fixture, not a blanket hard-deny.
+  - `MME-0020`/`MME-0021` are replaced by `MME-BACKLOG`.
+  - Backlog items are grouped by category and do not need the normal issue execution template until split.
+  - `.txt` and adjacent lightweight text files are added to the backlog.
+- Visual impact:
+  - No current UI change.
+- Suggested commit message:
+  - `docs: convert final issue to backlog`
