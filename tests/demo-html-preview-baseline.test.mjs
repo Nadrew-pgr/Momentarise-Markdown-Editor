@@ -12,11 +12,15 @@ for (const snippet of [
   "data-testid=\"html-file-input\"",
   "data-testid=\"preview-mode-button\"",
   "data-testid=\"html-preview-host\"",
+  "data-testid=\"html-preview-stage\"",
   "data-testid=\"html-preview-banner\"",
   "data-testid=\"html-preview-frame\"",
+  "data-testid=\"html-preview-viewport-controls\"",
   "data-testid=\"html-preview-status\"",
   "loadHtmlArtifactForTest",
   "getHtmlPreviewState",
+  "setHtmlPreviewViewportMode",
+  "htmlPreviewViewportMode",
   "html-artifact"
 ]) {
   if (!demoSource.includes(snippet)) {
@@ -26,8 +30,13 @@ for (const snippet of [
 
 for (const snippet of [
   ".html-preview-host",
+  ".html-preview-stage",
   ".html-preview-banner",
+  ".html-preview-viewport-controls",
   ".html-preview-frame",
+  "max-inline-size: 100%",
+  "overflow-x: hidden",
+  "@media (max-width: 980px)",
   ".mode-button:disabled"
 ]) {
   if (!styles.includes(snippet)) {
@@ -54,7 +63,7 @@ if (!existsSync(visualReadme)) {
 }
 
 const visualReadmeText = readFileSync(visualReadme, "utf8");
-for (const artifact of ["html-source-opened.png", "html-sandbox-preview.png"]) {
+for (const artifact of ["html-source-opened.png", "html-sandbox-preview.png", "html-preview-responsive-frame.png"]) {
   if (!visualReadmeText.includes(artifact)) {
     throw new Error(`MME-0015 visual README missing artifact: ${artifact}`);
   }
@@ -67,6 +76,10 @@ for (const snippet of [
   "html-file-input",
   "html-source-opened.png",
   "html-sandbox-preview.png",
+  "html-preview-responsive-frame.png",
+  "wideNonresponsiveHtml",
+  "responsiveViewportHtml",
+  "getHtmlPreviewLayout",
   "sandboxAllowsScripts"
 ]) {
   if (!visualScript.includes(snippet)) {

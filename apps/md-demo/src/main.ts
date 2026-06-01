@@ -158,15 +158,30 @@ app.innerHTML = `
         <div class="rich-editor-host" data-testid="rich-editor-host" hidden></div>
         <div class="html-preview-host" data-testid="html-preview-host" hidden>
           <div class="html-preview-banner" data-testid="html-preview-banner">
-            HTML artifact preview · sandboxed · scripts disabled
+            <span class="html-preview-banner-text" data-testid="html-preview-banner-text">
+              HTML artifact preview · sandboxed · scripts disabled
+            </span>
+            <div
+              class="html-preview-viewport-controls"
+              data-testid="html-preview-viewport-controls"
+              role="group"
+              aria-label="HTML preview viewport"
+            >
+              <button class="html-preview-viewport-button" type="button" data-html-preview-viewport="fit">Fit</button>
+              <button class="html-preview-viewport-button" type="button" data-html-preview-viewport="mobile">Mobile</button>
+              <button class="html-preview-viewport-button" type="button" data-html-preview-viewport="tablet">Tablet</button>
+              <button class="html-preview-viewport-button" type="button" data-html-preview-viewport="desktop">Desktop</button>
+            </div>
           </div>
-          <iframe
-            class="html-preview-frame"
-            data-testid="html-preview-frame"
-            referrerpolicy="no-referrer"
-            sandbox="allow-same-origin"
-            title="Sandboxed HTML preview"
-          ></iframe>
+          <div class="html-preview-stage" data-testid="html-preview-stage">
+            <iframe
+              class="html-preview-frame"
+              data-testid="html-preview-frame"
+              referrerpolicy="no-referrer"
+              sandbox="allow-same-origin"
+              title="Sandboxed HTML preview"
+            ></iframe>
+          </div>
         </div>
       </div>
 
@@ -253,7 +268,6 @@ const editorHost = queryRequired<HTMLDivElement>("[data-editor-host]");
 const editorRegion = queryRequired<HTMLDivElement>(".editor-region");
 const richEditorHost = queryRequired<HTMLDivElement>('[data-testid="rich-editor-host"]');
 const htmlPreviewHost = queryRequired<HTMLDivElement>('[data-testid="html-preview-host"]');
-const htmlPreviewBanner = queryRequired<HTMLDivElement>('[data-testid="html-preview-banner"]');
 const htmlPreviewFrame = queryRequired<HTMLIFrameElement>('[data-testid="html-preview-frame"]');
 const sourceModeButton = queryRequired<HTMLButtonElement>('[data-testid="source-mode-button"]');
 const richModeButton = queryRequired<HTMLButtonElement>('[data-testid="rich-mode-button"]');
@@ -306,6 +320,11 @@ const diagnosticsElement = queryRequired<HTMLOListElement>('[data-testid="roundt
 const editorSurfaceStateElement = queryRequired<HTMLElement>('[data-testid="editor-surface-state"]');
 const htmlPreviewStatusBlock = queryRequired<HTMLElement>('[data-testid="html-preview-status-block"]');
 const htmlPreviewStatusElement = queryRequired<HTMLElement>('[data-testid="html-preview-status"]');
+const htmlPreviewBannerText = queryRequired<HTMLElement>('[data-testid="html-preview-banner-text"]');
+const htmlPreviewStage = queryRequired<HTMLElement>('[data-testid="html-preview-stage"]');
+const htmlPreviewViewportButtons = [
+  ...document.querySelectorAll<HTMLButtonElement>("[data-html-preview-viewport]")
+];
 
 let eventCounter = 0;
 let lastCopiedMarkdown: string | null = null;
@@ -313,6 +332,7 @@ const markdownAstFormatter = createMarkdownAstFormatter();
 type DemoDocumentMode = "fixture" | WebOpenedMarkdownMode;
 type DemoDocumentKind = "markdown" | "html-artifact";
 type DemoEditorMode = "source" | "rich" | "preview";
+type HtmlPreviewViewportMode = "fit" | "mobile" | "tablet" | "desktop";
 type PropertiesDisplayMode = "visible" | "hidden" | "source";
 
 interface SlashCommandState {
@@ -336,6 +356,11 @@ const fixtureSaveTarget = createMemorySaveTarget({
   initialContent: fixtureMarkdown,
   targetLabel: "fixture://source-mode-fixture.md"
 });
+const htmlPreviewViewportWidths: Record<Exclude<HtmlPreviewViewportMode, "fit">, number> = {
+  desktop: 1200,
+  mobile: 390,
+  tablet: 768
+};
 let saveTarget: SaveTarget = fixtureSaveTarget;
 let saveEngine: SaveEngine = createSaveEngine({
   autosaveDelayMs: 1000,
@@ -352,6 +377,7 @@ let activeDocument: ActiveDemoDocument = {
 };
 let lastSaveAction = "loaded fixture";
 let editorMode: DemoEditorMode = "source";
+let htmlPreviewViewportMode: HtmlPreviewViewportMode = "fit";
 let propertiesDisplayMode: PropertiesDisplayMode = "visible";
 let autosaveTimer: number | undefined;
 let richState: RichMarkdownState = createRichMarkdownState(fixtureMarkdown, {
@@ -411,6 +437,26 @@ richModeButton.addEventListener("click", () => {
 previewModeButton.addEventListener("click", () => {
   switchEditorMode("preview");
 });
+
+for (const button of htmlPreviewViewportButtons) {
+  button.addEventListener("click", () => {
+    const nextMode = parseHtmlPreviewViewportMode(button.dataset.htmlPreviewViewport);
+    if (!nextMode) {
+      return;
+    }
+    setHtmlPreviewViewportMode(nextMode);
+  });
+}
+
+window.addEventListener("resize", () => {
+  renderHtmlPreviewViewport();
+});
+if ("ResizeObserver" in window) {
+  const htmlPreviewResizeObserver = new ResizeObserver(() => {
+    renderHtmlPreviewViewport();
+  });
+  htmlPreviewResizeObserver.observe(htmlPreviewStage);
+}
 
 richCommandToolbar.addEventListener("click", (event) => {
   const target = event.target;
@@ -583,13 +629,15 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   getHtmlPreviewState() {
     return {
       available: activeDocument.kind === "html-artifact",
-      bannerText: htmlPreviewBanner.textContent ?? "",
+      bannerText: htmlPreviewBannerText.textContent ?? "",
       fileName: htmlPreviewDescriptor?.fileName ?? null,
       frameSandbox: htmlPreviewFrame.getAttribute("sandbox"),
       frameSrcdocLength: htmlPreviewFrame.getAttribute("srcdoc")?.length ?? 0,
       sandbox: htmlPreviewDescriptor?.sandbox ?? null,
       scriptsEnabled: htmlPreviewDescriptor?.scriptsEnabled ?? false,
       statusText: htmlPreviewStatusElement.textContent ?? "",
+      viewportMode: htmlPreviewViewportMode,
+      viewportWidth: htmlPreviewFrame.dataset.mmePreviewViewportWidth ?? null,
       warnings: htmlPreviewDescriptor?.warnings.map((warning) => warning.code) ?? []
     };
   },
@@ -631,6 +679,9 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   },
   loadHtmlArtifactForTest(fileName: string, content: string) {
     loadHtmlArtifact(fileName, content, "test HTML artifact");
+  },
+  setHtmlPreviewViewportMode(mode: HtmlPreviewViewportMode) {
+    setHtmlPreviewViewportMode(mode);
   },
   showUnsupportedLocalFileStateForTest() {
     showUnsupportedLocalFileState();
@@ -959,7 +1010,7 @@ function renderHtmlPreview(): void {
   if (activeDocument.kind !== "html-artifact") {
     htmlPreviewFrame.removeAttribute("srcdoc");
     htmlPreviewFrame.setAttribute("sandbox", "");
-    htmlPreviewBanner.textContent = "HTML artifact preview unavailable";
+    htmlPreviewBannerText.textContent = "HTML artifact preview unavailable";
     htmlPreviewStatusElement.textContent = "HTML artifact preview unavailable";
     return;
   }
@@ -970,8 +1021,49 @@ function renderHtmlPreview(): void {
   });
   htmlPreviewFrame.setAttribute("sandbox", htmlPreviewDescriptor.sandbox);
   htmlPreviewFrame.srcdoc = htmlPreviewDescriptor.srcdoc;
-  htmlPreviewBanner.textContent = `${activeDocument.fileName} · HTML artifact preview · sandboxed · scripts disabled`;
+  htmlPreviewBannerText.textContent = `${activeDocument.fileName} · HTML artifact preview · sandboxed · scripts disabled`;
   htmlPreviewStatusElement.textContent = htmlPreviewStatusLabel(htmlPreviewDescriptor);
+  renderHtmlPreviewViewport();
+}
+
+function setHtmlPreviewViewportMode(mode: HtmlPreviewViewportMode): void {
+  htmlPreviewViewportMode = mode;
+  renderHtmlPreviewViewport();
+  logEvent(`HTML preview viewport: ${htmlPreviewViewportLabel(mode)}.`);
+}
+
+function renderHtmlPreviewViewport(): void {
+  for (const button of htmlPreviewViewportButtons) {
+    const buttonMode = parseHtmlPreviewViewportMode(button.dataset.htmlPreviewViewport);
+    button.setAttribute("aria-pressed", String(buttonMode === htmlPreviewViewportMode));
+  }
+
+  htmlPreviewFrame.dataset.mmePreviewViewport = htmlPreviewViewportMode;
+  if (htmlPreviewViewportMode === "fit") {
+    htmlPreviewFrame.style.inlineSize = "100%";
+    htmlPreviewFrame.style.maxInlineSize = "100%";
+    htmlPreviewFrame.dataset.mmePreviewViewportWidth = String(Math.round(htmlPreviewStage.clientWidth));
+    return;
+  }
+
+  const width = htmlPreviewViewportWidths[htmlPreviewViewportMode];
+  htmlPreviewFrame.style.inlineSize = `${width}px`;
+  htmlPreviewFrame.style.maxInlineSize = "none";
+  htmlPreviewFrame.dataset.mmePreviewViewportWidth = String(width);
+}
+
+function parseHtmlPreviewViewportMode(value: string | undefined): HtmlPreviewViewportMode | null {
+  if (value === "fit" || value === "mobile" || value === "tablet" || value === "desktop") {
+    return value;
+  }
+  return null;
+}
+
+function htmlPreviewViewportLabel(mode: HtmlPreviewViewportMode): string {
+  if (mode === "fit") {
+    return "Fit";
+  }
+  return `${mode} ${htmlPreviewViewportWidths[mode]}px`;
 }
 
 function mountRichEditor(markdown: string): void {
@@ -1975,6 +2067,8 @@ declare global {
         readonly sandbox: string | null;
         readonly scriptsEnabled: boolean;
         readonly statusText: string;
+        readonly viewportMode: HtmlPreviewViewportMode;
+        readonly viewportWidth: string | null;
         readonly warnings: readonly string[];
       };
       getPropertiesState: () => {
@@ -1997,6 +2091,7 @@ declare global {
       loadImportedCopyForTest: (fileName: string, content: string) => void;
       loadWritableMarkdownFileForTest: (fileName: string, content: string) => void;
       memorySave: (source: "button" | "keyboard shortcut") => void;
+      setHtmlPreviewViewportMode: (mode: HtmlPreviewViewportMode) => void;
       insertParagraphAfterCurrentRichBlock: () => void;
       openSlashMenuForTest: (query: string) => void;
       runRichCommand: (commandId: RichCommandId, options?: ApplyRichMarkdownCommandOptions) => void;

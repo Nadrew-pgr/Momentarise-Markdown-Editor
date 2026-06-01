@@ -704,6 +704,9 @@ Support `.html` files as source + sandboxed preview.
 - Scripts disabled by default.
 - Script fixture proves scripts do not run.
 - UI marks HTML as artifact/preview.
+- Preview layout contains wide/non-responsive HTML inside the sandboxed iframe without forcing app-level horizontal scroll.
+- Preview uses real iframe viewport sizing for responsive checks; do not zoom artifact content to fake responsiveness.
+- Visual verification includes a narrow-viewport screenshot for HTML preview frame behavior.
 
 ### Execution model
 
@@ -856,11 +859,13 @@ The target level is at least Obsidian default Live Preview behavior, with real M
 - Nested bullet lists, ordered lists, and todos.
 - Enter, Backspace, paste, selection, undo/redo around headings, lists, todos, quotes, code blocks, callouts, opaque blocks, and inserted media.
 - Live preview refresh behavior for Markdown constructs typed in rich mode.
+- Obsidian-like live preview behavior for raw inline/block HTML inside Markdown, where policy allows rendering, while preserving raw HTML in the `.md` source.
 - Slash menu placement, empty states, labels, grouping, keyboard navigation, and fuzzy matching.
 - Toolbar visibility, density, contextual behavior, settings/host configuration, and command grouping.
 - Block insertion affordances before/after framed blocks and at document end.
 - Source/Rich/Live Preview naming and mode transitions.
 - Mode switching presentation: replace the current demo-style `Source`/`Rich` segmented text buttons with a more editor-grade control, such as a compact toggle, icon button, status menu, or host-configurable mode picker.
+- Mode controls should be document-kind aware: Markdown documents need source/rich/live-preview editing choices, while HTML artifacts need source/preview choices; the UI should avoid duplicate or confusing buttons when one conceptual preview control can cover both.
 - Folding polish: benchmark against Obsidian/CodeMirror-style left-gutter folding affordances. Fold controls should live in a subtle editor gutter/margin, appear on hover/focus, avoid heavy borders/shadows, and use a minimal collapsed marker such as `...` rather than visible hidden-count text or debug strips.
 - Document identity and persistence status section: the entire permanent document metadata/status section that currently exposes file name, URI, access mode, adapter kind, writability, and persistence details such as `fixture://...`, `disk://...`, `fixture`, `memory only`, `not persisted`, `disk`, or `original file writable` must not remain as normal editor chrome for any opened file type. Move the section into a discreet status affordance, toast, hover/detail menu, inspector, or dev/debug surface while preserving truthful save-state communication.
 - Optional document stats: evaluate a small bottom-right word/character counter that can be shown, hidden, or disabled by host/settings.
