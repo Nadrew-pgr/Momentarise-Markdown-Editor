@@ -26,7 +26,7 @@ Fixtures are intentionally synthetic and sanitized. They must not contain privat
 13. `013-unknown-custom-syntax`: unknown directives and templating.
 14. `014-mixed-real-world`: mixed realistic document with many constructs.
 15. `015-sanitized-vault-sample`: sanitized vault-like notes and backlinks.
-16. `016-policy-sensitive`: safe placeholder document for access-policy behavior.
+16. `016-policy-sensitive`: safe placeholder document plus sanitized `.env` and `.gitignore` files for access-policy behavior.
 17. `017-long-heading-document`: many headings for folding and navigation tests.
 18. `018-nested-lists-todos`: nested lists and task lists.
 

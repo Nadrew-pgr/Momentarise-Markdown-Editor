@@ -5,6 +5,8 @@ import type {
   DocumentSnapshot,
   OpaqueNode,
   PolicyCapability,
+  PolicyDecisionSeverity,
+  PolicySource,
   SourceRange
 } from "@momentarise/md-core";
 import type { MarkdownFormatContract } from "@momentarise/md-format";
@@ -58,6 +60,23 @@ type AssertNever<T extends never> = T;
 
 type _PolicyCapabilityHasNoMissingValues = AssertNever<MissingPolicyCapability>;
 type _PolicyCapabilityHasNoUnexpectedValues = AssertNever<UnexpectedPolicyCapability>;
+
+const allPolicySources = [
+  "framework-default",
+  "app-default",
+  "workspace",
+  "folder",
+  "database",
+  "document",
+  "user",
+  "host",
+  "hard-deny"
+] as const satisfies readonly PolicySource[];
+
+const allPolicySeverities = ["info", "warning", "blocker"] as const satisfies readonly PolicyDecisionSeverity[];
+
+void allPolicySources;
+void allPolicySeverities;
 
 const formatContract: MarkdownFormatContract = {
   packageName: "@momentarise/md-format",

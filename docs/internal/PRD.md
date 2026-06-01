@@ -433,6 +433,10 @@ Hard deny includes `.env`, secrets, tokens, keys, identity documents, banking do
 
 Repo-control files such as `.gitignore` are not hard-denied by default, but they are policy-sensitive. Hosts may allow read while denying write, share, export, AI sending, or indexing depending on workspace rules.
 
+The core policy layer must not dictate UI. It returns structured decisions: allow, warn, or deny; reason; source of the rule; severity; whether the decision is overridable; and whether user confirmation is required. The host application chooses presentation: disabled action, warning toast, blocking dialog, confirmation flow, preferences page, workspace setting, admin rule, or another product-specific pattern.
+
+Momentarise's own host should prefer user choice with clear warnings where that is safe, rather than frustrating disabled controls. Non-overridable hard-deny remains available for categories the host considers truly unsafe.
+
 ### AI writing
 
 V0 AI is writing assistance only.

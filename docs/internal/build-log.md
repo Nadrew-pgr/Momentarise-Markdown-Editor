@@ -1765,3 +1765,47 @@
   - No current UI change.
 - Suggested commit message:
   - `docs: convert final issue to backlog`
+
+## MME-0016 — Document Access Policy V0
+
+- Timestamp: 2026-06-01T19:25:35Z
+- Summary: Implemented the configurable Document Access Policy V0 contract and resolver. The conservative default still hard-denies sanitized `.env`/secret-like fixtures, while host apps can define allow/warn/deny rules by capability and path pattern. Policy decisions now carry source, severity, overrideability, user-confirmation, and rule metadata so hosts can choose their own UX without UI code in core.
+- Files changed:
+  - `packages/md-core/src/index.ts`
+  - `packages/md-policy/src/index.ts`
+  - `tests/policy-baseline.test.mjs`
+  - `tests/type-contracts.test.ts`
+  - `fixtures/016-policy-sensitive/.env`
+  - `fixtures/016-policy-sensitive/.gitignore`
+  - `fixtures/016-policy-sensitive/expectations.md`
+  - `fixtures/README.md`
+  - `docs/internal/PRD.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+- Behavior proven:
+  - Default resolver hard-denies sanitized `.env` fixture reads with `source: hard-deny`, `severity: blocker`, `overridable: false`, and a reason.
+  - Ordinary Markdown reads remain allowed.
+  - `.gitignore` fixture reads are allowed, while share/export/index receive warning metadata instead of a blanket hard deny.
+  - Frontmatter/document policy can deny share.
+  - Host policy can allow `.env`-like paths with warning and required user confirmation by replacing hard-deny rules.
+  - Host/workspace policy can block selected actions without importing or assuming any UI.
+  - Audit records preserve denial reason and decision metadata.
+- Test-first evidence:
+  - `tests/policy-baseline.test.mjs` was updated first and failed because `createPolicyResolver` and decision metadata did not exist.
+- Tests/checks run:
+  - `npm test`
+  - `npm run test:policy`
+  - `npm run test:contracts`
+  - `npm run test:architecture`
+  - `npm run test:alignment`
+  - `npm run test:fixtures`
+  - `npm run build`
+  - `git diff --check`
+- Visual impact:
+  - No visible editing or general UI changes. This slice is policy/core-only; future hosts decide whether to show warnings, confirmations, settings, toasts, disabled actions, or blocking dialogs.
+- Reviewer/subagent used and result:
+  - Fallback self-review. No reviewer subagent was invoked for this focused core-policy slice.
+- Suggested commit message:
+  - `feat: implement document access policy v0`
+- Next issue:
+  - `MME-0017 — AI writing BYOK V0`

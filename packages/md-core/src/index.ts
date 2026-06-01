@@ -166,6 +166,19 @@ export type PolicyCapability =
   | "share"
   | "export";
 
+export type PolicySource =
+  | "framework-default"
+  | "app-default"
+  | "workspace"
+  | "folder"
+  | "database"
+  | "document"
+  | "user"
+  | "host"
+  | "hard-deny";
+
+export type PolicyDecisionSeverity = "info" | "warning" | "blocker";
+
 export interface PolicySubject {
   readonly documentPath: DocumentPath | null;
   readonly dialect?: DocumentDialect;
@@ -176,6 +189,11 @@ export interface PolicyDecision {
   readonly capability: PolicyCapability;
   readonly allowed: boolean;
   readonly reason?: string;
+  readonly source?: PolicySource;
+  readonly severity?: PolicyDecisionSeverity;
+  readonly overridable?: boolean;
+  readonly requiresUserConfirmation?: boolean;
+  readonly ruleId?: string;
 }
 
 export interface DocumentAccessPolicy {

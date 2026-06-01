@@ -730,11 +730,16 @@ MME-0016 is not about editing `.env` files as product documents. `.env` is a neg
 
 `.gitignore` is a different class of file. It is usually not secret by itself, but it can affect repository behavior and should be represented as a policy-sensitive repo-control fixture. The baseline should prove it can be treated differently from `.env`: for example, read may be allowed while write/share/export can be denied by policy depending on host rules.
 
+The core must not decide whether the user sees a disabled button, toast, modal, confirmation prompt, or settings override. It must return enough structured data for the host to choose: decision source, severity, reason, overridable status, and confirmation requirement.
+
 ### Acceptance criteria
 
 - Effective policy resolves from defaults, document properties, hard deny.
 - `.env` fixture is hard-denied for sensitive actions.
 - `.gitignore` fixture is covered as a repo-control/policy-sensitive file, not as a blanket hard-deny.
+- Host/app policy can configure rules by capability and path pattern.
+- Policy rules can allow, warn, or deny.
+- Policy decisions expose source, severity, overrideability, and user-confirmation metadata without importing UI code.
 - Read allowed but share denied case works.
 - Denied action returns reason and audit record.
 
