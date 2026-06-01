@@ -361,7 +361,6 @@ Advanced rich editing backlog:
 
 - Markdown input rules: typing `#`, `##`, `-`, `1.`, `- [ ]`, `>`, and code-fence patterns should transform the current rich block live when safe;
 - live rich editing must not require switching to Source and back to see common Markdown constructs such as headings, todos, lists, quotes, and code fences;
-- raw inline/block HTML inside Markdown should behave like an Obsidian-style live preview feature when policy allows rendering, while the raw HTML remains preserved in the `.md` source;
 - todos should render as checkbox rows and toggle checked state without losing Markdown task syntax;
 - code blocks should expose language/meta controls for the hidden fence info string;
 - users must be able to insert a paragraph after the last code block, callout, opaque/raw block, or other framed block;
@@ -391,8 +390,6 @@ Toggle blocks are content and emit `<details><summary>...</summary>...</details>
 ### HTML File Reader
 
 V0 supports `.html` files with source mode and sandboxed preview. Scripts are disabled by default. External browser opening can be provided.
-
-The preview surface must contain non-responsive or wide HTML artifacts inside the sandboxed iframe without creating page-level horizontal scroll or hiding the preview behind unrelated editor chrome. Responsive checks should use real iframe viewport widths, similar to browser device tooling; do not zoom artifact content to fake responsiveness.
 
 HTML artifact templates are future work.
 
