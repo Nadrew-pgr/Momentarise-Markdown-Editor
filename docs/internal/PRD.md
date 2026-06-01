@@ -91,6 +91,7 @@ V0 must not build:
 - full mobile rich editor;
 - desktop standalone app;
 - advanced HTML artifact templates.
+- non-Markdown office/PDF editing such as `.docx`, `.pptx`, Google Docs, PDF, or similar source-format round-tripping.
 
 ## Non-negotiable decisions
 
@@ -367,11 +368,14 @@ Advanced rich editing backlog:
 - keyboard behavior around block boundaries, backspace, Enter, paste, and selection must feel editor-grade;
 - toolbar and slash menu presentation must be reviewed as editor UX, including whether controls are always visible, contextual, compact, configurable by host settings, or exposed through preferences;
 - rich/source/live-preview naming and labels must be reviewed for user clarity and host integration;
+- mode controls must be document-kind aware so Markdown and HTML do not expose confusing inactive modes;
+- file opening must use an editor-grade Open flow rather than separate demo buttons for every supported extension;
+- HTML preview technical status chrome and nested scroll behavior must be polished for daily reading, with sandbox/save truth moved into a discreet status pattern rather than permanent preview chrome;
 - folding affordances should benchmark against Obsidian/CodeMirror-style editor gutters: subtle left-margin controls, hover/focus reveal, minimal collapsed markers, and no persistent debug strip in normal editing UI;
 - optional word/character document stats may be exposed as a small hideable editor status control when useful;
 - the UI may take inspiration from Notion, Obsidian, BlockNote, and similar editors, but the persisted Markdown contract remains stricter than those products.
 
-Final editor UI/UX/DX hardening is required after the core feature set is in place. That pass must revisit indentation, nested lists/todos, Tab/Shift+Tab, Enter/Backspace/paste/selection, live preview refresh, block insertion handles, folding affordances, toolbar/slash density, mode-switch presentation, optional document stats, host settings, and developer integration ergonomics as one coherent editor-quality review.
+Final editor UI/UX/DX hardening is required after the core feature set is in place. That pass must revisit indentation, nested lists/todos, Tab/Shift+Tab, Enter/Backspace/paste/selection, live preview refresh, block insertion handles, folding affordances, toolbar/slash density, open-file flow, mode-switch presentation, HTML preview reading chrome/scroll behavior, optional document stats, host settings, and developer integration ergonomics as one coherent editor-quality review.
 
 ### Slash menu and toolbar
 
@@ -392,6 +396,21 @@ Toggle blocks are content and emit `<details><summary>...</summary>...</details>
 V0 supports `.html` files with source mode and sandboxed preview. Scripts are disabled by default. External browser opening can be provided.
 
 HTML artifact templates are future work.
+
+The normal HTML preview surface should read like a document, not a debug panel. Technical sandbox/script/persistence details must remain truthful and discoverable, but they should move into an editor-grade status affordance during the final UI/UX pass.
+
+### Future document formats
+
+Non-Markdown formats such as `.docx`, `.pptx`, Google Docs, PDF, and similar documents are future adapter/converter work. They are not V0 core behavior.
+
+Future support must classify each format as one of:
+
+- preview-only;
+- import-to-Markdown;
+- export-from-Markdown;
+- editable round-trip with a real format-preserving adapter.
+
+Any conversion that can lose layout, comments, tracked changes, speaker notes, formulas, embedded media, or other source-format semantics must expose that lossiness before overwrite/export. Never claim an imported/converted document was saved back to the original source format unless the adapter actually did that.
 
 ### Document Access Policy
 

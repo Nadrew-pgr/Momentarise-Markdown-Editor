@@ -1728,3 +1728,21 @@
   - Not used for this focused human-reported correction.
 - Suggested commit message:
   - `fix: restore demo document after refresh`
+
+## Docs follow-up — Final UI chrome and future document formats
+
+- Timestamp: 2026-06-01T18:14:08Z
+- Summary: Captured human UI/product feedback for the final editor pass and future adapter backlog. The current HTML preview remains accepted as functional, but the final UI must remove demo/debug chrome from normal reading surfaces and unify redundant controls.
+- Files changed:
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/PRD.md`
+- Decisions recorded:
+  - HTML preview should not keep a permanent technical status strip/banner in the normal reading surface.
+  - HTML preview scrolling must avoid confusing nested app/document scroll behavior and large blank gutters.
+  - `Open .md` and `Open .html` should become one editor-grade Open action with type detection or a secondary menu/filter.
+  - Rich/Preview mode controls should be document-kind aware instead of showing confusing inactive modes.
+  - Future `.docx`, `.pptx`, Google Docs, PDF, and similar support belongs to adapter/converter backlog, not V0 core behavior.
+- Visual impact:
+  - No current UI change. These are MME-0020/MME-0021 planning updates for future slices.
+- Suggested commit message:
+  - `docs: track final UI chrome and document format backlog`

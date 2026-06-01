@@ -862,6 +862,10 @@ The target level is at least Obsidian default Live Preview behavior, with real M
 - Block insertion affordances before/after framed blocks and at document end.
 - Source/Rich/Live Preview naming and mode transitions.
 - Mode switching presentation: replace the current demo-style `Source`/`Rich` segmented text buttons with a more editor-grade control, such as a compact toggle, icon button, status menu, or host-configurable mode picker.
+- Mode controls must be document-kind aware. Markdown should expose the relevant Source/Rich/Live Preview choices, while HTML artifacts should expose Source/Preview without showing a disabled or confusing Rich mode. Prefer one editor-grade mode control over separate demo tabs.
+- Open controls must be unified before the demo is considered editor-grade. Replace separate `Open .md` and `Open .html` primary buttons with a single Open action that detects supported file types, with secondary menu/filter behavior only if needed.
+- HTML preview polish: remove the permanent technical HTML status strip/banner from the normal preview surface. Sandbox/script/persistence truth must remain available through a discreet status affordance, inspector, hover/detail menu, toast, or debug surface.
+- HTML preview scrolling must feel like normal document reading. Avoid nested/conflicting scroll regions and avoid large blank preview gutters; the preview should use the available app viewport naturally.
 - Folding polish: benchmark against Obsidian/CodeMirror-style left-gutter folding affordances. Fold controls should live in a subtle editor gutter/margin, appear on hover/focus, avoid heavy borders/shadows, and use a minimal collapsed marker such as `...` rather than visible hidden-count text or debug strips.
 - Document identity and persistence status section: the entire permanent document metadata/status section that currently exposes file name, URI, access mode, adapter kind, writability, and persistence details such as `fixture://...`, `disk://...`, `fixture`, `memory only`, `not persisted`, `disk`, or `original file writable` must not remain as normal editor chrome for any opened file type. Move the section into a discreet status affordance, toast, hover/detail menu, inspector, or dev/debug surface while preserving truthful save-state communication.
 - Optional document stats: evaluate a small bottom-right word/character counter that can be shown, hidden, or disabled by host/settings.
@@ -877,6 +881,9 @@ The target level is at least Obsidian default Live Preview behavior, with real M
 - Slash menu and toolbar presentation are reviewed as final editor UX, not just functional command surfaces.
 - Folding affordances are reviewed against Obsidian default behavior and do not expose implementation/debug state in normal editing UI.
 - Source/Rich/Live Preview switching is redesigned or explicitly accepted with visual evidence.
+- Open-file controls are unified and verified for Markdown and HTML artifacts.
+- HTML preview technical status chrome is removed from the normal reading surface while save/sandbox truth remains discoverable.
+- HTML preview scroll behavior is reviewed and no longer creates confusing nested app/document scroll conflicts.
 - File identity and persistence details are visible only through an editor-grade status pattern, not a persistent technical metadata/status section, while save truthfulness remains clear.
 - Word/character count behavior is decided and either implemented or documented as host-configurable future work.
 - Host-configurable editor UX options are documented or implemented where needed.
@@ -894,3 +901,35 @@ The target level is at least Obsidian default Live Preview behavior, with real M
 ### Reviewer
 
 UX Reviewer, DX Reviewer, and Test Reviewer.
+
+## MME-0021 — Future document format adapters backlog
+
+### Goal
+
+Track post-V0 support for non-Markdown document formats without weakening the `.md` source-of-truth contract.
+
+### Scope
+
+- Read/import `.docx`, `.pptx`, Google Docs, PDF, and similar document formats when a host adapter or converter supports them.
+- Define which formats are read-only preview, import-to-Markdown, export-from-Markdown, or true round-trip editable formats.
+- Keep conversion provenance and lossiness visible to users.
+- Avoid pretending a converted document can be safely overwritten unless the adapter can actually preserve the source format.
+
+### Acceptance criteria
+
+- PRD documents non-Markdown document formats as future adapter/converter work, not V0 core behavior.
+- Each supported future format declares whether it is preview-only, import/export, or editable round-trip.
+- Save truthfulness covers converted/imported documents.
+- Any conversion that may lose layout, comments, tracked changes, speaker notes, formulas, or embedded media must warn before overwrite/export.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Architecture Reviewer, UX Reviewer, and Security/Policy Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this affects user trust around document conversion and persistence.
+
+### Reviewer
+
+Architecture Reviewer, UX Reviewer, and Security/Policy Reviewer.
