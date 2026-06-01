@@ -1670,6 +1670,9 @@
   - `npm run test:html-preview`
   - `npm run test:demo-html-preview`
   - `npm run visual:mme-0015`
+  - `npm run visual:mme-0013.5`
+  - `npm test`
+  - `git diff --check`
   - `npm test`
   - `git diff --check`
 - Result:
@@ -1683,3 +1686,45 @@
   - Not used for this follow-up; direct fix from human visual failure report.
 - Suggested commit message:
   - `fix: improve HTML preview sandbox compatibility`
+
+## MME-0015/MME-0013.5 follow-up — Restore last demo document and todo Enter
+
+- Timestamp: 2026-06-01T17:46:12Z
+- Summary: Reverted the rejected responsive-frame debug UI direction and kept the HTML preview as the simple daily-use `Fit` surface. Added best-effort browser-local restoration for the last opened demo document after refresh, and fixed rich-mode `Enter` at the end of a todo so it creates the next unchecked todo item.
+- Files changed:
+  - `apps/md-demo/src/main.ts`
+  - `packages/md-rich-prosemirror/src/index.ts`
+  - `tests/demo-source-baseline.mjs`
+  - `tests/rich-input-rules.test.mjs`
+  - `tests/demo-html-preview-baseline.test.mjs`
+  - `scripts/visual-check-mme0015.mjs`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/visual-checks/MME-0015/README.md`
+  - `docs/internal/visual-checks/MME-0015/html-restored-after-reload.png`
+- Behavior proven:
+  - The rejected Mobile/Tablet/Desktop preview controls are removed by reverting `fix: use responsive HTML preview frame`.
+  - The demo stores the last imported/opened non-fixture document in browser-local storage and restores it after refresh.
+  - Restored HTML artifacts remain honest download-required/imported-copy documents; no original disk write handle is claimed after refresh.
+  - Pressing `Enter` at the end of a rich todo creates a second unchecked todo item.
+- Test-first evidence:
+  - Added `tests/rich-input-rules.test.mjs` assertion first; it failed because `Enter` left only the original todo.
+  - Added `tests/demo-source-baseline.mjs` storage/restore assertions first; it failed because the demo had no restore storage key or restore function.
+  - Added `tests/demo-html-preview-baseline.test.mjs` reload artifact assertion before extending the visual script.
+- Tests/checks run:
+  - `npm run test:rich-input-rules`
+  - `npm run test:demo-baseline`
+  - `npm run test:demo-html-preview`
+  - `npm run visual:mme-0015`
+- Visual artifacts:
+  - `docs/internal/visual-checks/MME-0015/html-restored-after-reload.png`
+- Visual impact:
+  - HTML Preview: no new device/debug controls. The preview returns to the normal fit-to-available-width daily-use surface.
+  - Demo refresh: after opening an imported `.html` or `.md` copy, browser refresh restores the last demo document from local browser storage so the user does not need to re-open it each time.
+  - Rich editing: pressing `Enter` at the end of a todo row creates another unchecked todo row.
+- Limitations:
+  - Browser-local restore is a demo convenience and stores a copy of the last document content. It does not restore a real writable File System Access handle after refresh.
+  - Original disk write truthfulness remains owned by the Save Engine and adapter; restored documents are treated as imported/download-required copies.
+- Reviewer/subagent used and result:
+  - Not used for this focused human-reported correction.
+- Suggested commit message:
+  - `fix: restore demo document after refresh`

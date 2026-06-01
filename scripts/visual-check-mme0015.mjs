@@ -318,6 +318,26 @@ async function main() {
     }
     await screenshot(cdp, "html-sandbox-preview.png");
 
+    const reloadEvent = cdp.once("Page.loadEventFired");
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await reloadEvent;
+    await waitForExpression(
+      cdp,
+      `Boolean(window.__MME_DEMO_VISUAL_CHECK__?.getHtmlPreviewState)`,
+      "MME demo visual hook after reload"
+    );
+    await waitForSnapshot(
+      cdp,
+      (snapshot) =>
+        snapshot.activeDocument.kind === "html-artifact" &&
+        snapshot.activeDocument.fileName === "unsafe-visual.html" &&
+        snapshot.editorMode === "preview" &&
+        snapshot.markdown.includes("Sandboxed HTML artifact") &&
+        snapshot.previewState.scriptsEnabled === false,
+      "HTML artifact restored after browser reload"
+    );
+    await screenshot(cdp, "html-restored-after-reload.png");
+
     cdp.close();
     console.log(`MME-0015 visual artifacts saved to ${visualDir}`);
   } catch (error) {

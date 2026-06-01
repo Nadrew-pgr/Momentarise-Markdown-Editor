@@ -54,7 +54,7 @@ if (!existsSync(visualReadme)) {
 }
 
 const visualReadmeText = readFileSync(visualReadme, "utf8");
-for (const artifact of ["html-source-opened.png", "html-sandbox-preview.png"]) {
+for (const artifact of ["html-source-opened.png", "html-sandbox-preview.png", "html-restored-after-reload.png"]) {
   if (!visualReadmeText.includes(artifact)) {
     throw new Error(`MME-0015 visual README missing artifact: ${artifact}`);
   }
@@ -67,6 +67,8 @@ for (const snippet of [
   "html-file-input",
   "html-source-opened.png",
   "html-sandbox-preview.png",
+  "html-restored-after-reload.png",
+  "Page.reload",
   "sandboxAllowsScripts"
 ]) {
   if (!visualScript.includes(snippet)) {

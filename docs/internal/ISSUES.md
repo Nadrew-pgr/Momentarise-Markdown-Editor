@@ -704,6 +704,7 @@ Support `.html` files as source + sandboxed preview.
 - Scripts disabled by default.
 - Script fixture proves scripts do not run.
 - UI marks HTML as artifact/preview.
+- Demo restores the last imported HTML artifact after browser refresh as a download-required copy, without claiming the original disk file is writable.
 
 ### Execution model
 

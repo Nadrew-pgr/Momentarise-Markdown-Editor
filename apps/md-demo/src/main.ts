@@ -332,10 +332,19 @@ interface ActiveDemoDocument {
   readonly simulateExternalChange?: (content: string) => void;
 }
 
+interface RestorableDemoDocument {
+  readonly content: string;
+  readonly editorMode: DemoEditorMode;
+  readonly fileName: string;
+  readonly kind: DemoDocumentKind;
+  readonly version: 1;
+}
+
 const fixtureSaveTarget = createMemorySaveTarget({
   initialContent: fixtureMarkdown,
   targetLabel: "fixture://source-mode-fixture.md"
 });
+const lastDemoDocumentStorageKey = "momentarise-md-demo:last-document:v1";
 let saveTarget: SaveTarget = fixtureSaveTarget;
 let saveEngine: SaveEngine = createSaveEngine({
   autosaveDelayMs: 1000,
@@ -386,6 +395,7 @@ const editor = new CodeMirrorEditorView({
       CodeMirrorEditorView.updateListener.of((update) => {
         if (update.docChanged && editorMode === "source") {
           saveEngine.updateContent(getMarkdown());
+          persistRestorableDocument();
           renderSaveState();
           scheduleAutosave();
           updateRoundTripStatus();
@@ -398,7 +408,9 @@ const editor = new CodeMirrorEditorView({
   })
 });
 
-renderEditorMode();
+if (!restoreLastDemoDocument()) {
+  renderEditorMode();
+}
 
 sourceModeButton.addEventListener("click", () => {
   switchEditorMode("source");
@@ -812,6 +824,7 @@ function loadHtmlArtifact(fileName: string, content: string, sourceLabel: string
   renderEditorMode();
   renderSaveState();
   updateRoundTripStatus();
+  persistRestorableDocument();
 }
 
 function loadOpenedMarkdownFile(
@@ -863,6 +876,7 @@ function loadOpenedMarkdownFile(
   renderEditorMode();
   renderSaveState();
   updateRoundTripStatus();
+  persistRestorableDocument();
 }
 
 function destroyRichEditor(): void {
@@ -925,6 +939,7 @@ function switchEditorMode(mode: DemoEditorMode): void {
   renderEditorMode();
   renderSaveState();
   updateRoundTripStatus();
+  persistRestorableDocument();
 }
 
 function renderEditorMode(): void {
@@ -1021,12 +1036,98 @@ function syncRichMarkdownToSource(source: "rich edit" | "mode switch"): void {
   const markdown = serializeRichMarkdownState(richState).content;
   replaceEditorDocument(markdown);
   saveEngine.updateContent(markdown);
+  persistRestorableDocument();
   renderSaveState();
   scheduleAutosave();
   updateRoundTripStatus();
   if (source === "mode switch") {
     logEvent("Serialized rich mode back to Markdown source.");
   }
+}
+
+function persistRestorableDocument(): void {
+  if (activeDocument.mode === "fixture") {
+    return;
+  }
+  const snapshot: RestorableDemoDocument = {
+    content: getMarkdown(),
+    editorMode,
+    fileName: activeDocument.fileName,
+    kind: activeDocument.kind,
+    version: 1
+  };
+  try {
+    window.localStorage.setItem(lastDemoDocumentStorageKey, JSON.stringify(snapshot));
+  } catch {
+    // Best-effort demo convenience; Save Engine remains the source of persistence truth.
+  }
+}
+
+function restoreLastDemoDocument(): boolean {
+  let snapshot: RestorableDemoDocument | null = null;
+  try {
+    const raw = window.localStorage.getItem(lastDemoDocumentStorageKey);
+    snapshot = raw ? parseRestorableDemoDocument(raw) : null;
+  } catch {
+    return false;
+  }
+  if (!snapshot) {
+    return false;
+  }
+
+  if (snapshot.kind === "html-artifact") {
+    loadHtmlArtifact(snapshot.fileName, snapshot.content, "browser reload restore");
+    if (snapshot.editorMode === "preview") {
+      switchEditorMode("preview");
+    }
+    return true;
+  }
+
+  loadOpenedMarkdownFile(
+    createImportedCopyDocument({
+      content: snapshot.content,
+      fileName: snapshot.fileName
+    }),
+    {
+      sourceLabel: "browser reload restore"
+    }
+  );
+  if (snapshot.editorMode === "rich") {
+    switchEditorMode("rich");
+  }
+  return true;
+}
+
+function parseRestorableDemoDocument(raw: string): RestorableDemoDocument | null {
+  const parsed = JSON.parse(raw) as Partial<RestorableDemoDocument>;
+  if (
+    parsed.version !== 1 ||
+    typeof parsed.content !== "string" ||
+    typeof parsed.fileName !== "string" ||
+    (parsed.kind !== "markdown" && parsed.kind !== "html-artifact") ||
+    (parsed.editorMode !== "source" && parsed.editorMode !== "rich" && parsed.editorMode !== "preview")
+  ) {
+    return null;
+  }
+  if (parsed.kind === "html-artifact" && parsed.editorMode === "rich") {
+    return {
+      content: parsed.content,
+      editorMode: "source",
+      fileName: parsed.fileName,
+      kind: parsed.kind,
+      version: 1
+    };
+  }
+  if (parsed.kind === "markdown" && parsed.editorMode === "preview") {
+    return {
+      content: parsed.content,
+      editorMode: "source",
+      fileName: parsed.fileName,
+      kind: parsed.kind,
+      version: 1
+    };
+  }
+  return parsed as RestorableDemoDocument;
 }
 
 function currentRichStateFromEditor(): RichMarkdownState | null {

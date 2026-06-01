@@ -23,7 +23,7 @@ import {
 } from "prosemirror-commands";
 import { history, redo, undo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
-import { Mark, Node as ProseMirrorNode, Schema, type MarkSpec, type NodeSpec } from "prosemirror-model";
+import { Mark, Node as ProseMirrorNode, Schema, type MarkSpec, type NodeSpec, type ResolvedPos } from "prosemirror-model";
 import { EditorState, NodeSelection, Plugin, PluginKey, TextSelection, type Transaction } from "prosemirror-state";
 
 export interface MomentariseRichProseMirrorContract {
@@ -267,7 +267,7 @@ export function createMomentariseRichPlugins(): Plugin[] {
       "Mod-z": undo,
       "Mod-y": redo,
       "Mod-Shift-z": redo,
-      Enter: chainCommands(newlineInCode, createParagraphNear, liftEmptyBlock, splitBlock)
+      Enter: chainCommands(newlineInCode, splitTodoItemAtEnd, createParagraphNear, liftEmptyBlock, splitBlock)
     }),
     history(),
     keymap(baseKeymap)
@@ -790,6 +790,15 @@ function createRichInputRulesPlugin(): Plugin {
   });
 }
 
+function splitTodoItemAtEnd(state: EditorState, dispatch?: (transaction: Transaction) => void): boolean {
+  const transaction = createTodoItemEnterTransaction(state);
+  if (!transaction) {
+    return false;
+  }
+  dispatch?.(transaction);
+  return true;
+}
+
 function createTodoTogglePlugin(): Plugin {
   return new Plugin({
     props: {
@@ -821,6 +830,41 @@ function createTodoTogglePlugin(): Plugin {
       }
     }
   });
+}
+
+function createTodoItemEnterTransaction(state: EditorState): Transaction | null {
+  if (!(state.selection instanceof TextSelection) || !state.selection.empty) {
+    return null;
+  }
+  const { $from } = state.selection;
+  if ($from.parent.type !== state.schema.nodes.paragraph || $from.parentOffset !== $from.parent.content.size) {
+    return null;
+  }
+  if ($from.parent.textContent.length === 0) {
+    return null;
+  }
+
+  const todoItemDepth = findAncestorDepth($from, "todo_item");
+  if (todoItemDepth === null) {
+    return null;
+  }
+
+  const insertionPosition = $from.after(todoItemDepth);
+  const nextTodoItem = state.schema.nodes.todo_item!.create({ checked: false }, [
+    state.schema.nodes.paragraph!.create()
+  ]);
+  const transaction = state.tr.insert(insertionPosition, nextTodoItem).setMeta(richInputRulesPluginKey, true);
+  const selectionPosition = Math.min(insertionPosition + 2, transaction.doc.content.size);
+  return transaction.setSelection(TextSelection.near(transaction.doc.resolve(selectionPosition)));
+}
+
+function findAncestorDepth($from: ResolvedPos, nodeTypeName: string): number | null {
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    if ($from.node(depth).type.name === nodeTypeName) {
+      return depth;
+    }
+  }
+  return null;
 }
 
 function markdownInputRuleForText(text: string): RichMarkdownInputRule | null {

@@ -40,6 +40,10 @@ assertIncludes(
 );
 
 const uncheckedTodo = typeIntoRichState(rich.createRichMarkdownState(""), "- [ ] Ship it");
+const continuedTodo = pressEnterInRichState(uncheckedTodo);
+assertIncludes(rich.serializeRichMarkdownState(continuedTodo).content, "- [ ] Ship it\n- [ ]", "todo Enter continuation");
+assertNodePath(continuedTodo, ["todo_item", "paragraph"], "todo Enter first item node shape");
+assertRootChildTypes(continuedTodo, ["todo_item", "todo_item"], "todo Enter creates adjacent item");
 const checkedTodo = rich.toggleCurrentTodoItem(uncheckedTodo);
 assertIncludes(rich.serializeRichMarkdownState(checkedTodo).content, "- [x] Ship it", "todo toggle checked");
 const uncheckedAgain = rich.toggleCurrentTodoItem(checkedTodo);
@@ -171,6 +175,16 @@ function assertNodePath(state, expectedPath, label) {
     if (!node || node.type.name !== expectedType) {
       throw new Error(`${label} expected path ${expectedPath.join(" > ")}.\n${JSON.stringify(state.editorState.doc.toJSON(), null, 2)}`);
     }
+  }
+}
+
+function assertRootChildTypes(state, expectedTypes, label) {
+  const actualTypes = [];
+  state.editorState.doc.forEach((child) => {
+    actualTypes.push(child.type.name);
+  });
+  if (actualTypes.join(",") !== expectedTypes.join(",")) {
+    throw new Error(`${label} expected root children ${expectedTypes.join(",")}.\n${JSON.stringify(state.editorState.doc.toJSON(), null, 2)}`);
   }
 }
 
