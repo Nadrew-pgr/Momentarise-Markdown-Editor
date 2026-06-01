@@ -41,8 +41,8 @@ if (descriptor.srcdoc !== hostileHtml) {
 if (descriptor.scriptsEnabled !== false) {
   throw new Error("Scripts must be disabled by default.");
 }
-if (descriptor.sandbox !== "") {
-  throw new Error(`Default sandbox must not grant capabilities. Actual sandbox: ${descriptor.sandbox}`);
+if (descriptor.sandbox !== "allow-same-origin") {
+  throw new Error(`Default sandbox must grant only allow-same-origin for preview compatibility. Actual sandbox: ${descriptor.sandbox}`);
 }
 if (sandboxAllowsScripts(descriptor.sandbox)) {
   throw new Error("Default sandbox must not allow scripts.");

@@ -51,7 +51,7 @@ export const htmlPreviewPackage: HtmlPreviewContract = {
 export function createSandboxedHtmlPreview(
   options: CreateSandboxedHtmlPreviewOptions
 ): SandboxedHtmlPreviewDescriptor {
-  const sandboxTokens = normalizeSandboxTokens(options.sandboxTokens ?? []);
+  const sandboxTokens = normalizeSandboxTokens(options.sandboxTokens ?? ["allow-same-origin"]);
   return {
     fileName: options.fileName,
     kind: "html-artifact-preview",
@@ -113,8 +113,8 @@ function htmlPreviewWarnings(
   if (sandboxTokens.includes("allow-same-origin")) {
     warnings.push({
       code: "html-preview-sandboxed",
-      message: "The sandbox grants allow-same-origin but still blocks scripts.",
-      severity: "warning"
+      message: "The sandbox grants allow-same-origin for preview compatibility but still blocks scripts.",
+      severity: "info"
     });
   }
 

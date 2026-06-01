@@ -1656,3 +1656,30 @@
   - Not used for this follow-up; this directly addresses human feedback and strengthens the existing visual gate.
 - Suggested commit message:
   - `test: verify HTML preview file input`
+
+## MME-0015 follow-up — HTML sandbox iframe compatibility
+
+- Timestamp: 2026-06-01T16:47:52Z
+- Summary: Investigated human feedback that a real HTML file opened correctly in source mode but showed a blank Preview pane in the Codex in-app browser. The file was present in iframe `srcdoc`, and the source contained substantial static body content. The likely issue was the strict opaque-origin iframe sandbox (`sandbox=""`) not rendering/compositing reliably in the in-app browser. Changed the default HTML preview sandbox to `allow-same-origin` while still filtering `allow-scripts` and reporting `scriptsEnabled: false`.
+- Files changed:
+  - `packages/md-preview-html/src/index.ts`
+  - `apps/md-demo/src/main.ts`
+  - `tests/html-preview.test.mjs`
+  - `docs/internal/visual-checks/MME-0015/html-sandbox-preview.png`
+- Tests/checks run:
+  - `npm run test:html-preview`
+  - `npm run test:demo-html-preview`
+  - `npm run visual:mme-0015`
+  - `npm test`
+  - `git diff --check`
+- Result:
+  - Preview remains sandboxed.
+  - Scripts remain disabled by default.
+  - Default sandbox is now `allow-same-origin`, not `allow-scripts`.
+  - Dev server was restarted on the same port `5174` so the workspace package change is active in the human-facing browser.
+- Visual impact:
+  - No intended UI chrome change. The HTML preview iframe should now render more reliably in embedded browser environments while preserving the visible `sandboxed · scripts disabled` labeling.
+- Reviewer/subagent used and result:
+  - Not used for this follow-up; direct fix from human visual failure report.
+- Suggested commit message:
+  - `fix: improve HTML preview sandbox compatibility`

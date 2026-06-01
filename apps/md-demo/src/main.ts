@@ -164,7 +164,7 @@ app.innerHTML = `
             class="html-preview-frame"
             data-testid="html-preview-frame"
             referrerpolicy="no-referrer"
-            sandbox=""
+            sandbox="allow-same-origin"
             title="Sandboxed HTML preview"
           ></iframe>
         </div>
@@ -969,7 +969,7 @@ function renderHtmlPreview(): void {
     html: editor.state.doc.toString()
   });
   htmlPreviewFrame.setAttribute("sandbox", htmlPreviewDescriptor.sandbox);
-  htmlPreviewFrame.setAttribute("srcdoc", htmlPreviewDescriptor.srcdoc);
+  htmlPreviewFrame.srcdoc = htmlPreviewDescriptor.srcdoc;
   htmlPreviewBanner.textContent = `${activeDocument.fileName} · HTML artifact preview · sandboxed · scripts disabled`;
   htmlPreviewStatusElement.textContent = htmlPreviewStatusLabel(htmlPreviewDescriptor);
 }
