@@ -36,6 +36,18 @@ import {
   type SandboxedHtmlPreviewDescriptor
 } from "@momentarise/md-preview-html";
 import {
+  acceptAiSuggestion,
+  createAiWritingSession,
+  createMockAiProvider,
+  rejectAiSuggestion,
+  requestAiSuggestion,
+  type AiWritingAction,
+  type AiWritingSession,
+  type AiWritingSuggestion,
+  type MockAiProvider
+} from "@momentarise/md-ai";
+import { createDefaultPolicyResolver } from "@momentarise/md-policy";
+import {
   canInsertParagraphAfterCurrentBlock,
   createRichMarkdownState,
   filterRichMarkdownCommands,
@@ -194,6 +206,45 @@ app.innerHTML = `
             Properties hidden. Raw YAML remains visible in source mode.
           </p>
         </section>
+        <section class="status-block ai-writing-panel" data-testid="ai-writing-panel">
+          <p class="label">AI writing</p>
+          <div class="ai-writing-controls">
+            <label>
+              BYOK session
+              <input
+                type="password"
+                data-testid="ai-byok-key-input"
+                autocomplete="off"
+                placeholder="Session key, memory only"
+                spellcheck="false"
+              />
+            </label>
+            <button class="button secondary" type="button" data-testid="ai-start-session-button">Start</button>
+            <label>
+              Action
+              <select data-testid="ai-action-select">
+                <option value="improve">Improve</option>
+                <option value="rewrite">Rewrite</option>
+                <option value="complete">Complete</option>
+                <option value="summarize">Summarize</option>
+                <option value="generate-title">Title</option>
+                <option value="insert-block">Insert block</option>
+              </select>
+            </label>
+            <label>
+              Prompt
+              <textarea data-testid="ai-prompt-input" rows="3" placeholder="Optional instruction"></textarea>
+            </label>
+            <button class="button primary" type="button" data-testid="ai-generate-button">Generate</button>
+          </div>
+          <p class="ai-policy-note" data-testid="ai-policy-note">Policy checked before content leaves the editor.</p>
+          <div class="ai-suggestion-preview" data-testid="ai-suggestion-preview" hidden></div>
+          <div class="ai-suggestion-actions">
+            <button class="button secondary" type="button" data-testid="ai-accept-button" disabled>Accept</button>
+            <button class="button secondary" type="button" data-testid="ai-reject-button" disabled>Reject</button>
+          </div>
+          <p class="status-value" data-testid="ai-status">No AI session</p>
+        </section>
         <section class="status-block">
           <p class="label">Save Engine</p>
           <div class="status-lines" data-testid="save-engine-status">
@@ -302,6 +353,16 @@ const propertiesHiddenElement = queryRequired<HTMLElement>('[data-testid="proper
 const propertiesModeVisibleButton = queryRequired<HTMLButtonElement>('[data-testid="properties-mode-visible"]');
 const propertiesModeHiddenButton = queryRequired<HTMLButtonElement>('[data-testid="properties-mode-hidden"]');
 const propertiesModeSourceButton = queryRequired<HTMLButtonElement>('[data-testid="properties-mode-source"]');
+const aiByokKeyInput = queryRequired<HTMLInputElement>('[data-testid="ai-byok-key-input"]');
+const aiStartSessionButton = queryRequired<HTMLButtonElement>('[data-testid="ai-start-session-button"]');
+const aiActionSelect = queryRequired<HTMLSelectElement>('[data-testid="ai-action-select"]');
+const aiPromptInput = queryRequired<HTMLTextAreaElement>('[data-testid="ai-prompt-input"]');
+const aiGenerateButton = queryRequired<HTMLButtonElement>('[data-testid="ai-generate-button"]');
+const aiAcceptButton = queryRequired<HTMLButtonElement>('[data-testid="ai-accept-button"]');
+const aiRejectButton = queryRequired<HTMLButtonElement>('[data-testid="ai-reject-button"]');
+const aiPolicyNoteElement = queryRequired<HTMLElement>('[data-testid="ai-policy-note"]');
+const aiSuggestionPreview = queryRequired<HTMLDivElement>('[data-testid="ai-suggestion-preview"]');
+const aiStatusElement = queryRequired<HTMLElement>('[data-testid="ai-status"]');
 const diagnosticsElement = queryRequired<HTMLOListElement>('[data-testid="roundtrip-diagnostics"]');
 const editorSurfaceStateElement = queryRequired<HTMLElement>('[data-testid="editor-surface-state"]');
 const htmlPreviewStatusBlock = queryRequired<HTMLElement>('[data-testid="html-preview-status-block"]');
@@ -380,6 +441,10 @@ let slashCommandState: SlashCommandState = {
 };
 let slashCommandSelectedIndex = 0;
 const richFoldingPluginKey = new PluginKey<DecorationSet>("momentarise-demo-rich-folding");
+const demoAiPolicyResolver = createDefaultPolicyResolver();
+let demoAiProvider: MockAiProvider = createMockAiProvider();
+let aiSession: AiWritingSession | null = null;
+let pendingAiSuggestion: AiWritingSuggestion | null = null;
 
 const editor = new CodeMirrorEditorView({
   parent: editorHost,
@@ -521,6 +586,22 @@ propertiesModeSourceButton.addEventListener("click", () => {
   setPropertiesDisplayMode("source");
 });
 
+aiStartSessionButton.addEventListener("click", () => {
+  startAiSession();
+});
+
+aiGenerateButton.addEventListener("click", () => {
+  void generateAiSuggestion();
+});
+
+aiAcceptButton.addEventListener("click", () => {
+  acceptPendingAiSuggestion();
+});
+
+aiRejectButton.addEventListener("click", () => {
+  rejectPendingAiSuggestion();
+});
+
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden" && saveEngine.shouldBlockClose()) {
     void flushSave("tab-switch");
@@ -536,6 +617,7 @@ window.addEventListener("beforeunload", (event) => {
 });
 
 logEvent("Loaded built-in fixture in memory-only mode.");
+renderAiWritingState();
 renderSaveState();
 updateRoundTripStatus();
 
@@ -605,6 +687,9 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
       warnings: htmlPreviewDescriptor?.warnings.map((warning) => warning.code) ?? []
     };
   },
+  getAiWritingState() {
+    return getAiWritingState();
+  },
   getSaveState() {
     return saveEngine.getState();
   },
@@ -643,6 +728,23 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   },
   loadHtmlArtifactForTest(fileName: string, content: string) {
     loadHtmlArtifact(fileName, content, "test HTML artifact");
+  },
+  loadAiPolicyDeniedDocumentForTest() {
+    loadOpenedMarkdownFile(createImportedCopyDocument({ content: "# Secret\n\nDo not send.\n", fileName: ".env" }), {
+      sourceLabel: "AI policy denied fixture"
+    });
+  },
+  startMockAiSessionForTest() {
+    aiByokKeyInput.value = "sk-test-visual-redacted";
+    startAiSession();
+  },
+  generateAiSuggestionForTest(action: AiWritingAction = "improve", prompt = "Make it clearer.") {
+    aiActionSelect.value = action;
+    aiPromptInput.value = prompt;
+    return generateAiSuggestion();
+  },
+  acceptAiSuggestionForTest() {
+    acceptPendingAiSuggestion();
   },
   showUnsupportedLocalFileStateForTest() {
     showUnsupportedLocalFileState();
@@ -987,6 +1089,160 @@ function renderHtmlPreview(): void {
   htmlPreviewFrame.srcdoc = htmlPreviewDescriptor.srcdoc;
   htmlPreviewBanner.textContent = `${activeDocument.fileName} · HTML artifact preview · sandboxed · scripts disabled`;
   htmlPreviewStatusElement.textContent = htmlPreviewStatusLabel(htmlPreviewDescriptor);
+}
+
+function startAiSession(): void {
+  const apiKey = aiByokKeyInput.value.trim();
+  if (!apiKey) {
+    aiStatusElement.textContent = "Enter a BYOK session key to start mock AI.";
+    return;
+  }
+
+  demoAiProvider = createMockAiProvider();
+  aiSession = createAiWritingSession({
+    apiKey,
+    policyResolver: demoAiPolicyResolver,
+    provider: demoAiProvider
+  });
+  aiByokKeyInput.value = "";
+  pendingAiSuggestion = null;
+  logEvent("AI writing session started with mock provider. BYOK key was kept memory-only.");
+  renderAiWritingState();
+}
+
+async function generateAiSuggestion(): Promise<void> {
+  if (!aiSession) {
+    aiStatusElement.textContent = "Start a memory-only BYOK session first.";
+    return;
+  }
+  if (activeDocument.kind !== "markdown") {
+    aiStatusElement.textContent = "AI writing is available for Markdown documents only in this demo.";
+    return;
+  }
+  if (richChanged) {
+    syncRichMarkdownToSource("mode switch");
+  }
+
+  const markdown = getMarkdown();
+  const action = aiActionSelect.value as AiWritingAction;
+  const prompt = aiPromptInput.value.trim();
+  aiStatusElement.textContent = "Checking policy...";
+  pendingAiSuggestion = await requestAiSuggestion(aiSession, {
+    action,
+    document: {
+      content: markdown,
+      path: activeDocument.pathLabel
+    },
+    ...(prompt ? { prompt } : {}),
+    ...selectionForAiRequest(markdown)
+  });
+
+  if (pendingAiSuggestion.status === "blocked") {
+    logEvent("AI writing blocked by Document Access Policy before provider call.");
+  } else {
+    logEvent(`AI ${action} suggestion generated by mock provider; review before applying.`);
+  }
+  renderAiWritingState();
+}
+
+function acceptPendingAiSuggestion(): void {
+  if (!pendingAiSuggestion || pendingAiSuggestion.status !== "pending") {
+    return;
+  }
+
+  const accepted = acceptAiSuggestion(getMarkdown(), pendingAiSuggestion);
+  pendingAiSuggestion = accepted.suggestion;
+  applyMarkdownFromAi(accepted.content);
+  logEvent("Accepted AI suggestion and applied it to the Markdown document.");
+  renderAiWritingState();
+}
+
+function rejectPendingAiSuggestion(): void {
+  if (!pendingAiSuggestion || pendingAiSuggestion.status !== "pending") {
+    return;
+  }
+
+  const rejected = rejectAiSuggestion(getMarkdown(), pendingAiSuggestion);
+  pendingAiSuggestion = rejected.suggestion;
+  logEvent("Rejected AI suggestion; Markdown document was unchanged.");
+  renderAiWritingState();
+}
+
+function applyMarkdownFromAi(content: string): void {
+  replaceEditorDocument(content);
+  saveEngine.updateContent(content);
+  persistRestorableDocument();
+  renderSaveState();
+  scheduleAutosave();
+  updateRoundTripStatus();
+  if (editorMode === "rich") {
+    mountRichEditor(content);
+  }
+}
+
+function renderAiWritingState(): void {
+  aiGenerateButton.disabled = !aiSession;
+  aiAcceptButton.disabled = pendingAiSuggestion?.status !== "pending";
+  aiRejectButton.disabled = pendingAiSuggestion?.status !== "pending";
+  aiPolicyNoteElement.textContent = pendingAiSuggestion?.policyDecision
+    ? `Policy ${pendingAiSuggestion.policyDecision.allowed ? "allowed" : "blocked"}: ${pendingAiSuggestion.policyDecision.reason ?? "no reason"}`
+    : "Policy checked before content leaves the editor.";
+
+  if (!pendingAiSuggestion) {
+    aiSuggestionPreview.hidden = true;
+    aiSuggestionPreview.textContent = "";
+    aiStatusElement.textContent = aiSession ? "Mock AI session ready" : "No AI session";
+    return;
+  }
+
+  if (pendingAiSuggestion.status === "blocked") {
+    aiSuggestionPreview.hidden = false;
+    aiSuggestionPreview.textContent = pendingAiSuggestion.policyDecision?.reason ?? "Policy blocked AI writing.";
+    aiStatusElement.textContent = "AI blocked by policy before provider call";
+    return;
+  }
+
+  aiSuggestionPreview.hidden = false;
+  aiSuggestionPreview.textContent = pendingAiSuggestion.replacement;
+  aiStatusElement.textContent = `Suggestion ${pendingAiSuggestion.status}: ${pendingAiSuggestion.title}`;
+}
+
+function selectionForAiRequest(markdown: string): { readonly selection?: { readonly from: number; readonly to: number } } {
+  if (editorMode !== "source") {
+    return {};
+  }
+
+  const selection = editor.state.selection.main;
+  if (selection.empty) {
+    return {};
+  }
+
+  return {
+    selection: {
+      from: Math.max(0, Math.min(selection.from, markdown.length)),
+      to: Math.max(0, Math.min(selection.to, markdown.length))
+    }
+  };
+}
+
+function getAiWritingState(): {
+  readonly hasSession: boolean;
+  readonly keyInputValue: string;
+  readonly pendingStatus: string | null;
+  readonly policyText: string;
+  readonly providerRequestCount: number;
+  readonly statusText: string;
+  readonly suggestionText: string;
+} {
+  return {
+    hasSession: Boolean(aiSession),
+    keyInputValue: aiByokKeyInput.value,
+    pendingStatus: pendingAiSuggestion?.status ?? null,
+    policyText: aiPolicyNoteElement.textContent ?? "",
+    providerRequestCount: demoAiProvider.requests.length,
+    statusText: aiStatusElement.textContent ?? "",
+    suggestionText: aiSuggestionPreview.textContent ?? ""
+  };
 }
 
 function mountRichEditor(markdown: string): void {
@@ -2078,6 +2334,15 @@ declare global {
         readonly statusText: string;
         readonly warnings: readonly string[];
       };
+      getAiWritingState: () => {
+        readonly hasSession: boolean;
+        readonly keyInputValue: string;
+        readonly pendingStatus: string | null;
+        readonly policyText: string;
+        readonly providerRequestCount: number;
+        readonly statusText: string;
+        readonly suggestionText: string;
+      };
       getPropertiesState: () => {
         readonly hiddenText: string;
         readonly listText: string;
@@ -2094,6 +2359,9 @@ declare global {
         readonly to: number;
       };
       getTestDiskContent: () => string | null;
+      acceptAiSuggestionForTest: () => void;
+      generateAiSuggestionForTest: (action?: AiWritingAction, prompt?: string) => Promise<void>;
+      loadAiPolicyDeniedDocumentForTest: () => void;
       loadHtmlArtifactForTest: (fileName: string, content: string) => void;
       loadImportedCopyForTest: (fileName: string, content: string) => void;
       loadWritableMarkdownFileForTest: (fileName: string, content: string) => void;
@@ -2107,6 +2375,7 @@ declare global {
       setCursorToEnd: () => void;
       setRichSelectionAfterText: (text: string) => void;
       setSelection: (anchor: number, head: number) => void;
+      startMockAiSessionForTest: () => void;
       switchEditorMode: (mode: DemoEditorMode) => void;
       toggleCurrentRichTodo: () => void;
       toggleRichFoldForText: (text: string) => void;

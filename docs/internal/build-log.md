@@ -1809,3 +1809,66 @@
   - `feat: implement document access policy v0`
 - Next issue:
   - `MME-0017 — AI writing BYOK V0`
+
+## MME-0017 — AI writing BYOK V0
+
+- Timestamp: 2026-06-02T16:15:16Z
+- Status: code-complete, visual screenshots pending human/tooling review.
+- Summary: Added `@momentarise/md-ai` as a host-independent AI writing contract package with memory-only BYOK session handling, mock provider, policy gate before provider calls, and accept/reject suggestion helpers. Added a demo AI writing panel for mock BYOK session start, action selection, prompt input, suggestion generation, and explicit accept/reject. Captured the architecture decision that MME core does not depend on LiteLLM; Momentarise product should use `MME editor -> Momentarise backend -> LiteLLM -> model providers`.
+- Files changed:
+  - `packages/md-ai/package.json`
+  - `packages/md-ai/tsconfig.json`
+  - `packages/md-ai/src/index.ts`
+  - `apps/md-demo/package.json`
+  - `apps/md-demo/tsconfig.json`
+  - `apps/md-demo/src/main.ts`
+  - `apps/md-demo/src/styles.css`
+  - `tests/ai-writing.test.mjs`
+  - `tests/demo-ai-writing-baseline.test.mjs`
+  - `tests/no-host-imports.mjs`
+  - `tests/type-contracts.test.ts`
+  - `scripts/visual-check-mme0017.mjs`
+  - `docs/internal/visual-checks/MME-0017/README.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/PRD.md`
+  - `README.md`
+  - `package.json`
+  - `package-lock.json`
+  - `tsconfig.json`
+  - `tsconfig.base.json`
+- Behavior proven:
+  - `@momentarise/md-ai` exposes provider/session contracts without host or provider SDK imports.
+  - Mock provider returns pending suggestions for complete, rewrite, improve, summarize, generate-title, and insert-block actions.
+  - BYOK key is required for session start but is not exposed on the public session object or provider request payload.
+  - Policy is checked using the `share` capability before content reaches the provider.
+  - Policy denial returns a blocked suggestion and does not call the provider.
+  - Suggestions remain staged until explicit accept/reject.
+  - Accept applies the replacement; reject leaves content unchanged.
+  - Demo AI panel is present with BYOK input, action selector, prompt, generate, accept, reject, policy note, and status.
+- Test-first evidence:
+  - `tests/ai-writing.test.mjs` and `tests/demo-ai-writing-baseline.test.mjs` were added first and failed before `packages/md-ai` and the visual script existed.
+- Tests/checks run:
+  - `npm run test:ai-writing`
+  - `npm run test:demo-ai-writing`
+  - `npm run test:contracts`
+  - `npm run test:architecture`
+  - `npm run test:alignment`
+  - `npm run build:demo`
+  - `npm test`
+- Visual verification:
+  - Dev server started with `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`.
+  - Local URL: `http://127.0.0.1:5174/`.
+  - `npm run visual:mme-0017` failed before CDP became available because local Chrome exited with `SIGABRT`.
+  - Existing script `npm run visual:mme-0015` fails the same way in this environment, so this is not specific to MME-0017.
+  - The in-app browser loaded the AI panel and visible UI state, but screenshot capture timed out; subsequent locator interaction also timed out.
+  - Screenshot artifacts are therefore pending. `docs/internal/visual-checks/MME-0017/README.md` documents expected artifacts and the current blocker.
+- Visual impact:
+  - Editing surface: no direct editor behavior change unless an AI suggestion is accepted, which inserts the staged replacement into Markdown.
+  - General UI: inspector now includes an AI writing panel with BYOK session input, action selector, prompt field, generate button, policy note, suggestion preview, accept/reject buttons, and status text.
+  - The panel is intentionally demo-grade and should be reviewed before human acceptance.
+- Reviewer/subagent used and result:
+  - Fallback self-review only. Human review required by the issue because this is an AI writing UI and policy boundary.
+- Suggested commit message:
+  - `feat: add ai writing v0`
+- Next issue:
+  - `MME-0018 — Theia adapter alpha`, after human review accepts or rejects the MME-0017 AI UI direction.

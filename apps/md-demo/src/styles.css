@@ -678,6 +678,79 @@ h1 {
   line-height: 1.45;
 }
 
+.ai-writing-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.ai-writing-controls {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-writing-controls label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ai-writing-controls input,
+.ai-writing-controls select,
+.ai-writing-controls textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.ai-writing-controls textarea {
+  resize: vertical;
+}
+
+.ai-writing-controls input:focus,
+.ai-writing-controls select:focus,
+.ai-writing-controls textarea:focus {
+  border-color: var(--accent);
+  outline: 2px solid rgba(22, 107, 122, 0.16);
+}
+
+.ai-policy-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ai-suggestion-preview {
+  max-height: 180px;
+  padding: 10px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.ai-suggestion-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ai-suggestion-actions .button {
+  flex: 1;
+}
+
 .baseline-list {
   margin: 0;
   padding-left: 18px;

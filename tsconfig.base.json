@@ -33,6 +33,9 @@
       "@momentarise/md-policy": [
         "packages/md-policy/src/index.ts"
       ],
+      "@momentarise/md-ai": [
+        "packages/md-ai/src/index.ts"
+      ],
       "@momentarise/md-preview-html": [
         "packages/md-preview-html/src/index.ts"
       ],

@@ -14,6 +14,12 @@
       "path": "../../packages/md-format"
     },
     {
+      "path": "../../packages/md-ai"
+    },
+    {
+      "path": "../../packages/md-policy"
+    },
+    {
       "path": "../../packages/md-preview-html"
     },
     {

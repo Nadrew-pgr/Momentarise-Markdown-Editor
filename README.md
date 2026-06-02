@@ -27,10 +27,11 @@ Completed slices:
 - MME-0013.5: Rich editor UX input rules and block affordances with live Markdown prefix transforms, todo checkboxes, code controls, visual QA, and reviewer fixes.
 - MME-0014: Hierarchical H1-H6 rich-mode section folding as sidecar/session state, with explicit toggle-block distinction, visual QA, and reviewer fixes.
 - MME-0015: HTML File Reader and sandbox preview with source opening, sandboxed iframe preview, scripts disabled by default, visual QA, and reviewer status tracked in the build log.
+- MME-0016: Configurable Document Access Policy V0 with hard-deny fixtures, warning/override metadata, host/user/workspace rules, and audit records.
 
 Current slice:
 
-- MME-0016: Document Access Policy V0.
+- MME-0017: AI writing BYOK V0, code-complete with visual screenshots pending because local screenshot tooling is currently failing. See `docs/internal/build-log.md`.
 
 See `docs/internal/build-log.md` for the latest completed issue and current progress.
 

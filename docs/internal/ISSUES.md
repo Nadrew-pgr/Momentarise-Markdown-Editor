@@ -759,19 +759,46 @@ Security Reviewer.
 
 ### Goal
 
-Add document-local AI writing assistance.
+Add document-local AI writing assistance through a host-provided AI provider abstraction.
 
 ### Scope
 
-Completion, rewrite selection, improve, summarize, title generation, insert block from prompt.
+- Core AI contracts for completion, rewrite selection, improve, summarize, title generation, and insert block from prompt.
+- Mock provider for tests and demo.
+- BYOK session shape in the demo, stored in memory only.
+- Policy gate before any provider receives document content.
+- Accept/reject suggestion flow.
+
+### Architecture decision
+
+MME core must not depend on LiteLLM, OpenAI, Anthropic, Vercel AI SDK, browser fetch, or any provider SDK.
+
+MME core exposes an AI provider contract. Hosts decide how to fulfill it:
+
+- mock provider for tests and demos;
+- memory-only BYOK for local/personal demos;
+- host-managed backend session for production apps;
+- local gateway for self-hosted/personal setups;
+- future OpenAI-compatible provider adapter, which can point at LiteLLM.
+
+Momentarise product should use:
+
+```txt
+MME editor -> Momentarise backend -> LiteLLM -> model providers
+```
+
+LiteLLM is the recommended/official gateway for Momentarise-managed AI, but it is not a dependency of the MME core package. Direct browser-to-LiteLLM production use is not the default recommendation because key exposure, quotas, audit, billing, and policy enforcement belong behind a host/backend boundary.
 
 ### Acceptance criteria
 
-- BYOK key/session endpoint works in demo.
-- Key not logged.
+- `@momentarise/md-ai` exposes a provider/session contract without host or provider SDK imports.
+- Mock provider works in automated tests.
+- BYOK session control works in demo with memory-only key handling.
+- Key is not logged, persisted, exposed on the session object, or stored in screenshots/build log/test output.
 - Policy checked before sending content.
+- Policy denial prevents provider calls.
 - Suggestions are accepted/rejected, not silently applied.
-- Mock provider available for tests.
+- Future LiteLLM/OpenAI-compatible integration path is documented as host/backend or provider-adapter work, not core behavior.
 
 ### Execution model
 

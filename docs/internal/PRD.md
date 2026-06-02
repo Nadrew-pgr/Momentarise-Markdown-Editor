@@ -443,7 +443,19 @@ V0 AI is writing assistance only.
 
 Actions: inline completion, rewrite selection, improve selection, summarize selection, change tone, turn into checklist, generate title, insert block from prompt, explain selection if cheap.
 
-BYOK-first. Managed AI later.
+MME core exposes provider/session contracts, policy checks, and accept/reject suggestions. It must not import or depend on LiteLLM, OpenAI, Anthropic, Vercel AI SDK, browser-only fetch behavior, or provider SDKs.
+
+Supported host patterns:
+
+- mock provider for tests and demos;
+- memory-only BYOK for local/personal demo sessions;
+- host-managed backend sessions for production apps;
+- local gateway for self-hosted/personal setups;
+- future OpenAI-compatible provider adapter, which can point at LiteLLM.
+
+Momentarise product should use `MME editor -> Momentarise backend -> LiteLLM -> model providers` for managed/paying AI. LiteLLM is the recommended Momentarise gateway, not an MME core dependency.
+
+BYOK must be explicit and scoped by host. Browser-only BYOK is acceptable for demos or personal/local use only when the key stays memory-only. Production BYOK should go through a host backend, sidecar, secure storage, or user-controlled gateway.
 
 ### CLI
 

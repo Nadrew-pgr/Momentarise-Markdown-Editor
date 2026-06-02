@@ -11,6 +11,7 @@ import type {
 } from "@momentarise/md-core";
 import type { MarkdownFormatContract } from "@momentarise/md-format";
 import type { PolicyContract } from "@momentarise/md-policy";
+import type { AiWritingContract } from "@momentarise/md-ai";
 import type { HtmlPreviewContract } from "@momentarise/md-preview-html";
 import type { MomentariseRichProseMirrorContract } from "@momentarise/md-rich-prosemirror";
 import type { SaveEngineContract } from "@momentarise/md-save";
@@ -99,6 +100,12 @@ const policyContract: PolicyContract = {
   dependsOnCore: true
 };
 
+const aiWritingContract: AiWritingContract = {
+  dependsOnCore: true,
+  packageName: "@momentarise/md-ai",
+  policyCapability: "share"
+};
+
 const htmlPreviewContract: HtmlPreviewContract = {
   packageName: "@momentarise/md-preview-html",
   dependsOnCore: true,
@@ -126,6 +133,7 @@ void snapshot;
 void formatContract;
 void saveEngineContract;
 void policyContract;
+void aiWritingContract;
 void htmlPreviewContract;
 void richProseMirrorContract;
 void sourceCodeMirrorContract;
