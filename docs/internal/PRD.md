@@ -44,7 +44,7 @@ A developer integrating the framework into a web app, Theia app, VS Code/Cursor 
 
 ### End user
 
-A person editing real Markdown files with modern UX: source/rich modes, slash commands, toolbar, folding, save confidence, HTML preview, and optional AI writing.
+A person editing real Markdown files with modern UX: source/rich/live-preview modes, slash commands, toolbar, block affordances, folding, save confidence, HTML preview, and optional AI writing across web, desktop, mobile, tablet, and IDE-like host surfaces.
 
 ### Implementing developer or coding agent
 
@@ -64,13 +64,14 @@ V0 must prove:
 4. parser/serializer are serious enough for future rich editing;
 5. unknown syntax is preserved;
 6. edited-range preservation is tested before rich mode;
-7. mini web demo proves host independence from Theia;
+7. reference editor surface proves the product UX is credible before adapters;
 8. Save Engine supports dirty/saving/saved/conflict/error;
 9. rich mode can be spiked safely after parser gates;
 10. HTML reader uses sandboxed preview;
 11. Document Access Policy exists before AI writing sends content;
 12. AI writing remains BYOK and document-local;
-13. CLI helps devs and AI coding agents initialize, inspect, validate, and integrate the framework.
+13. CLI helps devs and AI coding agents initialize, inspect, validate, and integrate the framework;
+14. mini web demo proves host independence before deeper Theia/IDE/mobile adapters.
 
 ## Non-goals
 
@@ -332,6 +333,8 @@ ProseMirror is the first spike engine.
 
 Rich editing UX should be benchmarked against leading Markdown/rich editors such as Notion, Obsidian, and BlockNote, without copying their product model or compromising Markdown as the durable source.
 
+MME is not just another plain Markdown reader. Plain Markdown readers already exist. The product value is to make portable `.md` files feel like a premium block/rich editor across web apps, desktop apps, mobile/tablet surfaces, web IDEs, native IDEs, and mixed IDE/product shells.
+
 V0 rich subset:
 
 - paragraph;
@@ -375,7 +378,30 @@ Advanced rich editing backlog:
 - optional word/character document stats may be exposed as a small hideable editor status control when useful;
 - the UI may take inspiration from Notion, Obsidian, BlockNote, and similar editors, but the persisted Markdown contract remains stricter than those products.
 
-Final editor UI/UX/DX hardening is required after the core feature set is in place. That pass must revisit indentation, nested lists/todos, Tab/Shift+Tab, Enter/Backspace/paste/selection, live preview refresh, block insertion handles, folding affordances, toolbar/slash density, open-file flow, mode-switch presentation, HTML preview reading chrome/scroll behavior, optional document stats, host settings, and developer integration ergonomics as one coherent editor-quality review.
+Before host adapters, MME must define a reference editor surface V0. This is not final polish, but it must be credible enough that adapters integrate a product direction rather than a lab demo.
+
+Reference editor surface V0 must establish:
+
+- an editor-first layout with debug/status panels demoted from normal user chrome;
+- responsive behavior for desktop, tablet, mobile, web app, desktop app, and IDE-like surfaces;
+- user-facing toolbar, slash menu, selection/context controls, compact mode control, and document status patterns;
+- AI writing entry points inside slash menu, toolbar/contextual toolbar, selected-text actions, and command palette-style flows rather than only an inspector/debug panel;
+- host-configurable preferences for toolbar behavior, glass/compact styling, control visibility, AI entry points, document stats, and technical status disclosure;
+- a settings contract that lets host apps plug their real preferences/workspace/admin settings into MME without forking UI logic;
+- polished block behavior for headings, paragraphs, lists, todos, quotes, code fences, callouts, images, raw/opaque blocks, and document end insertion;
+- precise indentation/nesting behavior, including visible indentation guides when useful for reading and editing nested structures;
+- premium checkbox/todo affordances, not raw cheap-looking square controls;
+- clear distinction between source, rich, live preview, and HTML preview states per document type;
+- reference boundaries for third-party inspiration and license respect.
+
+Final editor UI/UX/DX hardening is still required after the adapter/core feature set is in place. That later pass must revisit indentation, nested lists/todos, Tab/Shift+Tab, Enter/Backspace/paste/selection, live preview refresh, block insertion handles, folding affordances, toolbar/slash density, open-file flow, mode-switch presentation, HTML preview reading chrome/scroll behavior, optional document stats, host settings, and developer integration ergonomics as one coherent editor-quality review.
+
+Reference inspiration:
+
+- Notion and BlockNote for slash-menu categories, block insertion, and block-level affordances;
+- BlockNote, Google Docs/Gemini, and Microsoft Copilot in Word for AI writing action families such as continue, draft, rewrite, improve, shorten, expand, summarize, tone change, explain, translate, turn into list/checklist/table where supported, and insert suggested content with explicit accept/reject;
+- Obsidian default Live Preview for Markdown-first editing expectations;
+- Obsidian Editing Toolbar-style interaction patterns for toolbar positioning, configurable command groups, dropdown/submenu organization, compact/shrink behavior, and optional glass-like presentation. The plugin is MPL-2.0; MME may use it only as design inspiration or with explicit license-compliant reuse, never by copying code, assets, or protected styling blindly.
 
 ### Slash menu and toolbar
 
@@ -528,5 +554,6 @@ V0 is complete when:
 11. HTML reader shows source and sandboxed preview;
 12. Document Access Policy blocks AI when required;
 13. BYOK AI can propose accept/reject suggestions;
-14. CLI validates fixtures and inspects files;
-15. Theia adapter uses the same core.
+14. reference editor surface is credible before adapters;
+15. CLI validates fixtures and inspects files;
+16. Theia adapter uses the same core.

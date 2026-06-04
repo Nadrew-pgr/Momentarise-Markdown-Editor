@@ -812,7 +812,101 @@ LiteLLM is the recommended/official gateway for Momentarise-managed AI, but it i
 
 Security Reviewer and UX Reviewer.
 
-## MME-0018 — Theia adapter alpha
+## MME-0018 — Reference Editor Surface V0
+
+### Goal
+
+Turn the mini web demo into a credible reference editor surface before adapting MME into Theia or other hosts.
+
+This issue exists because MME's value is not "another Markdown reader". The value is a premium BlockNote/Obsidian-inspired editing experience over real portable `.md` files, usable across web, desktop, mobile/tablet, IDE, web IDE, and mixed product/IDE surfaces.
+
+### Scope
+
+- Editor-first layout that makes the document the primary surface.
+- Demote inspector/debug panels from normal user-facing chrome.
+- Define responsive behavior for desktop, tablet, mobile, web app, desktop app, IDE-like shell, and mixed host shells.
+- Replace demo-grade controls with an editor-grade toolbar, slash menu, compact mode control, command surface, and document status pattern.
+- Integrate AI writing into real editor entry points: slash menu, toolbar/contextual toolbar, selected-text actions, and command palette-style flows.
+- Keep the existing AI inspector/debug panel only as dev/debug support if still useful.
+- Define host-configurable preferences for toolbar behavior, glass/compact styling, control visibility, AI entry points, technical status disclosure, and optional stats.
+- Provide a settings contract so host apps can plug real user/workspace/admin settings into MME without forking UI logic.
+- Polish visible block affordances for headings, paragraphs, lists, todos, quotes, code fences, callouts, images, raw/opaque blocks, and document-end insertion.
+- Define premium todo/checkbox rendering, nested indentation, indentation guides, and list/todo continuation expectations.
+- Define clear Source/Rich/Live Preview/HTML Preview mode presentation per document type.
+- Document reference and license boundaries for third-party inspiration.
+
+### Reference boundaries
+
+Use references as benchmarks, not as code to copy.
+
+- Notion and BlockNote: slash-menu categories, block insertion, block-level affordances, empty states, keyboard flow.
+- BlockNote, Google Docs/Gemini, and Microsoft Copilot in Word: AI writing action families and explicit accept/reject insertion.
+- Obsidian default Live Preview: Markdown-first editing feel.
+- Obsidian Editing Toolbar plugin: toolbar positioning, configurable command groups, dropdown/submenu organization, compact/shrink behavior, and optional glass-like styling.
+
+The Obsidian Editing Toolbar plugin is MPL-2.0. MME must not copy code, assets, or exact protected styling unless reuse is explicitly license-compliant. Prefer clean-room implementation from interaction requirements and visual references.
+
+### Acceptance criteria
+
+- PRD explains that MME targets a premium Markdown-native editor surface, not only a plain Markdown reader or technical demo.
+- Demo no longer presents the inspector/debug panel as the main place for user-facing actions.
+- User-facing AI actions are reachable from editor-native entry points, not only from an inspector/debug panel.
+- AI action taxonomy includes at least: continue, draft/insert, rewrite, improve, shorten, expand, summarize, tone change, explain, translate, turn into list/checklist/table where supported, and accept/reject.
+- Slash menu taxonomy is reviewed against Notion and BlockNote and includes clear grouping, labels, aliases, empty states, keyboard navigation, and insertion behavior.
+- Toolbar interaction is reviewed against Obsidian Editing Toolbar-style patterns: top/floating/following/contextual positioning, command groups, dropdowns/submenus, compact/shrink behavior, and optional glass-like visual mode.
+- Toolbar appearance is implemented as MME-owned design tokens/components, not copied plugin code or assets.
+- Host preferences contract supports toolbar mode, toolbar style, visible command groups, AI entry points, technical status disclosure, optional stats, and per-host defaults.
+- Settings UI is optional for end users but easy for host apps to connect to real settings.
+- Responsive checks cover at least mobile, tablet, desktop, narrow web-app window, and IDE-like constrained viewport.
+- Block UI feels product-grade: todos, lists, indentation, code fences, block insertion, and document-end editing must not look or behave like unfinished debug controls.
+- Permanent file URI/persistence/debug metadata is moved into a discreet editor-grade status affordance while preserving save truthfulness.
+- Source/Rich/Live Preview/HTML Preview mode control is compact, document-kind aware, and not a demo segmented control.
+- Visual impact is documented for editing surface and general UI.
+- Screenshots are captured under `docs/internal/visual-checks/MME-0018/`.
+- Human review is required before adapter work continues.
+
+### Test-first plan
+
+- RED: Add or update static baseline tests requiring the reference editor surface contract, AI entry points outside the inspector, host preference contract, and visual artifact directory.
+- RED: Add visual/manual scenario before implementation covering responsive layouts, toolbar/slash/AI entry points, document status, and block affordances.
+- GREEN: Implement the smallest serious reference surface that satisfies the contract without starting Theia.
+- REFACTOR: Extract reusable UI contracts/tokens/components where they reduce adapter risk.
+
+### Manual verification
+
+Required.
+
+Manual UI scenario must include:
+
+- desktop editor use;
+- narrow browser/window use;
+- tablet-width viewport;
+- mobile-width viewport;
+- rich editor toolbar and slash menu;
+- selected-text AI action;
+- slash-menu AI action;
+- compact mode switching;
+- nested list/todo editing;
+- code fence editing and insertion after the final block;
+- document status/save truth affordance.
+
+### Visual impact
+
+Major visible editing-surface and general UI change. This issue should make the demo feel like a reference editor surface rather than a technical harness.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: UX Reviewer, Architecture Reviewer, Test Reviewer, DX Reviewer, and Security/License Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this defines the product/editor surface before adapters.
+
+### Reviewer
+
+UX Reviewer, Architecture Reviewer, Test Reviewer, DX Reviewer, and Security/License Reviewer.
+
+## MME-0019 — Theia adapter alpha
 
 ### Goal
 
@@ -838,7 +932,7 @@ Integrate the same core into Theia.
 
 Architecture Reviewer.
 
-## MME-0019 — Host adapter external-change strategy
+## MME-0020 — Host adapter external-change strategy
 
 ### Goal
 

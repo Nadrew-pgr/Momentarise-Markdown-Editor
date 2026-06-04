@@ -33,6 +33,10 @@ Current slice:
 
 - MME-0017: AI writing BYOK V0, code-complete with visual screenshots pending because local screenshot tooling is currently failing. See `docs/internal/build-log.md`.
 
+Next planned slice:
+
+- MME-0018: Reference Editor Surface V0. This replaces the previous plan to start Theia immediately; Theia is now MME-0019 and host external-change strategy is MME-0020.
+
 See `docs/internal/build-log.md` for the latest completed issue and current progress.
 
 Momentarise Markdown Editor is separate from Momentarise Workbench. The framework handles Markdown documents, source/rich editing, preservation, save behavior, adapters, HTML previews, and AI writing assistance. It does not implement SaaS, Mission Control, calendar, RAG, long-running agents, subagents, or the full Momentarise harness in V0.

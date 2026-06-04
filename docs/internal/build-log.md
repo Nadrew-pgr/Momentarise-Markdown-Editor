@@ -1871,4 +1871,41 @@
 - Suggested commit message:
   - `feat: add ai writing v0`
 - Next issue:
-  - `MME-0018 — Theia adapter alpha`, after human review accepts or rejects the MME-0017 AI UI direction.
+  - `MME-0018 — Reference Editor Surface V0`, after human review accepts that MME-0017 proved the AI contract but not the final AI UX placement.
+
+## Docs follow-up — Reference editor surface before adapters
+
+- Timestamp: 2026-06-04T21:40:05Z
+- Status: completed.
+- Summary: Inserted a new `MME-0018 — Reference Editor Surface V0` issue before adapter work. The previous `MME-0018 — Theia adapter alpha` is now `MME-0019`, and the previous `MME-0019 — Host adapter external-change strategy` is now `MME-0020`. This reflects the product decision that MME should not adapt a lab-style demo into host surfaces; it must first define a credible premium Markdown-native editor surface inspired by BlockNote/Obsidian-class UX while keeping real `.md` files portable.
+- Files changed:
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/PRD.md`
+  - `docs/internal/build-log.md`
+  - `README.md`
+- Decision:
+  - MME is not just a plain Markdown reader or technical parser demo.
+  - The reference editor surface must make portable Markdown feel like a premium block/rich editor across web, desktop, mobile/tablet, IDE, web IDE, and mixed host shells.
+  - AI writing must move into editor-native entry points such as slash menu, toolbar/contextual toolbar, selected-text actions, and command palette-style flows rather than living only in an inspector/debug panel.
+  - Theia adapter work should start after the reference surface has enough product direction to adapt.
+- Reference boundaries:
+  - Notion and BlockNote guide slash-menu and block affordance expectations.
+  - BlockNote, Google Docs/Gemini, and Microsoft Copilot in Word guide AI action families and accept/reject UX.
+  - Obsidian default Live Preview guides Markdown-first editing expectations.
+  - Obsidian Editing Toolbar guides toolbar interaction patterns only. Its MPL-2.0 license means any direct reuse must be explicit and compliant; MME should prefer clean-room implementation from interaction requirements.
+- Renumbering:
+  - New `MME-0018`: Reference Editor Surface V0.
+  - Previous `MME-0018`: Theia adapter alpha -> `MME-0019`.
+  - Previous `MME-0019`: Host adapter external-change strategy -> `MME-0020`.
+  - Historical build-log mentions of older MME-0020 UI/backlog planning are superseded by `MME-BACKLOG` and this renumbering note.
+- Visual impact:
+  - No current editing or general UI change. This is a docs/planning change. The future MME-0018 implementation will be a major visible editor-surface change.
+- Tests/checks run:
+  - `npm run test:alignment`
+  - `git diff --check`
+- Reviewer/subagent used and result:
+  - Not yet run; this docs update should be reviewed before MME-0018 implementation starts.
+- Suggested commit message:
+  - `docs: plan reference editor surface before adapters`
+- Next issue:
+  - `MME-0018 — Reference Editor Surface V0`.
