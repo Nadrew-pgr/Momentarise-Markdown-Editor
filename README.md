@@ -28,14 +28,21 @@ Completed slices:
 - MME-0014: Hierarchical H1-H6 rich-mode section folding as sidecar/session state, with explicit toggle-block distinction, visual QA, and reviewer fixes.
 - MME-0015: HTML File Reader and sandbox preview with source opening, sandboxed iframe preview, scripts disabled by default, visual QA, and reviewer status tracked in the build log.
 - MME-0016: Configurable Document Access Policy V0 with hard-deny fixtures, warning/override metadata, host/user/workspace rules, and audit records.
+- MME-0017: AI writing BYOK V0 with package/session/policy contracts, staged suggestions, demo entrypoint, and visual screenshots pending because local screenshot tooling is currently failing.
 
 Current slice:
 
-- MME-0017: AI writing BYOK V0, code-complete with visual screenshots pending because local screenshot tooling is currently failing. See `docs/internal/build-log.md`.
+- MME-0018: Reference Editor Surface V0, code-complete with tests passing and partial in-app visual artifacts. Human review and full scripted visual verification remain pending because local headless Chrome/CDP currently exits with `SIGABRT`. MME-0018 must not be accepted as final while derived-view preservation blockers remain; those are split into MME-0019 and MME-0020.
 
-Next planned slice:
+Next planned slices (public framework readiness sequence, 2026-06-09):
 
-- MME-0018: Reference Editor Surface V0. This replaces the previous plan to start Theia immediately; Theia is now MME-0019 and host external-change strategy is MME-0020.
+- Phase A — integrity: MME-0019 rich round-trip fidelity gate; MME-0020 targeted rich serialization; MME-0021 rich list/todo editing baseline; MME-0022 source keymap integrity.
+- Phase B — headless engine and packaging: MME-0023 headless editor session; MME-0024 publishable package restructure.
+- Phase C — contracts: MME-0025 theming tokens/theme/icons; MME-0026 preferences, locks, capabilities; MME-0027 extension registry V0.
+- Phase D — surface and bindings: MME-0028 editor surface package; MME-0029 block interaction affordances; MME-0030 beautiful default theme; MME-0031 React binding and consumer validation.
+- Phase E — product surfaces: MME-0032 Markdown HTML renderer and inline-HTML policy; MME-0033 find/replace and outline APIs.
+- Phase F — adapters: MME-0034 Theia adapter alpha (previously MME-0019); MME-0035 host external-change strategy (previously MME-0020).
+- Phase G — publish and docs: MME-0036 release engineering and security; MME-0037 public docs content baseline; MME-0038 public docs site and AX docs surface.
 
 See `docs/internal/build-log.md` for the latest completed issue and current progress.
 

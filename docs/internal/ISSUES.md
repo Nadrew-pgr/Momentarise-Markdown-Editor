@@ -814,6 +814,12 @@ Security Reviewer and UX Reviewer.
 
 ## MME-0018 — Reference Editor Surface V0
 
+### Status
+
+Code-complete; human review pending; scripted visual verification pending (local headless Chrome/CDP `SIGABRT`).
+
+MME-0018 must not be accepted as final while derived-view preservation blockers remain. The 2026-06-09 framework review found that rich mode (a) silently rewrites the whole document through a normalizing serializer on every rich edit and (b) destroys GFM tables and strikethrough through a lossy fallback mapping. These are split into `MME-0019` and `MME-0020`. The recommended human decision is: accept the MME-0018 surface direction, redirect preservation integrity to `MME-0019`/`MME-0020` before any adapter work.
+
 ### Goal
 
 Turn the mini web demo into a credible reference editor surface before adapting MME into Theia or other hosts.
@@ -906,19 +912,540 @@ Major visible editing-surface and general UI change. This issue should make the 
 
 UX Reviewer, Architecture Reviewer, Test Reviewer, DX Reviewer, and Security/License Reviewer.
 
-## MME-0019 — Theia adapter alpha
+## Renumbering note (2026-06-09)
+
+The public-framework readiness review inserted new issues before adapter work:
+
+- Previous `MME-0019 — Theia adapter alpha` is now `MME-0034`.
+- Previous `MME-0020 — Host adapter external-change strategy` is now `MME-0035`.
+
+Phases: A integrity (0019–0022), B headless engine and packaging (0023–0024), C contracts (0025–0027), D surface and bindings (0028–0031), E product surfaces (0032–0033), F adapters (0034–0035), G publish and docs (0036–0038).
+
+## MME-0019 — Rich-mode round-trip fidelity gate
 
 ### Goal
 
-Integrate the same core into Theia.
+Stop derived-view data corruption. Rich mode must never destroy or approximate Markdown content it does not explicitly support.
+
+### Scope
+
+- Corpus-wide identity test: for every fixture, mounting rich state and serializing back without edits must return the input bytes.
+- Invert the rich mapping to a closed whitelist: any node type outside the supported V0 subset becomes `unsupported_block` carrying raw source, never a flattened paragraph.
+- GFM tables, strikethrough, footnotes, and definitions must survive rich mount + serialize untouched.
+- Fix opaque-detection false positives in `@momentarise/md-format`: inline `$...$` matching currency amounts, and callout/wikilink/Mermaid/LaTeX patterns matching inside fenced code regions.
+
+### Test-first plan
+
+- RED: add `tests/rich-roundtrip-fidelity.test.mjs` asserting byte-identical round-trip for all fixtures; it must fail on the table fixture before the fix.
+- GREEN: whitelist mapping + opaque fallback + regex masking of fenced regions.
 
 ### Acceptance criteria
 
-- Theia adapter uses same core packages.
-- Opening `.md` works.
-- Source mode works.
-- Saving works.
-- No duplicated parser/serializer logic.
+- All 18 fixtures pass the rich round-trip identity test byte-for-byte.
+- The lossy default branch (`children -> paragraph`) is removed from the rich mapper.
+- A document containing `$5 and $10` produces no LaTeX opaque diagnostic.
+- Wikilink/Mermaid/callout text inside a fenced code block produces no opaque node.
+- All existing tests pass; no editor UI change is required.
+- Visual impact: unsupported blocks render as raw/opaque blocks in rich mode instead of corrupted paragraphs; otherwise no general UI change.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Test Reviewer and Architecture Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no, unless fidelity cannot be proven for a fixture class.
+
+### Reviewer
+
+Test Reviewer and Architecture Reviewer.
+
+## MME-0020 — Targeted rich serialization and no-rewrite saves
+
+### Goal
+
+A rich edit must change only the edited blocks in the persisted Markdown. No full-document normalization on edit, autosave, copy, or mode switch.
+
+### Scope
+
+- Map ProseMirror transactions to touched top-level blocks via parse-time source ranges.
+- Serialize only dirty blocks and splice them with the existing `serializeMarkdownEdits` source-range mechanism.
+- When `richChanged` is false, `getMarkdown()`, copy, download, and save must return the untouched baseline source.
+- Flush with reason `mode-switch` on mode changes, per the Save Engine contract.
+
+### Test-first plan
+
+- RED: edit one heading in rich mode on a mixed fixture; assert every other line is byte-identical. Assert copy-in-untouched-rich-mode equals the original source.
+
+### Acceptance criteria
+
+- Editing one block in rich mode preserves all unrelated source bytes, including list markers, blank-line runs, setext headings, and emphasis style outside the edited block.
+- Untouched rich documents produce zero byte changes through save/copy/download.
+- Autosave after a rich edit writes only the targeted change to the save target.
+- Mode switch uses the `mode-switch` flush reason.
+- Round-trip and edited-range suites pass.
+- Visual impact: no visible UI change; behavior-only preservation fix.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Test Reviewer and Architecture Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this is the preservation contract for rich editing.
+
+### Reviewer
+
+Test Reviewer and Architecture Reviewer.
+
+## MME-0021 — Rich list and todo editing baseline
+
+### Goal
+
+Make list editing in rich mode behave like Notion/BlockNote-class editors.
+
+### Scope
+
+- Enter inside a list item creates a new list item (not a paragraph inside the same item); same for todo items.
+- Enter on an empty item exits the list.
+- Tab / Shift+Tab nest and outdent list and todo items.
+- Backspace at item start merges/lifts predictably.
+- Input-rule parity: `#` through `######`, `*` and `+` bullets, rules usable mid-document, single Undo restores the typed prefix.
+
+### Acceptance criteria
+
+- Automated tests prove Enter/Tab/Shift+Tab/Backspace behavior for bullet, ordered, and todo items, including nested cases.
+- Serialized Markdown for nested lists/todos round-trips through the fidelity gate.
+- H4–H6 and `*`/`+` input rules work; undo after an input rule restores the literal text.
+- No regression in MME-0019/MME-0020 suites.
+- Visual impact: editing-surface behavior change only; screenshots of nested list/todo editing captured under `docs/internal/visual-checks/MME-0021/`.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: UX Reviewer and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this changes core rich editor feel.
+
+### Reviewer
+
+UX Reviewer and Test Reviewer.
+
+## MME-0022 — Source-mode keymap integrity
+
+### Goal
+
+Make the composed CodeMirror extension stack provably correct, replacing hand-rolled duplication with the official Markdown keymap.
+
+### Scope
+
+- Adopt `@codemirror/lang-markdown` `markdownKeymap` (`insertNewlineContinueMarkup`, `deleteMarkupBackward`).
+- Remove duplicate extensions already provided by `basicSetup` (close brackets, bracket matching, history/default keymaps) and fix keymap precedence so MME bindings demonstrably win.
+- Keep `Mod-s` save hook and empty-item exit behavior.
+- Add blockquote continuation.
+
+### Acceptance criteria
+
+- Real keydown-event tests against the composed extension stack (not unit-called helpers) prove list, checkbox, and blockquote continuation, and empty-item exit.
+- No duplicate keymap/extension instances remain in `createMomentariseSourceExtensions`.
+- Smart backspace removes list markup per `deleteMarkupBackward`.
+- All source-mode suites pass.
+- Visual impact: editing-surface behavior only; no general UI change.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: UX Reviewer and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no, unless source-editing behavior regresses.
+
+### Reviewer
+
+Test Reviewer.
+
+## MME-0023 — Headless editor session and events
+
+### Goal
+
+Create the missing keystone abstraction: a host-independent, DOM-free `MarkdownEditorSession` in a new `@momentarise/md-editor` package, so every host binds views to a session instead of reimplementing orchestration.
+
+### Scope
+
+- Session owns: canonical Markdown content, parse cache and source maps, block-level edit application, Save Engine orchestration with an injectable scheduler (no `window.setTimeout` in the package), policy hooks, and the AI request/suggestion controller currently entangled with the demo debug panel.
+- Event subscription API designed against Tiptap's taxonomy: `onChange`, `onSaveStateChange`, `onDiagnostics`, `onModeChange`, `onSelectionContext`, `onDestroy`.
+- Mode registry: views attach/detach; the session defines content handoff between source/rich/preview.
+- The demo migrates its save, content, mode-switch, and AI flows to the session as the first consumer proof.
+- Extend the `no-host-imports` architecture gate to cover `packages/md-editor/src`.
+
+### Acceptance criteria
+
+- `@momentarise/md-editor` imports no DOM, browser, React, CodeMirror, ProseMirror, Theia, or provider APIs.
+- A headless Node test drives a full session lifecycle: open, edit blocks, autosave via injected scheduler, conflict, AI suggest/accept with policy gate, events observed.
+- Demo `main.ts` no longer owns save orchestration, AI state, or canonical content; it consumes the session.
+- AI suggestions record the document hash at generation time and refuse or re-anchor on mismatch at accept time.
+- `getMarkdown()` semantics are session-owned and mode-independent.
+- Visual impact: no intended visible change; demo behavior must remain equivalent and is re-verified.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, and DX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this defines the public core API.
+
+### Reviewer
+
+Architecture Reviewer.
+
+## MME-0024 — Publishable package restructure
+
+### Goal
+
+Make the package graph survive real package managers and external consumers.
+
+### Scope
+
+- View packages declare CodeMirror and ProseMirror packages as `peerDependencies`; add the missing `prosemirror-view`/`prosemirror-transform` declarations; the demo stops re-declaring editor-engine deps it gets through MME packages.
+- Move model-level Markdown generation (Momentarise node tree to Markdown text) into `@momentarise/md-format` as the real serializer; the rich package keeps only the ProseMirror-to-Momentarise-node bridge.
+- Single hash implementation (fnv1a-64) shared by `md-format` and `md-save`.
+- Internal dependency ranges and release-readiness fields (`repository`, `engines`, `keywords`) on every package; tighten `NodeId` branding.
+
+### Acceptance criteria
+
+- A scripted `npm pack` + install into a throwaway consumer works under npm and pnpm strict mode (no phantom dependencies).
+- A duplicate-instance check proves one `@codemirror/state` and one `prosemirror-model` in the consumer bundle.
+- `md-format` exposes the model serializer; identity behavior for untouched documents is preserved and the MME-0019 fidelity suite passes against it.
+- One hash function across packages; round-trip and save suites pass.
+- Visual impact: no visible editing or general UI changes.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Architecture Reviewer and DX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because dependency policy is an architecture decision.
+
+### Reviewer
+
+Architecture Reviewer and DX Reviewer.
+
+## MME-0025 — Theming contracts: tokens, host theme, icon set
+
+### Goal
+
+Establish layer 1 and 2 of the theming/settings separation: framework design tokens and the host theme contract, framework-agnostic and DOM-free at the contract level.
+
+### Scope
+
+- `@momentarise/md-theme`: typed token definitions (`--mme-*` CSS custom properties) for color roles, typography, font scale, line height, radius, spacing/density, shadows, z-layers; light and dark schemes; `tokens.css` artifact.
+- Typed `MmeTheme` deep-partial host theme object resolved to token values; per-component class-map escape hatch; documented plain-CSS override as last resort.
+- `IconSet` contract (icon name to SVG factory, framework-free) plus a default icon set.
+- Demo styles migrate to tokens for colors/typography/spacing (full polish is MME-0030).
+
+### Acceptance criteria
+
+- Theme/token/icon types live in a DOM-free module covered by the architecture gate; only the CSS artifact and default icons are presentation assets.
+- A host can pass a partial `MmeTheme` and see colors, typography, font scale, radius, and density change without forking CSS.
+- Dark/light switching works through tokens alone.
+- Icon set is replaceable by the host; default set renders in the demo toolbar.
+- No surface component uses a hardcoded color/font/spacing value after migration.
+- Visual impact: demo visuals re-based on tokens; screenshots captured under `docs/internal/visual-checks/MME-0025/`.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Architecture Reviewer, UX Reviewer, and DX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this sets the public theming direction.
+
+### Reviewer
+
+Architecture Reviewer and UX Reviewer.
+
+## MME-0026 — Preferences, settings locks, and capability contracts
+
+### Goal
+
+Establish layers 3–5 of the separation: user preference contract, editor behavior preferences, and runtime capability flags — with host-controlled exposure and locking. MME must not assume it owns any settings UI.
+
+### Scope
+
+- Declarative `PreferenceSchema`: key, type, default, scope (`host`/`workspace`/`document`/`user`), constraints, i18n label key.
+- Pure resolution pipeline: framework defaults → host defaults → workspace → document (allowlisted safe subset via optional frontmatter) → user; locks (`locked: { value, reason }`) and a host-declared `userVisible` allowlist.
+- Behavior preference keys covering at least: toolbar mode/style, slash menu behavior, command palette behavior, block affordances, AI entry points, mode switcher style, status/save UI, folding UI, code block UI, layout density and breakpoints, keymap profile with per-command rebinds and a `delegateToHost` mode for IDE hosts, readable line width, font scale, autosave interval.
+- Capability flags (facts, not choices): file system access, AI provider present, touch device, viewport class, offline.
+- Runtime reconfiguration: CodeMirror `Compartment`s and ProseMirror plugin reconfigure so preference changes apply live without editor teardown.
+- Replaces `resolveReferenceEditorPreferences`; demo proves host override, lock, allowlist subset, and live apply.
+
+### Acceptance criteria
+
+- Schema and resolver are headless, host-independent, and fully unit-tested including lock and allowlist semantics.
+- MME ships no settings page; the demo simulates a host exposing a limited subset.
+- A locked preference cannot be changed by user-scope input and reports its lock reason.
+- Changing theme, density, toolbar mode, and keymap at runtime applies live in source and rich modes.
+- Settings locks remain distinct from `md-policy` document capabilities, with consistent decision-metadata style.
+- Visual impact: demo gains a debug-level host-preference simulation; no end-user settings UI is added.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Architecture Reviewer, DX Reviewer, and Security Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no, unless lock semantics are ambiguous.
+
+### Reviewer
+
+Architecture Reviewer and DX Reviewer.
+
+## MME-0027 — Extension registry V0
+
+### Goal
+
+Open the closed registries so hosts and third parties can extend MME without forking — the Tiptap-class adoption requirement.
+
+### Scope
+
+- Registration APIs on the session/surface contracts: slash items, toolbar items, AI actions, input rules, and keybindings, with namespaced string ids (`host:my-action`) replacing closed unions.
+- Custom block escape hatch: a host-defined block with an explicit Markdown serialization contract (fenced directive, raw HTML, or opaque passthrough) that round-trips through the fidelity gate.
+- AI actions gain a parameter schema (enum/free-text) so actions like tone or translate are parameterizable.
+
+### Acceptance criteria
+
+- The demo registers a custom slash command, a custom toolbar item, and a parameterized custom AI action from host code without modifying MME packages.
+- A custom block serializes to valid Markdown per its declared contract and survives round-trip untouched.
+- Built-in commands are re-registered through the same API (no privileged path).
+- Unknown/disabled extension ids fail safely with diagnostics, not crashes.
+- Visual impact: demo shows host-registered entries in slash menu and toolbar; screenshots under `docs/internal/visual-checks/MME-0027/`.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Architecture Reviewer, DX Reviewer, and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this is public extension API.
+
+### Reviewer
+
+Architecture Reviewer and DX Reviewer.
+
+## MME-0028 — Editor surface package with i18n and accessibility
+
+### Goal
+
+Extract the reference surface out of the demo into `@momentarise/md-surface`: framework-free DOM components consuming tokens, preferences, icons, and an i18n dictionary.
+
+### Scope
+
+- Move toolbar, slash menu, command palette, document status popover, AI panel, mode control, and diagnostics surface out of `apps/md-demo/src/main.ts` into reusable components.
+- Components consume only: session events/commands, tokens, preference values, `IconSet`, and an injected string dictionary (default English shipped; no hardcoded literals).
+- Accessibility baseline: focus trap in palette/menus, roving tabindex, aria roles/labels, keyboard-complete operation, visible focus.
+- Replace string-contains demo baseline tests with DOM behavior tests for the extracted components.
+- Demo becomes a thin composition of session + views + surface.
+
+### Acceptance criteria
+
+- `apps/md-demo/src/main.ts` shrinks to composition/wiring; no surface component logic remains in the app.
+- Surface package has no React/Theia/host imports and no hardcoded strings, colors, or shortcuts.
+- Behavior tests cover slash keyboard flow, palette open/navigate/execute, toolbar command dispatch, AI entry-point gating by preferences.
+- Keyboard-only operation works for every surface control; aria audit documented.
+- Visual impact: equivalent UI from extracted components; screenshots under `docs/internal/visual-checks/MME-0028/`.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: UX Reviewer, Architecture Reviewer, Test Reviewer, and DX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this is the reusable product surface.
+
+### Reviewer
+
+UX Reviewer and Architecture Reviewer.
+
+## MME-0029 — Block interaction affordances
+
+### Goal
+
+Deliver the signature block-editor interactions benchmarked against BlockNote/Notion: block side menu, drag handle, insert handle, and a contextual selection toolbar.
+
+### Scope
+
+- Hover-revealed block handle ("+" insert and drag grip) for top-level blocks in rich mode.
+- Drag-and-drop block reordering that serializes through targeted edits (MME-0020) without rewriting unrelated source.
+- Contextual selection (bubble) toolbar for inline formatting and selected-text AI, replacing the static topbar "Ask AI" placement.
+- Placeholder text ("Type / for commands") and empty-document state.
+
+### Acceptance criteria
+
+- Block handle appears on hover/focus, supports insert-after and drag-reorder, and is keyboard-accessible.
+- Reordering two blocks changes only those blocks' positions in the Markdown source.
+- Selection toolbar appears on text selection in rich mode with formatting and AI actions, honoring preference gating.
+- Placeholders/empty states render per preferences.
+- Fidelity and targeted-serialization suites pass after drag operations.
+- Visual impact: major editing-surface change; screenshots under `docs/internal/visual-checks/MME-0029/`.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: UX Reviewer and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this is signature block UX.
+
+### Reviewer
+
+UX Reviewer.
+
+## MME-0030 — Beautiful default theme V1
+
+### Goal
+
+Ship default light and dark themes good enough for the public demo and framework website. Host theming is not an excuse for an ugly default.
+
+### Scope
+
+- Tasteful typography, polished spacing/density, serious editor feel.
+- Non-cheap toolbar, slash menu, command palette, status, and block affordances, including premium todo checkboxes.
+- Accessible contrast (WCAG AA), coherent icon usage, responsive quality at mobile/tablet/desktop/IDE-pane widths.
+- Side-by-side benchmark review against BlockNote, Notion, and Obsidian screenshots.
+
+### Acceptance criteria
+
+- Both schemes implemented purely through MME-0025 tokens.
+- Contrast audit passes WCAG AA for text and interactive states.
+- Responsive screenshots at mobile/tablet/desktop/constrained-IDE widths captured under `docs/internal/visual-checks/MME-0030/`.
+- Benchmark comparison documented; UX reviewer verdict recorded.
+- No hardcoded style values introduced outside tokens.
+- Visual impact: major; this is the public face of the framework.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: UX Reviewer and DX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, mandatory visual acceptance.
+
+### Reviewer
+
+UX Reviewer.
+
+## MME-0031 — React binding and external consumer validation
+
+### Goal
+
+Provide `@momentarise/md-react` as a thin binding over the headless session and surface, and prove the packages work in real external consumer apps. The architecture must remain vanilla-first; React is a binding, not a foundation.
+
+### Scope
+
+- `useMarkdownEditor()` hook and a `<MarkdownEditor/>` component wrapping session + views + surface; Next.js App Router guidance (`"use client"` boundary, dynamic import recipe).
+- Repeatable consumer smoke harness using packed tarballs: Vite vanilla TS, Next.js App Router, pnpm strict install, TypeScript `bundler` and `node16` resolution, duplicate CM/PM instance check, tree-shaking check (importing `md-format` must not pull ProseMirror).
+
+### Acceptance criteria
+
+- React binding contains no editor logic beyond lifecycle/binding glue.
+- All consumer matrix runs pass from `npm pack` artifacts, not workspace links.
+- Next.js build passes with SSR-safe imports (no DOM access at import time anywhere in published packages).
+- Harness is a single documented command, runnable by CI later.
+- Visual impact: no MME UI change; new example apps render the editor.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: DX Reviewer and Architecture Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no, unless binding API shape is contentious.
+
+### Reviewer
+
+DX Reviewer.
+
+## MME-0032 — Markdown HTML renderer and inline-HTML policy
+
+### Goal
+
+Add the missing render pipeline: `@momentarise/md-render-html` for read-only rendering, print/export, server/static rendering, and the future docs site — with an explicit policy for HTML inside Markdown.
+
+### Scope
+
+- Safe, sanitized Markdown-to-HTML renderer running in Node and browser, themable via MME tokens.
+- Clarify and implement the three HTML cases: inline HTML in Markdown, block HTML in Markdown, and standalone `.html` artifacts. The first two are preservation-first in source and sanitized at render; the third remains the sandboxed artifact preview.
+- Sanitization allowlist with diagnostics for stripped content at render time; raw source never modified; source mode remains the fallback.
+- Review the artifact preview's default sandbox tokens (drop `allow-same-origin` unless concretely required).
+
+### Acceptance criteria
+
+- Renderer produces sanitized HTML for the full fixture corpus without throwing; unknown syntax renders as visible raw/opaque, not dropped.
+- Script/iframe/event-handler content in Markdown HTML never executes in rendered output; tests prove it.
+- Rendering never mutates the persisted Markdown; preservation suites unaffected.
+- Node-side render works headlessly (no DOM dependency) for SSR/static use.
+- PRD HTML clarification landed (three cases distinguished).
+- Visual impact: demo gains a read-only rendered view entry point; screenshots under `docs/internal/visual-checks/MME-0032/`.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: Security Reviewer, Architecture Reviewer, and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because sanitization policy is a security boundary.
+
+### Reviewer
+
+Security Reviewer and Architecture Reviewer.
+
+## MME-0033 — Find/replace and outline APIs
+
+### Goal
+
+Close two baseline editor expectations: document-level find/replace and a heading outline contract.
+
+### Scope
+
+- Session-level find/replace API working across source and rich views (CodeMirror search integration; ProseMirror decoration-based highlighting); replace flows through targeted edits.
+- Outline API derived from headings (never frontmatter), exposing the hierarchy already computed by the folding machinery, consumable by host outline panels and the future docs-site right panel.
+
+### Acceptance criteria
+
+- Find highlights matches in both modes; replace/replace-all preserve unrelated source bytes.
+- Outline API returns the heading tree with stable anchors/slugs for any Markdown document without frontmatter.
+- Keyboard shortcuts respect the MME-0026 keymap contract.
+- Visual impact: find UI in the surface package; screenshots under `docs/internal/visual-checks/MME-0033/`.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: UX Reviewer and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no.
+
+### Reviewer
+
+UX Reviewer.
+
+## MME-0034 — Theia adapter alpha
+
+Previously numbered MME-0019.
+
+### Goal
+
+Integrate the same core into Theia as a real adapter consuming the headless session and surface packages.
+
+### Acceptance criteria
+
+- Theia adapter uses the same core packages, `@momentarise/md-editor` session, and `@momentarise/md-surface` components.
+- Opening `.md` works; source mode works; saving works through a Theia-backed `SaveTarget`.
+- No duplicated parser/serializer/orchestration logic.
+- Keybindings delegate to the Theia keybinding service per the MME-0026 `delegateToHost` mode.
 
 ### Execution model
 
@@ -932,7 +1459,9 @@ Integrate the same core into Theia.
 
 Architecture Reviewer.
 
-## MME-0020 — Host adapter external-change strategy
+## MME-0035 — Host adapter external-change strategy
+
+Previously numbered MME-0020.
 
 ### Goal
 
@@ -943,6 +1472,7 @@ This issue was added after MME-0011.5 from product discussion: local web, Theia/
 ### Scope
 
 - Define the adapter-level contract for external changes: focus refresh, polling, host file events, realtime sync events, and save-time hash verification.
+- Implement the minimal web strategy: focus-refresh re-hash for writable files in the web adapter.
 - Document which strategies apply to `@momentarise/md-adapter-web`, `@momentarise/md-adapter-theia`, `@momentarise/md-adapter-vscode`, and future `@momentarise/md-adapter-chrome-extension`.
 - Keep the core Save Engine responsible for hashes, dirty state, conflict state, and safe no-overwrite behavior.
 - Keep host watchers, browser extension APIs, IDE file services, and database realtime subscriptions out of core packages.
@@ -952,7 +1482,7 @@ This issue was added after MME-0011.5 from product discussion: local web, Theia/
 
 - PRD explains that external-change handling is adapter-owned.
 - Adapter contract distinguishes local-file, IDE, database/realtime, and Chrome extension strategies.
-- Web adapter has a documented hybrid plan: focus refresh, optional polling, and save-time verification.
+- Web adapter implements focus refresh plus save-time verification; conflict surfaces before save when detectable.
 - Theia/IDE adapters can use host file events when available.
 - Database-backed hosts can use realtime server events when available.
 - Chrome extension adapter is listed as a future candidate, with explicit permission/API limits.
@@ -970,6 +1500,114 @@ This issue was added after MME-0011.5 from product discussion: local web, Theia/
 ### Reviewer
 
 Architecture Reviewer.
+
+## MME-0036 — Release engineering and security pass
+
+### Goal
+
+Make the repository publishable: licensing, CI, versioning, export hygiene, and a security review of public surfaces.
+
+### Scope
+
+- License decision (human; PRD recommends MPL-2.0 core, MIT/Apache-2.0 examples) with LICENSE files and `license` fields everywhere; per-package READMEs.
+- CI pipeline running all gates plus the MME-0031 consumer matrix on pull requests.
+- Versioning/release tooling (changesets or equivalent), CHANGELOG, semver and compatibility-promise documents, experimental labels per package.
+- Public API export audit (no accidental exports such as test helpers); typed error taxonomy for public APIs.
+- Security pass: URL sanitization for link/image attributes in the rich schema (no `javascript:` round-trip into live anchors), paste-handling policy, sandbox default review, BYOK key-handling statement, `SECURITY.md`, `CONTRIBUTING.md`.
+- Repo hygiene for going public: internal docs boundary check, ignored local env files, `.learnings/` exclusion.
+
+### Acceptance criteria
+
+- Fresh clone CI run is green and includes pack/install consumer smoke.
+- Every package has license metadata, README, version policy, and an experimental/stable label.
+- Export audit documented; removed exports listed as breaking-change notes.
+- Security checklist items each have a test or documented review.
+- Visual impact: no visible editing or general UI changes.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: DX Reviewer and Security Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because licensing is a human decision.
+
+### Reviewer
+
+DX Reviewer and Security Reviewer.
+
+## MME-0037 — Public docs content baseline
+
+### Goal
+
+Write the public documentation as real Markdown files under `docs/public/`, readable by humans and agents, before any docs site exists.
+
+### Scope
+
+- Core set: overview, quickstarts (vanilla, React, Next.js, headless Node), core concepts, Markdown preservation guarantees, save truthfulness, policy, AI and privacy, theming and customization, preferences and locks, extension guide, per-package pages, FAQ, roadmap.
+- Agent-readable constraints: plain CommonMark/GFM (no MDX-only constructs), stable heading anchors, runnable copy-paste examples.
+- Optional frontmatter metadata only (title override, description, nav section/order, audience, tags, package/API relevance, llms inclusion, updated date); no page may require frontmatter to function.
+- Internal linking convention decision (human): wikilinks vs relative Markdown links; the chosen convention must round-trip through MME preservation and resolve on the future site.
+- Public/internal boundary check: nothing from `docs/internal/` leaks.
+
+### Acceptance criteria
+
+- The core docs set exists as `.md` files under `docs/public/` and opens cleanly in MME itself without corruption warnings.
+- Each page passes a lint for heading structure, working internal links per the chosen convention, and runnable fenced examples.
+- Frontmatter, where present, follows the documented optional schema; at least one page proves the no-frontmatter path.
+- An LLM given a single page can answer integration questions without repo access (spot-checked, documented).
+- Visual impact: no app UI change; documentation only.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: DX Reviewer and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, for the linking convention and public boundary.
+
+### Reviewer
+
+DX Reviewer.
+
+## MME-0038 — Public docs site and AX docs surface
+
+### Goal
+
+Ship the public docs site as a read-only MME showcase with first-class Agentic Experience: the site renders the `docs/public/` Markdown through MME itself and exposes agent-friendly actions on every page.
+
+### Scope
+
+- Site rendering: `docs/public/` Markdown rendered through the MME read-only renderer (MME-0032), not a separate unrelated renderer; not editable by default; the site demonstrates MME rendering quality.
+- Layout (Vercel-docs-like): left navigation generated from docs sections/files (frontmatter nav metadata optional, never required); center content; right outline panel generated automatically from headings/subheadings via the MME-0033 outline API — never from frontmatter.
+- Internal links resolve per the MME-0037 convention, including wikilink or wikilink-equivalent links if selected; plan link suggestions/autocomplete between docs pages where relevant (may land as follow-up).
+- Page actions: copy page as Markdown; copy page as LLM prompt/context; copy current section where practical; copy page link; Open-in-chat menu.
+- Open-in-chat targets where feasible: v0, ChatGPT, Claude, Claude Code, Codex, Gemini, Mistral, T3 Chat, Scira, Cursor, OpenClaw, and Copilot-like coding agents; where reliable deep links are unavailable, fall back to copy-prompt behavior.
+- The copied/opened prompt includes the page content plus instructions: use web search if available; prefer official docs; cite sources when browsing; respect MME's Markdown-as-source constraints; do not assume JSON/block DB persistence; separate framework-neutral guidance from host-specific integration.
+- AX artifacts: `llms.txt` and `llms-full.txt` generated from the docs and kept in sync by an automated check.
+- Examples gallery and landing page with a live editor demo using the default theme.
+
+### Acceptance criteria
+
+- Docs pages are served from the same Markdown files in the repo; editing a doc file updates the site without content forks.
+- Center content is rendered by MME read-only rendering; a visible "rendered by MME" proof point exists.
+- Left nav, right heading outline, and internal links work on pages with and without frontmatter.
+- All five page actions work; Open-in-chat covers the feasible targets and copy-prompt fallback elsewhere; prompt template includes the required instructions.
+- `llms.txt` and `llms-full.txt` exist, are generated, and a CI/test check fails when docs change without regeneration.
+- Site is accessible (keyboard, contrast) and readable by both humans and coding agents (raw `.md` retrievable per page).
+- Visual impact: new public site; screenshots under `docs/internal/visual-checks/MME-0038/`.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh agent required: yes.
+- Reviewer subagents: UX Reviewer, DX Reviewer, and Security Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, because this is the public face and an external-link surface.
+
+### Reviewer
+
+UX Reviewer and DX Reviewer.
 
 ## MME-BACKLOG — Future split candidates
 
@@ -1025,6 +1663,21 @@ This is not a normal implementation issue and does not need the strict issue tem
 - Keep conversion provenance and lossiness visible to users.
 - Warn before overwrite/export if conversion may lose layout, comments, tracked changes, speaker notes, formulas, embedded media, or source-format semantics.
 - Never claim an imported/converted document was saved back to the original source format unless the adapter actually did that.
+
+### Public framework follow-ups (added 2026-06-09)
+
+- Obsidian-parity Live Preview mode (must not start before MME-0019/MME-0020 land, or it inherits the same corruption path).
+- Asset/upload provider contract for image paste and drag-drop (BlockNote `uploadFile`-style host contract; SaveTarget-pattern).
+- Collaboration positioning: public statement that CRDT/collab is future work; the block-level targeted-edit invariant keeps the door open and must not be broken.
+- Vue/Svelte bindings after `@momentarise/md-react` stabilizes.
+- Optional settings UI components (headless settings state + reference DOM components); hosts keep owning settings presentation.
+- VS Code/Cursor extension adapter (webview reusing the web build) and Chrome extension candidate.
+- Vim mode hook, typewriter/focus modes, word/character stats surface.
+- Rich-mode live rendering of inline/block HTML inside Markdown where policy allows (render-sanitized; source preserved), beyond the MME-0032 read-only renderer.
+- Link editing popover and docs-page link autocomplete (extends MME-0038 internal linking).
+- Migration guides (from Tiptap, BlockNote, plain textarea) and StackBlitz example embeds.
+- Mobile/tablet input pass: virtual-keyboard toolbar, touch selection, gesture affordances.
+- Performance budgets and large-document benchmarks (10k-line documents; incremental parse/serialize; debounced status checks).
 
 ### Potential future splits
 

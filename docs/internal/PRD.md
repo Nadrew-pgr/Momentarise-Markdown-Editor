@@ -190,6 +190,16 @@ Forbidden in core:
 - `@momentarise/md-adapter-theia`
 - `@momentarise/md-adapter-vscode`
 
+Public-framework packages added by the 2026-06-09 readiness review:
+
+- `@momentarise/md-editor` — headless editor session, events, mode registry, AI controller; host-independent, DOM-free.
+- `@momentarise/md-theme` — design tokens, host theme contract, icon set contract; contract types are DOM-free.
+- `@momentarise/md-surface` — framework-free DOM components (toolbar, slash menu, command palette, status, AI panel) consuming tokens, preferences, icons, and an i18n dictionary.
+- `@momentarise/md-react` — React binding only; vanilla remains the primary path.
+- `@momentarise/md-render-html` — safe, sanitized, themable Markdown-to-HTML renderer for read-only rendering, print/export, server/static rendering, and the docs site.
+
+Package tiers: model and services (md-core, md-format, md-policy, md-save, md-ai), headless engine (md-editor), view engines (md-source-codemirror, md-rich-prosemirror, md-preview-html, md-render-html), UI surface (md-theme, md-surface), framework bindings (md-react), host capability providers and shells (md-adapter-web, md-adapter-theia, md-adapter-vscode), tools (md-cli). View packages must declare CodeMirror/ProseMirror as peer dependencies so consumers never bundle duplicate editor cores. Nothing in the architecture may be React-only, Next-only, Theia-only, or browser-only.
+
 Future host adapter candidates, not required for V0 unless promoted by an issue:
 
 - `@momentarise/md-adapter-chrome-extension`
@@ -425,6 +435,23 @@ HTML artifact templates are future work.
 
 The normal HTML preview surface should read like a document, not a debug panel. Technical sandbox/script/persistence details must remain truthful and discoverable, but they should move into an editor-grade status affordance during the final UI/UX pass.
 
+### HTML inside Markdown vs HTML artifacts
+
+HTML is not only standalone `.html` preview. MME distinguishes three cases:
+
+1. Inline HTML inside Markdown (for example `<sup>`, `<kbd>` spans inside a paragraph).
+2. Block HTML inside Markdown (for example a `<details>` or `<table>` block in a `.md` file).
+3. Standalone `.html` artifact files opened through the HTML File Reader.
+
+Rules:
+
+- Raw inline and block HTML inside `.md` must always be preserved byte-for-byte in source, whether or not it is rendered.
+- Unsupported or unsafe HTML must never be destroyed; it stays in the source and falls back to raw/opaque display.
+- Render behavior for HTML inside Markdown is sanitized (allowlist, no script execution, diagnostics for stripped content at render time only); render output is an artifact and never mutates the persisted Markdown.
+- Standalone `.html` artifacts keep the separate sandboxed-iframe preview path; the two render paths must not be conflated.
+- Source mode remains the universal fallback for all three cases.
+- Obsidian-like live rendering of HTML inside Markdown in the editing surface is tracked in `MME-BACKLOG`; the read-only renderer is `MME-0032`.
+
 ### Future file and document formats
 
 Plain text and adjacent lightweight file types such as `.txt`, `.text`, `.log`, `.csv`, `.tsv`, `.json`, `.yaml`, `.yml`, and `.toml` are future source/preview candidates. Each type must define whether it is editable source, preview-only, import-to-Markdown, or adapter-specific.
@@ -497,6 +524,86 @@ V0 CLI commands:
 
 CLI must not depend on Theia.
 
+## Public framework readiness constraints
+
+These constraints were added by the 2026-06-09 readiness review. They extend V0 toward a public, framework-agnostic, publishable framework. They do not relax any V0 non-negotiable: Markdown stays the durable source, rich/block/live editing stays a derived view, unknown syntax is preserved, source mode stays mandatory, core packages stay host-independent, AI stays assistive writing, no JSON/block database becomes the source of truth, and no provider-specific AI code enters core.
+
+### Derived-view fidelity
+
+- Any derived editing view (rich mode today, live preview later) must round-trip an untouched document byte-for-byte.
+- Edits made in a derived view must change only the edited blocks in the persisted Markdown; unrelated source bytes are preserved.
+- A derived view that cannot represent a construct must carry it as raw/opaque content, never approximate or flatten it.
+- This invariant is also what keeps future collaboration adapters possible; it must not be broken for convenience.
+
+### Headless engine and events
+
+- The framework exposes a headless, DOM-free `MarkdownEditorSession` (`@momentarise/md-editor`) that owns canonical content, parse cache, targeted edits, save orchestration with injectable scheduling, policy hooks, and the AI suggestion controller.
+- Hosts and bindings subscribe through an event API (change, save state, diagnostics, mode, selection context, destroy).
+- Views (CodeMirror source, ProseMirror rich, previews) attach to a session; no host reimplements orchestration.
+
+### Extension model
+
+- Slash items, toolbar items, AI actions, input rules, and keybindings are registries open to host registration with namespaced ids, not closed unions.
+- Custom blocks are possible through an explicit Markdown serialization contract (fenced directive, raw HTML, or opaque passthrough) and must survive round-trip untouched.
+- Built-in commands register through the same public API as host extensions.
+
+### Theming, preferences, and settings contracts
+
+The framework must support host/developer control over theming and preferences. Six layers are deliberately separated:
+
+1. Framework design tokens: `--mme-*` custom properties for color roles, typography, font scale, line height, radius, spacing/density, shadows, and layers, with light and dark schemes.
+2. Host theme contract: a typed, deep-partial theme object resolved to tokens, an icon-set contract, per-component class-map overrides, and plain CSS as the documented last resort.
+3. User preference contract: a declarative preference schema (key, type, default, scope, constraints, label key) with a pure resolver.
+4. Editor behavior preferences: toolbar style, slash menu behavior, command palette behavior, block affordances, AI entry points, mode switcher style, status/save UI, folding UI, code block UI, mobile/tablet/desktop layout, keyboard shortcuts, readable line width, font scale, autosave interval, and similar keys.
+5. Runtime feature flags/capabilities: host-declared facts (file system access, AI provider present, touch device, viewport class, offline) that components adapt to; they are not user choices.
+6. Optional settings UI components, only if provided later, built on headless contracts.
+
+Resolution order is framework defaults, host defaults, workspace, document (allowlisted safe subset), then user. Any higher layer can lock a key with a value and reason, and hosts declare which keys are user-visible at all.
+
+The developer/host decides what is configurable, what is locked, what is exposed to end users, and where settings are shown. MME must not assume it owns the final settings UI. A host may expose settings through its own settings page, a modal, global app settings, workspace settings, project settings, document settings, a limited subset, or no user settings at all. In IDE hosts, keybindings may delegate entirely to the host keybinding service.
+
+Preference locks are host governance and stay distinct from Document Access Policy capabilities, while sharing the same decision-metadata style.
+
+Preference changes must apply at runtime without recreating the editor (CodeMirror compartments, ProseMirror plugin reconfiguration).
+
+### Beautiful default theme
+
+Even though theming is host-controlled, MME ships default light and dark themes good enough for a public demo and framework website: tasteful typography, polished spacing/density, serious editor feel, non-cheap toolbar/slash/menu/block affordances, accessible contrast (WCAG AA), coherent icons, and mobile/tablet/desktop quality. "Hosts can theme it later" is not an excuse for an ugly default.
+
+### AX — Agentic Experience
+
+AX is a first-class DX category, not a side note. MME must be readable and usable by AI agents acting as: coding agents integrating the framework, review agents checking docs/code drift, editing agents assisting inside documents, external product agents using MME APIs safely, and humans using LLMs/coding agents to understand, integrate, debug, or extend MME.
+
+AX requirements:
+
+- `llms.txt` and `llms-full.txt` generated from the public docs and kept in sync automatically;
+- agent-readable public docs: plain CommonMark/GFM, stable heading anchors, runnable examples, raw Markdown retrievable per page;
+- clear, typed API contracts with no hidden state required to use them reliably;
+- machine-readable CLI outputs (`--json`) maintained as a contract;
+- examples an agent can follow end-to-end;
+- issue/build-log discipline preserved as agent-consumable repo history;
+- safe review/apply flows (suggestions staged with explicit accept/reject, policy-gated content egress);
+- public docs page actions that make pages easy to use with LLMs and coding agents (copy as Markdown, copy as prompt, open-in-chat).
+
+AX means agent-readable docs and agent-friendly product surfaces, not bundled agent runtimes.
+
+### Public docs site as a read-only MME showcase
+
+- Docs source is real Markdown files in the repository under `docs/public/`.
+- The public docs site renders those files through MME in read-only mode once the renderer exists; it is not a separate unrelated renderer and is not editable by default.
+- Target UX: Vercel-docs-like layout; left navigation from docs sections/files; center content rendered through MME; right outline panel generated automatically from headings/subheadings, never from frontmatter; page-level copy/open actions.
+- Page actions: copy page as Markdown, copy page as LLM prompt/context, copy current section where practical, copy page link, and an Open-in-chat menu targeting popular providers/agents (v0, ChatGPT, Claude, Claude Code, Codex, Gemini, Mistral, T3 Chat, Scira, Cursor, OpenClaw, Copilot-like agents) with copy-prompt fallback where reliable deep links are unavailable.
+- Copied/opened prompts include the page content plus instructions: use web search if available, prefer official docs, cite sources when browsing, respect MME's Markdown-as-source constraints, do not assume JSON/block DB persistence, and separate framework-neutral guidance from host-specific integration.
+- Internal page links follow the chosen MME Markdown linking convention, including wikilink or wikilink-equivalent internal links if that is the selected docs convention; link suggestions/autocomplete between pages are planned where relevant.
+- Frontmatter is optional metadata only (title override, description, nav section, nav order, audience, tags, package/API relevance, llms inclusion, updated date). No page may require frontmatter to render, navigate, or produce an outline. Frontmatter is not the core AX system.
+- The docs site doubles as the showcase of MME rendering quality for both humans and coding agents.
+
+### Renderer, find/replace, and outline
+
+- `@momentarise/md-render-html` provides safe sanitized read-only rendering in Node and browser (see HTML inside Markdown vs HTML artifacts).
+- Document-level find/replace works across source and rich views and preserves unrelated source bytes on replace.
+- An outline API derives the heading hierarchy (never from frontmatter) for host outline panels and the docs site right panel.
+
 ## Documentation requirements
 
 Required documentation set:
@@ -525,7 +632,12 @@ Required documentation set:
 - Changelog;
 - Threat Model;
 - Compatibility Promise;
-- Adapter Contract.
+- Adapter Contract;
+- Theming and Tokens;
+- Preferences, Locks, and Settings;
+- Extension Guide;
+- AX Guide (docs for agents);
+- `llms.txt` and `llms-full.txt` (generated).
 
 ## License direction
 

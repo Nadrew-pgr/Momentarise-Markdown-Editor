@@ -4,3 +4,6 @@ dist-types/
 *.tsbuildinfo
 .DS_Store
 .learnings/
+.env
+.env.*
+!.env.example

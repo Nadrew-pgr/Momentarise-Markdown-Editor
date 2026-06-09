@@ -71,6 +71,15 @@ import {
 import { createMomentariseSourceExtensions } from "@momentarise/md-source-codemirror";
 import { Plugin, PluginKey, TextSelection, type EditorState as ProseMirrorEditorState } from "prosemirror-state";
 import { Decoration, DecorationSet, EditorView as ProseMirrorEditorView } from "prosemirror-view";
+import {
+  REFERENCE_AI_ACTIONS,
+  referenceAiActionsForEntryPoint,
+  resolveReferenceEditorPreferences,
+  type ReferenceAiAction,
+  type ReferenceAiActionId,
+  type ReferenceEditorPreferenceInput,
+  type ReferenceEditorPreferences
+} from "./reference-surface.js";
 import "./styles.css";
 
 const fixtureMarkdown = `---
@@ -92,38 +101,114 @@ const canonical = "Markdown";
 `;
 
 const app = queryRequired<HTMLDivElement>("#app");
+let referenceSurfacePreferences: ReferenceEditorPreferences = resolveReferenceEditorPreferences();
 
 app.innerHTML = `
-  <main class="shell">
-    <header class="topbar">
-      <div>
+  <main class="shell reference-editor-shell" data-testid="reference-editor-shell">
+    <header class="topbar reference-topbar">
+      <div class="brand-lockup">
         <p class="eyebrow">Momentarise Markdown Editor</p>
         <h1>Markdown editor demo</h1>
       </div>
-      <div class="topbar-actions" aria-label="Document actions">
-        <button class="button secondary" type="button" data-testid="open-local-file-button">Open .md</button>
-        <button class="button secondary" type="button" data-testid="open-html-file-button">Open .html</button>
-        <button class="button secondary" type="button" data-testid="import-copy-button">Import copy</button>
+      <div class="topbar-actions editor-command-surface" data-testid="editor-command-surface" aria-label="Editor commands">
+        <div class="command-group open-action-group" data-testid="open-action-group" aria-label="Open and export">
+          <button class="button secondary" type="button" data-testid="open-local-file-button">Open .md</button>
+          <button class="button secondary" type="button" data-testid="open-html-file-button">Open .html</button>
+          <button class="button secondary" type="button" data-testid="import-copy-button">Import copy</button>
+          <button class="button secondary compact-action" type="button" data-testid="copy-button">Copy</button>
+          <button class="button secondary compact-action" type="button" data-testid="download-button">Download</button>
+        </div>
         <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain" data-testid="import-copy-input" />
         <input class="file-input" type="file" accept=".html,.htm,text/html" data-testid="html-file-input" />
-        <button class="button secondary" type="button" data-testid="copy-button">Copy</button>
-        <button class="button secondary" type="button" data-testid="download-button">Download</button>
-        <button class="button secondary" type="button" data-testid="simulate-conflict-button">Simulate conflict</button>
+        <div class="mode-switch mode-control" role="group" aria-label="Editor mode">
+          <button class="mode-button" type="button" data-testid="source-mode-button">Source</button>
+          <button class="mode-button" type="button" data-testid="rich-mode-button">Rich</button>
+          <button class="mode-button" type="button" data-testid="preview-mode-button">Preview</button>
+        </div>
+        <details class="ai-command-surface" data-testid="ai-command-surface">
+          <summary class="button secondary editor-ai-button" data-testid="editor-ai-button">AI</summary>
+          <div class="floating-ai-menu" data-testid="editor-ai-menu" aria-label="AI writing actions">
+            ${REFERENCE_AI_ACTIONS.map(
+              (action: ReferenceAiAction) => `
+                <button
+                  class="ai-command-item"
+                  type="button"
+                  data-reference-ai-action="${action.id}"
+                  data-testid="ai-action-${action.id}"
+                >
+                  <strong>${action.label}</strong>
+                  <span>${action.entryPoints.slice(0, 3).join(", ")}</span>
+                </button>`
+            ).join("")}
+          </div>
+        </details>
+        <button class="button secondary selected-text-ai-action" type="button" data-testid="selected-text-ai-action">Ask AI</button>
+        <button class="button secondary command-palette-button" type="button" data-testid="command-palette-button">Command</button>
+        <details class="document-status-popover" data-testid="document-status-popover">
+          <summary class="editor-status-button" data-testid="editor-status-button">
+            <span data-testid="document-name">source-mode-fixture.md</span>
+            <span data-testid="dirty-state">clean</span>
+          </summary>
+          <div class="document-status-menu">
+            <p><span>Path</span><strong data-testid="document-path">fixture://source-mode-fixture.md</strong></p>
+            <p><span>Target</span><strong class="target-label" data-testid="persistence-target">memory only, not persisted</strong></p>
+            <p><span>Save</span><strong data-testid="save-state">memory saved (not persisted)</strong></p>
+          </div>
+        </details>
         <button class="button primary" type="button" data-testid="memory-save-button">Save</button>
       </div>
     </header>
 
-    <section class="workspace" aria-label="Markdown source workspace">
+    <section class="workspace" aria-label="Markdown workspace">
       <div class="editor-region">
-        <div class="document-strip" aria-label="Document metadata">
-          <span data-testid="document-name">source-mode-fixture.md</span>
-          <span data-testid="document-path">fixture://source-mode-fixture.md</span>
-          <span class="target-label" data-testid="persistence-target">memory only, not persisted</span>
+        <div class="ai-assistant-panel" data-testid="editor-ai-assistant-panel" hidden>
+          <div class="ai-assistant-header">
+            <div>
+              <p class="label">Writing assistant</p>
+              <p class="status-value" data-testid="editor-ai-status">No AI session</p>
+            </div>
+            <button class="button secondary" type="button" data-testid="editor-ai-panel-close">Close</button>
+          </div>
+          <div class="editor-ai-session-row">
+            <label>
+              Session key
+              <input
+                type="password"
+                data-testid="editor-ai-byok-key-input"
+                autocomplete="off"
+                placeholder="Memory-only BYOK key"
+                spellcheck="false"
+              />
+            </label>
+            <button class="button secondary" type="button" data-testid="editor-ai-start-session-button">Start session</button>
+          </div>
+          <div class="ai-suggestion-preview editor-ai-suggestion-preview" data-testid="editor-ai-suggestion-preview" hidden></div>
+          <div class="ai-suggestion-actions">
+            <button class="button secondary" type="button" data-testid="editor-ai-accept-button" disabled>Accept</button>
+            <button class="button secondary" type="button" data-testid="editor-ai-reject-button" disabled>Reject</button>
+          </div>
         </div>
-        <div class="mode-switch" role="group" aria-label="Editor mode">
-          <button class="mode-button" type="button" data-testid="source-mode-button">Source</button>
-          <button class="mode-button" type="button" data-testid="rich-mode-button">Rich</button>
-          <button class="mode-button" type="button" data-testid="preview-mode-button">Preview</button>
+        <div class="command-palette" data-testid="command-palette" hidden>
+          <div class="command-palette-panel">
+            <label>
+              Command
+              <input type="text" data-testid="command-palette-input" autocomplete="off" placeholder="Search commands and AI actions" />
+            </label>
+            <div class="command-palette-items" data-testid="command-palette-items">
+              ${REFERENCE_AI_ACTIONS.map(
+                (action: ReferenceAiAction) => `
+                  <button
+                    class="ai-command-item"
+                    type="button"
+                    data-reference-ai-action="${action.id}"
+                    data-testid="command-palette-ai-action-${action.id}"
+                  >
+                    <strong>${action.label}</strong>
+                    <span>${action.entryPoints.join(", ")}</span>
+                  </button>`
+              ).join("")}
+            </div>
+          </div>
         </div>
         <div class="rich-command-toolbar" data-testid="rich-command-toolbar" aria-label="Rich editing toolbar" hidden>
           <button class="toolbar-button" type="button" data-rich-command="heading1" data-testid="toolbar-command-heading1">H1</button>
@@ -136,6 +221,7 @@ app.innerHTML = `
           <button class="toolbar-button" type="button" data-rich-command="codeBlock" data-testid="toolbar-command-codeBlock">Code block</button>
           <button class="toolbar-button" type="button" data-rich-command="link" data-testid="toolbar-command-link">Link</button>
           <button class="toolbar-button" type="button" data-rich-command="divider" data-testid="toolbar-command-divider">Divider</button>
+          <button class="toolbar-button toolbar-ai-button" type="button" data-reference-ai-toolbar data-testid="toolbar-ai-button">AI</button>
           <div class="toolbar-more">
             <button class="toolbar-button" type="button" data-testid="toolbar-more-button" aria-expanded="false">More</button>
             <div class="toolbar-more-menu" data-testid="toolbar-more-menu" hidden>
@@ -182,14 +268,20 @@ app.innerHTML = `
         </div>
       </div>
 
-      <aside class="inspector" aria-label="Document status">
-        <section class="status-block">
-          <p class="label">Persistence</p>
-          <p class="status-value" data-testid="save-state">memory saved (not persisted)</p>
-        </section>
-        <section class="status-block">
-          <p class="label">Dirty state</p>
-          <p class="status-value" data-testid="dirty-state">clean</p>
+      <details class="debug-inspector inspector" data-testid="debug-inspector">
+        <summary class="debug-inspector-toggle" data-testid="debug-inspector-toggle">Technical diagnostics</summary>
+        <aside class="debug-inspector-body" aria-label="Document status">
+        <section class="status-block debug-actions">
+          <p class="label">Debug actions</p>
+          <button class="button secondary" type="button" data-testid="simulate-conflict-button">Simulate conflict</button>
+          <details class="surface-settings-panel" data-testid="surface-settings-panel">
+            <summary class="button secondary">Surface settings contract</summary>
+            <div class="surface-settings-menu">
+              <p><span>Toolbar</span><strong data-testid="surface-toolbar-pref">${referenceSurfacePreferences.toolbarMode}, ${referenceSurfacePreferences.toolbarStyle}</strong></p>
+              <p><span>AI entry points</span><strong data-testid="surface-ai-entry-points-pref">${referenceSurfacePreferences.aiEntryPoints.join(", ")}</strong></p>
+              <p><span>Status disclosure</span><strong data-testid="surface-status-disclosure-pref">${referenceSurfacePreferences.technicalStatusDisclosure}</strong></p>
+            </div>
+          </details>
         </section>
         <section class="status-block properties-panel" data-testid="properties-panel">
           <div class="properties-header">
@@ -295,7 +387,8 @@ app.innerHTML = `
           <p class="label">Event log</p>
           <ol class="event-log" data-testid="event-log" aria-live="polite"></ol>
         </section>
-      </aside>
+        </aside>
+      </details>
     </section>
   </main>
 `;
@@ -310,6 +403,7 @@ const sourceModeButton = queryRequired<HTMLButtonElement>('[data-testid="source-
 const richModeButton = queryRequired<HTMLButtonElement>('[data-testid="rich-mode-button"]');
 const previewModeButton = queryRequired<HTMLButtonElement>('[data-testid="preview-mode-button"]');
 const richCommandToolbar = queryRequired<HTMLDivElement>('[data-testid="rich-command-toolbar"]');
+const toolbarAiButton = queryRequired<HTMLButtonElement>('[data-testid="toolbar-ai-button"]');
 const toolbarMoreButton = queryRequired<HTMLButtonElement>('[data-testid="toolbar-more-button"]');
 const toolbarMoreMenu = queryRequired<HTMLDivElement>('[data-testid="toolbar-more-menu"]');
 const richBlockControls = queryRequired<HTMLDivElement>('[data-testid="rich-block-controls"]');
@@ -367,6 +461,26 @@ const diagnosticsElement = queryRequired<HTMLOListElement>('[data-testid="roundt
 const editorSurfaceStateElement = queryRequired<HTMLElement>('[data-testid="editor-surface-state"]');
 const htmlPreviewStatusBlock = queryRequired<HTMLElement>('[data-testid="html-preview-status-block"]');
 const htmlPreviewStatusElement = queryRequired<HTMLElement>('[data-testid="html-preview-status"]');
+const aiCommandSurface = queryRequired<HTMLDetailsElement>('[data-testid="ai-command-surface"]');
+const selectedTextAiAction = queryRequired<HTMLButtonElement>('[data-testid="selected-text-ai-action"]');
+const commandPaletteButton = queryRequired<HTMLButtonElement>('[data-testid="command-palette-button"]');
+const commandPalette = queryRequired<HTMLDivElement>('[data-testid="command-palette"]');
+const commandPaletteInput = queryRequired<HTMLInputElement>('[data-testid="command-palette-input"]');
+const commandPaletteItems = queryRequired<HTMLDivElement>('[data-testid="command-palette-items"]');
+const editorAiAssistantPanel = queryRequired<HTMLDivElement>('[data-testid="editor-ai-assistant-panel"]');
+const editorAiByokKeyInput = queryRequired<HTMLInputElement>('[data-testid="editor-ai-byok-key-input"]');
+const editorAiStartSessionButton = queryRequired<HTMLButtonElement>('[data-testid="editor-ai-start-session-button"]');
+const editorAiPanelCloseButton = queryRequired<HTMLButtonElement>('[data-testid="editor-ai-panel-close"]');
+const editorAiStatusElement = queryRequired<HTMLElement>('[data-testid="editor-ai-status"]');
+const editorAiSuggestionPreview = queryRequired<HTMLDivElement>('[data-testid="editor-ai-suggestion-preview"]');
+const editorAiAcceptButton = queryRequired<HTMLButtonElement>('[data-testid="editor-ai-accept-button"]');
+const editorAiRejectButton = queryRequired<HTMLButtonElement>('[data-testid="editor-ai-reject-button"]');
+const documentStatusPopover = queryRequired<HTMLDetailsElement>('[data-testid="document-status-popover"]');
+const surfaceSettingsPanel = queryRequired<HTMLDetailsElement>('[data-testid="surface-settings-panel"]');
+const debugInspector = queryRequired<HTMLDetailsElement>('[data-testid="debug-inspector"]');
+const surfaceToolbarPrefElement = queryRequired<HTMLElement>('[data-testid="surface-toolbar-pref"]');
+const surfaceAiEntryPointsPrefElement = queryRequired<HTMLElement>('[data-testid="surface-ai-entry-points-pref"]');
+const surfaceStatusDisclosurePrefElement = queryRequired<HTMLElement>('[data-testid="surface-status-disclosure-pref"]');
 
 let eventCounter = 0;
 let lastCopiedMarkdown: string | null = null;
@@ -445,6 +559,7 @@ const demoAiPolicyResolver = createDefaultPolicyResolver();
 let demoAiProvider: MockAiProvider = createMockAiProvider();
 let aiSession: AiWritingSession | null = null;
 let pendingAiSuggestion: AiWritingSuggestion | null = null;
+let commandPaletteSelectedIndex = 0;
 
 const editor = new CodeMirrorEditorView({
   parent: editorHost,
@@ -467,6 +582,9 @@ const editor = new CodeMirrorEditorView({
           if (activeDocument.kind === "html-artifact") {
             renderHtmlPreview();
           }
+        }
+        if (update.selectionSet && editorMode === "source") {
+          renderReferenceSurfaceState();
         }
       }),
     ]
@@ -492,6 +610,13 @@ previewModeButton.addEventListener("click", () => {
 richCommandToolbar.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  if (target.closest<HTMLElement>("[data-reference-ai-toolbar]")) {
+    if (!isAiEntryPointEnabled("toolbar")) {
+      return;
+    }
+    openAiCommandSurface();
     return;
   }
   const commandElement = target.closest<HTMLElement>("[data-rich-command]");
@@ -521,6 +646,12 @@ insertAfterBlockButton.addEventListener("click", () => {
 slashCommandItemsElement.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const aiCommandElement = target.closest<HTMLElement>("[data-reference-ai-action]");
+  if (aiCommandElement) {
+    closeSlashMenu();
+    void runEditorNativeAiCommand(aiCommandElement.dataset.referenceAiAction as ReferenceAiActionId);
     return;
   }
   const commandElement = target.closest<HTMLElement>("[data-slash-command]");
@@ -602,9 +733,96 @@ aiRejectButton.addEventListener("click", () => {
   rejectPendingAiSuggestion();
 });
 
+aiCommandSurface.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const actionElement = target.closest<HTMLElement>("[data-reference-ai-action]");
+  if (!actionElement) {
+    return;
+  }
+  event.preventDefault();
+  aiCommandSurface.open = false;
+  void runEditorNativeAiCommand(actionElement.dataset.referenceAiAction as ReferenceAiActionId);
+});
+
+selectedTextAiAction.addEventListener("click", () => {
+  if (!isAiEntryPointEnabled("selection")) {
+    return;
+  }
+  void runEditorNativeAiCommand("rewrite");
+});
+
+commandPaletteButton.addEventListener("click", () => {
+  if (!isAiEntryPointEnabled("command-palette")) {
+    return;
+  }
+  setCommandPaletteOpen(true);
+});
+
+commandPalette.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  if (target === commandPalette) {
+    setCommandPaletteOpen(false);
+    return;
+  }
+  const actionElement = target.closest<HTMLElement>("[data-reference-ai-action]");
+  if (!actionElement) {
+    return;
+  }
+  setCommandPaletteOpen(false);
+  void runEditorNativeAiCommand(actionElement.dataset.referenceAiAction as ReferenceAiActionId);
+});
+
+commandPaletteInput.addEventListener("input", () => {
+  commandPaletteSelectedIndex = 0;
+  renderCommandPaletteItems();
+});
+
+commandPaletteInput.addEventListener("keydown", (event) => {
+  if (handleCommandPaletteKeyboard(event)) {
+    event.preventDefault();
+  }
+});
+
+editorAiStartSessionButton.addEventListener("click", () => {
+  startAiSessionFromKey(editorAiByokKeyInput.value.trim());
+});
+
+editorAiPanelCloseButton.addEventListener("click", () => {
+  editorAiAssistantPanel.hidden = true;
+});
+
+editorAiAcceptButton.addEventListener("click", () => {
+  acceptPendingAiSuggestion();
+});
+
+editorAiRejectButton.addEventListener("click", () => {
+  rejectPendingAiSuggestion();
+});
+
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden" && saveEngine.shouldBlockClose()) {
     void flushSave("tab-switch");
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+    if (!isAiEntryPointEnabled("command-palette")) {
+      return;
+    }
+    event.preventDefault();
+    setCommandPaletteOpen(true);
+    return;
+  }
+  if (event.key === "Escape" && !commandPalette.hidden) {
+    event.preventDefault();
+    setCommandPaletteOpen(false);
   }
 });
 
@@ -632,9 +850,14 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   },
   getSlashMenuState() {
     return {
+      aiItems: matchingReferenceAiSlashActions(slashCommandState.query).slice(0, 4).map((item) => item.id),
       items: slashCommandState.items.map((item) => item.id),
       open: slashCommandState.open,
       query: slashCommandState.query,
+      selectedAiId:
+        slashCommandSelectedIndex >= slashCommandState.items.length
+          ? matchingReferenceAiSlashActions(slashCommandState.query).slice(0, 4)[slashCommandSelectedIndex - slashCommandState.items.length]?.id ?? null
+          : null,
       selectedId: slashCommandState.items[slashCommandSelectedIndex]?.id ?? null,
       selectedIndex: slashCommandSelectedIndex
     };
@@ -689,6 +912,12 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   },
   getAiWritingState() {
     return getAiWritingState();
+  },
+  getReferenceSurfaceState() {
+    return getReferenceSurfaceState();
+  },
+  setReferenceSurfacePreferencesForTest(preferences: ReferenceEditorPreferenceInput) {
+    setReferenceSurfacePreferences(preferences);
   },
   getSaveState() {
     return saveEngine.getState();
@@ -1070,6 +1299,7 @@ function renderEditorMode(): void {
     renderHtmlPreview();
   }
   renderRichFoldingUi();
+  renderReferenceSurfaceState();
 }
 
 function renderHtmlPreview(): void {
@@ -1092,9 +1322,14 @@ function renderHtmlPreview(): void {
 }
 
 function startAiSession(): void {
-  const apiKey = aiByokKeyInput.value.trim();
+  startAiSessionFromKey(aiByokKeyInput.value.trim());
+}
+
+function startAiSessionFromKey(apiKey: string): void {
   if (!apiKey) {
     aiStatusElement.textContent = "Enter a BYOK session key to start mock AI.";
+    editorAiStatusElement.textContent = "Enter a BYOK session key to start mock AI.";
+    editorAiAssistantPanel.hidden = false;
     return;
   }
 
@@ -1105,6 +1340,7 @@ function startAiSession(): void {
     provider: demoAiProvider
   });
   aiByokKeyInput.value = "";
+  editorAiByokKeyInput.value = "";
   pendingAiSuggestion = null;
   logEvent("AI writing session started with mock provider. BYOK key was kept memory-only.");
   renderAiWritingState();
@@ -1184,6 +1420,9 @@ function renderAiWritingState(): void {
   aiGenerateButton.disabled = !aiSession;
   aiAcceptButton.disabled = pendingAiSuggestion?.status !== "pending";
   aiRejectButton.disabled = pendingAiSuggestion?.status !== "pending";
+  editorAiAcceptButton.disabled = pendingAiSuggestion?.status !== "pending";
+  editorAiRejectButton.disabled = pendingAiSuggestion?.status !== "pending";
+  renderReferenceSurfaceState();
   aiPolicyNoteElement.textContent = pendingAiSuggestion?.policyDecision
     ? `Policy ${pendingAiSuggestion.policyDecision.allowed ? "allowed" : "blocked"}: ${pendingAiSuggestion.policyDecision.reason ?? "no reason"}`
     : "Policy checked before content leaves the editor.";
@@ -1192,6 +1431,9 @@ function renderAiWritingState(): void {
     aiSuggestionPreview.hidden = true;
     aiSuggestionPreview.textContent = "";
     aiStatusElement.textContent = aiSession ? "Mock AI session ready" : "No AI session";
+    editorAiSuggestionPreview.hidden = true;
+    editorAiSuggestionPreview.textContent = "";
+    editorAiStatusElement.textContent = aiSession ? "Mock AI session ready" : "No AI session";
     return;
   }
 
@@ -1199,15 +1441,29 @@ function renderAiWritingState(): void {
     aiSuggestionPreview.hidden = false;
     aiSuggestionPreview.textContent = pendingAiSuggestion.policyDecision?.reason ?? "Policy blocked AI writing.";
     aiStatusElement.textContent = "AI blocked by policy before provider call";
+    editorAiAssistantPanel.hidden = false;
+    editorAiSuggestionPreview.hidden = false;
+    editorAiSuggestionPreview.textContent = pendingAiSuggestion.policyDecision?.reason ?? "Policy blocked AI writing.";
+    editorAiStatusElement.textContent = "AI blocked by policy before provider call";
     return;
   }
 
   aiSuggestionPreview.hidden = false;
   aiSuggestionPreview.textContent = pendingAiSuggestion.replacement;
   aiStatusElement.textContent = `Suggestion ${pendingAiSuggestion.status}: ${pendingAiSuggestion.title}`;
+  editorAiAssistantPanel.hidden = false;
+  editorAiSuggestionPreview.hidden = false;
+  editorAiSuggestionPreview.textContent = pendingAiSuggestion.replacement;
+  editorAiStatusElement.textContent = `Suggestion ${pendingAiSuggestion.status}: ${pendingAiSuggestion.title}`;
+  renderReferenceSurfaceState();
 }
 
 function selectionForAiRequest(markdown: string): { readonly selection?: { readonly from: number; readonly to: number } } {
+  if (editorMode === "rich") {
+    const richRange = richSelectionMarkdownRange(markdown);
+    return richRange ? { selection: richRange } : {};
+  }
+
   if (editorMode !== "source") {
     return {};
   }
@@ -1216,12 +1472,38 @@ function selectionForAiRequest(markdown: string): { readonly selection?: { reado
   if (selection.empty) {
     return {};
   }
-
   return {
     selection: {
       from: Math.max(0, Math.min(selection.from, markdown.length)),
       to: Math.max(0, Math.min(selection.to, markdown.length))
     }
+  };
+}
+
+function richSelectionMarkdownRange(markdown: string): { readonly from: number; readonly to: number } | null {
+  if (!richEditor || richEditor.state.selection.empty) {
+    return null;
+  }
+  const selectedText = richEditor.state.doc.textBetween(
+    richEditor.state.selection.from,
+    richEditor.state.selection.to,
+    "\n",
+    "\n"
+  );
+  if (!selectedText.trim()) {
+    return null;
+  }
+  const from = markdown.indexOf(selectedText);
+  if (from < 0) {
+    return null;
+  }
+  const repeatedAt = markdown.indexOf(selectedText, from + selectedText.length);
+  if (repeatedAt >= 0) {
+    return null;
+  }
+  return {
+    from,
+    to: from + selectedText.length
   };
 }
 
@@ -1242,6 +1524,82 @@ function getAiWritingState(): {
     providerRequestCount: demoAiProvider.requests.length,
     statusText: aiStatusElement.textContent ?? "",
     suggestionText: aiSuggestionPreview.textContent ?? ""
+  };
+}
+
+function renderReferenceSurfaceState(): void {
+  const aiGroupVisible = referenceSurfacePreferences.visibleCommandGroups.includes("ai");
+  const toolbarAiVisible = aiGroupVisible && isAiEntryPointEnabled("toolbar");
+  const selectionAiVisible = aiGroupVisible && isAiEntryPointEnabled("selection");
+  const commandPaletteVisible = aiGroupVisible && isAiEntryPointEnabled("command-palette");
+  selectedTextAiAction.disabled = activeDocument.kind !== "markdown" || !hasAiEligibleSelection();
+  aiCommandSurface.dataset.session = aiSession ? "ready" : "missing";
+  aiCommandSurface.dataset.documentKind = activeDocument.kind;
+  documentStatusPopover.dataset.target = saveEngine.getState().target;
+  surfaceSettingsPanel.dataset.toolbarStyle = referenceSurfacePreferences.toolbarStyle;
+  debugInspector.dataset.status = debugInspector.open ? "open" : "closed";
+  app.dataset.toolbarMode = referenceSurfacePreferences.toolbarMode;
+  app.dataset.toolbarStyle = referenceSurfacePreferences.toolbarStyle;
+  app.dataset.statusDisclosure = referenceSurfacePreferences.technicalStatusDisclosure;
+  aiCommandSurface.hidden = !toolbarAiVisible;
+  toolbarAiButton.hidden = !toolbarAiVisible;
+  selectedTextAiAction.hidden = !selectionAiVisible;
+  commandPaletteButton.hidden = !commandPaletteVisible;
+  surfaceToolbarPrefElement.textContent = `${referenceSurfacePreferences.toolbarMode}, ${referenceSurfacePreferences.toolbarStyle}`;
+  surfaceAiEntryPointsPrefElement.textContent = referenceSurfacePreferences.aiEntryPoints.join(", ");
+  surfaceStatusDisclosurePrefElement.textContent = referenceSurfacePreferences.technicalStatusDisclosure;
+}
+
+function isAiEntryPointEnabled(entryPoint: ReferenceEditorPreferences["aiEntryPoints"][number]): boolean {
+  return referenceSurfacePreferences.aiEntryPoints.includes(entryPoint);
+}
+
+function hasAiEligibleSelection(): boolean {
+  if (activeDocument.kind !== "markdown") {
+    return false;
+  }
+  if (editorMode === "source") {
+    return !editor.state.selection.main.empty;
+  }
+  if (editorMode === "rich" && richEditor) {
+    return Boolean(richSelectionMarkdownRange(getMarkdown()));
+  }
+  return false;
+}
+
+function getReferenceSurfaceState(): {
+  readonly aiEntryPoints: readonly string[];
+  readonly aiMenuOpen: boolean;
+  readonly assistantPanelVisible: boolean;
+  readonly commandPaletteOpen: boolean;
+  readonly debugInspectorVisible: boolean;
+  readonly documentStatusOpen: boolean;
+  readonly hasEditorNativeAi: boolean;
+  readonly hasSelectionForAi: boolean;
+  readonly modeControl: string;
+  readonly optionalStats: boolean;
+  readonly settingsOpen: boolean;
+  readonly statusDisclosure: string;
+  readonly toolbarMode: string;
+  readonly toolbarStyle: string;
+  readonly visibleCommandGroups: readonly string[];
+} {
+  return {
+    aiEntryPoints: referenceSurfacePreferences.aiEntryPoints,
+    aiMenuOpen: aiCommandSurface.open,
+    assistantPanelVisible: !editorAiAssistantPanel.hidden,
+    commandPaletteOpen: !commandPalette.hidden,
+    debugInspectorVisible: debugInspector.open,
+    documentStatusOpen: documentStatusPopover.open,
+    hasEditorNativeAi: Boolean(aiCommandSurface && selectedTextAiAction),
+    hasSelectionForAi: hasAiEligibleSelection(),
+    modeControl: referenceSurfacePreferences.modeControl,
+    optionalStats: referenceSurfacePreferences.optionalStats,
+    settingsOpen: surfaceSettingsPanel.open,
+    statusDisclosure: referenceSurfacePreferences.technicalStatusDisclosure,
+    toolbarMode: referenceSurfacePreferences.toolbarMode,
+    toolbarStyle: referenceSurfacePreferences.toolbarStyle,
+    visibleCommandGroups: referenceSurfacePreferences.visibleCommandGroups
   };
 }
 
@@ -1281,6 +1639,7 @@ function mountRichEditor(markdown: string): void {
       updateSlashMenuFromRichState();
       renderRichBlockControls();
       renderRichFoldingUi(false);
+      renderReferenceSurfaceState();
     }
   });
   updateSlashMenuFromRichState();
@@ -1652,7 +2011,8 @@ function updateSlashMenuFromRichState(): void {
   if (!slashCommandState.open || slashCommandState.query !== previousQuery) {
     slashCommandSelectedIndex = 0;
   } else {
-    slashCommandSelectedIndex = Math.min(slashCommandSelectedIndex, slashCommandState.items.length - 1);
+    const selectableCount = slashCommandState.items.length + matchingReferenceAiSlashActions(slashCommandState.query).slice(0, 4).length;
+    slashCommandSelectedIndex = Math.min(slashCommandSelectedIndex, Math.max(0, selectableCount - 1));
   }
   renderSlashMenu();
 }
@@ -1670,10 +2030,11 @@ function detectSlashCommandState(): SlashCommandState {
   const query = match[1] ?? "";
   const from = selection.from - query.length - 1;
   const items = filterRichMarkdownCommands(query).slice(0, 8);
+  const aiItems = matchingReferenceAiSlashActions(query);
   return {
     from,
     items,
-    open: items.length > 0,
+    open: items.length > 0 || aiItems.length > 0,
     query,
     to: selection.from
   };
@@ -1692,6 +2053,7 @@ function closedSlashCommandState(): SlashCommandState {
 function renderSlashMenu(): void {
   slashCommandMenu.hidden = !slashCommandState.open;
   slashCommandQueryElement.textContent = `/${slashCommandState.query}`;
+  const aiItems = matchingReferenceAiSlashActions(slashCommandState.query).slice(0, 4);
   slashCommandItemsElement.replaceChildren(
     ...slashCommandState.items.map((command, index) => {
       const button = document.createElement("button");
@@ -1704,6 +2066,22 @@ function renderSlashMenu(): void {
       label.textContent = command.label;
       const aliases = document.createElement("span");
       aliases.textContent = command.aliases.slice(0, 3).join(", ");
+      button.append(label, aliases);
+      return button;
+    }),
+    ...(aiItems.length > 0 ? [slashCommandSectionLabel("AI writing")] : []),
+    ...aiItems.map((action) => {
+      const selectedIndex = slashCommandState.items.length + aiItems.indexOf(action);
+      const button = document.createElement("button");
+      button.className = "slash-command-item slash-command-item-ai";
+      button.dataset.selected = String(selectedIndex === slashCommandSelectedIndex);
+      button.dataset.referenceAiAction = action.id;
+      button.dataset.testid = `slash-ai-action-${action.id}`;
+      button.type = "button";
+      const label = document.createElement("strong");
+      label.textContent = action.label;
+      const aliases = document.createElement("span");
+      aliases.textContent = action.prompt;
       button.append(label, aliases);
       return button;
     })
@@ -1756,10 +2134,11 @@ function richStateForCommand(): RichMarkdownState {
 }
 
 function openSlashMenuForTest(query: string): void {
+  const items = filterRichMarkdownCommands(query).slice(0, 8);
   slashCommandState = {
     from: 0,
-    items: filterRichMarkdownCommands(query).slice(0, 8),
-    open: true,
+    items,
+    open: items.length > 0 || matchingReferenceAiSlashActions(query).length > 0,
     query,
     to: 0
   };
@@ -1776,6 +2155,8 @@ function handleSlashMenuKeyboard(event: KeyboardEvent): boolean {
   if (!slashCommandState.open) {
     return false;
   }
+  const aiItems = matchingReferenceAiSlashActions(slashCommandState.query).slice(0, 4);
+  const selectableCount = slashCommandState.items.length + aiItems.length;
   if (event.key === "Escape") {
     event.preventDefault();
     closeSlashMenu();
@@ -1783,26 +2164,55 @@ function handleSlashMenuKeyboard(event: KeyboardEvent): boolean {
   }
   if (event.key === "ArrowDown") {
     event.preventDefault();
-    slashCommandSelectedIndex = (slashCommandSelectedIndex + 1) % slashCommandState.items.length;
+    if (selectableCount === 0) {
+      return true;
+    }
+    slashCommandSelectedIndex = (slashCommandSelectedIndex + 1) % selectableCount;
     renderSlashMenu();
     return true;
   }
   if (event.key === "ArrowUp") {
     event.preventDefault();
-    slashCommandSelectedIndex =
-      (slashCommandSelectedIndex - 1 + slashCommandState.items.length) % slashCommandState.items.length;
+    if (selectableCount === 0) {
+      return true;
+    }
+    slashCommandSelectedIndex = (slashCommandSelectedIndex - 1 + selectableCount) % selectableCount;
     renderSlashMenu();
     return true;
   }
   if (event.key === "Enter") {
     event.preventDefault();
-    const command = slashCommandState.items[slashCommandSelectedIndex];
+    const command =
+      slashCommandSelectedIndex < slashCommandState.items.length ? slashCommandState.items[slashCommandSelectedIndex] : null;
     if (command) {
       runRichCommand(command.id);
+    } else {
+      const aiAction = aiItems[slashCommandSelectedIndex - slashCommandState.items.length];
+      if (aiAction) {
+        closeSlashMenu();
+        void runEditorNativeAiCommand(aiAction.id);
+      }
     }
     return true;
   }
   return false;
+}
+
+function matchingReferenceAiSlashActions(query: string): readonly ReferenceAiAction[] {
+  const normalizedQuery = query.trim().toLowerCase();
+  return referenceAiActionsForEntryPoint(referenceSurfacePreferences, "slash").filter((action: ReferenceAiAction) => {
+    if (!normalizedQuery) {
+      return true;
+    }
+    return `${action.id} ${action.label} ${action.prompt}`.toLowerCase().includes(normalizedQuery);
+  });
+}
+
+function slashCommandSectionLabel(label: string): HTMLElement {
+  const item = document.createElement("p");
+  item.className = "slash-command-section";
+  item.textContent = label;
+  return item;
 }
 
 function setRichSelectionAfterText(text: string): void {
@@ -1958,6 +2368,7 @@ function renderSaveState(): void {
   saveEngineLastActionElement.textContent = lastSaveAction;
   memorySaveButton.textContent = primaryActionLabel(state);
   memorySaveButton.disabled = state.target === "unsupported";
+  renderReferenceSurfaceState();
 }
 
 function primaryActionLabel(state: SaveState): string {
@@ -2002,6 +2413,124 @@ function documentTargetLabel(state: SaveState): string {
 function htmlPreviewStatusLabel(descriptor: SandboxedHtmlPreviewDescriptor): string {
   const scriptStatus = sandboxAllowsScripts(descriptor.sandbox) ? "scripts allowed" : "scripts disabled";
   return `HTML artifact preview, sandboxed, ${scriptStatus}`;
+}
+
+function openAiCommandSurface(): void {
+  if (!isAiEntryPointEnabled("toolbar")) {
+    return;
+  }
+  aiCommandSurface.open = true;
+  renderReferenceSurfaceState();
+}
+
+function setCommandPaletteOpen(open: boolean): void {
+  if (open && !isAiEntryPointEnabled("command-palette")) {
+    return;
+  }
+  commandPalette.hidden = !open;
+  if (open) {
+    commandPaletteInput.value = "";
+    renderCommandPaletteItems();
+    commandPaletteInput.focus();
+  }
+  renderReferenceSurfaceState();
+}
+
+function renderCommandPaletteItems(): void {
+  const actions = commandPaletteActions();
+  commandPaletteSelectedIndex = Math.min(commandPaletteSelectedIndex, Math.max(0, actions.length - 1));
+  commandPaletteItems.replaceChildren(
+    ...actions.map((action, index) => {
+      const button = document.createElement("button");
+      button.className = "ai-command-item";
+      button.dataset.referenceAiAction = action.id;
+      button.dataset.selected = String(index === commandPaletteSelectedIndex);
+      button.dataset.testid = `command-palette-ai-action-${action.id}`;
+      button.type = "button";
+      const label = document.createElement("strong");
+      label.textContent = action.label;
+      const entryPoints = document.createElement("span");
+      entryPoints.textContent = action.entryPoints.join(", ");
+      button.append(label, entryPoints);
+      return button;
+    })
+  );
+}
+
+function commandPaletteActions(): readonly ReferenceAiAction[] {
+  const query = commandPaletteInput.value.trim().toLowerCase();
+  return referenceAiActionsForEntryPoint(referenceSurfacePreferences, "command-palette").filter((action: ReferenceAiAction) => {
+    if (!query) {
+      return true;
+    }
+    return `${action.id} ${action.label} ${action.prompt}`.toLowerCase().includes(query);
+  });
+}
+
+function handleCommandPaletteKeyboard(event: KeyboardEvent): boolean {
+  if (commandPalette.hidden) {
+    return false;
+  }
+  const actions = commandPaletteActions();
+  if (event.key === "Escape") {
+    setCommandPaletteOpen(false);
+    return true;
+  }
+  if (event.key === "ArrowDown") {
+    if (actions.length > 0) {
+      commandPaletteSelectedIndex = (commandPaletteSelectedIndex + 1) % actions.length;
+      renderCommandPaletteItems();
+    }
+    return true;
+  }
+  if (event.key === "ArrowUp") {
+    if (actions.length > 0) {
+      commandPaletteSelectedIndex = (commandPaletteSelectedIndex - 1 + actions.length) % actions.length;
+      renderCommandPaletteItems();
+    }
+    return true;
+  }
+  if (event.key === "Enter") {
+    const action = actions[commandPaletteSelectedIndex];
+    if (action) {
+      setCommandPaletteOpen(false);
+      void runEditorNativeAiCommand(action.id);
+    }
+    return true;
+  }
+  return false;
+}
+
+function setReferenceSurfacePreferences(preferences: ReferenceEditorPreferenceInput): void {
+  referenceSurfacePreferences = resolveReferenceEditorPreferences(preferences);
+  renderReferenceSurfaceState();
+}
+
+async function runEditorNativeAiCommand(actionId: ReferenceAiActionId): Promise<void> {
+  const action = REFERENCE_AI_ACTIONS.find((candidate: ReferenceAiAction) => candidate.id === actionId);
+  if (!action) {
+    return;
+  }
+  editorAiAssistantPanel.hidden = false;
+  if (activeDocument.kind !== "markdown") {
+    aiStatusElement.textContent = "AI writing is available for Markdown documents only in this demo.";
+    editorAiStatusElement.textContent = "AI writing is available for Markdown documents only in this demo.";
+    logEvent(`AI action unavailable for ${activeDocument.fileName}: ${action.label}.`);
+    renderReferenceSurfaceState();
+    return;
+  }
+  if (!aiSession) {
+    aiStatusElement.textContent = `${action.label}: start a memory-only BYOK session first.`;
+    editorAiStatusElement.textContent = `${action.label}: start a memory-only BYOK session first.`;
+    logEvent(`Queued editor-native AI action without session: ${action.label}.`);
+    renderReferenceSurfaceState();
+    return;
+  }
+
+  aiActionSelect.value = action.demoAction;
+  aiPromptInput.value = action.prompt;
+  editorAiStatusElement.textContent = `Running ${action.label}...`;
+  await generateAiSuggestion();
 }
 
 function saveEngineStatusLabel(state: SaveState): string {
@@ -2301,9 +2830,11 @@ declare global {
       getLastCopiedMarkdown: () => string | null;
       getMarkdown: () => string;
       getSlashMenuState: () => {
+        readonly aiItems: readonly ReferenceAiActionId[];
         readonly items: readonly RichCommandId[];
         readonly open: boolean;
         readonly query: string;
+        readonly selectedAiId: ReferenceAiActionId | null;
         readonly selectedId: RichCommandId | null;
         readonly selectedIndex: number;
       };
@@ -2350,6 +2881,23 @@ declare global {
         readonly rawSource: string;
         readonly sourceHidden: boolean;
       };
+      getReferenceSurfaceState: () => {
+        readonly aiEntryPoints: readonly string[];
+        readonly aiMenuOpen: boolean;
+        readonly assistantPanelVisible: boolean;
+        readonly commandPaletteOpen: boolean;
+        readonly debugInspectorVisible: boolean;
+        readonly documentStatusOpen: boolean;
+        readonly hasEditorNativeAi: boolean;
+        readonly hasSelectionForAi: boolean;
+        readonly modeControl: string;
+        readonly optionalStats: boolean;
+        readonly settingsOpen: boolean;
+        readonly statusDisclosure: string;
+        readonly toolbarMode: string;
+        readonly toolbarStyle: string;
+        readonly visibleCommandGroups: readonly string[];
+      };
       getSaveState: () => SaveState;
       getRichText: () => string;
       getSelectionRange: () => {
@@ -2373,6 +2921,7 @@ declare global {
       simulateExternalConflict: () => void;
       setCursorAfterText: (text: string) => void;
       setCursorToEnd: () => void;
+      setReferenceSurfacePreferencesForTest: (preferences: ReferenceEditorPreferenceInput) => void;
       setRichSelectionAfterText: (text: string) => void;
       setSelection: (anchor: number, head: number) => void;
       startMockAiSessionForTest: () => void;

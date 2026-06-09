@@ -184,6 +184,18 @@ Round-trip tests must prove:
 - edited paragraph preserves unrelated ranges;
 - edited code fence preserves fence boundaries.
 
+## Gate 4.5 — Derived-view fidelity
+
+Added 2026-06-09. Applies to rich mode now and to any future live-preview or derived editing view.
+
+- Mounting a derived view and serializing back without edits must return the input bytes for the full fixture corpus.
+- An edit in a derived view must change only the edited blocks; unrelated source bytes survive byte-for-byte, including list markers, blank-line runs, heading styles, and emphasis characters.
+- Constructs the derived view cannot represent must be carried as raw/opaque content, never flattened or approximated.
+- Untouched documents must produce zero byte changes through save, copy, download, or mode switch.
+- No derived-view feature work may build on a view that fails this gate.
+
+Mandatory automated proof: a corpus-wide identity round-trip test and an edited-block preservation test.
+
 ## Gate 5 — Source editor baseline
 
 Before rich mode, source mode must support:
@@ -271,3 +283,45 @@ AI V0 must remain writing assistance. No workspace agent, no RAG, no tool execut
 ## Gate 12 — Reviewer pass
 
 Every completed issue must have reviewer verification. Use subagents if available. If unavailable, document fallback verification.
+
+## Gate 13 — Theming and preference contracts
+
+Added 2026-06-09. Applies once `@momentarise/md-theme` and the preference contracts exist.
+
+- Surface components consume only design tokens, preference values, the icon-set contract, and an injected string dictionary; no hardcoded colors, fonts, spacing, shortcuts, or UI literals.
+- Preference resolution (framework, host, workspace, document, user) and lock/allowlist semantics are headless and unit-tested.
+- MME ships no mandatory settings UI; the host decides what is configurable, locked, or exposed.
+- Preference changes apply at runtime without recreating the editor.
+- Contract types stay DOM-free, framework-free, and host-independent.
+
+## Gate 14 — Publishability
+
+Mandatory before any npm publish or public repository flip.
+
+- View packages declare CodeMirror/ProseMirror as peer dependencies; no phantom dependencies anywhere (pnpm strict install passes).
+- `npm pack` artifacts install and run in external consumer apps (vanilla Vite, Next.js) without workspace links.
+- A duplicate-instance check proves single `@codemirror/state` and `prosemirror-model` instances in consumers.
+- Every published package has license metadata, README, version policy, and an experimental/stable label.
+- Public exports are audited and intentional; no accidental test-helper exports.
+- CI runs all gates plus the consumer matrix on pull requests.
+
+## Gate 15 — AX / agent experience
+
+AX is a first-class DX category.
+
+- Public docs are plain CommonMark/GFM with stable heading anchors and runnable examples; raw Markdown is retrievable per page.
+- `llms.txt` and `llms-full.txt` are generated from the docs; an automated check fails when docs change without regeneration.
+- CLI machine-readable output (`--json`) is treated as a contract; breaking it is a breaking change.
+- Public APIs require no hidden state to use reliably; examples can be followed end-to-end by a coding agent.
+- AI-assisted flows stay staged with explicit accept/reject and policy-gated content egress.
+
+## Gate 16 — Public docs site readiness
+
+Applies to the docs site issue and any later site change.
+
+- Docs pages are served from the real Markdown files in `docs/public/`; no forked content.
+- Center content renders through MME read-only rendering, not an unrelated renderer; the site is not editable by default.
+- Left navigation and the right heading outline work on pages with and without frontmatter; the outline derives from headings, never frontmatter.
+- Copy-as-Markdown, copy-as-prompt, copy-section, copy-link, and Open-in-chat actions work, with copy-prompt fallback where deep links are unreliable.
+- Internal links follow the chosen Markdown linking convention and resolve on the site and inside MME.
+- The site meets the accessibility baseline (keyboard operation, contrast) and remains readable by both humans and coding agents.

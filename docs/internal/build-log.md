@@ -1909,3 +1909,168 @@
   - `docs: plan reference editor surface before adapters`
 - Next issue:
   - `MME-0018 — Reference Editor Surface V0`.
+
+## MME-0018 — Reference Editor Surface V0
+
+- Timestamp: 2026-06-06T14:44:21Z
+- Status: code-complete, scripted visual verification pending, human review pending.
+- Summary: Reworked the mini web demo from a technical harness toward a reference editor surface. The demo now has compact editor chrome, a discreet document status popover, command-palette and toolbar/slash AI entry points, a user-facing AI review panel with memory-only BYOK session start and accept/reject controls, a host preference contract for surface behavior, and floating technical diagnostics instead of a permanent inspector column.
+- Files changed:
+  - `README.md`
+  - `apps/md-demo/src/main.ts`
+  - `apps/md-demo/src/reference-surface.ts`
+  - `apps/md-demo/src/styles.css`
+  - `docs/internal/build-log.md`
+  - `docs/internal/visual-checks/MME-0018/README.md`
+  - `docs/internal/visual-checks/MME-0018/reference-surface-desktop.png`
+  - `docs/internal/visual-checks/MME-0018/reference-surface-rich-ai.png`
+  - `docs/internal/visual-checks/MME-0018/reference-surface-narrow.png`
+  - `package.json`
+  - `scripts/visual-check-mme0018.mjs`
+  - `tests/demo-reference-surface-baseline.test.mjs`
+- Behavior proven:
+  - Static MME-0018 baseline requires the reference surface contract, host preference resolver, AI entry points outside diagnostics, user-facing AI panel, command palette, toolbar AI button, debug-inspector demotion, visual script, and visual artifacts directory.
+  - `resolveReferenceEditorPreferences` provides a host override/default merge point for toolbar mode/style, mode control, visible command groups, AI entry points, technical status disclosure, and optional stats.
+  - AI actions are exposed through top editor AI menu, selected-text action, command palette, slash menu, and rich toolbar AI button.
+  - The user-facing AI panel can start a memory-only BYOK mock session and shows staged suggestions with accept/reject controls outside technical diagnostics.
+  - Selected-text AI is gated by source/rich selection where practical; rich selections are mapped back to Markdown text when possible.
+  - Rich selected-text AI refuses ambiguous repeated selected text instead of mapping to the first matching Markdown occurrence.
+  - Slash-menu AI actions are rendered and keyboard-selectable alongside rich commands.
+  - Command palette actions support ArrowUp/ArrowDown, Enter execution, and Escape close.
+  - Host AI entry-point preferences now gate visible controls and interaction paths: toolbar AI, selected-text AI, command palette button/shortcut/actions, and slash-menu AI actions.
+  - Technical diagnostics and debug-only conflict simulation are moved into a floating collapsed diagnostics surface.
+- Test-first evidence:
+  - `tests/demo-reference-surface-baseline.test.mjs` was added first and failed before `apps/md-demo/src/reference-surface.ts` existed:
+    - `Error: Missing MME-0018 required file: apps/md-demo/src/reference-surface.ts`
+  - The test was then expanded after reviewer feedback to require the preference resolver, user-facing AI panel, command palette, toolbar AI, and scripted visual scenarios.
+- Tests/checks run:
+  - `npm run test:demo-reference-surface`
+  - `npm run test:demo-commands`
+  - `npm run test:demo-ai-writing`
+  - `npm run test:demo-html-preview`
+  - `npm run test:demo-rich`
+  - `npm run test:demo-rich-ux`
+  - `npm run test:source-ux`
+  - `npm run test:save-engine`
+  - `npm run test:web-file-access`
+  - `npm run build:demo`
+  - `npm run test`
+  - `npm run test` after the final rich-selection and command-palette keyboard fixes
+  - `file docs/internal/visual-checks/MME-0018/*`
+- Visual verification:
+  - Dev server started with `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`.
+  - Local URL: `http://127.0.0.1:5174/`.
+  - The server remains running on port `5174`.
+  - In-app browser confirmed the current DOM includes `reference-editor-shell`, `editor-ai-assistant-panel`, `command-palette`, and `toolbar-ai-button`.
+  - In-app browser screenshots captured:
+    - `docs/internal/visual-checks/MME-0018/reference-surface-desktop.png`
+    - `docs/internal/visual-checks/MME-0018/reference-surface-rich-ai.png`
+    - `docs/internal/visual-checks/MME-0018/reference-surface-narrow.png`
+  - Browser-integrated screenshots were converted to true PNG data with `sips`; `file docs/internal/visual-checks/MME-0018/*` confirms PNG image data.
+  - `npm run visual:mme-0018` still fails before CDP becomes available because local Chrome exits with `SIGABRT`. Therefore the deeper scripted artifacts for command palette, selected-text AI, slash AI, tablet, constrained IDE viewport, and HTML preview remain pending in this environment.
+- Visual impact:
+  - Editing surface: source/rich/preview modes are now controlled from compact editor chrome; rich mode gains a visible AI toolbar button; selected text can route to the AI review flow; slash menu includes AI actions in addition to block commands.
+  - General UI: document metadata moved from the permanent strip into a discreet status popover; AI moved from inspector-only into editor-native entry points plus a user-facing review panel; diagnostics are collapsed into a floating technical surface; debug conflict simulation is no longer in the main toolbar.
+  - Mobile/narrow UI: copy/download are hidden in the narrow chrome, open/mode/status/save remain visible, and the document starts in the first viewport. This is improved but still not the final Obsidian/BlockNote-level mobile editor pass.
+- Reviewer/subagent used and result:
+  - Tests/Gates Reviewer initially failed the slice because build-log evidence was missing, the visual contract was incomplete, visual scenarios were under-covered, and screenshot files were JPEG data under `.png` names. Fixed build-log entry, expanded visual script/test contract, and converted artifacts to true PNG. Full CDP scripted visual verification remains pending due environment.
+  - Architecture/DX Reviewer initially failed the host preferences contract as too declarative, then flagged that some keyboard/menu paths still bypassed disabled entry points. Fixed by adding `resolveReferenceEditorPreferences`, `referenceAiActionsForEntryPoint`, host override hook, preference-driven UI state, interaction gating for toolbar/selection/command/slash AI, and test hook for host preference overrides.
+  - UX/Visual Reviewer initially failed the AI flow because accept/reject/session review lived only in diagnostics, entry points over-promised, selected-text AI ignored rich selection, slash AI keyboard behavior was incomplete, mobile chrome was heavy, and debug UI was too visible. Fixed by adding a user-facing AI panel, rich toolbar AI, command palette, selected-selection gating, ambiguous-rich-selection refusal, command palette keyboard execution, slash AI keyboard selection, and floating diagnostics. Remaining human review is required for product direction and final polish.
+  - Final Architecture/DX check passed for the host preference gating blocker.
+  - Final UX/Visual narrow check passed for the rich selected-text ambiguity fix and command palette keyboard behavior.
+  - Final Tests/Gates check still fails completion only because scripted visual verification and human review are pending; this is intentionally reflected in the issue status.
+- Known limitations / pending:
+  - Human review is required before accepting MME-0018 and starting MME-0019.
+  - Headless Chrome/CDP visual script is still blocked by `SIGABRT` in this environment.
+  - Full UI/UX/DX polish remains intentionally tracked in `MME-BACKLOG`: Obsidian-level live preview, indentation, nested todos, final toolbar/slash density, mobile/tablet polish, HTML preview chrome, settings integration, and advanced editor ergonomics.
+  - `apps/md-demo/src/main.ts` remains large and should be split when adapter extraction begins.
+- Suggested commit message:
+  - `feat: add reference editor surface v0`
+- Next issue:
+  - `MME-0019 — Theia adapter alpha`, only after human review accepts or redirects the MME-0018 surface direction.
+
+## Tooling follow-up — Claude Fable 5 framework reviewer
+
+- Timestamp: 2026-06-09T19:46:58Z
+- Status: completed.
+- Summary: Added an internal Claude Fable 5 reviewer CLI for high-signal framework review against repository docs, current Git diff, build-log tail, and selected source files. This is internal build tooling, not MME product AI. It does not give Claude direct terminal access; it creates a controlled context packet, calls the Anthropic Messages API when `ANTHROPIC_API_KEY` is configured, and writes a markdown report for the implementation agent to apply or convert into issues.
+- Files changed:
+  - `.env.example`
+  - `.gitignore`
+  - `CLAUDE.md`
+  - `docs/internal/AI_REVIEWER.md`
+  - `docs/internal/ai-reviews/README.md`
+  - `docs/internal/ai-reviews/.gitignore`
+  - `docs/internal/build-log.md`
+  - `package.json`
+  - `scripts/claude-framework-review.mjs`
+  - `tests/claude-reviewer-tooling.test.mjs`
+- Behavior proven:
+  - Default reviewer model is `claude-fable-5`.
+  - API keys are read from environment or ignored local env files and are not committed.
+  - `.env`, `.env.*`, and generated AI review reports are ignored by Git by default while `.env.example` remains trackable.
+  - `npm run ai:review:dry-run` works without a key or network call.
+  - `npm run ai:review:claude` is available for real API review when `ANTHROPIC_API_KEY` is set.
+  - The context packet is allowlisted and excludes `.env`, generated reports, build output, and dependency folders.
+  - `CLAUDE.md` gives terminal-based Claude agents a short repo handoff that defers to `AGENT.md` and the internal gates.
+- Test-first evidence:
+  - `tests/claude-reviewer-tooling.test.mjs` was added first and failed because `test:ai-reviewer-tooling`, `.env.example`, docs, and the reviewer script did not exist.
+- Tests/checks run:
+  - `npm run test:ai-reviewer-tooling`
+  - `npm run ai:review:dry-run`
+  - `git diff --check`
+- Manual verification:
+  - Dry-run generated `docs/internal/ai-reviews/claude-framework-review-2026-06-09T19-46-58-734Z.md`.
+  - The generated report is ignored by Git under `docs/internal/ai-reviews/.gitignore`.
+- Visual impact:
+  - No visible editing or general UI changes. This is internal review tooling only.
+- Reviewer/subagent used and result:
+  - Fallback self-review. No reviewer subagent was invoked for this tooling setup.
+- Open questions:
+  - Whether to later create a separate guarded tool-running Claude agent that can propose patches or execute commands. That should be a distinct issue with permission boundaries, logs, and human approval.
+- Suggested commit message:
+  - `chore: add claude framework reviewer tooling`
+- Next issue:
+  - MME-0018 remains code-complete with human review pending; do not start MME-0019 until the reference surface is accepted or redirected.
+
+## Docs follow-up — Public framework readiness plan and issue renumbering
+
+- Timestamp: 2026-06-09T23:02:19Z
+- Status: completed (docs only; no source code changed).
+- Summary: Converted the three-pass framework review (strict upgrade review, first-principles architecture review, market benchmark/AX review) into an implementation-ready issue sequence. Recorded preservation blockers against MME-0018 acceptance, inserted phases A–G (integrity, headless engine and packaging, contracts, surface and bindings, product surfaces, adapters, publish and docs), renumbered adapter issues, and added public-framework constraints to the PRD and new quality gates.
+- Review findings driving the redirect:
+  - Rich mode re-serializes the whole document through a normalizing hand-written serializer on every rich edit, violating the no-silent-rewrite rule.
+  - The rich mapper's default branch flattens unsupported nodes with children (GFM tables, strikethrough-bearing content) into paragraphs, destroying content on the next sync.
+  - The reference surface is demo-bound; no headless session, theming, preference, or extension contracts exist for hosts.
+  - Packaging is not publishable: phantom ProseMirror deps, no peer dependencies for CodeMirror/ProseMirror, internal versions pinned `0.0.0`, no LICENSE/CI/release tooling.
+- Renumbering (before -> after):
+  - `MME-0019 — Theia adapter alpha` -> `MME-0034`
+  - `MME-0020 — Host adapter external-change strategy` -> `MME-0035`
+- New issues added:
+  - `MME-0019` rich-mode round-trip fidelity gate; `MME-0020` targeted rich serialization and no-rewrite saves; `MME-0021` rich list/todo editing baseline; `MME-0022` source keymap integrity; `MME-0023` headless editor session and events; `MME-0024` publishable package restructure; `MME-0025` theming contracts; `MME-0026` preferences, locks, and capabilities; `MME-0027` extension registry V0; `MME-0028` editor surface package with i18n and a11y; `MME-0029` block interaction affordances; `MME-0030` beautiful default theme V1; `MME-0031` React binding and external consumer validation; `MME-0032` Markdown HTML renderer and inline-HTML policy; `MME-0033` find/replace and outline APIs; `MME-0036` release engineering and security pass; `MME-0037` public docs content baseline; `MME-0038` public docs site and AX docs surface.
+- Files changed:
+  - `docs/internal/ISSUES.md` (MME-0018 status note, renumbering note, issues MME-0019..MME-0038, backlog additions)
+  - `docs/internal/PRD.md` (public-framework packages and tiers, HTML-inside-Markdown clarification, public framework readiness constraints: derived-view fidelity, headless engine, extension model, theming/preferences/settings six-layer separation, beautiful default theme, AX, docs-site-as-showcase, renderer/find/outline; documentation set additions)
+  - `docs/internal/QUALITY_GATES.md` (Gate 4.5 derived-view fidelity; Gate 13 theming/preference contracts; Gate 14 publishability; Gate 15 AX; Gate 16 public docs site readiness)
+  - `README.md` (current-slice warning and phased next-slices sequence)
+  - `docs/internal/build-log.md` (this entry)
+- Decisions recorded:
+  - MME-0018 must not be accepted as final while Gate 4.5 blockers remain; recommended human decision is accept-direction-with-redirect into MME-0019/MME-0020.
+  - Theia adapter (now MME-0034) is blocked until MME-0019..MME-0028 land, because adapters must consume the headless session and surface packages instead of forking demo orchestration.
+  - AX is a first-class DX category; the public docs site renders `docs/public/` Markdown through MME read-only and ships `llms.txt`/`llms-full.txt`.
+  - Frontmatter on docs pages is optional metadata only; navigation and outline never require it.
+  - Theming/preferences separate framework tokens, host theme, user preferences, behavior preferences, capability flags, and optional future settings UI; MME never assumes it owns the settings UI.
+- Open questions for the human:
+  - License choice (MPL-2.0 core plus MIT/Apache-2.0 examples is the PRD recommendation) — decided in MME-0036.
+  - Internal docs linking convention (wikilinks vs relative Markdown links) — decided in MME-0037.
+  - Accept-with-redirect decision on MME-0018.
+- Visual impact:
+  - No visible editing or general UI changes. Documentation and planning only.
+- Tests/checks run:
+  - `git diff --check` (docs-only change; no code suites required for a documentation slice).
+- Reviewer/subagent used and result:
+  - Fallback self-review against AGENT.md issue-template structure, existing gate numbering style, and the renumbering precedent from the 2026-06-04 entry.
+- Suggested commit message:
+  - `docs: plan public framework readiness sequence`
+- Next issue:
+  - `MME-0019 — Rich-mode round-trip fidelity gate`, after the human accepts or redirects MME-0018.
