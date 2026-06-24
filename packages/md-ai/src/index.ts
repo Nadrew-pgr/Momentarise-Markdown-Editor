@@ -1,5 +1,6 @@
-import type { PolicyDecision } from "@momentarise/md-core";
+import type { DocumentHash, PolicyDecision } from "@momentarise/md-core";
 import { createDefaultPolicyResolver, type PolicyResolver } from "@momentarise/md-policy";
+import { hashMarkdownContent } from "@momentarise/md-save";
 
 export interface AiWritingContract {
   readonly packageName: "@momentarise/md-ai";
@@ -46,10 +47,11 @@ export interface AiProviderSuggestion {
   readonly title: string;
 }
 
-export type AiSuggestionStatus = "pending" | "accepted" | "rejected" | "blocked";
+export type AiSuggestionStatus = "pending" | "accepted" | "rejected" | "blocked" | "stale";
 
 export interface AiWritingSuggestion {
   readonly action: AiWritingAction;
+  readonly baseHash: DocumentHash;
   readonly id: string;
   readonly originalRange: AiSelectionRange;
   readonly policyDecision?: PolicyDecision;
@@ -123,9 +125,11 @@ export async function requestAiSuggestion(
   });
 
   const originalRange = normalizeSelectionRange(request);
+  const baseHash = hashMarkdownContent(request.document.content);
   if (!policyDecision.allowed) {
     return {
       action: request.action,
+      baseHash,
       id: createSuggestionId(request.action),
       originalRange,
       policyDecision,
@@ -142,6 +146,7 @@ export async function requestAiSuggestion(
 
   return {
     action: request.action,
+    baseHash,
     id: createSuggestionId(request.action),
     originalRange,
     policyDecision,
@@ -156,6 +161,16 @@ export function acceptAiSuggestion(content: string, suggestion: AiWritingSuggest
     return {
       content,
       suggestion
+    };
+  }
+
+  if (hashMarkdownContent(content) !== suggestion.baseHash) {
+    return {
+      content,
+      suggestion: {
+        ...suggestion,
+        status: "stale"
+      }
     };
   }
 

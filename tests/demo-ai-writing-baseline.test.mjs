@@ -43,9 +43,10 @@ for (const snippet of [
   "ai-accept-button",
   "ai-reject-button",
   "createMockAiProvider",
-  "createAiWritingSession",
-  "requestAiSuggestion",
-  "policyResolver: demoAiPolicyResolver",
+  "session.startAiSession",
+  "session.requestAiSuggestion",
+  "session.acceptPendingSuggestion",
+  "session.rejectPendingSuggestion",
   "getAiWritingState"
 ]) {
   if (!main.includes(snippet)) {

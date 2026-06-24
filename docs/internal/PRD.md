@@ -200,6 +200,17 @@ Public-framework packages added by the 2026-06-09 readiness review:
 
 Package tiers: model and services (md-core, md-format, md-policy, md-save, md-ai), headless engine (md-editor), view engines (md-source-codemirror, md-rich-prosemirror, md-preview-html, md-render-html), UI surface (md-theme, md-surface), framework bindings (md-react), host capability providers and shells (md-adapter-web, md-adapter-theia, md-adapter-vscode), tools (md-cli). View packages must declare CodeMirror/ProseMirror as peer dependencies so consumers never bundle duplicate editor cores. Nothing in the architecture may be React-only, Next-only, Theia-only, or browser-only.
 
+Host-target strategy (so "which adapters?" has one answer): the value of the headless engine + framework-free surface is that most targets are NOT bespoke adapters.
+
+- Vanilla web / Vite / any bundler: consume `md-editor` + view packages + `md-surface` directly. No adapter.
+- React / Next.js: consume the `md-react` binding; Next adds an SSR boundary recipe. Vue/Svelte are the same binding shape, later. These are bindings, not adapters; proven by the MME-0031 external-consumer matrix (Vite vanilla, Next App Router, pnpm strict, duplicate-instance, tree-shake).
+- Web file access: `md-host-web-fs` capability provider (File System Access). Not a shell.
+- IDE / web-IDE shells (own widget system, file service, keybinding service, preferences): Theia, then VS Code/Cursor. Theia is the FIRST reference shell because it is the hardest integration — making the adapter contract hold against Theia de-risks every lighter target. It is a proof vehicle, not the only or final adapter.
+- Desktop shells (Electron / Tauri): host shells that supply OS file IO, secure key storage, and OS file associations through the same SaveTarget-style capability contracts; tracked as host adapters, not core work.
+- Mobile / tablet: a later layout/input pass plus a host shell where applicable.
+
+Adapters and bindings stay thin precisely because orchestration lives in `md-editor` and UI in `md-surface`; adding a host means implementing capability contracts (file IO, external-change, settings storage, key storage, keybinding delegation), not re-implementing the editor.
+
 Future host adapter candidates, not required for V0 unless promoted by an issue:
 
 - `@momentarise/md-adapter-chrome-extension`
@@ -523,6 +534,10 @@ V0 CLI commands:
 - `mme create-fixture <name>`
 
 CLI must not depend on Theia.
+
+The CLI is a living surface, already implemented in V0 (MME-0010) and kept updated as capabilities land: each new capability package adds or updates the relevant command and its `--json` output (for example a `render` command once `md-render-html` exists, policy/theme/preferences inspection as those contracts ship). `--json` output is an AX contract (Gate 15); breaking it is a breaking change. The CLI is in scope for the MME-0036 security pass because it reads arbitrary files, can write with `--write`, and emits machine-readable output consumed by agents.
+
+Security is continuous, not a single late pass: Gate 9 (HTML sandbox), Gate 10 (policy before AI egress), and Gate 11 (AI writing boundary) hold from their respective slices; MME-0032 owns render sanitization; MME-0036 is the consolidated audit (URL sanitization in the rich schema, paste-handling policy, sandbox defaults, key-handling statement, CLI surface, `SECURITY.md`).
 
 ## Public framework readiness constraints
 

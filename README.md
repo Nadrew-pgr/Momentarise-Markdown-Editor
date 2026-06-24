@@ -30,13 +30,21 @@ Completed slices:
 - MME-0016: Configurable Document Access Policy V0 with hard-deny fixtures, warning/override metadata, host/user/workspace rules, and audit records.
 - MME-0017: AI writing BYOK V0 with package/session/policy contracts, staged suggestions, demo entrypoint, and visual screenshots pending because local screenshot tooling is currently failing.
 
+- MME-0018: Reference Editor Surface V0, accepted by the human as editor-surface direction with redirect (2026-06-10). All nine scripted visual artifacts are now captured. Preservation blockers were redirected into MME-0019/MME-0020.
+- MME-0019: Rich-mode round-trip fidelity gate. All 18 fixtures round-trip byte-for-byte through rich mount + serialize; unsupported blocks (GFM tables, unknown constructs) are preserved as raw blocks instead of flattened paragraphs; strikethrough survives edits; opaque detection no longer false-positives on currency or fenced-code content. Visual verification scripted and captured.
+- MME-0020: Targeted rich serialization and no-rewrite saves. Human accepted 2026-06-13 after preservation, save truthfulness, restored-copy wording, and folding chevron review follow-ups.
+- MME-0021: Rich list and todo editing baseline, accepted by the human after caret, nesting, Backspace, checkbox keyboard, and input-rule review fixes.
+- MME-0022: Source-mode keymap integrity with explicit CodeMirror extension composition, official Markdown continuation/backspace behavior, and browser-verified source keymap checks.
+- MME-0023: Headless editor session and events, accepted by the human after session/API proof, stale AI suggestion guard, demo session consumption, compact AI popover review fix, and AI follow-up issue planning.
+- MME-0039: Interim demo visual refresh (human-directed, out of phase order). CSS-only restyle of the demo chrome and editing surfaces; the values are the draft defaults for the MME-0025 token set.
+
 Current slice:
 
-- MME-0018: Reference Editor Surface V0, code-complete with tests passing and partial in-app visual artifacts. Human review and full scripted visual verification remain pending because local headless Chrome/CDP currently exits with `SIGABRT`. MME-0018 must not be accepted as final while derived-view preservation blockers remain; those are split into MME-0019 and MME-0020.
+- MME-0024: Publishable package restructure.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 
-- Phase A — integrity: MME-0019 rich round-trip fidelity gate; MME-0020 targeted rich serialization; MME-0021 rich list/todo editing baseline; MME-0022 source keymap integrity.
+- Phase A — integrity: MME-0021 rich list/todo editing baseline; MME-0022 source keymap integrity.
 - Phase B — headless engine and packaging: MME-0023 headless editor session; MME-0024 publishable package restructure.
 - Phase C — contracts: MME-0025 theming tokens/theme/icons; MME-0026 preferences, locks, capabilities; MME-0027 extension registry V0.
 - Phase D — surface and bindings: MME-0028 editor surface package; MME-0029 block interaction affordances; MME-0030 beautiful default theme; MME-0031 React binding and consumer validation.
@@ -52,7 +60,9 @@ Momentarise Markdown Editor is separate from Momentarise Workbench. The framewor
 
 - `AGENT.md`: mandatory build instructions for coding agents and contributors.
 - `docs/public/`: publishable documentation, starting with the glossary.
-- `docs/internal/`: product, planning, quality, issue, and build-process documents. These are not part of the public docs site by default.
+- `docs/internal/`: product, planning, quality, issue, backlog, and build-process documents. These are not part of the public docs site by default.
+
+Backlog context lives in both `docs/internal/ISSUES.md` and `docs/internal/BACKLOG.md`: `ISSUES.md` remains the executable issue queue and may contain future split candidate notes, while `BACKLOG.md` is the product-level backlog for must-have hygiene, differentiators, adapters, research, and maybe-later items.
 
 Read the build documents in order:
 
@@ -61,8 +71,9 @@ Read the build documents in order:
 3. `docs/internal/PRD.md`
 4. `docs/internal/QUALITY_GATES.md`
 5. `docs/internal/ISSUES.md`
-6. `docs/internal/build-log.md`
-7. `docs/public/GLOSSARY.md`
+6. `docs/internal/BACKLOG.md`
+7. `docs/internal/build-log.md`
+8. `docs/public/GLOSSARY.md`
 
 The public documentation boundary is deliberate: publish `README.md` and `docs/public/` by default; include `docs/internal/` only when explicitly intended.
 

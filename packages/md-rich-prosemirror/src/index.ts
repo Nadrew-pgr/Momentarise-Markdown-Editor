@@ -23,8 +23,8 @@ import {
 } from "prosemirror-commands";
 import { history, redo, undo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
-import { Mark, Node as ProseMirrorNode, Schema, type MarkSpec, type NodeSpec, type ResolvedPos } from "prosemirror-model";
-import { EditorState, NodeSelection, Plugin, PluginKey, TextSelection, type Transaction } from "prosemirror-state";
+import { Fragment, Mark, Node as ProseMirrorNode, Schema, type MarkSpec, type NodeSpec, type ResolvedPos } from "prosemirror-model";
+import { EditorState, NodeSelection, Plugin, PluginKey, Selection, TextSelection, type Transaction } from "prosemirror-state";
 
 export interface MomentariseRichProseMirrorContract {
   readonly packageName: "@momentarise/md-rich-prosemirror";
@@ -139,7 +139,7 @@ export type MomentariseRichSchema = Schema<
   | "text"
   | "todo_item"
   | "unsupported_block",
-  "code" | "em" | "link" | "strong"
+  "code" | "em" | "link" | "strike" | "strong"
 >;
 
 export const momentariseRichProseMirrorPackage: MomentariseRichProseMirrorContract = {
@@ -264,10 +264,13 @@ export function createMomentariseRichPlugins(): Plugin[] {
     createRichInputRulesPlugin(),
     createTodoTogglePlugin(),
     keymap({
-      "Mod-z": undo,
+      "Mod-z": chainCommands(undoRichInputRuleCommand, undo),
       "Mod-y": redo,
       "Mod-Shift-z": redo,
-      Enter: chainCommands(newlineInCode, splitTodoItemAtEnd, createParagraphNear, liftEmptyBlock, splitBlock)
+      Backspace: liftOrMergeListItemAtStartCommand,
+      Enter: chainCommands(newlineInCode, splitListItemCommand, createParagraphNear, liftEmptyBlock, splitBlock),
+      Tab: sinkListItemCommand,
+      "Shift-Tab": liftListItemCommand
     }),
     history(),
     keymap(baseKeymap)
@@ -548,31 +551,211 @@ export function serializeRichMarkdownState(state: RichMarkdownState): {
   readonly content: string;
   readonly diagnostics: readonly Diagnostic[];
 } {
-  const body = serializeBlockList(state.editorState.doc, 0).trimEnd();
-  const content = state.frontmatterSource
-    ? `${state.frontmatterSource}\n\n${body}\n`
-    : `${body}\n`;
   return {
-    content,
+    content: serializeRichMarkdownContent(state),
     diagnostics: [
       {
         code: "rich_prosemirror_serializer",
-        message: "Serialized the supported ProseMirror rich-mode subset back to Markdown.",
+        message:
+          "Serialized rich mode back to Markdown, emitting original source bytes for untouched top-level blocks.",
         severity: "info"
       }
     ]
   };
 }
 
+function serializeRichMarkdownContent(state: RichMarkdownState): string {
+  const source = state.source;
+  const pairs = richTopLevelBlockPairs(state.parseResult, state.schema).filter(
+    (pair) => pair.pm !== null && Boolean(pair.model.sourceRange)
+  );
+  const blocks: ProseMirrorNode[] = [];
+  state.editorState.doc.forEach((child) => {
+    blocks.push(child);
+  });
+
+  if (pairs.length === 0) {
+    const onlyDefaultEmptyParagraph =
+      blocks.length === 1 && blocks[0]!.type.name === "paragraph" && blocks[0]!.content.size === 0;
+    if (onlyDefaultEmptyParagraph) {
+      // The mapping produced only the default empty paragraph and nothing was typed:
+      // the document is untouched, so the original bytes are the truth.
+      return source;
+    }
+    const body = serializeBlockList(state.editorState.doc, 0).trimEnd();
+    return state.frontmatterSource ? `${state.frontmatterSource}\n\n${body}\n` : `${body}\n`;
+  }
+
+  const fallbackPrefix = state.frontmatterSource ? `${state.frontmatterSource}\n\n` : "";
+  const segments: string[] = [];
+  const alignedBlocks = alignRichBlocks(blocks, pairs);
+  let lastOriginalIndex = -1;
+
+  for (const aligned of alignedBlocks) {
+    if (aligned.kind === "matched") {
+      const originalIndex = aligned.pairIndex;
+      const range = pairs[originalIndex]!.model.sourceRange!;
+      let separator: string;
+      if (segments.length === 0) {
+        separator = originalIndex === 0 ? source.slice(0, range.start.offset) : fallbackPrefix;
+      } else if (originalIndex === lastOriginalIndex + 1) {
+        separator = source.slice(pairs[lastOriginalIndex]!.model.sourceRange!.end.offset, range.start.offset);
+      } else {
+        separator = "\n\n";
+      }
+      segments.push(separator + source.slice(range.start.offset, range.end.offset));
+      lastOriginalIndex = originalIndex;
+    } else {
+      const originalIndex = aligned.kind === "replaced" ? aligned.pairIndex : -1;
+      const text = serializeBlock(aligned.block, 0);
+      let separator: string;
+      if (originalIndex >= 0) {
+        const range = pairs[originalIndex]!.model.sourceRange!;
+        if (segments.length === 0) {
+          separator = originalIndex === 0 ? source.slice(0, range.start.offset) : fallbackPrefix;
+        } else if (originalIndex === lastOriginalIndex + 1) {
+          separator = source.slice(pairs[lastOriginalIndex]!.model.sourceRange!.end.offset, range.start.offset);
+        } else {
+          separator = "\n\n";
+        }
+        // A reconstructed replacement still occupies the original pair slot,
+        // so the next untouched neighbor can reuse the original gap-after.
+        lastOriginalIndex = originalIndex;
+      } else {
+        separator = segments.length === 0 ? fallbackPrefix : "\n\n";
+      }
+      segments.push(separator + text);
+    }
+  }
+
+  let content = segments.join("");
+  if (lastOriginalIndex === pairs.length - 1) {
+    content += source.slice(pairs[lastOriginalIndex]!.model.sourceRange!.end.offset);
+  } else {
+    content = `${content.trimEnd()}\n`;
+  }
+  return content;
+}
+
+type RichBlockAlignment =
+  | {
+      readonly block: ProseMirrorNode;
+      readonly kind: "inserted";
+    }
+  | {
+      readonly block: ProseMirrorNode;
+      readonly kind: "matched" | "replaced";
+      readonly pairIndex: number;
+    };
+
+function alignRichBlocks(
+  blocks: readonly ProseMirrorNode[],
+  pairs: readonly RichTopLevelBlockPair[]
+): readonly RichBlockAlignment[] {
+  type Step = "delete" | "insert" | "match" | "replace";
+  interface Cell {
+    readonly cost: number;
+    readonly step: Step | null;
+  }
+
+  const pairCount = pairs.length;
+  const blockCount = blocks.length;
+  const cells: Cell[][] = Array.from({ length: pairCount + 1 }, () =>
+    Array.from({ length: blockCount + 1 }, () => ({ cost: Number.POSITIVE_INFINITY, step: null }))
+  );
+  cells[pairCount]![blockCount] = { cost: 0, step: null };
+
+  for (let pairIndex = pairCount; pairIndex >= 0; pairIndex -= 1) {
+    for (let blockIndex = blockCount; blockIndex >= 0; blockIndex -= 1) {
+      if (pairIndex === pairCount && blockIndex === blockCount) {
+        continue;
+      }
+
+      let best: Cell = { cost: Number.POSITIVE_INFINITY, step: null };
+      const consider = (step: Step, cost: number): void => {
+        if (cost < best.cost) {
+          best = { cost, step };
+        }
+      };
+
+      if (pairIndex < pairCount && blockIndex < blockCount) {
+        if (pairs[pairIndex]!.pm!.eq(blocks[blockIndex]!)) {
+          consider("match", cells[pairIndex + 1]![blockIndex + 1]!.cost);
+        }
+        consider("replace", 1 + cells[pairIndex + 1]![blockIndex + 1]!.cost);
+      }
+      if (blockIndex < blockCount) {
+        consider("insert", 1.25 + cells[pairIndex]![blockIndex + 1]!.cost);
+      }
+      if (pairIndex < pairCount) {
+        consider("delete", 1.25 + cells[pairIndex + 1]![blockIndex]!.cost);
+      }
+      cells[pairIndex]![blockIndex] = best;
+    }
+  }
+
+  const alignment: RichBlockAlignment[] = [];
+  let pairIndex = 0;
+  let blockIndex = 0;
+  while (pairIndex < pairCount || blockIndex < blockCount) {
+    const step = cells[pairIndex]![blockIndex]!.step;
+    if (step === "match") {
+      alignment.push({
+        block: blocks[blockIndex]!,
+        kind: "matched",
+        pairIndex
+      });
+      pairIndex += 1;
+      blockIndex += 1;
+    } else if (step === "replace") {
+      alignment.push({
+        block: blocks[blockIndex]!,
+        kind: "replaced",
+        pairIndex
+      });
+      pairIndex += 1;
+      blockIndex += 1;
+    } else if (step === "insert") {
+      alignment.push({
+        block: blocks[blockIndex]!,
+        kind: "inserted"
+      });
+      blockIndex += 1;
+    } else if (step === "delete") {
+      pairIndex += 1;
+    } else {
+      break;
+    }
+  }
+  return alignment;
+}
+
 export function markdownDocumentToProseMirror(
   parseResult: ParseResult,
   schema: MomentariseRichSchema = createMomentariseRichSchema()
 ): ProseMirrorNode {
-  const content = filterRichRootNodes(parseResult.document.root.children ?? [])
-    .filter((node) => node.type !== "yaml" && node.type !== "yamlFrontmatter")
-    .map((node) => blockNodeToProseMirror(node, schema))
+  const content = richTopLevelBlockPairs(parseResult, schema)
+    .map((pair) => pair.pm)
     .filter((node): node is ProseMirrorNode => Boolean(node));
   return schema.nodes.doc.create(null, content.length > 0 ? content : [schema.nodes.paragraph.create()]);
+}
+
+interface RichTopLevelBlockPair {
+  readonly model: MomentariseNode;
+  readonly pm: ProseMirrorNode | null;
+}
+
+function richTopLevelBlockPairs(
+  parseResult: ParseResult,
+  schema: MomentariseRichSchema
+): readonly RichTopLevelBlockPair[] {
+  const source = parseResult.snapshot.content;
+  return filterRichRootNodes(parseResult.document.root.children ?? [])
+    .filter((node) => node.type !== "yaml" && node.type !== "yamlFrontmatter")
+    .map((node) => ({
+      model: node,
+      pm: blockNodeToProseMirror(node, schema, source)
+    }));
 }
 
 function filterRichRootNodes(nodes: readonly MomentariseNode[]): readonly MomentariseNode[] {
@@ -702,6 +885,10 @@ function executeRichMarkdownCommand(
 
 const richInputRulesPluginKey = new PluginKey("momentarise-rich-input-rules");
 
+interface RichInputRulesPluginState {
+  readonly undoText: string;
+}
+
 type RichMarkdownInputRule =
   | { readonly kind: "blockquote"; readonly prefixLength: number }
   | { readonly kind: "bullet_list"; readonly prefixLength: number }
@@ -711,7 +898,7 @@ type RichMarkdownInputRule =
   | { readonly checked: boolean; readonly kind: "todo_item"; readonly prefixLength: number };
 
 function createRichInputRulesPlugin(): Plugin {
-  return new Plugin({
+  return new Plugin<RichInputRulesPluginState | null>({
     appendTransaction(transactions, _oldState, state) {
       if (transactions.some((transaction) => transaction.getMeta(richInputRulesPluginKey))) {
         return null;
@@ -726,17 +913,14 @@ function createRichInputRulesPlugin(): Plugin {
       if ($from.parent.type !== state.schema.nodes.paragraph) {
         return null;
       }
-      if ($from.parentOffset !== $from.parent.content.size) {
-        return null;
-      }
-
       const text = $from.parent.textBetween(0, $from.parent.content.size, "\n", "\n");
-      const listTodoRule = todoInputRuleForListItemText(text);
+      const textBeforeCursor = $from.parent.textBetween(0, $from.parentOffset, "\n", "\n");
+      const listTodoRule = todoInputRuleForListItemText(textBeforeCursor);
       if (listTodoRule) {
         return createListTodoInputRuleTransaction(state, listTodoRule);
       }
 
-      const rule = markdownInputRuleForText(text);
+      const rule = markdownInputRuleForText(textBeforeCursor);
       if (!rule) {
         return null;
       }
@@ -745,7 +929,9 @@ function createRichInputRulesPlugin(): Plugin {
       const to = $from.after();
       const prefixFrom = $from.start();
       const prefixTo = prefixFrom + rule.prefixLength;
-      const transaction = state.tr.delete(prefixFrom, prefixTo).setMeta(richInputRulesPluginKey, true);
+      const transaction = state.tr.delete(prefixFrom, prefixTo).setMeta(richInputRulesPluginKey, {
+        undoText: text
+      });
       const mappedFrom = transaction.mapping.map(from);
       const mappedTo = transaction.mapping.map(to);
 
@@ -766,10 +952,7 @@ function createRichInputRulesPlugin(): Plugin {
         return null;
       }
       transaction.replaceWith(mappedFrom, mappedTo, replacement);
-      const selectionPosition = Math.min(
-        mappedFrom + selectionOffsetForInputRule(rule) + replacement.textContent.length,
-        transaction.doc.content.size
-      );
+      const selectionPosition = Math.min(mappedFrom + selectionOffsetForInputRule(rule), transaction.doc.content.size);
       return transaction.setSelection(TextSelection.near(transaction.doc.resolve(selectionPosition)));
     },
     key: richInputRulesPluginKey,
@@ -786,12 +969,50 @@ function createRichInputRulesPlugin(): Plugin {
         view.dispatch(transaction);
         return true;
       }
+    },
+    state: {
+      apply(transaction, previous) {
+        const meta = transaction.getMeta(richInputRulesPluginKey);
+        if (meta && typeof meta === "object" && typeof meta.undoText === "string") {
+          return {
+            undoText: meta.undoText
+          };
+        }
+        if (transaction.docChanged && !meta) {
+          return null;
+        }
+        return previous;
+      },
+      init() {
+        return null;
+      }
     }
   });
 }
 
-function splitTodoItemAtEnd(state: EditorState, dispatch?: (transaction: Transaction) => void): boolean {
-  const transaction = createTodoItemEnterTransaction(state);
+function undoRichInputRuleCommand(state: EditorState, dispatch?: (transaction: Transaction) => void): boolean {
+  const pluginState = richInputRulesPluginKey.getState(state) as RichInputRulesPluginState | null;
+  if (!pluginState || !(state.selection instanceof TextSelection)) {
+    return false;
+  }
+  const { $from } = state.selection;
+  if ($from.depth < 1) {
+    return false;
+  }
+  const paragraph = state.schema.nodes.paragraph!.create(
+    null,
+    pluginState.undoText ? state.schema.text(pluginState.undoText) : undefined
+  );
+  const from = $from.before(1);
+  const to = $from.after(1);
+  const transaction = state.tr.replaceWith(from, to, paragraph).setMeta(richInputRulesPluginKey, true);
+  const selectionPosition = Math.min(from + 1 + pluginState.undoText.length, transaction.doc.content.size);
+  dispatch?.(transaction.setSelection(TextSelection.near(transaction.doc.resolve(selectionPosition))));
+  return true;
+}
+
+function splitListItemCommand(state: EditorState, dispatch?: (transaction: Transaction) => void): boolean {
+  const transaction = createListItemEnterTransaction(state);
   if (!transaction) {
     return false;
   }
@@ -802,60 +1023,138 @@ function splitTodoItemAtEnd(state: EditorState, dispatch?: (transaction: Transac
 function createTodoTogglePlugin(): Plugin {
   return new Plugin({
     props: {
+      handleKeyDown(view, event) {
+        if (event.key !== " " && event.key !== "Enter") {
+          return false;
+        }
+        const posAtDOM = typeof view.posAtDOM === "function" ? view.posAtDOM.bind(view) : undefined;
+        const transaction = createTodoToggleTransactionFromTarget(view.state, event.target, posAtDOM);
+        if (!transaction) {
+          return false;
+        }
+        event.preventDefault();
+        view.dispatch(transaction);
+        return true;
+      },
       handleClick(view, _position, event) {
-        const target = event.target;
-        if (!(target instanceof Element)) {
+        const transaction = createTodoToggleTransactionFromTarget(view.state, event.target, view.posAtDOM.bind(view));
+        if (!transaction) {
           return false;
         }
-        const toggle = target.closest("[data-todo-toggle]");
-        if (!toggle) {
-          return false;
-        }
-        const todoElement = toggle.closest('[data-type="todo-item"]');
-        if (!todoElement) {
-          return false;
-        }
-        const position = view.posAtDOM(todoElement, 0);
-        const match = findNodePositionAround(view.state.doc, position, "todo_item");
-        if (!match) {
-          return false;
-        }
-        view.dispatch(
-          view.state.tr.setNodeMarkup(match.position, undefined, {
-            ...match.node.attrs,
-            checked: !Boolean(match.node.attrs.checked)
-          })
-        );
+        view.dispatch(transaction);
         return true;
       }
     }
   });
 }
 
-function createTodoItemEnterTransaction(state: EditorState): Transaction | null {
+function createTodoToggleTransactionFromTarget(
+  state: EditorState,
+  target: EventTarget | null,
+  posAtDOM?: (node: Node, offset: number) => number
+): Transaction | null {
+  if (typeof Element === "undefined" || !(target instanceof Element)) {
+    return null;
+  }
+  const toggle = target.closest("[data-todo-toggle]");
+  if (!toggle) {
+    return null;
+  }
+  const todoElement = toggle.closest('[data-type="todo-item"]');
+  if (!todoElement) {
+    return null;
+  }
+  const position = posAtDOM ? posAtDOM(todoElement, 0) : Number(todoElement.getAttribute("data-position") ?? NaN);
+  if (!Number.isFinite(position)) {
+    return null;
+  }
+  const match = findNodePositionAround(state.doc, position, "todo_item");
+  if (!match) {
+    return null;
+  }
+  return state.tr.setNodeMarkup(match.position, undefined, {
+    ...match.node.attrs,
+    checked: !Boolean(match.node.attrs.checked)
+  });
+}
+
+function createListItemEnterTransaction(state: EditorState): Transaction | null {
   if (!(state.selection instanceof TextSelection) || !state.selection.empty) {
     return null;
   }
   const { $from } = state.selection;
-  if ($from.parent.type !== state.schema.nodes.paragraph || $from.parentOffset !== $from.parent.content.size) {
+  if ($from.parent.type !== state.schema.nodes.paragraph) {
     return null;
   }
+
+  const itemDepth = findNearestListOrTodoItemDepth($from);
+  if (itemDepth === null) {
+    return null;
+  }
+  const itemNode = $from.node(itemDepth);
+  const itemType = itemNode.type;
+
   if ($from.parent.textContent.length === 0) {
+    return createEmptyListItemExitTransaction(state, itemDepth);
+  }
+
+  const itemAttrs = itemType.name === "todo_item" ? { checked: false } : null;
+  const transaction = state.tr
+    .split($from.pos, 2, [
+      { attrs: itemAttrs, type: itemType },
+      { type: state.schema.nodes.paragraph! }
+    ])
+    .setMeta(richInputRulesPluginKey, true);
+  const selectionPosition = Math.min($from.pos + 4, transaction.doc.content.size);
+  return transaction.setSelection(TextSelection.create(transaction.doc, selectionPosition));
+}
+
+function createEmptyListItemExitTransaction(state: EditorState, itemDepth: number): Transaction | null {
+  const { $from } = state.selection;
+  const paragraph = state.schema.nodes.paragraph!.create();
+  if (itemDepth === 1) {
+    const itemFrom = $from.before(itemDepth);
+    const itemTo = $from.after(itemDepth);
+    const transaction = state.tr.replaceWith(itemFrom, itemTo, paragraph).setMeta(richInputRulesPluginKey, true);
+    return transaction.setSelection(TextSelection.near(transaction.doc.resolve(itemFrom + 1)));
+  }
+
+  const listDepth = itemDepth - 1;
+  const listNode = $from.node(listDepth);
+  if (![state.schema.nodes.bullet_list, state.schema.nodes.ordered_list].includes(listNode.type)) {
     return null;
   }
 
-  const todoItemDepth = findAncestorDepth($from, "todo_item");
-  if (todoItemDepth === null) {
-    return null;
+  const lifted = currentListItemSelection(state);
+  if (listDepth >= 3 && lifted && lifted.itemDepth === itemDepth) {
+    const liftedTransaction = createLiftListItemTransaction(state, lifted);
+    if (!liftedTransaction) {
+      return null;
+    }
+    const selectionPosition = listItemParagraphStartPosition(
+      liftedTransaction.listPosition,
+      liftedTransaction.listNode,
+      liftedTransaction.itemIndex
+    );
+    return liftedTransaction.transaction.setSelection(
+      TextSelection.create(liftedTransaction.transaction.doc, selectionPosition)
+    );
   }
 
-  const insertionPosition = $from.after(todoItemDepth);
-  const nextTodoItem = state.schema.nodes.todo_item!.create({ checked: false }, [
-    state.schema.nodes.paragraph!.create()
-  ]);
-  const transaction = state.tr.insert(insertionPosition, nextTodoItem).setMeta(richInputRulesPluginKey, true);
-  const selectionPosition = Math.min(insertionPosition + 2, transaction.doc.content.size);
-  return transaction.setSelection(TextSelection.near(transaction.doc.resolve(selectionPosition)));
+  const listFrom = $from.before(listDepth);
+  const listTo = $from.after(listDepth);
+  const itemFrom = $from.before(itemDepth);
+  const itemTo = $from.after(itemDepth);
+  const itemIndex = $from.index(listDepth);
+  if (listNode.childCount === 1) {
+    const transaction = state.tr.replaceWith(listFrom, listTo, paragraph).setMeta(richInputRulesPluginKey, true);
+    return transaction.setSelection(TextSelection.near(transaction.doc.resolve(listFrom + 1)));
+  }
+
+  const transaction = state.tr.delete(itemFrom, itemTo).setMeta(richInputRulesPluginKey, true);
+  const insertionPosition = transaction.mapping.map(itemIndex === 0 ? listFrom : listTo);
+  transaction.insert(insertionPosition, paragraph);
+  return transaction.setSelection(TextSelection.near(transaction.doc.resolve(insertionPosition + 1)));
 }
 
 function findAncestorDepth($from: ResolvedPos, nodeTypeName: string): number | null {
@@ -867,8 +1166,297 @@ function findAncestorDepth($from: ResolvedPos, nodeTypeName: string): number | n
   return null;
 }
 
+function findNearestListOrTodoItemDepth($from: ResolvedPos): number | null {
+  const listItemDepth = findAncestorDepth($from, "list_item");
+  const todoItemDepth = findAncestorDepth($from, "todo_item");
+  if (listItemDepth === null) {
+    return todoItemDepth;
+  }
+  if (todoItemDepth === null) {
+    return listItemDepth;
+  }
+  return Math.max(listItemDepth, todoItemDepth);
+}
+
+function sinkListItemCommand(state: EditorState, dispatch?: (transaction: Transaction) => void): boolean {
+  const match = currentListItemSelection(state);
+  if (!match || match.listDepth < 1 || match.itemIndex === 0) {
+    return false;
+  }
+  const { $from, itemIndex, itemNode, listDepth, listNode } = match;
+  if (!isRichListNode(listNode, state.schema)) {
+    return false;
+  }
+
+  const previousItem = listNode.child(itemIndex - 1);
+  const nestedList = listNode.type.create(listNodeAttrs(listNode), Fragment.from(itemNode));
+  const nextPreviousItem = previousItem.copy(previousItem.content.append(Fragment.from(nestedList)));
+  const nextListChildren = nodeChildren(listNode).filter((_, index) => index !== itemIndex);
+  nextListChildren[itemIndex - 1] = nextPreviousItem;
+  const nextList = listNode.type.create(listNodeAttrs(listNode), Fragment.fromArray(nextListChildren));
+  const listPosition = $from.before(listDepth);
+  const transaction = state.tr
+    .replaceWith(listPosition, $from.after(listDepth), nextList)
+    .setMeta(richInputRulesPluginKey, true);
+  const previousItemPosition = listItemPosition(listPosition, listNode, itemIndex - 1);
+  const nestedListPosition = previousItemPosition + 1 + previousItem.content.size;
+  const selectionPosition = listItemParagraphStartPosition(nestedListPosition, nestedList, 0) + $from.parentOffset;
+  dispatch?.(transaction.setSelection(TextSelection.create(transaction.doc, selectionPosition)));
+  return true;
+}
+
+function liftListItemCommand(state: EditorState, dispatch?: (transaction: Transaction) => void): boolean {
+  const match = currentListItemSelection(state);
+  if (!match || match.listDepth < 3) {
+    return false;
+  }
+  const lifted = createLiftListItemTransaction(state, match);
+  if (!lifted) {
+    return false;
+  }
+  const selectionPosition = listItemParagraphStartPosition(lifted.listPosition, lifted.listNode, lifted.itemIndex) + match.$from.parentOffset;
+  dispatch?.(lifted.transaction.setSelection(TextSelection.create(lifted.transaction.doc, selectionPosition)));
+  return true;
+}
+
+function liftOrMergeListItemAtStartCommand(state: EditorState, dispatch?: (transaction: Transaction) => void): boolean {
+  const match = currentListItemSelection(state);
+  if (!match || match.listDepth < 1 || match.$from.parentOffset !== 0) {
+    return false;
+  }
+  const { $from, itemIndex, itemNode, listDepth, listNode } = match;
+  if (!isRichListNode(listNode, state.schema)) {
+    return false;
+  }
+
+  if (isEmptyPlainListItem(itemNode, state.schema) && listDepth >= 3 && listNode.childCount === 1) {
+    const deleted = createDeleteOnlyNestedEmptyListItemTransaction(state, match);
+    if (deleted) {
+      dispatch?.(deleted);
+      return true;
+    }
+  }
+
+  if (isEmptyPlainListItem(itemNode, state.schema) && itemIndex > 0) {
+    const nextListChildren = nodeChildren(listNode).filter((_, index) => index !== itemIndex);
+    const nextList = listNode.type.create(listNodeAttrs(listNode), Fragment.fromArray(nextListChildren));
+    const listFrom = $from.before(listDepth);
+    const transaction = state.tr
+      .replaceWith(listFrom, $from.after(listDepth), nextList)
+      .setMeta(richInputRulesPluginKey, true);
+    const previousItemEnd = listItemPosition(listFrom, nextList, itemIndex - 1) + nextList.child(itemIndex - 1).nodeSize;
+    dispatch?.(transaction.setSelection(Selection.near(transaction.doc.resolve(previousItemEnd), -1)));
+    return true;
+  }
+
+  if (isEmptyPlainListItem(itemNode, state.schema) && itemIndex === 0 && listNode.childCount > 1) {
+    const nextListChildren = nodeChildren(listNode).slice(1);
+    const nextList = listNode.type.create(listNodeAttrs(listNode), Fragment.fromArray(nextListChildren));
+    const listFrom = $from.before(listDepth);
+    const transaction = state.tr
+      .replaceWith(listFrom, $from.after(listDepth), nextList)
+      .setMeta(richInputRulesPluginKey, true);
+    const selectionPosition = listItemParagraphStartPosition(listFrom, nextList, 0);
+    dispatch?.(transaction.setSelection(TextSelection.create(transaction.doc, selectionPosition)));
+    return true;
+  }
+
+  if (itemIndex === 0) {
+    const listFrom = $from.before(listDepth);
+    const liftedParagraph = state.schema.nodes.paragraph!.create(null, itemNode.firstChild?.content ?? Fragment.empty);
+    const remainingItems = nodeChildren(listNode).slice(1);
+    const replacement = remainingItems.length > 0
+      ? Fragment.fromArray([
+          liftedParagraph,
+          listNode.type.create(listNodeAttrs(listNode), Fragment.fromArray(remainingItems))
+        ])
+      : Fragment.from(liftedParagraph);
+    const transaction = state.tr
+      .replaceWith(listFrom, $from.after(listDepth), replacement)
+      .setMeta(richInputRulesPluginKey, true);
+    dispatch?.(transaction.setSelection(TextSelection.create(transaction.doc, listFrom + 1)));
+    return true;
+  }
+
+  const previousItem = listNode.child(itemIndex - 1);
+  const previousParagraph = previousItem.firstChild;
+  const mergeBoundaryOffset = previousParagraph && previousParagraph.type === state.schema.nodes.paragraph
+    ? previousParagraph.content.size
+    : itemPrimaryText(previousItem).length;
+  const mergedItem = mergeAdjacentListItems(previousItem, itemNode, state.schema);
+  const nextListChildren = nodeChildren(listNode).filter((_, index) => index !== itemIndex);
+  nextListChildren[itemIndex - 1] = mergedItem;
+  const nextList = listNode.type.create(listNodeAttrs(listNode), Fragment.fromArray(nextListChildren));
+  const listFrom = $from.before(listDepth);
+  const transaction = state.tr
+    .replaceWith(listFrom, $from.after(listDepth), nextList)
+    .setMeta(richInputRulesPluginKey, true);
+  const selectionPosition = listItemParagraphStartPosition(listFrom, nextList, itemIndex - 1) + mergeBoundaryOffset;
+  dispatch?.(transaction.setSelection(TextSelection.create(transaction.doc, selectionPosition)));
+  return true;
+}
+
+function createDeleteOnlyNestedEmptyListItemTransaction(
+  state: EditorState,
+  match: NonNullable<ReturnType<typeof currentListItemSelection>>
+): Transaction | null {
+  const { $from, listDepth, listNode } = match;
+  const parentItemDepth = listDepth - 1;
+  const outerListDepth = listDepth - 2;
+  const parentItem = $from.node(parentItemDepth);
+  const outerList = $from.node(outerListDepth);
+  if (!isRichListNode(listNode, state.schema) || !isRichListNode(outerList, state.schema)) {
+    return null;
+  }
+
+  const nextParentItemChildren = nodeChildren(parentItem).filter((child) => child !== listNode);
+  const nextParentItem = parentItem.copy(Fragment.fromArray(nextParentItemChildren));
+  const parentItemIndex = $from.index(outerListDepth);
+  const nextOuterChildren = nodeChildren(outerList);
+  nextOuterChildren[parentItemIndex] = nextParentItem;
+  const nextOuterList = outerList.type.create(listNodeAttrs(outerList), Fragment.fromArray(nextOuterChildren));
+  const listPosition = $from.before(outerListDepth);
+  const transaction = state.tr
+    .replaceWith(listPosition, $from.after(outerListDepth), nextOuterList)
+    .setMeta(richInputRulesPluginKey, true);
+  const selectionPosition =
+    listItemParagraphStartPosition(listPosition, nextOuterList, parentItemIndex) + itemPrimaryText(nextParentItem).length;
+  return transaction.setSelection(TextSelection.create(transaction.doc, selectionPosition));
+}
+
+function currentListItemSelection(
+  state: EditorState
+): {
+  readonly $from: ResolvedPos;
+  readonly itemDepth: number;
+  readonly itemIndex: number;
+  readonly itemNode: ProseMirrorNode;
+  readonly listDepth: number;
+  readonly listNode: ProseMirrorNode;
+} | null {
+  if (!(state.selection instanceof TextSelection) || !state.selection.empty) {
+    return null;
+  }
+  const { $from } = state.selection;
+  if ($from.parent.type !== state.schema.nodes.paragraph) {
+    return null;
+  }
+  const itemDepth = findNearestListOrTodoItemDepth($from);
+  if (itemDepth === null || itemDepth < 1) {
+    return null;
+  }
+  const listDepth = itemDepth - 1;
+  if (listDepth < 0) {
+    return null;
+  }
+  return {
+    $from,
+    itemDepth,
+    itemIndex: $from.index(listDepth),
+    itemNode: $from.node(itemDepth),
+    listDepth,
+    listNode: $from.node(listDepth)
+  };
+}
+
+function createLiftListItemTransaction(
+  state: EditorState,
+  match: NonNullable<ReturnType<typeof currentListItemSelection>>
+): {
+  readonly itemIndex: number;
+  readonly listNode: ProseMirrorNode;
+  readonly listPosition: number;
+  readonly transaction: Transaction;
+} | null {
+  const { $from, itemIndex, itemNode, listDepth, listNode } = match;
+  const parentItemDepth = listDepth - 1;
+  const outerListDepth = listDepth - 2;
+  const parentItem = $from.node(parentItemDepth);
+  const outerList = $from.node(outerListDepth);
+  if (!isRichListNode(listNode, state.schema) || !isRichListNode(outerList, state.schema)) {
+    return null;
+  }
+
+  const remainingNestedItems = nodeChildren(listNode).filter((_, index) => index !== itemIndex);
+  const nextParentItemChildren = nodeChildren(parentItem).flatMap((child) => {
+    if (child !== listNode) {
+      return [child];
+    }
+    return remainingNestedItems.length > 0
+      ? [listNode.type.create(listNodeAttrs(listNode), Fragment.fromArray(remainingNestedItems))]
+      : [];
+  });
+  const nextParentItem = parentItem.copy(Fragment.fromArray(nextParentItemChildren));
+  const parentItemIndex = $from.index(outerListDepth);
+  const nextOuterChildren = nodeChildren(outerList);
+  nextOuterChildren[parentItemIndex] = nextParentItem;
+  nextOuterChildren.splice(parentItemIndex + 1, 0, itemNode);
+  const nextOuterList = outerList.type.create(listNodeAttrs(outerList), Fragment.fromArray(nextOuterChildren));
+  const listPosition = $from.before(outerListDepth);
+  const transaction = state.tr
+    .replaceWith(listPosition, $from.after(outerListDepth), nextOuterList)
+    .setMeta(richInputRulesPluginKey, true);
+  return {
+    itemIndex: parentItemIndex + 1,
+    listNode: nextOuterList,
+    listPosition,
+    transaction
+  };
+}
+
+function isRichListNode(node: ProseMirrorNode, schema: MomentariseRichSchema): boolean {
+  return [schema.nodes.bullet_list, schema.nodes.ordered_list].includes(node.type);
+}
+
+function nodeChildren(node: ProseMirrorNode): ProseMirrorNode[] {
+  const children: ProseMirrorNode[] = [];
+  node.forEach((child) => {
+    children.push(child);
+  });
+  return children;
+}
+
+function isEmptyPlainListItem(node: ProseMirrorNode, schema: MomentariseRichSchema): boolean {
+  const children = nodeChildren(node);
+  return children.length === 1 && children[0]?.type === schema.nodes.paragraph && children[0].content.size === 0;
+}
+
+function listNodeAttrs(node: ProseMirrorNode): Record<string, unknown> | null {
+  return node.type.name === "ordered_list" ? node.attrs : null;
+}
+
+function listItemPosition(listPosition: number, listNode: ProseMirrorNode, itemIndex: number): number {
+  let position = listPosition + 1;
+  for (let index = 0; index < itemIndex; index += 1) {
+    position += listNode.child(index).nodeSize;
+  }
+  return position;
+}
+
+function listItemParagraphStartPosition(listPosition: number, listNode: ProseMirrorNode, itemIndex: number): number {
+  return listItemPosition(listPosition, listNode, itemIndex) + 2;
+}
+
+function itemPrimaryText(itemNode: ProseMirrorNode): string {
+  return itemNode.firstChild?.textContent ?? itemNode.textContent;
+}
+
+function mergeAdjacentListItems(
+  previousItem: ProseMirrorNode,
+  currentItem: ProseMirrorNode,
+  schema: MomentariseRichSchema
+): ProseMirrorNode {
+  const [previousParagraph, ...previousRest] = nodeChildren(previousItem);
+  const [currentParagraph, ...currentRest] = nodeChildren(currentItem);
+  if (!previousParagraph || previousParagraph.type !== schema.nodes.paragraph || !currentParagraph || currentParagraph.type !== schema.nodes.paragraph) {
+    return previousItem.copy(previousItem.content.append(currentItem.content));
+  }
+  const mergedParagraph = previousParagraph.copy(previousParagraph.content.append(currentParagraph.content));
+  return previousItem.copy(Fragment.fromArray([mergedParagraph, ...previousRest, ...currentRest]));
+}
+
 function markdownInputRuleForText(text: string): RichMarkdownInputRule | null {
-  const heading = text.match(/^(#{1,3}) $/);
+  const heading = text.match(/^(#{1,6}) $/);
   if (heading) {
     return {
       kind: "heading",
@@ -893,7 +1481,7 @@ function markdownInputRuleForText(text: string): RichMarkdownInputRule | null {
     };
   }
 
-  if (text === "- ") {
+  if (text === "- " || text === "* " || text === "+ ") {
     return {
       kind: "bullet_list",
       prefixLength: text.length
@@ -1494,6 +2082,10 @@ const richMarks: Record<string, MarkSpec> = {
     parseDOM: [{ tag: "code" }],
     toDOM: () => ["code", 0]
   },
+  strike: {
+    parseDOM: [{ tag: "s" }, { tag: "del" }, { tag: "strike" }],
+    toDOM: () => ["s", 0]
+  },
   link: {
     attrs: {
       href: {},
@@ -1516,21 +2108,25 @@ const richMarks: Record<string, MarkSpec> = {
   }
 };
 
-function blockNodeToProseMirror(node: MomentariseNode, schema: MomentariseRichSchema): ProseMirrorNode | null {
+function blockNodeToProseMirror(
+  node: MomentariseNode,
+  schema: MomentariseRichSchema,
+  source: string
+): ProseMirrorNode | null {
   if (node.kind === "opaque") {
-    return unsupportedNodeToProseMirror(node, schema);
+    return unsupportedNodeToProseMirror(node, schema, source);
   }
 
   switch (node.type) {
     case "heading":
       return schema.nodes.heading.create(
         { level: Number(node.attributes?.depth ?? 1) },
-        inlineChildrenToProseMirror(node.children ?? [], schema)
+        inlineChildrenToProseMirror(node.children ?? [], schema, source)
       );
     case "paragraph":
-      return schema.nodes.paragraph.create(null, inlineChildrenToProseMirror(node.children ?? [], schema));
+      return schema.nodes.paragraph.create(null, inlineChildrenToProseMirror(node.children ?? [], schema, source));
     case "blockquote":
-      return schema.nodes.blockquote.create(null, blockChildrenToProseMirror(node.children ?? [], schema));
+      return schema.nodes.blockquote.create(null, blockChildrenToProseMirror(node.children ?? [], schema, source));
     case "thematicBreak":
       return schema.nodes.horizontal_rule.create();
     case "code":
@@ -1540,22 +2136,21 @@ function blockNodeToProseMirror(node: MomentariseNode, schema: MomentariseRichSc
           language: stringAttribute(node.attributes?.language),
           meta: stringAttribute(node.attributes?.meta)
         },
-        textNode(schema, stringAttribute(node.attributes?.value) ?? rawFromRange(node))
+        textNode(schema, stringAttribute(node.attributes?.value) ?? rawFromRange(node, source))
       );
     case "list":
-      return listNodeToProseMirror(node, schema);
-    case "html":
-      return unsupportedNodeToProseMirror(node, schema);
+      return listNodeToProseMirror(node, schema, source);
     default:
-      return node.children && node.children.length > 0
-        ? schema.nodes.paragraph.create(null, inlineChildrenToProseMirror(node.children, schema))
-        : unsupportedNodeToProseMirror(node, schema);
+      // Closed whitelist: anything the rich subset cannot represent (tables,
+      // footnotes, definitions, raw HTML, ...) is preserved as raw source in an
+      // unsupported block. It must never be flattened into an editable paragraph.
+      return unsupportedNodeToProseMirror(node, schema, source);
   }
 }
 
-function listNodeToProseMirror(node: KnownNode, schema: MomentariseRichSchema): ProseMirrorNode {
+function listNodeToProseMirror(node: KnownNode, schema: MomentariseRichSchema, source: string): ProseMirrorNode {
   const items = (node.children ?? [])
-    .map((child) => listItemToProseMirror(child, schema))
+    .map((child) => listItemToProseMirror(child, schema, source))
     .filter((child): child is ProseMirrorNode => Boolean(child));
   if (node.attributes?.ordered === true) {
     return schema.nodes.ordered_list.create({ order: Number(node.attributes.start) || 1 }, items);
@@ -1563,11 +2158,15 @@ function listNodeToProseMirror(node: KnownNode, schema: MomentariseRichSchema): 
   return schema.nodes.bullet_list.create(null, items);
 }
 
-function listItemToProseMirror(node: MomentariseNode, schema: MomentariseRichSchema): ProseMirrorNode | null {
+function listItemToProseMirror(
+  node: MomentariseNode,
+  schema: MomentariseRichSchema,
+  source: string
+): ProseMirrorNode | null {
   if (node.kind === "opaque") {
     return null;
   }
-  const children = blockChildrenToProseMirror(node.children ?? [], schema);
+  const children = blockChildrenToProseMirror(node.children ?? [], schema, source);
   const safeChildren = children.length > 0 ? children : [schema.nodes.paragraph.create()];
   if (typeof node.attributes?.checked === "boolean") {
     return schema.nodes.todo_item.create({ checked: node.attributes.checked }, safeChildren);
@@ -1577,21 +2176,23 @@ function listItemToProseMirror(node: MomentariseNode, schema: MomentariseRichSch
 
 function blockChildrenToProseMirror(
   children: readonly MomentariseNode[],
-  schema: MomentariseRichSchema
+  schema: MomentariseRichSchema,
+  source: string
 ): ProseMirrorNode[] {
   return children
-    .map((child) => blockNodeToProseMirror(child, schema))
+    .map((child) => blockNodeToProseMirror(child, schema, source))
     .filter((child): child is ProseMirrorNode => Boolean(child));
 }
 
 function inlineChildrenToProseMirror(
   children: readonly MomentariseNode[],
   schema: MomentariseRichSchema,
+  source: string,
   marks: readonly Mark[] = []
 ): readonly ProseMirrorNode[] {
   const inlineNodes: ProseMirrorNode[] = [];
   for (const child of children) {
-    inlineNodes.push(...inlineNodeToProseMirror(child, schema, marks));
+    inlineNodes.push(...inlineNodeToProseMirror(child, schema, source, marks));
   }
   return inlineNodes;
 }
@@ -1599,30 +2200,34 @@ function inlineChildrenToProseMirror(
 function inlineNodeToProseMirror(
   node: MomentariseNode,
   schema: MomentariseRichSchema,
+  source: string,
   marks: readonly Mark[]
 ): readonly ProseMirrorNode[] {
   if (node.kind === "opaque") {
     return [schema.text(node.raw, marks)];
   }
   if (node.type === "text") {
-    return [schema.text(stringAttribute(node.attributes?.value) ?? rawFromRange(node), marks)];
+    return [schema.text(stringAttribute(node.attributes?.value) ?? rawFromRange(node, source), marks)];
   }
   if (node.type === "inlineCode") {
     return [
-      schema.text(stringAttribute(node.attributes?.value) ?? rawFromRange(node), [
+      schema.text(stringAttribute(node.attributes?.value) ?? rawFromRange(node, source), [
         ...marks,
         schema.marks.code.create()
       ])
     ];
   }
   if (node.type === "emphasis") {
-    return inlineChildrenToProseMirror(node.children ?? [], schema, [...marks, schema.marks.em.create()]);
+    return inlineChildrenToProseMirror(node.children ?? [], schema, source, [...marks, schema.marks.em.create()]);
   }
   if (node.type === "strong") {
-    return inlineChildrenToProseMirror(node.children ?? [], schema, [...marks, schema.marks.strong.create()]);
+    return inlineChildrenToProseMirror(node.children ?? [], schema, source, [...marks, schema.marks.strong.create()]);
+  }
+  if (node.type === "strikethrough") {
+    return inlineChildrenToProseMirror(node.children ?? [], schema, source, [...marks, schema.marks.strike.create()]);
   }
   if (node.type === "link") {
-    return inlineChildrenToProseMirror(node.children ?? [], schema, [
+    return inlineChildrenToProseMirror(node.children ?? [], schema, source, [
       ...marks,
       schema.marks.link.create({
         href: stringAttribute(node.attributes?.url) ?? "",
@@ -1642,11 +2247,15 @@ function inlineNodeToProseMirror(
   if (node.type === "break") {
     return [schema.nodes.hard_break.create()];
   }
-  return inlineChildrenToProseMirror(node.children ?? [], schema, marks);
+  return inlineChildrenToProseMirror(node.children ?? [], schema, source, marks);
 }
 
-function unsupportedNodeToProseMirror(node: MomentariseNode, schema: MomentariseRichSchema): ProseMirrorNode {
-  const raw = node.kind === "opaque" ? node.raw : rawFromRange(node);
+function unsupportedNodeToProseMirror(
+  node: MomentariseNode,
+  schema: MomentariseRichSchema,
+  source: string
+): ProseMirrorNode {
+  const raw = node.kind === "opaque" ? node.raw : rawFromRange(node, source);
   return schema.nodes.unsupported_block.create({
     raw,
     reason: node.kind === "opaque" ? node.reason ?? "opaque Markdown" : `unsupported ${node.type}`
@@ -1724,10 +2333,12 @@ function serializeListItem(node: ProseMirrorNode, indentLevel: number, marker: s
   const firstText = first ? serializeBlock(first, indentLevel + 1) : "";
   const lines = [`${indentation}${marker} ${firstText}`.trimEnd()];
   for (const child of rest) {
+    const childIsList = ["bullet_list", "ordered_list"].includes(child.type.name);
+    const childIndentation = childIsList ? `${indentation}${" ".repeat(marker.length + 1)}` : `${indentation}  `;
     lines.push(
-      serializeBlock(child, indentLevel + 1)
+      serializeBlock(child, childIsList ? 0 : indentLevel + 1)
         .split("\n")
-        .map((line) => `${indentation}  ${line}`)
+        .map((line) => `${childIndentation}${line}`)
         .join("\n")
     );
   }
@@ -1766,6 +2377,9 @@ function wrapTextWithMarks(text: string, marks: readonly Mark[]): string {
     if (mark.type.name === "em") {
       return `*${value}*`;
     }
+    if (mark.type.name === "strike") {
+      return `~~${value}~~`;
+    }
     if (mark.type.name === "link") {
       const href = stringAttribute(mark.attrs.href) ?? "";
       const title = stringAttribute(mark.attrs.title);
@@ -1779,11 +2393,14 @@ function textNode(schema: MomentariseRichSchema, text: string | null): readonly 
   return text ? [schema.text(text)] : [];
 }
 
-function rawFromRange(node: MomentariseNode): string {
+function rawFromRange(node: MomentariseNode, source: string): string {
+  if (node.kind === "opaque") {
+    return node.raw;
+  }
   if (!node.sourceRange) {
     return "";
   }
-  return node.kind === "opaque" ? node.raw : "";
+  return source.slice(node.sourceRange.start.offset, node.sourceRange.end.offset);
 }
 
 function stringAttribute(value: NodeAttributeValue | undefined): string | null {

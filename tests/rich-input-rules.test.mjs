@@ -87,7 +87,7 @@ const codeAtEnd = rich.selectFirstRichText(rich.createRichMarkdownState("```ts\n
 const withParagraphAfterCode = rich.insertParagraphAfterCurrentBlock(codeAtEnd, "Next paragraph");
 assertIncludes(
   rich.serializeRichMarkdownState(withParagraphAfterCode).content,
-  "```\nNext paragraph",
+  "```\n\nNext paragraph",
   "paragraph after final code block"
 );
 if (!rich.canInsertParagraphAfterCurrentBlock(codeAtEnd)) {

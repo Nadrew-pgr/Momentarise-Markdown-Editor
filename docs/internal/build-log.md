@@ -2074,3 +2074,1106 @@
   - `docs: plan public framework readiness sequence`
 - Next issue:
   - `MME-0019 — Rich-mode round-trip fidelity gate`, after the human accepts or redirects MME-0018.
+
+## Human decision — MME-0018 accepted as direction with redirect
+
+- Timestamp: 2026-06-10T07:09:08Z
+- Decision recorded from the human's autonomous-execution instruction: "MME-0018 may be accepted as editor-surface direction with redirect, but not accepted as final while derived-view preservation blockers remain."
+- Effect: the editor-surface direction is approved; preservation integrity is redirected into MME-0019 and MME-0020; adapter work stays blocked per the readiness plan.
+- Follow-up resolved this session: the headless Chrome/CDP `SIGABRT` blocker is gone in the current environment. `npm run visual:mme-0018` completed and captured all nine scripted MME-0018 artifacts under `docs/internal/visual-checks/MME-0018/` (command palette, selected-text AI, slash AI, desktop, rich AI, narrow, tablet, IDE-constrained, HTML preview), replacing the three in-app fallback captures. MME-0018 scripted visual verification is no longer pending.
+
+## MME-0019 — Rich-mode round-trip fidelity gate
+
+- Timestamp: 2026-06-10T07:09:08Z
+- Status: completed; Gate 4.5 now holds for untouched documents across the full fixture corpus.
+- Summary: Stopped derived-view data corruption. The rich mapper is now a closed whitelist (tables, footnotes, definitions, and any unknown block become `unsupported_block` carrying raw source bytes instead of being flattened into editable paragraphs). `serializeRichMarkdownState` emits original source bytes for untouched top-level blocks (sequential `node.eq` matching against the expected mapping, original inter-block gaps preserved for consecutive untouched blocks) and reconstructs only edited or inserted blocks. A `strike` mark was added so GFM strikethrough survives edits in the same block. `detectOpaqueNodes` no longer false-positives on currency amounts (`$5 and $10`) or on wikilink/callout/LaTeX patterns inside fenced code; the Mermaid pattern still matches because the fence itself is the construct.
+- Files changed:
+  - `packages/md-rich-prosemirror/src/index.ts` (whitelist mapping with `source` threading, `richTopLevelBlockPairs`, byte-preserving `serializeRichMarkdownContent`, `strike` mark in schema/mapping/serialization, `rawFromRange(node, source)`)
+  - `packages/md-format/src/index.ts` (`detectOpaqueNodes` fenced-region masking via `fencedCodeRegions`/`isInsideFencedRegion`, currency-safe inline-math regex `/\$\$[\s\S]*?\$\$|\$(?![\s\d$])[^$\n]*?(?<=\S)\$/g`)
+  - `tests/rich-roundtrip-fidelity.test.mjs` (new corpus gate)
+  - `scripts/visual-check-mme0019.mjs` (new scripted visual verification with in-browser byte-identity assertions)
+  - `package.json` (`test:rich-fidelity` wired into root `test`, `visual:mme-0019`)
+  - `docs/internal/visual-checks/MME-0019/` (three PNG artifacts plus README)
+  - `docs/internal/ISSUES.md`, `README.md`, `docs/internal/build-log.md` (status updates)
+- Behavior proven (acceptance criteria mapping):
+  - All 18 fixtures round-trip byte-for-byte through rich mount + serialize (`tests/rich-roundtrip-fidelity.test.mjs`).
+  - The lossy `children -> paragraph` default branch is removed; the GFM table fixture maps to `unsupported_block` carrying the raw table including the compact `| :-- | :-: | --: |` delimiter row.
+  - Editing a paragraph leaves every untouched table line byte-identical; strikethrough survives an edit in its own paragraph.
+  - `$5 and $10` produces no LaTeX opaque diagnostic; real inline `$E = mc^2$` and display `$$...$$` math are still detected; wikilink/callout/`$` patterns inside fenced code produce no opaque nodes; Mermaid fences are still detected.
+  - Full suite green with zero existing-test modifications: `npm test` exit 0 (contracts, architecture, alignment, fixtures, roundtrip, parser, serializer, source UX/codemirror, html-preview, rich package/fidelity/commands/input-rules/folding, demo baselines, policy, AI, save engine, web file access, CLI, builds).
+- Test-first evidence:
+  - `tests/rich-roundtrip-fidelity.test.mjs` was written first and failed for 18/18 fixtures, with the corruption visible in the diff output (`004-gfm-table`: `FeatureStatusNotes...` flattening; `014-mixed-real-world`: setext-heading rewrite of the thematic-break/paragraph pair).
+- Tests/checks run:
+  - `npm run test:rich-fidelity` (RED 18/18, then GREEN)
+  - `npm test` (full suite, exit 0)
+  - `npm run visual:mme-0019` (passes; includes in-browser assertions)
+- Visual verification:
+  - Dev server: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`; URL `http://127.0.0.1:5174/`.
+  - `npm run visual:mme-0019` captured `fidelity-source-table.png`, `fidelity-rich-table-raw-block.png`, `fidelity-rich-after-edit.png` under `docs/internal/visual-checks/MME-0019/` (see its README for what each proves). The script asserts in the live browser that rich mount keeps `getMarkdown()` byte-identical and that the table/strikethrough/todo lines survive an edit elsewhere before capturing.
+  - Screenshot inspected: the table renders as a raw monospace unsupported block, strikethrough renders struck, todo renders as a checkbox row.
+- Visual impact:
+  - Editing surface: unsupported blocks (tables, footnotes, unknown constructs) now render as raw/opaque blocks in rich mode instead of corrupted flattened paragraphs; GFM strikethrough now renders struck in rich mode.
+  - General UI: no other changes.
+- Reviewer/subagent used and result:
+  - Recon subagents were partially blocked earlier in the session by API credit exhaustion ("Credit balance is too low"); fixture/test recon was completed by direct reads.
+  - Review subagent (read-only, adversarial): PASS with one caveat — block *reordering* in rich mode can emit suboptimal inter-block separators because the matcher is sequential. Reordering is not reachable through current UI interactions; the caveat is routed to `MME-0020` (separator correctness around edited blocks) and `MME-0029` (drag-reorder must land with order-aware matching).
+- Known limitations (explicitly out of scope, owned by later issues):
+  - Reconstructed (edited/inserted) blocks still join with a single `\n`, matching prior behavior and the existing `tests/rich-input-rules.test.mjs` expectation (` ```\nNext paragraph `). Two adjacent reconstructed paragraphs can lazily merge on reparse. `MME-0020` owns correct separators around edited blocks and will deliberately update that test expectation.
+  - Inline-level fidelity inside *edited* blocks beyond strikethrough (e.g., underscore emphasis style, hard-break preservation) still normalizes; untouched blocks are unaffected. Owned by `MME-0020`/`MME-0021`.
+  - Block reordering separator caveat (see reviewer note).
+- Suggested commit message:
+  - `feat: enforce rich round-trip fidelity gate`
+- Next issue:
+  - `MME-0020 — Targeted rich serialization and no-rewrite saves`. Stopping here for human review per the latest human instruction (finish this slice, then perfect the issue docs); MME-0020 also requires human review at completion.
+
+## Docs follow-up — Implementation notes for MME-0020..MME-0038
+
+- Timestamp: 2026-06-10T07:09:08Z
+- Status: completed (docs only).
+- Summary: Per the human's instruction, every open issue from MME-0020 through MME-0038 gained an `### Implementation notes` section written so a weaker implementation agent can execute the slice at full quality from the docs alone: exact files/functions to read first, API/contract sketches in TypeScript, the pitfalls discovered during the MME-0019 implementation and review (keymap precedence in `basicSetup`, sequential-matcher reorder caveat, `data-testid` stability for visual scripts, demo baseline string-checks, peer-dependency hoisting), RED-test file names, and explicit stop points for human decisions (license in MME-0036, docs linking convention in MME-0037). MME-0019 gained a Status section marking completion. MME-0020's scope/AC were updated to reflect the post-0019 reality (expected-pairs matching exists; remaining work is separators, mode-switch flush, and proofs).
+- Files changed:
+  - `docs/internal/ISSUES.md` (Status on MME-0019; Implementation notes on MME-0020..MME-0038; MME-0020 scope/AC update)
+  - `docs/internal/build-log.md` (this entry)
+- Checks run:
+  - `npm run test:alignment`, `npm run test:fixtures`, `npm run test:demo-reference-surface`, `npm run test:ai-reviewer-tooling`, `git diff --check` — all green after the edits.
+- Visual impact:
+  - No visible editing or general UI changes.
+- Reviewer/subagent used and result:
+  - Fallback self-review against the issue template structure; subagent budget was exhausted earlier in the session ("Credit balance is too low") and is documented in the MME-0019 entry.
+- Suggested commit message:
+  - `docs: add implementation notes to open issues`
+
+## MME-0039 — Interim demo visual refresh
+
+- Timestamp: 2026-06-10T07:09:08Z
+- Status: completed; executed OUT OF PHASE ORDER by explicit human decision ("améliore l'UI tout de suite"); MME-0020 remains the next phase-A issue.
+- Summary: CSS-only restyle of the demo so the reference surface is presentable before the MME-0025/MME-0030 theming work, with zero rework risk: the refreshed `:root` values are explicitly marked as the draft defaults for the MME-0025 token set. Quiet ghost topbar with a single primary action, refined segmented mode control and status pill, ghost toolbar with tinted AI button, readable centered editing column (~760px) for both CodeMirror and ProseMirror, refined rich typography scale, premium todo checkboxes (checked state mutes the row), quiet dashed "Preserved Markdown" treatment replacing the warning-orange unsupported blocks, polished menus/popovers/palette, global `:focus-visible` rings.
+- Files changed:
+  - `apps/md-demo/src/styles.css` (full restyle; all selectors and `--line`/`--font-mono` names preserved)
+  - `scripts/visual-check-mme0039.mjs`, `package.json` (`visual:mme-0039`)
+  - `docs/internal/visual-checks/MME-0039/` (4 PNG artifacts + README)
+  - `docs/internal/ISSUES.md` (MME-0039 entry, agent capability guidance table, renumbering-note addendum)
+  - `docs/internal/build-log.md` (this entry)
+- Constraints honored:
+  - No DOM/behavior/`data-testid`/class-name changes; every CSS-snippet baseline assertion (MME-0011/0013/0013.5/0014/0015/0017/0018 tests) still passes.
+  - `--line` and `--font-mono` variable names kept because `@momentarise/md-source-codemirror`'s default theme consumes them; renaming happens in MME-0025.
+- Tests/checks run:
+  - Targeted CSS-gate runs (demo-rich-ux, demo-folding, demo-html-preview, demo-commands, properties-ui, demo-ai-writing, demo-reference-surface) — green.
+  - Full `npm test` — exit 0.
+  - `npm run visual:mme-0039` — captured `refresh-source-desktop.png`, `refresh-rich-blocks.png`, `refresh-slash-menu.png`, `refresh-narrow.png`.
+- Visual verification:
+  - Dev server `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`, URL `http://127.0.0.1:5174/`.
+  - Screenshot inspected: centered readable column, calm chrome, premium todos, quiet preserved-block treatment confirmed.
+  - Note: `docs/internal/visual-checks/MME-0019/*.png` were re-captured after the restyle (the MME-0019 script targets its own directory and was re-run); the behaviors those artifacts prove are unchanged — only styling differs from the original captures. Recorded here for artifact-provenance honesty.
+- Visual impact:
+  - Editing surface: readable centered measure, refined typography, premium todo/preserved-block/code/quote styling.
+  - General UI: calm ghost topbar, refined mode control, status pill, polished menus/palette/diagnostics toggle.
+- Reviewer/subagent used and result:
+  - Human is the requesting reviewer; screenshots await human acceptance. Subagent UX review unavailable this session (API credit exhausted, documented in the MME-0019 entry).
+- Also in this entry: ISSUES.md gained an agent-capability guidance table (difficulty + minimum agent profile per open issue) answering the human's question about delegating slices to weaker models.
+- Suggested commit message:
+  - `style: refresh demo visual baseline`
+- Next issue:
+  - `MME-0020 — Targeted rich serialization and no-rewrite saves` (phase order resumes).
+
+## MME-0039 follow-up — Vercel aesthetic + centralised tokens (human redirect)
+
+- Timestamp: 2026-06-10T07:09:08Z
+- Status: completed (CSS only); visual recapture deferred for cost.
+- Trigger: human rejected the teal palette and the standalone, non-centralised approach, and pointed to the Vercel docs aesthetic (attached screenshot). Decisions taken via AskUserQuestion: (1) redo MME-0039 now in `--mme-*` tokens, (2) ship dark + light with **default dark**.
+- What changed:
+  - `apps/md-demo/src/styles.css` rewritten in Vercel-docs aesthetic (near-black `#0a0a0a` surfaces, monochrome grays, single blue accent `#3b82f6` dark / `#0070f3` light), **default dark** via `:root`, light via `:root[data-mme-scheme="light"]`.
+  - All colors/shadows/radii centralised into one `:root` block of `--mme-*` tokens — the verbatim draft default set for MME-0025. No raw color value exists below the token blocks. `--line`/`--font-mono` retained as aliases referencing the tokens (CodeMirror package theme; migrated in MME-0025).
+  - Teal removed entirely.
+- Honesty / known limitation:
+  - CodeMirror Markdown syntax-token colors still come from the package's light `defaultHighlightStyle`; the demo sets a legible dark CM base (content/cursor/selection/gutter) via stable `.cm-*` classes. A real dark highlight style is package work, routed to MME-0025.
+  - Visual recapture (browser/CDP) deferred to control cost; `docs/internal/visual-checks/MME-0039/*.png` show the earlier teal styling and are stale until re-run with `npm run visual:mme-0039`.
+- Docs updated: MME-0039 + MME-0025 issue notes (token seed, dark default, CM highlight migration), Gate 13 (centralised colors + no standalone UI-polish slices + UI folds into owning issue).
+- Checks run (cost-bounded, no browser): the seven CSS-snippet baseline tests — all green; `npm run build:demo` — exit 0.
+- Slice ordering: unchanged and affirmed optimal. A (integrity 0019–0022) → B (headless+packaging 0023–0024) → C (contracts/tokens 0025–0027) → D (surface/bindings 0028–0031) → E (product surfaces 0032–0033) → F (adapters 0034–0035) → G (publish/docs 0036–0038). Tokens (C) precede all UI consumption (D); MME-0024 packaging precedes the new md-theme package (C) so it is created under corrected conventions. From here, UI polish folds into its owning issue (Gate 13), no more standalone UI slices.
+- Suggested commit message:
+  - `style: adopt vercel-aesthetic centralised tokens`
+
+## MME-0039 follow-up — Dense default editor scale
+
+- Timestamp: 2026-06-10T08:59:31Z
+- Status: completed (CSS only).
+- Trigger: human noted that the demo felt best at browser zoom 80% and asked to make the default closer to that feel.
+- What changed:
+  - `apps/md-demo/src/styles.css` now uses a denser default scale through real layout tokens and component spacing, not a global `zoom`/`transform`.
+  - Base UI font moved to `12.5px`, source/rich content measure to `680px`, CodeMirror scroller to `13px`, rich editor to `14px`, and chrome/toolbars/menus/status controls were tightened.
+  - The goal is a more editor-like daily-use density while preserving normal responsive behavior and browser accessibility semantics.
+- Visual impact:
+  - Editing surface: source and rich modes show more document content on screen, with tighter headings, paragraphs, code blocks, todos, and editor padding.
+  - General UI: topbar, toolbar, command palette, slash menu, AI/status surfaces, and diagnostics toggle are visually smaller and less heavy.
+- Visual verification:
+  - Dev server remained on `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`, URL `http://127.0.0.1:5174/`.
+  - In-app browser screenshot inspected after reload: source column `680px`, CodeMirror text `13px`, topbar font `12.5px`.
+  - `npm run visual:mme-0039` initially failed in sandbox because Chrome/CDP exited before becoming available; rerun with system permission succeeded and refreshed `docs/internal/visual-checks/MME-0039/`.
+- Checks run:
+  - `npm test` — green, including package build, demo build, and all current baseline suites.
+  - `npm run test:demo-rich-ux` — green.
+  - `npm run test:demo-commands` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run build:demo` — green, with existing Vite chunk-size warning only.
+  - `git diff --check` — green.
+- Suggested commit message:
+  - `style: tighten demo editor density`
+
+## MME-0039 follow-up — Narrow chrome and aligned rich toolbar
+
+- Timestamp: 2026-06-10T09:19:51Z
+- Status: completed (demo UI only).
+- Trigger: human noted that the in-app browser width made the topbar wrap, asked why the fold arrows looked reverted, and requested the rich toolbar to align with the document content plus a wider desktop content measure.
+- What changed:
+  - `apps/md-demo/src/styles.css` now uses `--mme-active-content-measure` so source/rich content expands up to `880px` on desktop while shrinking to the actual viewport on narrow surfaces.
+  - The rich command toolbar and rich block controls now use the same active measure for inline padding, so their first control aligns with the document column instead of the left edge of the viewport.
+  - The topbar keeps one row on narrow desktop by hiding secondary actions (`Import copy`, `Copy`, `Download`, selected-text `Ask AI`) and the document status pill at the tightest width; the core open/mode/AI/command/save actions remain visible.
+  - The command palette button label changed from `Command` to `Cmd K` so it reads as a command palette entry point rather than a second AI button.
+  - Rich heading fold hover styling was made quieter: left-margin affordance, hover-only, no accent fill. The visible arrows in source mode are CodeMirror gutter fold controls, not the rich-mode heading fold affordance.
+- Visual impact:
+  - Editing surface: content is wider on desktop, still centered and non-overflowing in the in-app browser; rich toolbar aligns with the document content.
+  - General UI: topbar no longer wraps in the narrow in-app browser; secondary utility actions are removed from narrow chrome; `Cmd K` clarifies the command palette.
+- Visual verification:
+  - Dev server remained on `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`, URL `http://127.0.0.1:5174/`.
+  - In-app browser metrics after reload: viewport `730px`, topbar `730px`, document scroll width `730px`, source content `634px` centered, document status hidden at this width, save action still visible.
+  - `npm run visual:mme-0039` succeeded and refreshed `docs/internal/visual-checks/MME-0039/`.
+- Checks run:
+  - `npm test` — green, including package build, demo build, and all current baseline suites.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:demo-commands` — green.
+  - `npm run test:demo-folding` — green.
+  - `npm run test:visual-portability` — green.
+  - `npm run build:demo` — green, with existing Vite chunk-size warning only.
+  - `git diff --check` — green.
+- Suggested commit message:
+  - `style: align demo toolbar and narrow chrome`
+
+## MME-0039 follow-up — Simplified header controls
+
+- Timestamp: 2026-06-10T12:23:07Z
+- Status: completed (demo UI only).
+- Trigger: human requested a simpler daily-use header: one file-open entry for Markdown/HTML, a switch-like Source/Rich control labelled `Rich Mode`, no visible duplicate `Ask AI`/`Command` buttons, and an explanation for the dev server stopping.
+- What changed:
+  - `apps/md-demo/src/main.ts` now exposes one visible `Open file` action. In browsers with File System Access, it opens `.md/.markdown/.mdown/.txt` as writable local documents and `.html/.htm` as HTML artifacts. A later follow-up removed the silent file-input fallback: without File System Access, the primary action now shows explicit real-file-open-unavailable feedback instead of importing a copy.
+  - Legacy `Open .md`, `Open .html`, `Import copy`, `Copy`, `Download`, `Ask AI`, and `Cmd K` controls remain in the DOM for existing tests/scripts but are hidden from the normal header chrome.
+  - The mode control now presents a switch-like `Rich Mode` affordance for Markdown documents. `Preview` remains document-kind aware for HTML artifacts.
+  - The header AI button was initially hidden while rich mode was active, so rich mode used the toolbar AI entry instead of showing duplicate AI entry points. A later follow-up restored the header AI button in rich mode because the duplicate is acceptable for now and keeps the main command surface consistent.
+  - Mobile header layout no longer inherits `brand-lockup`'s desktop flex basis as vertical height, removing the large blank gap above controls on narrow screenshots.
+- Visual impact:
+  - General UI: header is quieter and closer to an editor/product surface: `Open file`, `Rich Mode`, one relevant AI entry point, and the primary save/export action.
+  - Editing surface: no source/rich content behavior changed; the rich toolbar remains aligned to the document column.
+  - Mobile/narrow: the header stacks tightly without the previous empty vertical band; utility/debug-like actions are not visible in the main chrome.
+- Planned but not implemented here:
+  - Selection/bubble toolbar and selected-text AI remain owned by `MME-0029`.
+  - Full surface extraction and host-configurable toolbar/menus remain owned by `MME-0028`.
+  - Full open/export menu design remains tracked in `MME-BACKLOG` and should be split into a real issue when product chrome is hardened.
+- Server note:
+  - `npm run visual:mme-0039` first failed because nothing was listening on `127.0.0.1:5174`; `lsof` and `curl` confirmed the server was stopped, not that the app was broken.
+  - Correct dev command is `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174 --strictPort`.
+  - Server restarted and left running at `http://127.0.0.1:5174/` (PID observed: `3121`).
+- Visual verification:
+  - `npm run visual:mme-0039` succeeded and refreshed `docs/internal/visual-checks/MME-0039/`.
+  - `docs/internal/visual-checks/MME-0039/refresh-narrow.png` inspected: no mobile header gap, single visible open action, switch-like `Rich Mode`, primary action, toolbar, and document content.
+- Checks run:
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:demo-commands` — green.
+  - `npm run test:demo-rich` — green.
+  - `npm run test:demo-html-preview` — green.
+  - `npm run test:visual-portability` — green.
+  - `npm run build:demo` — green, with existing Vite chunk-size warning only.
+  - `git diff --check` — green.
+- Suggested commit message:
+  - `style: simplify demo header controls`
+
+## MME-0039 follow-up — Rich Mode toggle interaction fix
+
+- Timestamp: 2026-06-10T12:42:33Z
+- Status: completed (demo UI bugfix only).
+- Trigger: human reported that the switch-like `Rich Mode` control was visually one control but behaved like two separate click targets: opening rich mode required clicking the text, while closing could be done from the switch.
+- What changed:
+  - `apps/md-demo/src/main.ts` now routes both the switch track (`source-mode-button`) and the `Rich Mode` label (`rich-mode-button`) through one `toggleRichMode()` path for Markdown documents.
+  - The switch track is announced as `Toggle Rich Mode` with `role="switch"` and `aria-checked` reflecting whether rich mode is active.
+  - `apps/md-demo/src/styles.css` gives the label a clearer click target and hover behavior so the switch and text read as one control.
+- Visual impact:
+  - General UI: the `Rich Mode` control still looks like a compact switch, but its interaction is now coherent; the switch knob and label both toggle source/rich in both directions.
+  - Editing surface: no document rendering behavior changed.
+- Visual verification:
+  - `npm run visual:mme-0039` succeeded and refreshed `docs/internal/visual-checks/MME-0039/`.
+  - `docs/internal/visual-checks/MME-0039/refresh-narrow.png` inspected after recapture.
+- Checks run:
+  - `npm run test:demo-rich` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run build:demo` — green, with existing Vite chunk-size warning only.
+- Suggested commit message:
+  - `fix: make rich mode toggle coherent`
+
+## MME-0039 follow-up — Mobile source chrome and vault workflow sync
+
+- Timestamp: 2026-06-10T12:49:43Z
+- Status: completed (demo CSS + visual test + external vault skill docs).
+- Trigger: human reported that mobile source mode was unusable: header controls were oversized/full-width, CodeMirror line numbers/gutters consumed space, and active-line highlight was visually too heavy.
+- What changed:
+  - `apps/md-demo/src/styles.css` mobile breakpoint now keeps the header compact and wrapping inline instead of stretching controls to full width.
+  - Mobile source mode hides CodeMirror gutters/line numbers and removes the active-line background, while desktop source mode keeps normal editor affordances.
+  - `scripts/visual-check-mme0039.mjs` now captures `refresh-source-mobile.png` and asserts mobile source gutters are hidden, active-line background is transparent, and document-level horizontal overflow is absent.
+  - `docs/internal/visual-checks/MME-0039/README.md` documents the new source-mobile artifact.
+  - Obsidian vault workflow skills were updated outside the repo:
+    - `.../codex-dev-workflow/_index.md`;
+    - `.../codex-dev-workflow/run-issue-slice/SKILL.md`;
+    - `.../codex-dev-workflow/review-slice/SKILL.md`;
+    - `.../codex-dev-workflow/to-quality-gates/SKILL.md`.
+    The vault version now requires viewport/state visual matrices and interaction checks for UI slices.
+- Visual impact:
+  - General UI: mobile header is now one compact row when space allows: `Open file`, `Rich Mode`, `AI`, primary save/export.
+  - Source editing: mobile source mode reads more like a focused editor view, without line-number gutter or large active-line block.
+  - Rich/live preview: no live-preview behavior changed in this follow-up.
+- Product note:
+  - Perfect Obsidian-level Live Preview remains planned in `MME-BACKLOG` / future editor UX hardening, not accepted as complete in the current demo.
+- Visual verification:
+  - `npm run visual:mme-0039` succeeded and refreshed `docs/internal/visual-checks/MME-0039/`.
+  - `docs/internal/visual-checks/MME-0039/refresh-source-mobile.png` inspected after recapture.
+- Checks run:
+  - `npm run test:demo-rich` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:visual-portability` — green.
+  - `npm run build:demo` — green, with existing Vite chunk-size warning only.
+- Suggested commit message:
+  - `fix: compact mobile source chrome`
+
+## MME-0039 follow-up — Real file open fallback truthfulness
+
+- Timestamp: 2026-06-10T18:56:21Z
+- Status: completed (demo UI/save-truthfulness bugfix only).
+- Trigger: human reported that after using the new single `Open file` action, the demo sometimes showed `Export` instead of `Save`, which made it look like local disk save had regressed.
+- Root cause:
+  - The simplified `Open file` action silently fell back to the hidden `<input type=file>` import path when File System Access was unavailable.
+  - That fallback gives the app only a copied file payload, not a writable file handle, so the Save Engine correctly switched to `download-required` / `Export`.
+  - The UI was wrong because the primary command did not communicate that downgrade.
+- What changed:
+  - `apps/md-demo/src/main.ts` now routes primary `Open file` only through the real local-file opener.
+  - If File System Access is unavailable, the app shows a visible `editor-notice` explaining that real local-file open is unavailable in this browser.
+  - The current document is left unchanged when real open is unavailable; the app no longer silently imports a copy behind the `Open file` label.
+  - Successful Markdown/HTML loads clear the notice.
+  - Unsupported save wording no longer says to use hidden `Import copy`; it says saving is unavailable without a writable file handle.
+  - `tests/demo-reference-surface-baseline.test.mjs` now blocks any future `Open file` -> `openFileInput.click()` fallback.
+  - `scripts/visual-check-mme0039.mjs` captures the real-file-unavailable notice and asserts the current document does not change.
+  - `.learnings/LEARNINGS.md` and `.learnings/ERRORS.md` record the UX lesson and the Chrome sandbox visual-check rerun.
+- Visual impact:
+  - General UI: a slim status notice appears below the topbar only when real local-file open is unavailable.
+  - Save UI: `Export` still appears for intentional imported-copy/download-required documents, but primary `Open file` no longer creates that state silently.
+  - Editing surface: no Markdown rendering, source editor, rich editor, toolbar, slash menu, or save-engine core behavior changed.
+- Visual verification:
+  - `npm run visual:mme-0039` initially failed with Chrome `SIGABRT` under sandbox.
+  - Reran `npm run visual:mme-0039` with system permission; it succeeded and refreshed `docs/internal/visual-checks/MME-0039/`.
+  - `docs/internal/visual-checks/MME-0039/refresh-open-file-unavailable.png` proves the visible notice.
+- Checks run:
+  - Red first: `npm run test:demo-reference-surface` failed before implementation with `Primary Open file action must not silently fall back to imported-copy file input.`
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:web-file-access` — green.
+  - `npm run test:save-engine` — green.
+  - `npm run build:demo` — green, with existing Vite chunk-size warning only.
+  - `npm run visual:mme-0039` — green after system-permission rerun.
+- Reviewer fallback:
+  - Self-review checked the code path, static regression, visual assertion, generated artifact, and save-truthfulness wording. No separate subagent was available in this turn.
+- Suggested commit message:
+  - `fix: prevent hidden import fallback on open file`
+
+## MME-0039 follow-up — Header AI available in rich mode
+
+- Timestamp: 2026-06-11T12:54:24Z
+- Status: completed (demo UI bugfix only).
+- Trigger: human requested the header `AI` button back in rich mode even if it duplicates the rich toolbar AI button, and reported that the AI menu appeared behind the editor.
+- What changed:
+  - `apps/md-demo/src/main.ts` keeps the header AI menu visible whenever AI toolbar entry points are enabled, independent of source/rich mode.
+  - `apps/md-demo/src/styles.css` gives the topbar a positioned z-layer so its popovers paint above the workspace/editor.
+  - `tests/demo-reference-surface-baseline.test.mjs` now blocks reintroducing the `editorMode === "rich"` condition on header AI visibility.
+- Visual impact:
+  - General UI: rich mode now shows both the header `AI` button and the toolbar AI button. This duplication is intentional for the current demo.
+  - Menu behavior: the header AI menu now opens above the editor instead of behind the rich/source surface.
+  - Editing surface: no Markdown editing, serialization, save, slash menu, or AI provider behavior changed.
+- Visual verification:
+  - `npm run visual:mme-0018` initially failed with Chrome `SIGABRT` under sandbox.
+  - Reran `npm run visual:mme-0018` with system permission; it succeeded and refreshed `docs/internal/visual-checks/MME-0018/`.
+  - `docs/internal/visual-checks/MME-0018/reference-surface-rich-ai.png` proves the header AI button is visible in rich mode and its menu overlays the editor.
+- Checks run:
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run build:demo` — green, with existing Vite chunk-size warning only.
+- Suggested commit message:
+  - `fix: keep header ai visible in rich mode`
+
+## MME-0020 — Targeted rich serialization and no-rewrite saves
+
+- Timestamp: 2026-06-11T06:18:51Z
+- Status: code-complete; human review pending. Do not move to `MME-0021` until the human accepts this preservation-contract slice.
+- Summary:
+  - Added a targeted rich serialization gate proving that an edited rich block changes only that block in persisted Markdown.
+  - Replaced greedy forward `node.eq` matching with an order-preserving dynamic alignment over top-level rich blocks. Untouched blocks emit original source bytes; edited replacements keep their original source slot/gaps; genuinely inserted blocks use blank-line separators.
+  - Corrected reconstructed/inserted block separators so adjacent paragraphs and paragraphs inserted after code fences are separated by a blank line instead of merging on reparse.
+  - `switchEditorMode` now flushes the Save Engine with reason `mode-switch` after valid mode changes.
+  - Tightened the recent primary `Open file` truthfulness fix: the primary writable-file picker no longer offers/routs HTML artifacts into download/export mode; accidental HTML selection gets explicit feedback and leaves the current document unchanged. The separate HTML reader remains available through its own path.
+- Files changed:
+  - `packages/md-rich-prosemirror/src/index.ts`
+  - `apps/md-demo/src/main.ts`
+  - `tests/rich-targeted-serialization.test.mjs`
+  - `tests/rich-input-rules.test.mjs`
+  - `tests/demo-reference-surface-baseline.test.mjs`
+  - `package.json`
+  - `README.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+- RED proof:
+  - `npm run test:rich-targeted-serialization` initially failed because editing `## Summary` in `fixtures/014-mixed-real-world/input.md` collapsed unrelated blank-line structure and reduced line count from 33 to 31.
+- Acceptance-criteria proof:
+  - One-block rich edit preserves unrelated source bytes: `tests/rich-targeted-serialization.test.mjs` compares every non-edited line in fixture 014 and a delimiter fixture with setext heading, underscore emphasis, `*` list marker, and blank-line runs.
+  - Duplicate projected rich blocks are aligned safely: the same test edits the first of two equivalent headings and proves the untouched sibling keeps its original raw bytes.
+  - Inserted/reconstructed paragraphs get blank-line separation: the same test asserts `Changed first paragraph\n\nSecond paragraph`; `tests/rich-input-rules.test.mjs` now intentionally expects ` ```\n\nNext paragraph ` after inserting below a final code block.
+  - Untouched rich documents produce zero byte changes: existing `tests/rich-roundtrip-fidelity.test.mjs` plus the new test's untouched fixture assertion.
+  - Autosave after a rich edit writes only the targeted change: the new test writes the edited mixed fixture through a memory/disk-like `SaveTarget`, asserts unchanged table/Mermaid/raw lines survive, and checks write reason `autosave`.
+  - Mode switch uses `mode-switch`: `switchEditorMode` statically calls `flushSave("mode-switch")`, and the new dynamic Save Engine check proves `SaveTarget.write` receives request reason `mode-switch`.
+  - Recent primary `Open file` truthfulness preserved: `tests/demo-reference-surface-baseline.test.mjs` guards against fallback file input, HTML artifact routing, and `text/html` in the primary picker.
+- Tests/checks run:
+  - `npm run test:rich-targeted-serialization` — green.
+  - `npm run test:rich-input-rules` — green.
+  - `npm run test:rich-fidelity` — green.
+  - `npm run test:serializer` — green.
+  - `npm run test:rich-commands` — green.
+  - `npm run test:save-engine` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm test` — green, including build and demo build. Existing Vite chunk-size warning only.
+  - `git diff --check` — green.
+- Visual impact:
+  - No visible editing or general UI changes intended for MME-0020.
+  - Behavior impact: persisted Markdown from rich edits is more stable; primary `Open file` no longer offers HTML artifact/export mode.
+- Manual verification:
+  - Code-path review of rich serializer alignment, demo `switchEditorMode`, `flushSave`, `getMarkdown`, `copyMarkdown`, `downloadMarkdown`, `memorySave`, and primary `openLocalFile`.
+  - No UI screenshot required because this is behavior-only and no visual UI was changed for the rich serialization slice.
+- Reviewer/subagent used and result:
+  - Read-only Test/Architecture reviewer `019eb54c-01f4-7710-8f04-5ff3a9095900`.
+  - First pass found: duplicate-block greedy matching risk, primary `Open file` HTML/export path, and static-only mode-switch proof.
+  - Fixes landed; reviewer re-check passed all three findings. Reviewer did not edit files.
+- Deviations from PRD:
+  - None. This strengthens Gate 4.5 derived-view fidelity and Save Engine flush semantics.
+- Open questions:
+  - Human review/acceptance is required before this issue can be marked completed or before starting `MME-0021`.
+  - Order-aware raw preservation for block reordering remains out of scope and owned by `MME-0029`.
+  - Inline delimiter fidelity inside edited blocks remains out of scope/backlog.
+- Suggested commit message:
+  - `fix: preserve targeted rich edits without rewrites`
+- Next issue:
+  - After human acceptance only: `MME-0021 — Rich list and todo editing baseline`.
+
+### MME-0020 human review clarification — restored/imported copy save state
+
+- Timestamp: 2026-06-11T06:40:12Z
+- Status: code-complete; human review still pending.
+- Trigger:
+  - Human reviewer accepted the first three manual checks, then reported confusion when a restored `README.md` showed `CLEAN` with an `Export` button and asked why it did not autosave.
+- Finding:
+  - The app was technically correct but under-explained: a document restored from browser `localStorage` cannot regain its File System Access handle after reload, so it is reopened as an imported/download-required copy rather than a writable disk target.
+  - Download-required/imported-copy targets cannot autosave to disk because the browser did not grant a writable file handle; the browser draft itself is still restored from local storage.
+- Change:
+  - `apps/md-demo/src/main.ts` now shows a persistent notice after browser restore: “Restored a browser draft copy. Reopen the original file with Open file to enable writable disk save and autosave.”
+  - The primary action for imported/download-required documents now says `Export copy` instead of `Export`.
+  - `tests/demo-reference-surface-baseline.test.mjs` locks both the restore explanation and `Export copy` label.
+- Checks run:
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:save-engine` — green.
+  - `npm run test:rich-targeted-serialization` — green.
+- Acceptance impact:
+  - This does not change the MME-0020 serializer or disk save contract.
+  - Human review should re-check only the restored/imported-copy explanation and primary button label before accepting `MME-0020`.
+
+## Docs follow-up — Footnotes backlog coverage
+
+- Timestamp: 2026-06-13T13:59:15Z
+- Status: completed (docs-only).
+- Trigger: human asked to track notes de bas de page / footnotes in the backlog.
+- What changed:
+  - `.learnings/FEATURE_REQUESTS.md` now records `FEAT-20260613-001` for footnotes/endnotes as preservation, rendering, backlink navigation, and editing UX work.
+  - `docs/internal/ISSUES.md` was intentionally left unchanged after human clarification that issue files must not be touched for this note.
+- Visual impact:
+  - None. Documentation-only.
+- Checks run:
+  - `rg -n "Footnotes|footnotes|notes de bas|FEAT-20260613" docs/internal/ISSUES.md docs/internal/build-log.md .learnings/FEATURE_REQUESTS.md` — confirmed feature-request/log coverage.
+  - `git diff --check` — green.
+  - `npm run test:alignment` — green.
+  - `npm test` — green, including demo build; existing Vite chunk-size warning only.
+- Reviewer note:
+  - Self-review found that current docs/code mention footnotes at the broad parser/rich boundary, but there is not yet a real `[^ref]` fixture/test proving footnote preservation end to end.
+- Suggested future proof:
+  - Add a footnote fixture and parser/rich/source round-trip tests before claiming footnote support as covered.
+
+## Docs follow-up — Product backlog file
+
+- Timestamp: 2026-06-13T20:47:22Z
+- Status: completed (docs-only).
+- Trigger: human clarified that some "backlog" items are actually editor hygiene must-haves, not nice-to-have ideas, and asked for a separate backlog file without touching `docs/internal/ISSUES.md`.
+- What changed:
+  - Added `docs/internal/BACKLOG.md` as the product-level backlog and parking lot.
+  - Classified backlog items as `baseline/hygiene`, `product-differentiator`, `future-adapter`, `research`, or `maybe-later`.
+  - Added tables first under baseline/hygiene, then footnotes/endnotes and core Markdown/editor interaction coverage.
+  - Marked slash menu, toolbar/bubble toolbar, Obsidian-class live preview, and AI editing surfaces as product differentiators / must-haves, not optional polish.
+- Visual impact:
+  - None. Documentation-only.
+- Scope guard:
+  - `docs/internal/ISSUES.md` was intentionally left unchanged.
+
+## Docs follow-up — Product backlog enrichment
+
+- Timestamp: 2026-06-13T21:03:37Z
+- Status: completed (docs-only).
+- Trigger: human pointed out that the old `MME-BACKLOG` content still lived inside `docs/internal/ISSUES.md` and asked to enrich the new backlog file accordingly.
+- What changed:
+  - `docs/internal/BACKLOG.md` now imports and classifies the old `MME-BACKLOG` material: editor UX/live preview, toolbar/slash/mode controls, HTML preview, folding/status, lightweight files, document adapters, public framework follow-ups, advanced preferences, performance, and promotion candidates.
+  - Tables remain the first baseline/hygiene item.
+  - Slash menu remains explicitly marked as a `product-differentiator` and `must-have`.
+- Visual impact:
+  - None. Documentation-only.
+- Scope guard:
+  - `docs/internal/ISSUES.md` was intentionally left unchanged.
+
+## Docs follow-up — Backlog source rules
+
+- Timestamp: 2026-06-13T22:01:53Z
+- Status: completed (docs-only).
+- Trigger: human asked to add rules/instructions that backlog context lives in both `docs/internal/ISSUES.md` and `docs/internal/BACKLOG.md`.
+- What changed:
+  - `AGENT.md` now defines backlog governance and requires fresh agents to read `docs/internal/BACKLOG.md` after `docs/internal/ISSUES.md`.
+  - `docs/internal/QUALITY_GATES.md` now has Gate 0.62 for backlog sources and promotion rules.
+  - `README.md` now documents `docs/internal/BACKLOG.md` in the docs layout and read order.
+- Visual impact:
+  - None. Documentation-only.
+- Scope guard:
+  - `docs/internal/ISSUES.md` was intentionally left unchanged.
+
+## Docs follow-up — New file / Save As backlog note
+
+- Timestamp: 2026-06-17T14:13:27Z
+- Status: completed (docs-only).
+- Trigger: human asked to record that the demo/framework should eventually support creating new files, not only opening existing files or exporting copies.
+- What changed:
+  - Added `New file` / `Save As` notes to the `MME-BACKLOG` section in `docs/internal/ISSUES.md`.
+  - Added the same product-level backlog notes to `docs/internal/BACKLOG.md`.
+- Visual impact:
+  - None. Documentation-only.
+- Product constraint:
+  - Writable creation must be truthful: real writable target where supported; otherwise export/download copy with explicit non-persistence wording.
+
+## Docs follow-up — SVG reader backlog note
+
+- Timestamp: 2026-06-20T10:46:10Z
+- Status: completed (docs-only).
+- Trigger: human asked to note a future SVG reader in the backlog.
+- What changed:
+  - Added `.svg` as a future lightweight reader/preview candidate in the `MME-BACKLOG` section of `docs/internal/ISSUES.md`.
+  - Added SVG reader/preview to `docs/internal/BACKLOG.md` under future adapters/format expansion and promotion candidates.
+- Visual impact:
+  - None. Documentation-only.
+- Product constraint:
+  - SVG rendering must be sanitized or sandboxed before inline display; scripts, event handlers, and external references need explicit handling.
+
+## Docs follow-up — Commit and push discipline
+
+- Timestamp: 2026-06-20T15:05:12Z
+- Status: completed (docs-only).
+- Trigger: human clarified that completed issues should be committed and validated issues can be pushed.
+- What changed:
+  - `AGENT.md` now requires a finished issue to be committed before starting the next issue, and validated/accepted committed work to be pushed when a remote is available and no blocker applies.
+  - `docs/internal/QUALITY_GATES.md` now includes Gate 0.64 for commit/push evidence and updates Gate 0.65 sequential execution prerequisites.
+  - `CLAUDE.md` now mirrors the same commit/push discipline for Claude Code / terminal-based agents.
+- Visual impact:
+  - None. Documentation-only.
+- Product/process constraint:
+  - `code-complete, human review pending` is not the same as finished/accepted. Pending work may be committed only when the human asks, and must not be pushed as accepted work.
+
+## Docs follow-up — Payload CMS plugin backlog note
+
+- Timestamp: 2026-06-24T09:23:50Z
+- Status: completed (docs-only).
+- Trigger: human asked to add a future Payload CMS plugin to the backlog.
+- What changed:
+  - Added Payload CMS plugin/integration to the `MME-BACKLOG` section in `docs/internal/ISSUES.md`.
+  - Added the same Payload CMS plugin/integration note to `docs/internal/BACKLOG.md`.
+- Visual impact:
+  - None. Documentation-only.
+- Product constraint:
+  - The integration must preserve Markdown/YAML frontmatter truth, save/publish boundaries, permissions, draft/published state, and media handling explicitly.
+
+## Human decision — MME-0020 accepted and folding chevron follow-up
+
+- Timestamp: 2026-06-13T15:37:06Z
+- Status: completed; `MME-0021` is unblocked.
+- Human decision:
+  - The human accepted `MME-0020` after reviewing the rich serialization/save truthfulness behavior and the restored/imported-copy explanation.
+- Lucide/icon decision:
+  - Kept the folding affordance CSS-native instead of adding Lucide for one ProseMirror decoration affordance. Reason: no icon dependency/bundle cost, no SVG node lifecycle inside decorations, and the chevron inherits theme color directly.
+  - Replaced font-dependent `▾`/`▸` glyphs with a CSS SVG-mask chevron that rotates for expanded/collapsed state.
+  - Made fold toggles subtly visible by default and fully prominent on hover/focus so the icon is discoverable and screenshot-stable.
+- Heading-fold explanation:
+  - A heading shows no fold button when there is no foldable section content below it before the next same-or-higher heading. This is expected Markdown section behavior, not a bug.
+- Files changed:
+  - `apps/md-demo/src/styles.css`
+  - `tests/demo-folding-baseline.test.mjs`
+  - `README.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+- Visual impact:
+  - Editing surface: foldable headings now show a cleaner CSS chevron instead of font triangle glyphs.
+  - General UI/inspector: no change.
+  - Rich serialization/save behavior: no additional change beyond the already reviewed `MME-0020` behavior.
+- Visual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174 --strictPort`.
+  - Local URL: `http://127.0.0.1:5174/`.
+  - Browser tab reloaded successfully after the CSS change.
+  - `npm run visual:mme-0014` under sandbox failed with the known Chrome `SIGABRT`.
+  - Reran `npm run visual:mme-0014` with system permission; it refreshed the folding screenshots through the heading-fold states but exited nonzero on the pre-existing explicit toggle-block command wait.
+  - Inspected `docs/internal/visual-checks/MME-0014/folding-hover-affordance.png`; it shows the new chevron affordance on rich headings.
+- Checks run:
+  - `npm run test:demo-folding` — green.
+  - `npm run test:rich-folding` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `git diff --check` — green before doc acceptance updates.
+- Reviewer/fallback:
+  - Human reviewer accepted `MME-0020`.
+  - Follow-up chevron visual was self-inspected through the refreshed screenshot because no reviewer subagent tool is currently active in this session.
+- Suggested commit message:
+  - `fix: preserve targeted rich edits without rewrites`
+- Next issue:
+  - `MME-0021 — Rich list and todo editing baseline`.
+
+## MME-0021 — Rich list and todo editing baseline
+
+- Timestamp: 2026-06-13T16:33:44Z
+- Status: code-complete; human review pending. Do not move to `MME-0022` until the human accepts the rich list/todo editing feel.
+- Summary:
+  - Added a dedicated rich list editing test suite covering Enter, empty Enter, Tab, Shift+Tab, Backspace, nested bullet/ordered/todo serialization, H4-H6 input rules, `*`/`+` bullet rules, and one-step input-rule undo.
+  - Replaced the todo-only Enter behavior with a generalized list/todo split command that creates sibling items and resets newly split todo items to unchecked.
+  - Added custom rich-mode list commands for nesting, outdenting, empty-item exit, and Backspace-at-item-start behavior across bullet, ordered, and todo items.
+  - Extended rich Markdown input rules to support H1-H6 headings plus `-`, `*`, and `+` bullets, with a small undo bridge for append-transaction input rules.
+  - Corrected nested ordered-list serialization so continuation indentation survives parse/serialize round-trips.
+- Files changed:
+  - `packages/md-rich-prosemirror/src/index.ts`
+  - `tests/rich-list-editing.test.mjs`
+  - `scripts/visual-check-mme0021.mjs`
+  - `package.json`
+  - `README.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+- RED proof:
+  - `npm run test:rich-list-editing` initially failed because pressing Enter in a bullet item created a second paragraph inside the same `list_item` instead of a sibling list item.
+- Acceptance-criteria proof:
+  - Enter creates sibling bullet, ordered, and todo items; mid-item Enter carries trailing text; todos reset to unchecked.
+  - Empty Enter exits a list item into a paragraph.
+  - Tab and Shift+Tab nest/outdent bullet, ordered, and todo items, including nested todo cases.
+  - Backspace at item start lifts the first item or merges later items predictably.
+  - H4-H6 plus `*`/`+` input rules are covered; one `Mod-z` restores literal typed prefixes.
+  - `fixtures/018-nested-lists-todos/input.md` round-trips through rich parse/serialize in the new test.
+  - MME-0019/MME-0020 regression suites are covered by the targeted rich tests and the full `npm test` run.
+- Visual impact:
+  - Editing surface behavior changed only: list/todo keyboard editing now produces block-editor-style sibling, nested, and outdented items.
+  - General topbar, save/open behavior, HTML preview, AI UI, and source mode are not intentionally changed.
+- Visual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174 --strictPort`.
+  - Local URL: `http://127.0.0.1:5174/`.
+  - `npm run visual:mme-0021` under sandbox failed with the known Chrome `SIGABRT`.
+  - Reran `npm run visual:mme-0021` with system permission; it succeeded.
+  - Artifacts:
+    - `docs/internal/visual-checks/MME-0021/list-todo-rich-loaded.png`
+    - `docs/internal/visual-checks/MME-0021/list-todo-after-tab.png`
+    - `docs/internal/visual-checks/MME-0021/list-todo-after-shift-tab.png`
+    - `docs/internal/visual-checks/MME-0021/README.md`
+- Checks run:
+  - `npm run test:rich-list-editing` — green.
+  - `npm run test:rich-input-rules` — green.
+  - `npm run test:rich-fidelity` — green.
+  - `npm run test:rich-targeted-serialization` — green.
+  - `npm run test:rich-commands` — green.
+  - `npm run test:rich-folding` — green.
+  - `npm run test:demo-rich` — green.
+  - `npm run test:demo-rich-ux` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm test` — green, including build and demo build. Existing Vite chunk-size warning only.
+- Reviewer/fallback:
+  - No separate reviewer agent was spawned in this session because the available subagent tool is restricted to explicit human requests.
+  - Self-review focused on transaction boundaries, schema validity, nested serialization, MME-0019/MME-0020 regressions, and visual artifacts.
+- Deviations from PRD:
+  - None intended. This advances Phase A integrity by improving rich editor keyboard behavior while preserving Markdown serialization gates.
+- Open questions:
+  - Human review must confirm the rich list/todo editing feel before this can be marked completed.
+  - Stock ProseMirror list helpers are still not used directly because the schema has both `list_item` and `todo_item`; this remains custom command code.
+- Suggested commit message:
+  - `feat: add rich list and todo editing commands`
+- Next issue:
+  - After human acceptance only: `MME-0022 — Source-mode keymap integrity`.
+
+### MME-0021 human review correction — list caret and checkbox keyboard
+
+- Timestamp: 2026-06-13T20:43:12Z
+- Status: code-complete; human review still pending.
+- Trigger:
+  - Human review found that pressing `Enter` in a list item created the sibling item, but the caret could land on a following block such as a heading instead of inside the new item.
+  - Human also reported a possible Backspace-at-item-start cursor recovery issue, `Tab` appearing to move focus instead of indenting, and Space not toggling a focused todo checkbox.
+- RED proof:
+  - Added selection assertions to `tests/rich-list-editing.test.mjs`.
+  - `npm run test:rich-list-editing` failed with: `bullet Enter before heading keeps caret in the new empty item expected paragraph offset 0, got heading offset 0`.
+- Change:
+  - `createListItemEnterTransaction` now sets `TextSelection` to the start of the newly split item paragraph instead of using a mapped position plus `near`, which could jump into the following heading.
+  - Backspace lift/merge paths now place selection at the lifted paragraph start or at the merge boundary, instead of after the first matching text discovered in the rebuilt list.
+  - Todo toggle buttons now handle keyboard `Space`/`Enter` through the ProseMirror plugin when focused, using `view.posAtDOM` to locate the backing `todo_item`.
+  - `scripts/visual-check-mme0021.mjs` now proves the human scenario by typing into a new bullet before a following heading, and proves keyboard Space toggles a todo checkbox. The script also force-cleans the Chrome process if SIGTERM does not finish.
+- Visual impact:
+  - Editing surface behavior only: caret placement after list `Enter` is now visually correct; keyboard-toggled checkboxes visibly check/uncheck.
+  - General topbar, save/open behavior, AI UI, source mode, and HTML preview are unchanged.
+- Visual verification:
+  - In-app browser non-destructive check: selected tab remained on `http://127.0.0.1:5174/`, title `Momentarise Markdown Editor Demo`, app loaded.
+  - `npm run visual:mme-0021` under sandbox still fails with the known Chrome `SIGABRT`.
+  - Reran `npm run visual:mme-0021` with system permission; it succeeded with exit 0.
+  - New/refreshed artifacts:
+    - `docs/internal/visual-checks/MME-0021/list-enter-caret-before-heading.png`
+    - `docs/internal/visual-checks/MME-0021/list-todo-keyboard-checked.png`
+    - `docs/internal/visual-checks/MME-0021/list-todo-rich-loaded.png`
+    - `docs/internal/visual-checks/MME-0021/list-todo-after-tab.png`
+    - `docs/internal/visual-checks/MME-0021/list-todo-after-shift-tab.png`
+    - `docs/internal/visual-checks/MME-0021/README.md`
+- Checks run:
+  - `npm run test:rich-list-editing` — red before the fix, green after the fix.
+  - `npm run test:rich-input-rules` — green.
+  - `npm run test:rich-fidelity` — green.
+  - `npm run test:rich-targeted-serialization` — green.
+  - `npm run test:rich-commands` — green.
+  - `npm run test:rich-folding` — green.
+  - `npm run test:demo-rich` — green.
+  - `npm run test:demo-rich-ux` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm test` — green, including build and demo build. Existing Vite chunk-size warning only.
+- Reviewer/fallback:
+  - Human reviewer found the issue.
+  - Fallback self-review covered selection transaction math, Backspace selection boundaries, DOM-guarded checkbox keyboard handling, and refreshed visual artifacts.
+- Open questions:
+  - The `# ` input-rule behavior is standard Markdown-input behavior: typing `# ` immediately creates H1. To create H2, type `## ` before Space, or Undo and type the longer prefix. A later heading-level conversion UX can be considered separately, but was not widened into this MME-0021 fix.
+  - Human review is still required before MME-0021 can be marked complete.
+- Suggested commit message:
+  - `fix: keep rich list caret in new items`
+
+### MME-0021 human review correction — nested empty list behavior
+
+- Timestamp: 2026-06-13T21:08:31Z
+- Status: code-complete; human review still pending.
+- Trigger:
+  - Human review found remaining nested-list issues: pressing `Tab` on a newly created empty second item nested it but moved the caret to the top/parent item; pressing `Enter` on an empty nested item produced a paragraph at the nested text indent instead of exiting to the parent list level; Backspace after that could collapse/delete nested list content unexpectedly.
+  - Human also noted that typing `- ` before an existing word at the beginning of a line did not transform the line into a bullet item.
+- RED proof:
+  - Added tests to `tests/rich-list-editing.test.mjs` for empty-item Tab, nested empty Enter, Backspace after nested exit, and `- ` before existing text.
+  - `npm run test:rich-list-editing` failed before the fix with: `Tab on empty second bullet keeps caret inside nested empty item expected selection inside list_item path [0,0], got list_item path [0]`.
+- Change:
+  - `sinkListItemCommand` now computes the moved item's paragraph position structurally inside the new nested list, preserving the original paragraph offset even when the item is empty.
+  - `liftListItemCommand` and empty nested `Enter` share a structural lift transaction that removes the empty nested item from the child list and inserts it after the parent item at the outer list level.
+  - Backspace after an empty nested exit now preserves the nested sibling list content instead of leaving an intermediate paragraph shape that base key handling could collapse.
+  - The rich input-rule plugin now evaluates the text before the cursor, so typing `- ` at the start of a line before existing text transforms the line into a bullet and keeps the caret before the existing word.
+  - Removed the old list selection fallback that searched by text content; selection is now based on list/item positions for these commands.
+- Visual impact:
+  - Editing surface behavior only: nested empty bullets now keep the caret in the visible target item and empty nested items exit one level to a parent-level bullet.
+  - General topbar, save/open behavior, AI UI, source mode, and HTML preview are unchanged.
+- Visual verification:
+  - `npm run visual:mme-0021` under sandbox still fails with the known Chrome `SIGABRT`.
+  - Reran `npm run visual:mme-0021` with system permission; it succeeded with exit 0.
+  - New/refreshed artifact:
+    - `docs/internal/visual-checks/MME-0021/list-nested-empty-exit.png`
+  - The screenshot shows `Alpha`, nested `regftez`, and parent-level `parent level`, proving the empty nested item exited one level without losing nested content.
+- Checks run:
+  - `npm run test:rich-list-editing` — red before the fix, green after the fix.
+  - `npm run test:rich-input-rules` — green.
+  - `npm run test:rich-fidelity` — green.
+  - `npm run test:rich-targeted-serialization` — green.
+  - `npm run test:rich-commands` — green.
+  - `npm run test:rich-folding` — green.
+  - `npm run test:demo-rich` — green.
+  - `npm run test:demo-rich-ux` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm test` — green, including build and demo build. Existing Vite chunk-size warning only.
+- Reviewer/fallback:
+  - Human reviewer found the issue.
+  - Fallback self-review covered structural list positions, nested empty-item lift semantics, input-rule cursor prefix handling, and refreshed visual artifact.
+- Open questions:
+  - Source mode auto-pairs braces because CodeMirror close-brackets behavior is part of the source editor baseline; rich mode currently does not auto-pair braces. This is intentional for now and should not be changed inside MME-0021 unless a future rich-pairing issue promotes it.
+  - `Shift+Enter` is not treated as “inverse Enter” in this slice. A future rich soft-break/hard-break UX issue can define that behavior explicitly.
+  - Human review is still required before MME-0021 can be marked complete.
+- Suggested commit message:
+  - `fix: stabilize rich nested list editing`
+
+### MME-0021 human review correction — parent empty Backspace after nested list
+
+- Timestamp: 2026-06-13T22:09:52Z
+- Status: code-complete; human review still pending.
+- Trigger:
+  - Human review found one remaining nested-list detail: after a parent item with a nested child, deleting the following parent-level item left an empty parent bullet; pressing `Backspace` removed that bullet but placed the caret at the end of the previous parent item text instead of near the nested child.
+- RED proof:
+  - Added an assertion to `tests/rich-list-editing.test.mjs` for the sequence `- Alpha`, nested `regftez`, empty parent-level item, then `Backspace`.
+  - `npm run test:rich-list-editing` failed before the fix with: `expected paragraph offset 7, got paragraph offset 5`, showing the caret was in the parent paragraph instead of at the nested child.
+- Change:
+  - `liftOrMergeListItemAtStartCommand` now detects an empty plain list item before the normal merge path.
+  - Empty later items are deleted without merging into the previous paragraph.
+  - Selection is placed with `Selection.near(..., -1)` at the end of the previous item subtree, which resolves visually to the end of the nested child instead of the parent line.
+- Visual impact:
+  - Editing surface behavior only: removing an empty parent-level bullet after a nested list no longer jumps the caret to the parent item text.
+  - General topbar, save/open behavior, AI UI, source mode, and HTML preview are unchanged.
+- Visual verification:
+  - `npm run visual:mme-0021` under sandbox still fails with the known Chrome `SIGABRT`.
+  - Reran `npm run visual:mme-0021` with system permission; it succeeded with exit 0.
+  - New/refreshed artifact:
+    - `docs/internal/visual-checks/MME-0021/list-parent-empty-backspace.png`
+  - The screenshot shows parent `oino`, nested `noino`, no remaining empty parent bullet, and the caret at the end of `noino`.
+- Checks run:
+  - `npm run test:rich-list-editing` — red before the fix, green after the fix.
+  - `npm run test:rich-input-rules` — green.
+  - `npm run test:rich-fidelity` — green.
+  - `npm run test:rich-targeted-serialization` — green.
+  - `npm run test:rich-commands` — green.
+  - `npm run test:rich-folding` — green.
+  - `npm run test:demo-rich` — green.
+  - `npm run test:demo-rich-ux` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm test` — green, including build and demo build. Existing Vite chunk-size warning only.
+- Reviewer/fallback:
+  - Human reviewer found the issue.
+  - Fallback self-review covered the empty-item branch ordering, ProseMirror selection resolution without gap cursor, and refreshed visual artifact.
+- Open questions:
+  - No new scope expansion. MME-0021 remains blocked only on human acceptance of the rich list/todo editing feel.
+- Suggested commit message:
+  - `fix: keep nested-list caret after empty item deletion`
+
+### Human decision — MME-0021 accepted
+
+- Timestamp: 2026-06-20T00:00:00+02:00
+- Status: completed; `MME-0022` is unblocked.
+- Human decision:
+  - The human accepted the rich list/todo editing direction after the caret, nested empty item, checkbox keyboard, dash-space, and parent empty Backspace review fixes.
+- Server status:
+  - Relaunched the demo with `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174 --strictPort`.
+  - Local URL: `http://127.0.0.1:5174/`.
+- Visual impact:
+  - Editing surface: MME-0021 rich list/todo behavior is accepted for moving forward.
+  - General UI/inspector: no change in this acceptance note.
+- Reviewer/fallback:
+  - Human reviewer accepted MME-0021 in conversation.
+- Suggested commit message:
+  - `feat: add rich list and todo editing commands`
+- Next issue:
+  - `MME-0022 — Source-mode keymap integrity`.
+
+## MME-0022 — Source-mode keymap integrity
+
+- Timestamp: 2026-06-20T13:04:00+02:00
+- Status: completed.
+- Summary:
+  - Replaced `basicSetup` in `@momentarise/md-source-codemirror` with an explicit CodeMirror 6 extension stack.
+  - Disabled the hidden Markdown keymap from `markdown()` via `markdown({ addKeymap: false })` and registered one explicit Markdown keymap path.
+  - Removed the duplicated hand-rolled list/checkbox continuation helpers from source mode.
+  - Kept MME's single-press empty list/task item exit behavior with a narrow high-priority CodeMirror handler, while list/task/blockquote continuation and smart Backspace now come from `markdownKeymap`.
+  - Kept the `Mod-s` save hook as an MME high-priority binding.
+- Files changed:
+  - `packages/md-source-codemirror/src/index.ts`
+  - `packages/md-source-codemirror/package.json`
+  - `package.json`
+  - `package-lock.json`
+  - `tests/source-editing-ux-baseline.test.mjs`
+  - `scripts/visual-check-mme0022.mjs`
+  - `docs/internal/visual-checks/MME-0022/README.md`
+  - `docs/internal/visual-checks/MME-0022/source-keymap-integrity.png`
+  - `README.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+- RED proof:
+  - `npm run test:source-keymap-integrity` initially failed under system Chrome with: `empty bullet Enter exits the list expected "- item\n", got "- item\n\n- "`.
+  - Running under the normal sandbox failed before app load with the known Chrome `SIGABRT`, so the browser check was rerun with system permission as done by prior visual checks.
+- Acceptance-criteria proof:
+  - Browser/CDP test against the real demo and composed CodeMirror stack proves bullet continuation, checkbox continuation, blockquote continuation, empty bullet exit, smart Backspace after a bullet marker, and `Mod-s` writing through the demo save hook.
+  - Static/source baseline now fails if `basicSetup` or the removed helper functions return.
+  - `markdown({ addKeymap: false })` prevents a hidden duplicate Markdown keymap, while the explicit stack owns keymap order.
+- Visual impact:
+  - Editing surface behavior only: source mode now uses the official Markdown keymap for continuation/backspace and preserves MME's one-press empty item exit.
+  - General topbar, save/open UI, rich mode, HTML preview, and AI UI are unchanged.
+- Visual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174 --strictPort --force`.
+  - Local URL: `http://127.0.0.1:5174/`.
+  - Artifact: `docs/internal/visual-checks/MME-0022/source-keymap-integrity.png`.
+- Checks run:
+  - `npm run test:source-keymap-integrity` — green with system Chrome permission.
+  - `npm run test:source-ux` — green.
+  - `npm run test:source-codemirror` — green.
+  - `npm run build:demo` — green; existing Vite chunk-size warning only.
+- Reviewer/fallback:
+  - Fallback self-review covered keymap precedence, duplicate `basicSetup` removal, the hidden `markdown()` keymap, source package dependencies, and browser behavior.
+- Deviations from PRD:
+  - None intended. The only custom behavior kept is the existing MME empty-item exit expectation; continuation and smart Backspace are delegated to CodeMirror's Markdown keymap.
+- Open questions:
+  - `MME-0023` is a large architecture slice and should start with a fresh brief rather than being treated as a small follow-up.
+- Suggested commit message:
+  - `fix: use official source markdown keymap`
+- Next issue:
+  - `MME-0023 — Headless editor session and events`.
+
+## MME-0023 — Headless editor session and events
+
+- Timestamp: 2026-06-20T15:26:00+02:00
+- Status: code-complete; awaiting required human acceptance of the public `MarkdownEditorSession` API shape before marking MME-0023 completed.
+- Summary:
+  - Added `packages/md-editor` with a DOM-free `MarkdownEditorSession` that owns canonical Markdown content, cached parsing, save state/flush/autosave scheduling through an injected scheduler, mode state, lifecycle events, and pending AI suggestion flow.
+  - Migrated `apps/md-demo/src/main.ts` so the demo consumes the session for `getMarkdown()`, source/rich content handoff, save orchestration, and AI start/request/accept/reject state instead of owning those concerns directly.
+  - Added AI suggestion `baseHash` anchoring in `@momentarise/md-ai`; accepting a suggestion against changed content now returns a `stale` status and leaves content unchanged.
+  - Extended architecture/type/static demo tests to cover `@momentarise/md-editor` and the demo's session consumption.
+- RED proof:
+  - `tests/editor-session.test.mjs` initially failed because `@momentarise/md-editor` did not exist.
+  - The first MME-0018 visual rerun failed because Vite could not resolve `@momentarise/md-editor`; `npm install --offline` materialized the workspace symlink after the lockfile-only dependency update.
+- Files changed:
+  - `packages/md-editor/package.json`
+  - `packages/md-editor/tsconfig.json`
+  - `packages/md-editor/src/index.ts`
+  - `packages/md-ai/package.json`
+  - `packages/md-ai/tsconfig.json`
+  - `packages/md-ai/src/index.ts`
+  - `apps/md-demo/package.json`
+  - `apps/md-demo/tsconfig.json`
+  - `apps/md-demo/src/main.ts`
+  - `package.json`
+  - `package-lock.json`
+  - `tsconfig.json`
+  - `tsconfig.base.json`
+  - `tsconfig.tests.json`
+  - `tests/editor-session.test.mjs`
+  - `tests/ai-writing.test.mjs`
+  - `tests/no-host-imports.mjs`
+  - `tests/type-contracts.test.ts`
+  - `tests/demo-source-baseline.mjs`
+  - `tests/demo-ai-writing-baseline.test.mjs`
+  - `README.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+- Visual impact:
+  - No intended visible editing or general UI changes. The demo should behave equivalently while delegating orchestration to the headless session.
+- Visual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174 --strictPort --force`.
+  - Local URL: `http://127.0.0.1:5174/`.
+  - `npm run visual:mme-0018` — green with system Chrome permission after creating the workspace symlink.
+  - Refreshed artifacts under `docs/internal/visual-checks/MME-0018/`.
+- Checks run:
+  - `npm run test:editor-session` — green.
+  - `npm run test:ai-writing` — green.
+  - `npm run test:contracts` — green.
+  - `npm run test:architecture` — green.
+  - `npm run test:save-engine` — green.
+  - `npm run test:demo-baseline` — green.
+  - `npm run test:demo-ai-writing` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:web-file-access` — green.
+  - `npm run test:demo-rich-ux` — green.
+  - `npm run build:demo` — green; existing Vite chunk-size warning only.
+  - `npm run visual:mme-0018` — green with system Chrome permission.
+  - `git diff --check` — green.
+- Reviewer/fallback:
+  - Fallback architecture self-review covered package boundaries, no-host imports, injected scheduler cleanup, event-after-mutation behavior, demo ownership transfer, and stale AI suggestion behavior.
+- Deviations from PRD:
+  - `@momentarise/md-ai` temporarily depends on `@momentarise/md-save` for `hashMarkdownContent`; this is contained and should be revisited during `MME-0024` package graph cleanup.
+- Stop conditions checked:
+  - No docs/code conflict found.
+  - No user/dirty-worktree changes were reverted.
+- Suggested commit message:
+  - `feat: add headless markdown editor session`
+- Next issue:
+  - `MME-0024 — Publishable package restructure`, after human acceptance of the MME-0023 public session API.
+
+### MME-0021 follow-up — deep grandchild deletion
+
+- Timestamp: 2026-06-20T15:01:00+02:00
+- Status: completed.
+- Trigger:
+  - Human review found a rich-mode edge case: after creating a third-level bullet through `- Parent`, `Enter`, `Tab`, `Child`, `Enter`, `Tab`, `Only grandchild`, deleting that deepest item produced a weird result.
+- Expected interaction:
+  - Deleting the deepest item's text should leave only that deepest item empty.
+  - Pressing Backspace on the empty deepest item should remove only that child list level.
+  - The direct parent item should remain a single clean list item with the caret at the end of its text.
+  - Ancestor list items must not collapse, duplicate paragraphs, or lose content.
+- RED proof:
+  - Added a single-grandchild deletion scenario to `tests/rich-list-editing.test.mjs`.
+  - Before the fix, the test failed because the rich document kept an empty paragraph inside the `Child` list item after removing the only grandchild.
+- Change:
+  - `liftOrMergeListItemAtStartCommand` now handles empty nested list items before the generic first-item branch.
+  - When a nested list has only one empty child item, the command removes the nested list from the parent item instead of replacing it with an empty paragraph.
+  - Empty first items with following siblings now delete the empty item and place selection at the next sibling start; empty later items keep the previous-subtree selection behavior.
+- Files changed:
+  - `packages/md-rich-prosemirror/src/index.ts`
+  - `tests/rich-list-editing.test.mjs`
+  - `scripts/visual-check-mme0021.mjs`
+  - `docs/internal/visual-checks/MME-0021/README.md`
+  - `docs/internal/visual-checks/MME-0021/list-deep-grandchild-delete.png`
+  - `docs/internal/build-log.md`
+- Visual impact:
+  - Editing surface behavior only: deleting the only deep grandchild bullet no longer leaves a hidden/visible empty paragraph in the parent child item.
+  - General topbar, save/open behavior, source mode, HTML preview, and AI UI are unchanged.
+- Visual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174 --strictPort --force`.
+  - Local URL: `http://127.0.0.1:5174/`.
+  - `npm run visual:mme-0021` — green with system Chrome permission.
+  - New artifact: `docs/internal/visual-checks/MME-0021/list-deep-grandchild-delete.png`.
+- Checks run:
+  - `npm run test:rich-list-editing` — red before the fix, green after the fix.
+  - `npm run test:rich-input-rules` — green.
+  - `npm run test:rich-fidelity` — green.
+  - `npm run test:rich-targeted-serialization` — green.
+  - `npm run test:demo-rich-ux` — green.
+  - `npm run visual:mme-0021` — green with system Chrome permission.
+  - `git diff --check` — green.
+- Reviewer/fallback:
+  - Human reviewer found the issue.
+  - Fallback self-review covered the deep nested deletion user journey, ProseMirror document shape, selection placement, and Markdown round-trip.
+- Deviations from PRD:
+  - None intended. This stays inside rich-mode list behavior and does not change parser, serializer, source mode, Save Engine, or host contracts.
+- Suggested commit message:
+  - `fix: remove empty deep rich list items cleanly`
+- Next issue:
+  - `MME-0023 — Headless editor session and events`.
+
+### MME-0023 review fix — compact editor-native AI surface
+
+- Timestamp: 2026-06-20T15:43:00+02:00
+- Status: code-complete review fix; awaiting human acceptance.
+- Trigger:
+  - Human review found that the visible AI surface still looked like a full-width debug/BYOK panel and did not match Copilot/Gemini/BlockNote-class editor-native AI interactions.
+- Reference check:
+  - Verified the official BlockNote AI docs/examples: AI is exposed through editor-native entry points such as a toolbar AI button and `/ai`, with accept/reject review and visible operation state. MME should benchmark that interaction pattern without copying BlockNote code or styling.
+- RED proof:
+  - Added a `tests/demo-reference-surface-baseline.test.mjs` guard requiring `.ai-assistant-panel` to be `position: fixed`.
+  - Before the fix, `npm run test:demo-reference-surface` failed with: `User-facing AI assistant must be a compact editor popover, not an in-flow panel above the document.`
+- Change:
+  - Reworked the user-facing AI assistant from an in-flow panel above the document into a compact fixed popover.
+  - Kept explicit private/memory-only session setup, accept/reject controls, and existing toolbar/header/selection/slash/command-palette AI entry points.
+  - Adjusted user-facing wording from debug/BYOK phrasing toward private-session wording while keeping BYOK safety contracts in tests/docs.
+  - Added `scripts/visual-check-mme0023-ai-surface.mjs` and `visual:mme-0023`; the script asserts the popover is compact/fixed and that opening it does not move the editor layout.
+- Files changed:
+  - `apps/md-demo/src/main.ts`
+  - `apps/md-demo/src/styles.css`
+  - `tests/demo-reference-surface-baseline.test.mjs`
+  - `scripts/visual-check-mme0023-ai-surface.mjs`
+  - `docs/internal/visual-checks/MME-0023/README.md`
+  - `docs/internal/visual-checks/MME-0023/ai-assistant-popover.png`
+  - `package.json`
+  - `docs/internal/build-log.md`
+- Visual impact:
+  - Editing/general UI: the AI assistant now overlays as a compact editor popover instead of pushing the Markdown surface down as a full-width panel.
+  - Source/rich editing behavior, Save Engine behavior, local-file open/save, and headless `md-editor` API are unchanged.
+- Visual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174 --strictPort --force`.
+  - Local URL: `http://127.0.0.1:5174/`.
+  - `npm run visual:mme-0023` — green with system Chrome permission.
+  - `npm run visual:mme-0018` — green with system Chrome permission.
+  - New artifact: `docs/internal/visual-checks/MME-0023/ai-assistant-popover.png`.
+- Checks run:
+  - `npm run test:demo-reference-surface` — red before the fix, green after the fix.
+  - `npm run test:demo-ai-writing` — green.
+  - `npm run test:editor-session` — green.
+  - `npm run visual:mme-0023` — green with system Chrome permission.
+  - `npm run visual:mme-0018` — green with system Chrome permission.
+  - `npm run build:demo` — green; existing Vite chunk-size warning only.
+  - `git diff --check` — green.
+- Reviewer/fallback:
+  - Fallback UX self-review covered the human complaint, MME-0018 AI surface requirements, BlockNote reference boundaries, layout non-shift assertion, and BYOK/memory-only truthfulness.
+- Deviations from PRD:
+  - None intended. This is a demo surface correction only; provider/backend/streaming AI stays out of scope.
+- Suggested commit message:
+  - `fix: make ai assistant an editor popover`
+- Next issue:
+  - `MME-0024 — Publishable package restructure`, only after human acceptance of MME-0023.
+
+### Backlog follow-up — AI provider and slash prompt surface
+
+- Timestamp: 2026-06-20T15:51:00+02:00
+- Status: documented backlog only; no production code change.
+- Trigger:
+  - Human asked whether the current private key field means Mistral/OpenAI/Gemini keys work directly, described the desired `/ai` inline prompt behavior, and asked to backlog a LiteLLM adapter for developers who want multi-provider choice.
+- Clarification captured:
+  - The current demo session is mock/provider-gated and memory-only; it must not imply that pasting an OpenAI, Gemini, Mistral, or other provider key calls that provider unless a real host/provider adapter is configured.
+- Backlog additions:
+  - Added slash `/ai` inline prompt surface expectations: anchored under the current block/line, focused free-text prompt first, action rows/buttons below.
+  - Added LiteLLM / OpenAI-compatible AI provider adapter as optional host-side follow-up outside MME core, supporting developer/provider choice while keeping production key/security concerns in host backend, sidecar, secure storage, or user gateway.
+- Files changed:
+  - `docs/internal/BACKLOG.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+- Visual impact:
+  - No visible editing or general UI changes; documentation/backlog only.
+- Checks run:
+  - `git diff --check` — green.
+- Suggested commit message:
+  - `docs: backlog ai provider adapter and slash prompt`
+
+### Issue planning follow-up — usable AI interaction issue
+
+- Timestamp: 2026-06-20T15:56:00+02:00
+- Status: planned issue added; no production code change.
+- Trigger:
+  - Human pointed out that the current AI state is not usable and asked whether another issue truly covers AI interactions.
+- Finding:
+  - Existing issues covered pieces: `MME-0017` AI contracts/mock/BYOK, `MME-0018` reference entry points, `MME-0027` extension registry and parameterized actions, `MME-0028` surface extraction, and `MME-0029` selection toolbar. No dedicated issue clearly owned `/ai` inline prompt UX and truthful provider state.
+- Change:
+  - Added `MME-0028.5 — Inline AI prompt surface and usable writing flow`.
+  - The issue requires `/ai` to open an inline panel under the current block/line with focused prompt input, action rows, staged suggestions, accept/reject, truthful provider state, policy gating, and visual proof.
+- Files changed:
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/BACKLOG.md`
+  - `docs/internal/build-log.md`
+- Visual impact:
+  - No visible editing or general UI changes; planning/docs only.
+- Checks run:
+  - `git diff --check` — green.
+- Suggested commit message:
+  - `docs: add usable inline ai prompt issue`
+
+### Issue planning follow-up — real AI provider issue
+
+- Timestamp: 2026-06-20T16:00:00+02:00
+- Status: planned issue added; no production code change.
+- Trigger:
+  - Human asked to add an issue if needed and document the decision about when AI becomes usable.
+- Decision:
+  - Split "usable AI" into two explicit implementation gates:
+    - `MME-0028.5` makes the interaction usable: `/ai`, inline prompt, action rows, staged accept/reject.
+    - `MME-0028.6` makes a real provider usable through an optional host-side OpenAI-compatible/LiteLLM adapter path.
+- Change:
+  - Added `MME-0028.6 — Real AI provider adapter path`.
+  - The issue keeps provider SDKs and LiteLLM out of MME core, requires truthful provider state, memory-only browser BYOK if used, host/backend/sidecar guidance for production, policy-before-provider tests, and key non-leakage proof.
+- Files changed:
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/BACKLOG.md`
+  - `docs/internal/build-log.md`
+- Visual impact:
+  - No visible editing or general UI changes; planning/docs only.
+- Checks run:
+  - `git diff --check` — green.
+- Suggested commit message:
+  - `docs: add real ai provider issue`
+
+### Human decision — MME-0023 accepted and commit/push gate enabled
+
+- Timestamp: 2026-06-24T11:31:00+02:00
+- Status: completed; `MME-0024` is unblocked after commit and push.
+- Human decision:
+  - The human confirmed the updated commit/push rules and authorized continuing once the current work is committed and pushed.
+  - This is treated as the required human acceptance for `MME-0023`.
+- Scope note:
+  - The current dirty worktree predates the new commit/push discipline and contains multiple completed follow-ups touching overlapping files. A perfectly issue-scoped retroactive commit would require risky patch surgery.
+  - The first commit under the new rule is therefore a documented catch-up commit through `MME-0023`; future work from `MME-0024` onward must use issue-scoped commits.
+- Verification refreshed before commit:
+  - `npm test` — green; existing Vite chunk-size warning only.
+  - `git diff --check` — green.
+  - `npm run visual:mme-0023` — green with system Chrome permission after relaunching the dev server.
+  - `npm run visual:mme-0018` — green with system Chrome permission after relaunching the dev server.
+- Server status:
+  - Relaunched with `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174 --strictPort --force`.
+  - Local URL: `http://127.0.0.1:5174/`.
+- Commit status:
+  - Pending in this log entry; the final report records the created commit hash.
+- Push status:
+  - Pending in this log entry; the final report records the push result.
+- Next issue:
+  - `MME-0024 — Publishable package restructure`.

@@ -43,6 +43,10 @@ if (suggestion.status !== "pending" || !suggestion.replacement.includes("AI sugg
   throw new Error("AI writing must return a pending suggestion from the mock provider.");
 }
 
+if (!suggestion.baseHash || typeof suggestion.baseHash !== "string") {
+  throw new Error("AI writing suggestions must record the base document hash.");
+}
+
 if (originalMarkdown.includes("AI suggestion")) {
   throw new Error("AI suggestion must not silently mutate the original document.");
 }
@@ -50,6 +54,11 @@ if (originalMarkdown.includes("AI suggestion")) {
 const accepted = acceptAiSuggestion(originalMarkdown, suggestion);
 if (!accepted.content.includes("AI suggestion") || accepted.suggestion.status !== "accepted") {
   throw new Error("Accepting a suggestion should apply the staged replacement.");
+}
+
+const stale = acceptAiSuggestion(`${originalMarkdown}\nConcurrent edit.\n`, suggestion);
+if (stale.suggestion.status !== "stale" || stale.content.includes("AI suggestion")) {
+  throw new Error("Accepting a suggestion against changed content must mark it stale without mutation.");
 }
 
 const rejected = rejectAiSuggestion(originalMarkdown, suggestion);

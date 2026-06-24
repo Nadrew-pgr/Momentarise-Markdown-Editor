@@ -50,6 +50,9 @@ for (const forbiddenSnippet of [
 if (!styles.includes("content: \"...\"")) {
   throw new Error("Collapsed headings must use a subtle ellipsis marker instead of hidden-count text.");
 }
+if (styles.includes("▾") || styles.includes("▸")) {
+  throw new Error("Rich folding chevrons must be drawn with CSS, not font-dependent triangle glyphs.");
+}
 
 const visualReadme = "docs/internal/visual-checks/MME-0014/README.md";
 if (!existsSync(visualReadme)) {

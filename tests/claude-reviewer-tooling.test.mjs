@@ -49,8 +49,10 @@ assertDoesNotInclude(envExample, "sk-ant-", ".env.example");
 
 const claudeMd = await readRepoFile("CLAUDE.md");
 assertIncludes(claudeMd, "AGENT.md", "CLAUDE.md");
-assertIncludes(claudeMd, "npm run ai:review:claude", "CLAUDE.md");
-assertIncludes(claudeMd, "not product AI", "CLAUDE.md");
+assertIncludes(claudeMd, "Slice Start Brief", "CLAUDE.md");
+assertIncludes(claudeMd, "Autonomous Issue-By-Issue Mode", "CLAUDE.md");
+assertDoesNotInclude(claudeMd, "npm run ai:review:claude", "CLAUDE.md");
+assertDoesNotInclude(claudeMd, "Claude Fable 5 API", "CLAUDE.md");
 
 const packageJson = JSON.parse(await readRepoFile("package.json"));
 assertIncludes(

@@ -98,6 +98,41 @@ if (main.includes('class="document-strip"')) {
   throw new Error("Permanent document metadata strip must be demoted from the main editor chrome.");
 }
 
+const openFileHandler = extractBlock(main, 'openFileButton.addEventListener("click", () => {', "\n});");
+if (!openFileHandler.includes("void openLocalFile();")) {
+  throw new Error("Primary Open file action must route through the real local-file opener.");
+}
+if (openFileHandler.includes("openFileInput.click")) {
+  throw new Error("Primary Open file action must not silently fall back to imported-copy file input.");
+}
+
+const openLocalFileFunction = extractFunction(main, "async function openLocalFile");
+if (openLocalFileFunction.includes("openFileInput.click")) {
+  throw new Error("Real local-file opener must not silently fall back to imported-copy file input.");
+}
+if (!openLocalFileFunction.includes("showRealFileOpenUnavailable")) {
+  throw new Error("Real local-file opener must show explicit user feedback when File System Access is unavailable.");
+}
+if (openLocalFileFunction.includes("loadHtmlArtifact")) {
+  throw new Error("Primary Open file action must not route HTML artifacts into imported-copy/export mode.");
+}
+if (openLocalFileFunction.includes('"text/html"')) {
+  throw new Error("Primary Open file picker must not offer HTML artifacts; use the separate HTML reader.");
+}
+if (!main.includes("restored browser draft; reopen the original file for writable autosave")) {
+  throw new Error("Reload-restored Markdown must explicitly explain that writable disk autosave requires reopening the original file.");
+}
+if (!main.includes("Export copy")) {
+  throw new Error("Imported/download-required documents must label the primary action as exporting a copy.");
+}
+
+if (main.includes('aiCommandSurface.hidden = !toolbarAiVisible || editorMode === "rich"')) {
+  throw new Error("Header AI entry point must remain visible in rich mode when toolbar AI is also available.");
+}
+if (!main.includes("aiCommandSurface.hidden = !toolbarAiVisible;")) {
+  throw new Error("Header AI visibility must depend on preferences, not on source/rich mode.");
+}
+
 const aiEntryPointIndex = main.indexOf("ai-command-surface");
 const inspectorIndex = main.indexOf("debug-inspector");
 if (aiEntryPointIndex < 0 || inspectorIndex < 0 || aiEntryPointIndex > inspectorIndex) {
@@ -123,6 +158,14 @@ for (const snippet of [
   }
 }
 
+const aiAssistantPanelStyle = extractCssRule(styles, ".ai-assistant-panel");
+if (!aiAssistantPanelStyle.includes("position: fixed")) {
+  throw new Error("User-facing AI assistant must be a compact editor popover, not an in-flow panel above the document.");
+}
+if (aiAssistantPanelStyle.includes("margin: 8px 12px 0")) {
+  throw new Error("AI assistant panel must not push the editor document down as full-width demo chrome.");
+}
+
 const visual = readFileSync("scripts/visual-check-mme0018.mjs", "utf8");
 for (const artifact of [
   "reference-surface-desktop.png",
@@ -138,4 +181,53 @@ for (const artifact of [
   if (!visual.includes(artifact)) {
     throw new Error(`MME-0018 visual script missing artifact: ${artifact}`);
   }
+}
+
+function extractBlock(source, startMarker, endMarker) {
+  const start = source.indexOf(startMarker);
+  if (start < 0) {
+    throw new Error(`Missing block start marker: ${startMarker}`);
+  }
+  const bodyStart = start + startMarker.length;
+  const end = source.indexOf(endMarker, bodyStart);
+  if (end < 0) {
+    throw new Error(`Missing block end marker after: ${startMarker}`);
+  }
+  return source.slice(bodyStart, end);
+}
+
+function extractFunction(source, signature) {
+  const start = source.indexOf(signature);
+  if (start < 0) {
+    throw new Error(`Missing function signature: ${signature}`);
+  }
+  const bodyStart = source.indexOf("{", start);
+  if (bodyStart < 0) {
+    throw new Error(`Missing function body: ${signature}`);
+  }
+  let depth = 0;
+  for (let index = bodyStart; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "{") {
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(bodyStart + 1, index);
+      }
+    }
+  }
+  throw new Error(`Unclosed function body: ${signature}`);
+}
+
+function extractCssRule(source, selector) {
+  const start = source.indexOf(`${selector} {`);
+  if (start < 0) {
+    throw new Error(`Missing CSS rule: ${selector}`);
+  }
+  const end = source.indexOf("\n}", start);
+  if (end < 0) {
+    throw new Error(`Unclosed CSS rule: ${selector}`);
+  }
+  return source.slice(start, end + 2);
 }

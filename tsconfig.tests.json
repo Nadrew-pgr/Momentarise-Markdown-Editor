@@ -17,6 +17,24 @@
       "@momentarise/md-save": [
         "packages/md-save/src/index.ts"
       ],
+      "@momentarise/md-policy": [
+        "packages/md-policy/src/index.ts"
+      ],
+      "@momentarise/md-ai": [
+        "packages/md-ai/src/index.ts"
+      ],
+      "@momentarise/md-editor": [
+        "packages/md-editor/src/index.ts"
+      ],
+      "@momentarise/md-preview-html": [
+        "packages/md-preview-html/src/index.ts"
+      ],
+      "@momentarise/md-rich-prosemirror": [
+        "packages/md-rich-prosemirror/src/index.ts"
+      ],
+      "@momentarise/md-source-codemirror": [
+        "packages/md-source-codemirror/src/index.ts"
+      ],
       "@momentarise/md-adapter-web": [
         "packages/md-adapter-web/src/index.ts"
       ],

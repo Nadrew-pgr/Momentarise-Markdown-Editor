@@ -30,6 +30,19 @@ Internal product, planning, quality, issue, and build-process documents belong i
 
 The default public documentation boundary is `README.md` plus `docs/public/`. Do not publish `docs/internal/` unless that decision is explicit.
 
+## Backlog governance
+
+Backlog context lives in both places:
+
+- `docs/internal/ISSUES.md` contains the executable issue queue and may also contain `MME-BACKLOG` / future split candidate notes near the issue sequence.
+- `docs/internal/BACKLOG.md` is the product-level backlog and parking lot for must-have editor hygiene, product differentiators, future adapters, research, and maybe-later ideas.
+
+Do not treat `docs/internal/BACKLOG.md` as a second active issue tracker.
+
+When a backlog item becomes implementation-ready, promote it into `docs/internal/ISSUES.md` with normal issue structure, acceptance criteria, test/manual verification, visual impact, execution model, and reviewer plan.
+
+When doing planning or checking whether an idea is already captured, inspect both `docs/internal/ISSUES.md` and `docs/internal/BACKLOG.md`.
+
 ## Non-negotiable truths
 
 - Markdown plus YAML frontmatter is the canonical persisted source.
@@ -96,8 +109,29 @@ After implementation, output:
 4. `Manual verification:`
 5. `Reviewer pass:`
 6. `Build log updated:`
-7. `Suggested commit message:`
-8. `Next issue:`
+7. `Commit created:`
+8. `Push status:`
+9. `Next issue:`
+
+## Commit and push discipline
+
+A finished issue must be committed before starting the next issue.
+
+An issue is finished only when all required tests/checks pass, the build log is updated, reviewer/fallback verification is complete, and any required human review has accepted the issue.
+
+If an issue is only `code-complete, human review pending`, do not call it finished. It may be committed with an explicit pending status only when the human asks for that, but it must not be treated as accepted.
+
+Once an issue is validated/accepted and committed, push the current branch to the configured remote unless one of these is true:
+
+- the human explicitly says not to push;
+- no remote is configured;
+- authentication or network access is unavailable;
+- the branch contains unrelated or unreviewed changes that would be pushed accidentally;
+- pushing would expose secrets, private files, or local-only artifacts.
+
+If commit or push cannot be done, document the blocker in the final report and in `docs/internal/build-log.md`.
+
+Commits must be issue-scoped. Do not commit unrelated dirty files, secrets, `.env` files, `node_modules`, or generated local-only artifacts.
 
 ## Fresh issue agent rule
 
@@ -112,9 +146,10 @@ Before coding, the agent must read, in this order:
 3. `docs/internal/PRD.md`
 4. `docs/internal/QUALITY_GATES.md`
 5. `docs/internal/ISSUES.md`
-6. the latest relevant entries in `docs/internal/build-log.md`
-7. the current `git status`
-8. the files related to the current issue
+6. `docs/internal/BACKLOG.md`
+7. the latest relevant entries in `docs/internal/build-log.md`
+8. the current `git status`
+9. the files related to the current issue
 
 Before implementation, the agent must output a Slice Start Brief:
 
@@ -275,7 +310,8 @@ For every issue append:
 - reviewer/subagent used and result;
 - deviations from PRD;
 - open questions;
-- suggested commit message.
+- commit hash or explicit commit blocker;
+- push status or explicit push blocker.
 
 ## Stop conditions
 

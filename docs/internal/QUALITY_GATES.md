@@ -43,6 +43,40 @@ Do not create or update a second build log elsewhere.
 
 Every issue must append its final report to this file.
 
+## Gate 0.62 — Backlog sources
+
+Backlog context lives in both:
+
+- `docs/internal/ISSUES.md`, for executable issues plus any `MME-BACKLOG` / future split candidate notes near the issue sequence;
+- `docs/internal/BACKLOG.md`, for the product-level backlog and parking lot.
+
+Before deciding that an idea is missing, deferred, or already planned, check both files.
+
+Do not implement directly from `docs/internal/BACKLOG.md`. Promote a backlog item into `docs/internal/ISSUES.md` first with acceptance criteria, verification, visual impact, execution model, and reviewer plan.
+
+Do not duplicate a backlog item into a new issue unless it is now actionable and scoped.
+
+## Gate 0.64 — Commit and push discipline
+
+A completed issue must end in an issue-scoped commit before the implementation agent starts the next issue.
+
+An issue is completed only after:
+
+- required tests/checks pass;
+- required manual or visual verification is complete;
+- reviewer/subagent verification or fallback review is documented;
+- `docs/internal/build-log.md` is updated;
+- required human review has accepted the issue, if applicable.
+
+If an issue is `code-complete, human review pending`, it is not completed. It may be committed with an explicit pending status only when the human asks for that, and it must not be pushed as accepted work.
+
+After a completed issue is human-validated/accepted and committed, push the current branch to the configured remote unless the human says not to push, no remote/auth/network is available, unrelated/unreviewed changes would be pushed, or the push would expose secrets/private files/local artifacts.
+
+Commit and push evidence must be recorded in the final report and in `docs/internal/build-log.md`:
+
+- commit hash, or explicit commit blocker;
+- push status, or explicit push blocker.
+
 ## Gate 0.65 — Sequential issue execution
 
 The project is built one issue at a time.
@@ -53,8 +87,9 @@ An implementation agent must not start a new issue until the previous issue has:
 - completed manual verification if applicable;
 - reviewer/subagent pass or documented fallback review;
 - updated `docs/internal/build-log.md`;
+- an issue-scoped commit, or an explicit documented commit blocker;
 - clean or intentionally documented `git status`;
-- suggested commit message;
+- pushed current branch after validation, or an explicit documented push blocker;
 - human review when required by the issue.
 
 Parallel implementation is forbidden by default.
@@ -289,6 +324,8 @@ Every completed issue must have reviewer verification. Use subagents if availabl
 Added 2026-06-09. Applies once `@momentarise/md-theme` and the preference contracts exist.
 
 - Surface components consume only design tokens, preference values, the icon-set contract, and an injected string dictionary; no hardcoded colors, fonts, spacing, shortcuts, or UI literals.
+- Colors are centralised in one source of truth (`--mme-*` tokens). Every UI-touching issue consumes those tokens and introduces zero raw color/shadow/radius values; a static check rejects raw hex colors outside the token blocks.
+- No standalone "UI polish" slices after the MME-0039 interim refresh: visual/UX refinement folds into the issue that owns the component (e.g. MME-0028 surface, MME-0029 affordances, MME-0030 default theme). MME-0039 was a one-time, human-directed exception and its values are absorbed by MME-0025.
 - Preference resolution (framework, host, workspace, document, user) and lock/allowlist semantics are headless and unit-tested.
 - MME ships no mandatory settings UI; the host decides what is configurable, locked, or exposed.
 - Preference changes apply at runtime without recreating the editor.

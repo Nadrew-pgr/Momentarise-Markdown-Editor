@@ -17,6 +17,9 @@
       "path": "../../packages/md-ai"
     },
     {
+      "path": "../../packages/md-editor"
+    },
+    {
       "path": "../../packages/md-policy"
     },
     {

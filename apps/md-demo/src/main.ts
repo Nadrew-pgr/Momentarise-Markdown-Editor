@@ -10,9 +10,7 @@ import {
 import {
   createDownloadRequiredSaveTarget,
   createMemorySaveTarget,
-  createSaveEngine,
   persistenceTargetLabel,
-  type SaveEngine,
   type SaveFlushReason,
   type SaveState,
   type SaveTarget
@@ -36,17 +34,13 @@ import {
   type SandboxedHtmlPreviewDescriptor
 } from "@momentarise/md-preview-html";
 import {
-  acceptAiSuggestion,
-  createAiWritingSession,
   createMockAiProvider,
-  rejectAiSuggestion,
-  requestAiSuggestion,
   type AiWritingAction,
-  type AiWritingSession,
   type AiWritingSuggestion,
   type MockAiProvider
 } from "@momentarise/md-ai";
 import { createDefaultPolicyResolver } from "@momentarise/md-policy";
+import { createMarkdownEditorSession, type MarkdownEditorSession } from "@momentarise/md-editor";
 import {
   canInsertParagraphAfterCurrentBlock,
   createRichMarkdownState,
@@ -112,18 +106,20 @@ app.innerHTML = `
       </div>
       <div class="topbar-actions editor-command-surface" data-testid="editor-command-surface" aria-label="Editor commands">
         <div class="command-group open-action-group" data-testid="open-action-group" aria-label="Open and export">
-          <button class="button secondary" type="button" data-testid="open-local-file-button">Open .md</button>
-          <button class="button secondary" type="button" data-testid="open-html-file-button">Open .html</button>
-          <button class="button secondary" type="button" data-testid="import-copy-button">Import copy</button>
-          <button class="button secondary compact-action" type="button" data-testid="copy-button">Copy</button>
-          <button class="button secondary compact-action" type="button" data-testid="download-button">Download</button>
+          <button class="button secondary open-file-button" type="button" data-testid="open-file-button">Open file</button>
+          <button class="button secondary legacy-action" type="button" data-testid="open-local-file-button" tabindex="-1">Open .md</button>
+          <button class="button secondary legacy-action" type="button" data-testid="open-html-file-button" tabindex="-1">Open .html</button>
+          <button class="button secondary legacy-action" type="button" data-testid="import-copy-button" tabindex="-1">Import copy</button>
+          <button class="button secondary utility-action compact-action" type="button" data-testid="copy-button" tabindex="-1">Copy</button>
+          <button class="button secondary utility-action compact-action" type="button" data-testid="download-button" tabindex="-1">Download</button>
         </div>
+        <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain" data-testid="open-file-input" />
         <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain" data-testid="import-copy-input" />
         <input class="file-input" type="file" accept=".html,.htm,text/html" data-testid="html-file-input" />
         <div class="mode-switch mode-control" role="group" aria-label="Editor mode">
-          <button class="mode-button" type="button" data-testid="source-mode-button">Source</button>
-          <button class="mode-button" type="button" data-testid="rich-mode-button">Rich</button>
-          <button class="mode-button" type="button" data-testid="preview-mode-button">Preview</button>
+          <button class="mode-button mode-switch-track" type="button" data-testid="source-mode-button" aria-label="Toggle Rich Mode" role="switch"><span aria-hidden="true"></span></button>
+          <button class="mode-button mode-switch-label" type="button" data-testid="rich-mode-button">Rich Mode</button>
+          <button class="mode-button preview-mode-pill" type="button" data-testid="preview-mode-button">Preview</button>
         </div>
         <details class="ai-command-surface" data-testid="ai-command-surface">
           <summary class="button secondary editor-ai-button" data-testid="editor-ai-button">AI</summary>
@@ -142,8 +138,8 @@ app.innerHTML = `
             ).join("")}
           </div>
         </details>
-        <button class="button secondary selected-text-ai-action" type="button" data-testid="selected-text-ai-action">Ask AI</button>
-        <button class="button secondary command-palette-button" type="button" data-testid="command-palette-button">Command</button>
+        <button class="button secondary selected-text-ai-action utility-action" type="button" data-testid="selected-text-ai-action" tabindex="-1">Ask AI</button>
+        <button class="button secondary command-palette-button utility-action" type="button" data-testid="command-palette-button" tabindex="-1">Cmd K</button>
         <details class="document-status-popover" data-testid="document-status-popover">
           <summary class="editor-status-button" data-testid="editor-status-button">
             <span data-testid="document-name">source-mode-fixture.md</span>
@@ -158,29 +154,30 @@ app.innerHTML = `
         <button class="button primary" type="button" data-testid="memory-save-button">Save</button>
       </div>
     </header>
+    <p class="editor-notice" data-testid="editor-notice" role="status" hidden></p>
 
     <section class="workspace" aria-label="Markdown workspace">
       <div class="editor-region">
-        <div class="ai-assistant-panel" data-testid="editor-ai-assistant-panel" hidden>
+        <div class="ai-assistant-panel" data-testid="editor-ai-assistant-panel" role="dialog" aria-label="AI writing assistant" hidden>
           <div class="ai-assistant-header">
             <div>
-              <p class="label">Writing assistant</p>
+              <p class="label">AI assistant</p>
               <p class="status-value" data-testid="editor-ai-status">No AI session</p>
             </div>
             <button class="button secondary" type="button" data-testid="editor-ai-panel-close">Close</button>
           </div>
           <div class="editor-ai-session-row">
             <label>
-              Session key
+              Private session
               <input
                 type="password"
                 data-testid="editor-ai-byok-key-input"
                 autocomplete="off"
-                placeholder="Memory-only BYOK key"
+                placeholder="Memory-only key"
                 spellcheck="false"
               />
             </label>
-            <button class="button secondary" type="button" data-testid="editor-ai-start-session-button">Start session</button>
+            <button class="button secondary" type="button" data-testid="editor-ai-start-session-button">Connect</button>
           </div>
           <div class="ai-suggestion-preview editor-ai-suggestion-preview" data-testid="editor-ai-suggestion-preview" hidden></div>
           <div class="ai-suggestion-actions">
@@ -414,6 +411,8 @@ const insertAfterBlockButton = queryRequired<HTMLButtonElement>('[data-testid="i
 const slashCommandMenu = queryRequired<HTMLDivElement>('[data-testid="slash-command-menu"]');
 const slashCommandQueryElement = queryRequired<HTMLElement>('[data-testid="slash-command-query"]');
 const slashCommandItemsElement = queryRequired<HTMLDivElement>("[data-slash-command-items]");
+const openFileButton = queryRequired<HTMLButtonElement>('[data-testid="open-file-button"]');
+const openFileInput = queryRequired<HTMLInputElement>('[data-testid="open-file-input"]');
 const openLocalFileButton = queryRequired<HTMLButtonElement>('[data-testid="open-local-file-button"]');
 const openHtmlFileButton = queryRequired<HTMLButtonElement>('[data-testid="open-html-file-button"]');
 const importCopyButton = queryRequired<HTMLButtonElement>('[data-testid="import-copy-button"]');
@@ -478,6 +477,7 @@ const editorAiRejectButton = queryRequired<HTMLButtonElement>('[data-testid="edi
 const documentStatusPopover = queryRequired<HTMLDetailsElement>('[data-testid="document-status-popover"]');
 const surfaceSettingsPanel = queryRequired<HTMLDetailsElement>('[data-testid="surface-settings-panel"]');
 const debugInspector = queryRequired<HTMLDetailsElement>('[data-testid="debug-inspector"]');
+const editorNotice = queryRequired<HTMLElement>('[data-testid="editor-notice"]');
 const surfaceToolbarPrefElement = queryRequired<HTMLElement>('[data-testid="surface-toolbar-pref"]');
 const surfaceAiEntryPointsPrefElement = queryRequired<HTMLElement>('[data-testid="surface-ai-entry-points-pref"]');
 const surfaceStatusDisclosurePrefElement = queryRequired<HTMLElement>('[data-testid="surface-status-disclosure-pref"]');
@@ -520,12 +520,9 @@ const fixtureSaveTarget = createMemorySaveTarget({
   targetLabel: "fixture://source-mode-fixture.md"
 });
 const lastDemoDocumentStorageKey = "momentarise-md-demo:last-document:v1";
-let saveTarget: SaveTarget = fixtureSaveTarget;
-let saveEngine: SaveEngine = createSaveEngine({
-  autosaveDelayMs: 1000,
-  content: fixtureMarkdown,
-  target: saveTarget
-});
+const demoAiPolicyResolver = createDefaultPolicyResolver();
+let demoAiProvider: MockAiProvider = createMockAiProvider();
+let session: MarkdownEditorSession = createDemoSession(fixtureMarkdown, fixtureSaveTarget, "fixture://source-mode-fixture.md");
 let activeDocument: ActiveDemoDocument = {
   fileName: "source-mode-fixture.md",
   kind: "markdown",
@@ -537,7 +534,6 @@ let activeDocument: ActiveDemoDocument = {
 let lastSaveAction = "loaded fixture";
 let editorMode: DemoEditorMode = "source";
 let propertiesDisplayMode: PropertiesDisplayMode = "visible";
-let autosaveTimer: number | undefined;
 let richState: RichMarkdownState = createRichMarkdownState(fixtureMarkdown, {
   dialect: "momentarise-enhanced"
 });
@@ -555,11 +551,33 @@ let slashCommandState: SlashCommandState = {
 };
 let slashCommandSelectedIndex = 0;
 const richFoldingPluginKey = new PluginKey<DecorationSet>("momentarise-demo-rich-folding");
-const demoAiPolicyResolver = createDefaultPolicyResolver();
-let demoAiProvider: MockAiProvider = createMockAiProvider();
-let aiSession: AiWritingSession | null = null;
-let pendingAiSuggestion: AiWritingSuggestion | null = null;
+let aiSessionStarted = false;
 let commandPaletteSelectedIndex = 0;
+
+function createDemoSession(content: string, target: SaveTarget, path: string | null): MarkdownEditorSession {
+  return createMarkdownEditorSession({
+    aiProvider: demoAiProvider,
+    autosaveDelayMs: 1000,
+    content,
+    path,
+    policyResolver: demoAiPolicyResolver,
+    scheduler: {
+      schedule(callback, delayMs) {
+        const id = window.setTimeout(() => {
+          void callback();
+        }, delayMs);
+        return () => window.clearTimeout(id);
+      }
+    },
+    target
+  });
+}
+
+function replaceDemoSession(content: string, target: SaveTarget, path: string | null): void {
+  session.destroy();
+  session = createDemoSession(content, target, path);
+  aiSessionStarted = false;
+}
 
 const editor = new CodeMirrorEditorView({
   parent: editorHost,
@@ -574,10 +592,9 @@ const editor = new CodeMirrorEditorView({
       }),
       CodeMirrorEditorView.updateListener.of((update) => {
         if (update.docChanged && editorMode === "source") {
-          saveEngine.updateContent(getMarkdown());
+          session.setContent(editor.state.doc.toString(), "source-view");
           persistRestorableDocument();
           renderSaveState();
-          scheduleAutosave();
           updateRoundTripStatus();
           if (activeDocument.kind === "html-artifact") {
             renderHtmlPreview();
@@ -596,11 +613,15 @@ if (!restoreLastDemoDocument()) {
 }
 
 sourceModeButton.addEventListener("click", () => {
+  if (activeDocument.kind === "markdown") {
+    toggleRichMode();
+    return;
+  }
   switchEditorMode("source");
 });
 
 richModeButton.addEventListener("click", () => {
-  switchEditorMode("rich");
+  toggleRichMode();
 });
 
 previewModeButton.addEventListener("click", () => {
@@ -659,6 +680,24 @@ slashCommandItemsElement.addEventListener("click", (event) => {
     return;
   }
   runRichCommand(commandElement.dataset.slashCommand as RichCommandId);
+});
+
+openFileButton.addEventListener("click", () => {
+  void openLocalFile();
+});
+
+openFileInput.addEventListener("change", () => {
+  const [file] = Array.from(openFileInput.files ?? []);
+  openFileInput.value = "";
+  if (!file) {
+    return;
+  }
+  if (isHtmlFileName(file.name)) {
+    setEditorNotice("HTML artifacts use the separate HTML reader; primary Open file is for writable Markdown files.");
+    logEvent("HTML artifact was not opened through primary Open file; use the HTML reader instead.");
+    return;
+  }
+  void importMarkdownCopy(file);
 });
 
 openLocalFileButton.addEventListener("click", () => {
@@ -806,7 +845,7 @@ editorAiRejectButton.addEventListener("click", () => {
 });
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden" && saveEngine.shouldBlockClose()) {
+  if (document.visibilityState === "hidden" && sessionShouldBlockClose()) {
     void flushSave("tab-switch");
   }
 });
@@ -827,7 +866,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 window.addEventListener("beforeunload", (event) => {
-  if (!saveEngine.shouldBlockClose()) {
+  if (!sessionShouldBlockClose()) {
     return;
   }
   event.preventDefault();
@@ -920,7 +959,7 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
     setReferenceSurfacePreferences(preferences);
   },
   getSaveState() {
-    return saveEngine.getState();
+    return session.getSaveState();
   },
   getPropertiesState() {
     return {
@@ -977,6 +1016,9 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   },
   showUnsupportedLocalFileStateForTest() {
     showUnsupportedLocalFileState();
+  },
+  showRealFileOpenUnavailableForTest() {
+    showRealFileOpenUnavailable();
   },
   loadWritableMarkdownFileForTest(fileName: string, content: string) {
     const testHandle = createTestWritableFileHandle(fileName, content);
@@ -1054,6 +1096,85 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   }
 };
 
+async function openLocalFile(): Promise<void> {
+  if (!canUseFileSystemAccess()) {
+    showRealFileOpenUnavailable();
+    return;
+  }
+
+  const fileAccessHost = window as unknown as {
+    showOpenFilePicker?: (options?: {
+      readonly excludeAcceptAllOption?: boolean;
+      readonly multiple?: boolean;
+      readonly types?: readonly {
+        readonly accept: Readonly<Record<string, readonly string[]>>;
+        readonly description: string;
+      }[];
+    }) => Promise<readonly WebFileHandleLike[]>;
+  };
+
+  try {
+    const [handle] =
+      (await fileAccessHost.showOpenFilePicker?.({
+        excludeAcceptAllOption: true,
+        multiple: false,
+        types: [
+          {
+            accept: {
+              "text/markdown": [".md", ".markdown", ".mdown"],
+              "text/plain": [".md", ".markdown", ".mdown", ".txt"]
+            },
+            description: "Writable Markdown or text files"
+          }
+        ]
+      })) ?? [];
+    if (!handle) {
+      throw new Error("No file handle was selected.");
+    }
+
+    const file = await handle.getFile();
+    const fileName = file.name || handle.name;
+    const rawContent = await file.text();
+    if (isHtmlFileName(fileName)) {
+      lastSaveAction = "HTML artifacts use the separate HTML reader";
+      setEditorNotice("HTML artifacts use the separate HTML reader; primary Open file is for writable Markdown files.");
+      logEvent("HTML artifact was not opened through primary Open file; use the HTML reader instead.");
+      renderSaveState();
+      return;
+    }
+
+    const lineEnding = detectMarkdownLineEnding(rawContent);
+    const content = normalizeMarkdownLineEndings(rawContent);
+    loadOpenedMarkdownFile(
+      {
+        content,
+        fileName,
+        mode: "writable-file",
+        pathLabel: `disk://${fileName}`,
+        target: createWritableFileSaveTarget({
+          handle,
+          lineEnding,
+          targetLabel: `disk://${fileName}`
+        })
+      },
+      {
+        sourceLabel: "local file picker"
+      }
+    );
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      lastSaveAction = "open cancelled";
+      clearEditorNotice();
+      logEvent("Open file cancelled.");
+    } else {
+      lastSaveAction = `open failed: ${errorMessage(error)}`;
+      setEditorNotice(`Open failed: ${errorMessage(error)}`);
+      logEvent(`Open file failed: ${errorMessage(error)}`);
+    }
+    renderSaveState();
+  }
+}
+
 async function openLocalMarkdownFile(): Promise<void> {
   if (!canUseFileSystemAccess()) {
     showUnsupportedLocalFileState();
@@ -1078,7 +1199,6 @@ async function openLocalMarkdownFile(): Promise<void> {
 }
 
 function showUnsupportedLocalFileState(): void {
-  clearAutosaveTimer();
   const content = getMarkdown();
   const unsupportedTarget: SaveTarget = {
     persistenceTarget: "unsupported",
@@ -1094,17 +1214,20 @@ function showUnsupportedLocalFileState(): void {
   if (editorMode === "preview") {
     editorMode = "source";
   }
-  saveTarget = unsupportedTarget;
-  saveEngine = createSaveEngine({
-    autosaveDelayMs: 1000,
-    content,
-    target: saveTarget
-  });
-  lastSaveAction = "File System Access unavailable; use Import copy and Download";
-  logEvent("File System Access API unavailable. Import copy keeps the original file untouched.");
+  replaceDemoSession(content, unsupportedTarget, activeDocument.pathLabel);
+  lastSaveAction = "real local file open unavailable in this browser";
+  setEditorNotice(realFileOpenUnavailableMessage());
+  logEvent("Real local file open is unavailable in this browser; no original file handle was granted.");
   renderEditorMode();
   renderSaveState();
   updateRoundTripStatus();
+}
+
+function showRealFileOpenUnavailable(): void {
+  lastSaveAction = "real local file open unavailable in this browser";
+  setEditorNotice(realFileOpenUnavailableMessage());
+  logEvent("Real local file open is unavailable in this browser; the current document was left unchanged.");
+  renderSaveState();
 }
 
 async function importMarkdownCopy(file: File): Promise<void> {
@@ -1123,7 +1246,6 @@ async function importHtmlArtifact(file: File): Promise<void> {
 }
 
 function loadHtmlArtifact(fileName: string, content: string, sourceLabel: string): void {
-  clearAutosaveTimer();
   const targetLabel = `html-artifact://${fileName}`;
   activeDocument = {
     fileName,
@@ -1131,18 +1253,15 @@ function loadHtmlArtifact(fileName: string, content: string, sourceLabel: string
     mode: "imported-copy",
     pathLabel: targetLabel
   };
-  saveTarget = createDownloadRequiredSaveTarget({
+  const target = createDownloadRequiredSaveTarget({
     initialContent: content,
     targetLabel
   });
-  saveEngine = createSaveEngine({
-    autosaveDelayMs: 1000,
-    content,
-    target: saveTarget
-  });
+  replaceDemoSession(content, target, targetLabel);
   foldStates = [];
   lastCopiedMarkdown = null;
   lastSaveAction = "opened HTML artifact preview; original file is not overwritten";
+  clearEditorNotice();
   replaceEditorDocument(content);
   destroyRichEditor();
   editorMode = "source";
@@ -1166,7 +1285,6 @@ function loadOpenedMarkdownFile(
     readonly sourceLabel?: string;
   } = {}
 ): void {
-  clearAutosaveTimer();
   let nextDocument: ActiveDemoDocument = {
     fileName: opened.fileName,
     kind: "markdown",
@@ -1186,16 +1304,12 @@ function loadOpenedMarkdownFile(
     };
   }
   activeDocument = nextDocument;
-  saveTarget = opened.target;
-  saveEngine = createSaveEngine({
-    autosaveDelayMs: 1000,
-    content: opened.content,
-    target: saveTarget
-  });
+  replaceDemoSession(opened.content, opened.target, opened.pathLabel);
   foldStates = [];
   htmlPreviewDescriptor = null;
   lastCopiedMarkdown = null;
   lastSaveAction = `opened ${documentModeLabel(opened.mode)} document`;
+  clearEditorNotice();
   replaceEditorDocument(opened.content);
   if (editorMode === "preview") {
     editorMode = "source";
@@ -1271,19 +1385,25 @@ function switchEditorMode(mode: DemoEditorMode): void {
   renderSaveState();
   updateRoundTripStatus();
   persistRestorableDocument();
+  void flushSave("mode-switch");
 }
 
 function renderEditorMode(): void {
+  app.dataset.documentKind = activeDocument.kind;
+  app.dataset.editorMode = editorMode;
   editorHost.hidden = editorMode !== "source";
   richEditorHost.hidden = editorMode !== "rich";
   htmlPreviewHost.hidden = editorMode !== "preview";
   richCommandToolbar.hidden = editorMode !== "rich";
   richBlockControls.hidden = editorMode !== "rich";
   sourceModeButton.setAttribute("aria-pressed", String(editorMode === "source"));
+  sourceModeButton.setAttribute("aria-checked", String(editorMode === "rich"));
   richModeButton.setAttribute("aria-pressed", String(editorMode === "rich"));
   previewModeButton.setAttribute("aria-pressed", String(editorMode === "preview"));
   richModeButton.disabled = activeDocument.kind !== "markdown";
+  richModeButton.hidden = activeDocument.kind !== "markdown";
   previewModeButton.disabled = activeDocument.kind !== "html-artifact";
+  previewModeButton.hidden = activeDocument.kind !== "html-artifact";
   htmlPreviewStatusBlock.hidden = activeDocument.kind !== "html-artifact";
   if (editorMode === "preview") {
     editorSurfaceStateElement.textContent = "Sandboxed HTML preview";
@@ -1300,6 +1420,13 @@ function renderEditorMode(): void {
   }
   renderRichFoldingUi();
   renderReferenceSurfaceState();
+}
+
+function toggleRichMode(): void {
+  if (activeDocument.kind !== "markdown") {
+    return;
+  }
+  switchEditorMode(editorMode === "rich" ? "source" : "rich");
 }
 
 function renderHtmlPreview(): void {
@@ -1328,27 +1455,24 @@ function startAiSession(): void {
 function startAiSessionFromKey(apiKey: string): void {
   if (!apiKey) {
     aiStatusElement.textContent = "Enter a BYOK session key to start mock AI.";
-    editorAiStatusElement.textContent = "Enter a BYOK session key to start mock AI.";
+    editorAiStatusElement.textContent = "Paste a memory-only key to connect a private AI session.";
     editorAiAssistantPanel.hidden = false;
     return;
   }
 
-  demoAiProvider = createMockAiProvider();
-  aiSession = createAiWritingSession({
-    apiKey,
-    policyResolver: demoAiPolicyResolver,
-    provider: demoAiProvider
-  });
+  session.startAiSession(apiKey);
+  aiSessionStarted = true;
   aiByokKeyInput.value = "";
   editorAiByokKeyInput.value = "";
-  pendingAiSuggestion = null;
   logEvent("AI writing session started with mock provider. BYOK key was kept memory-only.");
   renderAiWritingState();
 }
 
 async function generateAiSuggestion(): Promise<void> {
-  if (!aiSession) {
+  if (!aiSessionStarted) {
     aiStatusElement.textContent = "Start a memory-only BYOK session first.";
+    editorAiStatusElement.textContent = "Connect a private AI session first.";
+    editorAiAssistantPanel.hidden = false;
     return;
   }
   if (activeDocument.kind !== "markdown") {
@@ -1363,17 +1487,13 @@ async function generateAiSuggestion(): Promise<void> {
   const action = aiActionSelect.value as AiWritingAction;
   const prompt = aiPromptInput.value.trim();
   aiStatusElement.textContent = "Checking policy...";
-  pendingAiSuggestion = await requestAiSuggestion(aiSession, {
+  const suggestion = await session.requestAiSuggestion({
     action,
-    document: {
-      content: markdown,
-      path: activeDocument.pathLabel
-    },
     ...(prompt ? { prompt } : {}),
     ...selectionForAiRequest(markdown)
   });
 
-  if (pendingAiSuggestion.status === "blocked") {
+  if (suggestion.status === "blocked") {
     logEvent("AI writing blocked by Document Access Policy before provider call.");
   } else {
     logEvent(`AI ${action} suggestion generated by mock provider; review before applying.`);
@@ -1382,34 +1502,36 @@ async function generateAiSuggestion(): Promise<void> {
 }
 
 function acceptPendingAiSuggestion(): void {
+  const pendingAiSuggestion = session.getPendingSuggestion();
   if (!pendingAiSuggestion || pendingAiSuggestion.status !== "pending") {
     return;
   }
 
-  const accepted = acceptAiSuggestion(getMarkdown(), pendingAiSuggestion);
-  pendingAiSuggestion = accepted.suggestion;
-  applyMarkdownFromAi(accepted.content);
-  logEvent("Accepted AI suggestion and applied it to the Markdown document.");
+  const acceptedContent = session.acceptPendingSuggestion();
+  if (acceptedContent) {
+    applyMarkdownFromAi(acceptedContent);
+    logEvent("Accepted AI suggestion and applied it to the Markdown document.");
+  } else {
+    logEvent("AI suggestion could not be accepted because the document changed.");
+  }
   renderAiWritingState();
 }
 
 function rejectPendingAiSuggestion(): void {
+  const pendingAiSuggestion = session.getPendingSuggestion();
   if (!pendingAiSuggestion || pendingAiSuggestion.status !== "pending") {
     return;
   }
 
-  const rejected = rejectAiSuggestion(getMarkdown(), pendingAiSuggestion);
-  pendingAiSuggestion = rejected.suggestion;
+  session.rejectPendingSuggestion();
   logEvent("Rejected AI suggestion; Markdown document was unchanged.");
   renderAiWritingState();
 }
 
 function applyMarkdownFromAi(content: string): void {
   replaceEditorDocument(content);
-  saveEngine.updateContent(content);
   persistRestorableDocument();
   renderSaveState();
-  scheduleAutosave();
   updateRoundTripStatus();
   if (editorMode === "rich") {
     mountRichEditor(content);
@@ -1417,7 +1539,8 @@ function applyMarkdownFromAi(content: string): void {
 }
 
 function renderAiWritingState(): void {
-  aiGenerateButton.disabled = !aiSession;
+  const pendingAiSuggestion = session.getPendingSuggestion();
+  aiGenerateButton.disabled = !aiSessionStarted;
   aiAcceptButton.disabled = pendingAiSuggestion?.status !== "pending";
   aiRejectButton.disabled = pendingAiSuggestion?.status !== "pending";
   editorAiAcceptButton.disabled = pendingAiSuggestion?.status !== "pending";
@@ -1430,10 +1553,10 @@ function renderAiWritingState(): void {
   if (!pendingAiSuggestion) {
     aiSuggestionPreview.hidden = true;
     aiSuggestionPreview.textContent = "";
-    aiStatusElement.textContent = aiSession ? "Mock AI session ready" : "No AI session";
+    aiStatusElement.textContent = aiSessionStarted ? "Mock AI session ready" : "No AI session";
     editorAiSuggestionPreview.hidden = true;
     editorAiSuggestionPreview.textContent = "";
-    editorAiStatusElement.textContent = aiSession ? "Mock AI session ready" : "No AI session";
+    editorAiStatusElement.textContent = aiSessionStarted ? "Private AI session ready" : "No AI session";
     return;
   }
 
@@ -1516,8 +1639,9 @@ function getAiWritingState(): {
   readonly statusText: string;
   readonly suggestionText: string;
 } {
+  const pendingAiSuggestion = session.getPendingSuggestion();
   return {
-    hasSession: Boolean(aiSession),
+    hasSession: aiSessionStarted,
     keyInputValue: aiByokKeyInput.value,
     pendingStatus: pendingAiSuggestion?.status ?? null,
     policyText: aiPolicyNoteElement.textContent ?? "",
@@ -1533,16 +1657,16 @@ function renderReferenceSurfaceState(): void {
   const selectionAiVisible = aiGroupVisible && isAiEntryPointEnabled("selection");
   const commandPaletteVisible = aiGroupVisible && isAiEntryPointEnabled("command-palette");
   selectedTextAiAction.disabled = activeDocument.kind !== "markdown" || !hasAiEligibleSelection();
-  aiCommandSurface.dataset.session = aiSession ? "ready" : "missing";
+  aiCommandSurface.dataset.session = aiSessionStarted ? "ready" : "missing";
   aiCommandSurface.dataset.documentKind = activeDocument.kind;
-  documentStatusPopover.dataset.target = saveEngine.getState().target;
+  documentStatusPopover.dataset.target = session.getSaveState().target;
   surfaceSettingsPanel.dataset.toolbarStyle = referenceSurfacePreferences.toolbarStyle;
   debugInspector.dataset.status = debugInspector.open ? "open" : "closed";
   app.dataset.toolbarMode = referenceSurfacePreferences.toolbarMode;
   app.dataset.toolbarStyle = referenceSurfacePreferences.toolbarStyle;
   app.dataset.statusDisclosure = referenceSurfacePreferences.technicalStatusDisclosure;
   aiCommandSurface.hidden = !toolbarAiVisible;
-  toolbarAiButton.hidden = !toolbarAiVisible;
+  toolbarAiButton.hidden = !toolbarAiVisible || editorMode !== "rich";
   selectedTextAiAction.hidden = !selectionAiVisible;
   commandPaletteButton.hidden = !commandPaletteVisible;
   surfaceToolbarPrefElement.textContent = `${referenceSurfacePreferences.toolbarMode}, ${referenceSurfacePreferences.toolbarStyle}`;
@@ -1650,10 +1774,9 @@ function mountRichEditor(markdown: string): void {
 function syncRichMarkdownToSource(source: "rich edit" | "mode switch"): void {
   const markdown = serializeRichMarkdownState(richState).content;
   replaceEditorDocument(markdown);
-  saveEngine.updateContent(markdown);
+  session.setContent(markdown, "rich-view");
   persistRestorableDocument();
   renderSaveState();
-  scheduleAutosave();
   updateRoundTripStatus();
   if (source === "mode switch") {
     logEvent("Serialized rich mode back to Markdown source.");
@@ -1710,6 +1833,9 @@ function restoreLastDemoDocument(): boolean {
   if (snapshot.editorMode === "rich") {
     switchEditorMode("rich");
   }
+  lastSaveAction = "restored browser draft; reopen the original file for writable autosave";
+  setEditorNotice("Restored a browser draft copy. Reopen the original file with Open file to enable writable disk save and autosave.");
+  renderSaveState();
   return true;
 }
 
@@ -2269,14 +2395,15 @@ function downloadMarkdown(): void {
 }
 
 function memorySave(source: "button" | "keyboard shortcut"): void {
-  const state = saveEngine.getState();
+  const state = session.getSaveState();
   if (state.target === "download-required" || activeDocument.mode === "imported-copy") {
     downloadMarkdown();
     return;
   }
   if (state.target === "unsupported" || activeDocument.mode === "unsupported") {
-    lastSaveAction = `${source} cannot save unsupported local-file access; use Download or Import copy`;
-    logEvent("Save unavailable for unsupported local-file access. Use Download or Import copy.");
+    lastSaveAction = `${source} cannot save without a writable file handle`;
+    setEditorNotice(realFileOpenUnavailableMessage());
+    logEvent("Save unavailable: this browser did not provide a writable local file handle.");
     renderSaveState();
     return;
   }
@@ -2284,12 +2411,9 @@ function memorySave(source: "button" | "keyboard shortcut"): void {
 }
 
 async function flushSave(reason: SaveFlushReason, source?: "button" | "keyboard shortcut"): Promise<void> {
-  clearAutosaveTimer();
-  let result: Awaited<ReturnType<SaveEngine["flush"]>>;
+  let result: Awaited<ReturnType<MarkdownEditorSession["flush"]>>;
   try {
-    result = await saveEngine.flush({
-      reason
-    });
+    result = await session.flush(reason);
   } catch (error) {
     lastSaveAction = `${source ?? reason} flush failed unexpectedly`;
     logEvent(`Save failed unexpectedly: ${errorMessage(error)}`);
@@ -2318,22 +2442,12 @@ async function flushSave(reason: SaveFlushReason, source?: "button" | "keyboard 
   renderSaveState();
 }
 
-function scheduleAutosave(): void {
-  clearAutosaveTimer();
-  autosaveTimer = window.setTimeout(() => {
-    autosaveTimer = undefined;
-    if (saveEngine.shouldAutosave()) {
-      void flushSave("autosave");
-    }
-  }, saveEngine.autosaveDelayMs);
-}
-
-function clearAutosaveTimer(): void {
-  if (autosaveTimer === undefined) {
-    return;
+function sessionShouldBlockClose(): boolean {
+  const state = session.getSaveState();
+  if (state.status === "dirty" || state.status === "saving" || state.status === "conflict") {
+    return true;
   }
-  window.clearTimeout(autosaveTimer);
-  autosaveTimer = undefined;
+  return state.status === "error" && state.currentHash !== state.lastSavedHash;
 }
 
 function simulateExternalConflict(): void {
@@ -2352,7 +2466,7 @@ function simulateExternalConflict(): void {
 }
 
 function renderSaveState(): void {
-  const state = saveEngine.getState();
+  const state = session.getSaveState();
   const label = persistenceTargetLabel(state);
   documentNameElement.textContent = activeDocument.fileName;
   documentPathElement.textContent = activeDocument.pathLabel;
@@ -2373,7 +2487,7 @@ function renderSaveState(): void {
 
 function primaryActionLabel(state: SaveState): string {
   if (activeDocument.mode === "imported-copy" || state.target === "download-required") {
-    return "Export";
+    return "Export copy";
   }
   if (activeDocument.mode === "unsupported" || state.target === "unsupported") {
     return "Save unavailable";
@@ -2519,9 +2633,9 @@ async function runEditorNativeAiCommand(actionId: ReferenceAiActionId): Promise<
     renderReferenceSurfaceState();
     return;
   }
-  if (!aiSession) {
+  if (!aiSessionStarted) {
     aiStatusElement.textContent = `${action.label}: start a memory-only BYOK session first.`;
-    editorAiStatusElement.textContent = `${action.label}: start a memory-only BYOK session first.`;
+    editorAiStatusElement.textContent = `${action.label}: connect a private AI session first.`;
     logEvent(`Queued editor-native AI action without session: ${action.label}.`);
     renderReferenceSurfaceState();
     return;
@@ -2793,10 +2907,7 @@ function extractFrontmatterSource(markdownText: string): string {
 }
 
 function getMarkdown(): string {
-  if (editorMode === "rich") {
-    return serializeRichMarkdownState(richState).content;
-  }
-  return editor.state.doc.toString();
+  return session.getContent();
 }
 
 function logEvent(message: string): void {
@@ -2804,6 +2915,20 @@ function logEvent(message: string): void {
   const item = document.createElement("li");
   item.textContent = `${eventCounter}. ${message}`;
   eventLogElement.prepend(item);
+}
+
+function realFileOpenUnavailableMessage(): string {
+  return "Real local file open is unavailable in this browser. Use Chrome or Edge with File System Access for disk save.";
+}
+
+function setEditorNotice(message: string): void {
+  editorNotice.hidden = false;
+  editorNotice.textContent = message;
+}
+
+function clearEditorNotice(): void {
+  editorNotice.hidden = true;
+  editorNotice.textContent = "";
 }
 
 function queryRequired<T extends Element>(selector: string): T {
@@ -2917,6 +3042,7 @@ declare global {
       insertParagraphAfterCurrentRichBlock: () => void;
       openSlashMenuForTest: (query: string) => void;
       runRichCommand: (commandId: RichCommandId, options?: ApplyRichMarkdownCommandOptions) => void;
+      showRealFileOpenUnavailableForTest: () => void;
       showUnsupportedLocalFileStateForTest: () => void;
       simulateExternalConflict: () => void;
       setCursorAfterText: (text: string) => void;

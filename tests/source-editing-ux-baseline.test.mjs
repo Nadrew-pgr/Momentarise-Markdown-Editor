@@ -37,18 +37,35 @@ for (const [label, snippet] of mainRequirements) {
 }
 
 const packageRequirements = [
-  ["empty list exit", "exitEmptyMarkdownListItem"],
-  ["empty checkbox exit", "exitEmptyCheckboxItem"],
-  ["list continuation", "continueMarkdownList"],
+  ["official markdown keymap", "markdownKeymap"],
   ["save shortcut delegation", "Mod-s"],
-  ["CodeMirror markdown language", "markdown()"],
-  ["close brackets", "closeBrackets()"],
+  ["explicit history extension", "history()"],
+  ["explicit close brackets", "closeBrackets()"],
+  ["explicit bracket matching", "bracketMatching()"],
+  ["explicit search keymap", "searchKeymap"],
+  ["CodeMirror markdown language without hidden keymap", "markdown({ addKeymap: false })"],
   ["history keymap", "historyKeymap"]
 ];
 
 for (const [label, snippet] of packageRequirements) {
   if (!sourcePackage.includes(snippet)) {
     throw new Error(`MME-0007 source package baseline missing ${label}: ${snippet}`);
+  }
+}
+
+if (sourcePackage.includes("basicSetup")) {
+  throw new Error("MME-0022 source package baseline must not use basicSetup because it duplicates keymaps/extensions.");
+}
+
+for (const removedHelper of [
+  "continueMarkdownList",
+  "exitEmptyCheckboxItem",
+  "exitEmptyMarkdownListItem",
+  "continueCheckboxItem",
+  "continueListItem"
+]) {
+  if (sourcePackage.includes(`function ${removedHelper}`)) {
+    throw new Error(`MME-0022 source package baseline must not keep removed helper: ${removedHelper}`);
   }
 }
 

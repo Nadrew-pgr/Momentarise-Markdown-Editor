@@ -18,6 +18,7 @@
     "@codemirror/view": "^6.0.0",
     "@momentarise/md-adapter-web": "0.0.0",
     "@momentarise/md-ai": "0.0.0",
+    "@momentarise/md-editor": "0.0.0",
     "@momentarise/md-format": "0.0.0",
     "@momentarise/md-policy": "0.0.0",
     "@momentarise/md-preview-html": "0.0.0",

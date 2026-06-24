@@ -873,38 +873,52 @@ function htmlFragments(source: string): readonly string[] {
 }
 
 function detectOpaqueNodes(source: string): readonly OpaqueNode[] {
-  const patterns: Array<{ readonly pattern: RegExp; readonly reason: string }> = [
+  const patterns: Array<{ readonly ignoreInsideFences: boolean; readonly pattern: RegExp; readonly reason: string }> = [
     {
+      ignoreInsideFences: true,
       pattern: /^> \[![A-Z]+][^\n]*(?:\n>.*)*/gm,
       reason: "Obsidian callout"
     },
     {
+      ignoreInsideFences: true,
       pattern: /\[\[[^\]]+]]/g,
       reason: "wikilink"
     },
     {
+      // The fence itself is the construct, so this pattern must keep matching fenced regions.
+      ignoreInsideFences: false,
       pattern: /```(?:mermaid)[\s\S]*?```/g,
       reason: "Mermaid fenced block"
     },
     {
-      pattern: /\$\$[\s\S]*?\$\$|\$[^$\n]+\$/g,
+      // Inline math must not match currency amounts such as "$5 and $10":
+      // the opening $ may not be followed by whitespace, a digit, or another $,
+      // and the closing $ must follow a non-space character.
+      ignoreInsideFences: true,
+      pattern: /\$\$[\s\S]*?\$\$|\$(?![\s\d$])[^$\n]*?(?<=\S)\$/g,
       reason: "LaTeX math"
     },
     {
+      ignoreInsideFences: true,
       pattern: /<([A-Za-z][A-Za-z0-9-]*)(?:\s[^>]*)?>[\s\S]*?<\/\1>/g,
       reason: "raw HTML"
     },
     {
+      ignoreInsideFences: true,
       pattern: /:::[^\n]*(?:\n[\s\S]*?)?\n:::|{%\s*([A-Za-z][\w-]*)\b[\s\S]*?%}[\s\S]*?{%\s*end\1\s*%}|{%[\s\S]*?%}/g,
       reason: "unknown extension syntax"
     }
   ];
+  const fencedRegions = fencedCodeRegions(source);
   const nodes: OpaqueNode[] = [];
   let index = 0;
-  for (const { pattern, reason } of patterns) {
+  for (const { ignoreInsideFences, pattern, reason } of patterns) {
     for (const match of source.matchAll(pattern)) {
       const raw = match[0];
       const offset = match.index ?? 0;
+      if (ignoreInsideFences && isInsideFencedRegion(fencedRegions, offset)) {
+        continue;
+      }
       nodes.push({
         id: `opaque-${index}`,
         kind: "opaque",
@@ -918,6 +932,43 @@ function detectOpaqueNodes(source: string): readonly OpaqueNode[] {
     }
   }
   return nodes.sort((first, second) => first.sourceRange.start.offset - second.sourceRange.start.offset);
+}
+
+function fencedCodeRegions(source: string): ReadonlyArray<readonly [number, number]> {
+  const regions: Array<readonly [number, number]> = [];
+  let offset = 0;
+  let open: { readonly fenceChar: string; readonly fenceLength: number; readonly start: number } | null = null;
+  for (const line of source.split("\n")) {
+    const lineStart = offset;
+    offset += line.length + 1;
+    if (!open) {
+      const opening = line.match(/^ {0,3}(`{3,}|~{3,})/);
+      if (opening) {
+        open = {
+          fenceChar: opening[1]![0]!,
+          fenceLength: opening[1]!.length,
+          start: lineStart
+        };
+      }
+      continue;
+    }
+    const closing = line.match(/^ {0,3}(`{3,}|~{3,})\s*$/);
+    if (closing && closing[1]![0] === open.fenceChar && closing[1]!.length >= open.fenceLength) {
+      regions.push([open.start, Math.min(offset, source.length)]);
+      open = null;
+    }
+  }
+  if (open) {
+    regions.push([open.start, source.length]);
+  }
+  return regions;
+}
+
+function isInsideFencedRegion(
+  regions: ReadonlyArray<readonly [number, number]>,
+  offset: number
+): boolean {
+  return regions.some(([start, end]) => offset > start && offset < end);
 }
 
 function rangeFor(source: string, startOffset: number, endOffset: number): SourceRange {

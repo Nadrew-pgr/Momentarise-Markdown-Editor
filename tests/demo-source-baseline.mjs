@@ -20,6 +20,7 @@ assertScript(packageJson, "dev");
 assertScript(packageJson, "build");
 assertDependency(packageJson, "codemirror");
 assertDependency(packageJson, "@momentarise/md-source-codemirror");
+assertDependency(packageJson, "@momentarise/md-editor");
 assertDependency(packageJson, "@codemirror/lang-markdown");
 assertDependency(packageJson, "@codemirror/autocomplete");
 assertDependency(packageJson, "@codemirror/commands");
@@ -37,9 +38,10 @@ const sourceRequirements = [
   ["source extension setup", "createMomentariseSourceExtensions"],
   ["save shortcut delegate", "memorySave(\"keyboard shortcut\")"],
   ["Save Engine import", "@momentarise/md-save"],
-  ["Save Engine creation", "createSaveEngine"],
+  ["headless session import", "@momentarise/md-editor"],
+  ["headless session creation", "createMarkdownEditorSession"],
   ["truthful persistence label", "persistenceTargetLabel"],
-  ["autosave scheduling", "scheduleAutosave"],
+  ["session content updates", "session.setContent"],
   ["external conflict simulation", "simulateExternalConflict"],
   ["tab switch flush", "visibilitychange"],
   ["close guard", "beforeunload"],

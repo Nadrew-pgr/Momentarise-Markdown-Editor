@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@momentarise/md-core": "0.0.0",
-    "@momentarise/md-policy": "0.0.0"
+    "@momentarise/md-policy": "0.0.0",
+    "@momentarise/md-save": "0.0.0"
   }
 }

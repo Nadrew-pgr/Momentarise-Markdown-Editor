@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo"
+  },
+  "references": [
+    {
+      "path": "../md-core"
+    },
+    {
+      "path": "../md-format"
+    },
+    {
+      "path": "../md-save"
+    },
+    {
+      "path": "../md-policy"
+    },
+    {
+      "path": "../md-ai"
+    }
+  ],
+  "include": [
+    "src/**/*.ts"
+  ]
+}
