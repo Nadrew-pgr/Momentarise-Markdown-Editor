@@ -3172,8 +3172,9 @@
   - Relaunched with `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174 --strictPort --force`.
   - Local URL: `http://127.0.0.1:5174/`.
 - Commit status:
-  - Pending in this log entry; the final report records the created commit hash.
+  - Catch-up commit created: `3c64dfc` (`feat: checkpoint editor surface and headless session`).
 - Push status:
-  - Pending in this log entry; the final report records the push result.
+  - Pushed `main` to `origin`: `a62f199..3c64dfc`.
+  - This evidence was added in a follow-up docs-only commit because the hash/push result cannot be known before the first commit exists.
 - Next issue:
   - `MME-0024 — Publishable package restructure`.
