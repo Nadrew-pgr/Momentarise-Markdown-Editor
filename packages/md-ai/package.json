@@ -3,6 +3,21 @@
   "version": "0.0.0",
   "type": "module",
   "description": "Document-local AI writing contracts for Momentarise Markdown Editor.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor.git",
+    "directory": "packages/md-ai"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "markdown",
+    "editor",
+    "momentarise",
+    "ai"
+  ],
   "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -20,7 +35,6 @@
   },
   "dependencies": {
     "@momentarise/md-core": "0.0.0",
-    "@momentarise/md-policy": "0.0.0",
-    "@momentarise/md-save": "0.0.0"
+    "@momentarise/md-policy": "0.0.0"
   }
 }

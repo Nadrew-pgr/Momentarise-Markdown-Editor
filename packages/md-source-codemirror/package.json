@@ -3,6 +3,21 @@
   "version": "0.0.0",
   "type": "module",
   "description": "Reusable CodeMirror source-mode baseline for Momentarise Markdown Editor.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor.git",
+    "directory": "packages/md-source-codemirror"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "markdown",
+    "editor",
+    "momentarise",
+    "codemirror"
+  ],
   "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,7 +33,17 @@
   "scripts": {
     "build": "tsc -b"
   },
-  "dependencies": {
+  "peerDependencies": {
+    "@codemirror/autocomplete": "^6.0.0",
+    "@codemirror/commands": "^6.0.0",
+    "@codemirror/lang-markdown": "^6.0.0",
+    "@codemirror/language": "^6.0.0",
+    "@codemirror/search": "^6.0.0",
+    "@codemirror/state": "^6.0.0",
+    "@codemirror/view": "^6.0.0",
+    "codemirror": "^6.0.0"
+  },
+  "devDependencies": {
     "@codemirror/autocomplete": "^6.0.0",
     "@codemirror/commands": "^6.0.0",
     "@codemirror/lang-markdown": "^6.0.0",

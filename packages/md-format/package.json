@@ -3,6 +3,22 @@
   "version": "0.0.0",
   "type": "module",
   "description": "Parser and serializer contracts for Momentarise Markdown Editor.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor.git",
+    "directory": "packages/md-format"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "markdown",
+    "editor",
+    "momentarise",
+    "parser",
+    "serializer"
+  ],
   "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -3,6 +3,21 @@
   "version": "0.0.0",
   "type": "module",
   "description": "Host-independent headless Markdown editor session for Momentarise Markdown Editor.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor.git",
+    "directory": "packages/md-editor"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "markdown",
+    "editor",
+    "momentarise",
+    "headless"
+  ],
   "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -3,12 +3,14 @@ import type {
   DocumentHash,
   DocumentPath,
   DocumentSnapshot,
+  NodeId,
   OpaqueNode,
   PolicyCapability,
   PolicyDecisionSeverity,
   PolicySource,
   SourceRange
 } from "@momentarise/md-core";
+import { nodeId } from "@momentarise/md-core";
 import type { MarkdownFormatContract } from "@momentarise/md-format";
 import type { PolicyContract } from "@momentarise/md-policy";
 import type { AiWritingContract } from "@momentarise/md-ai";
@@ -26,13 +28,17 @@ const range: SourceRange = {
 };
 
 const opaqueNode: OpaqueNode = {
-  id: "node-opaque-1",
+  id: nodeId("node-opaque-1"),
   kind: "opaque",
   type: "opaque",
   raw: "%% unsupported custom markdown %%\n",
   sourceRange: range,
   preservation: "preserve-raw"
 };
+
+const brandedNodeId: NodeId = nodeId("node-branded-1");
+// @ts-expect-error NodeId must be intentionally branded before it crosses public contracts.
+const rawNodeId: NodeId = "node-raw-1";
 
 const snapshot: DocumentSnapshot = {
   content: "---\ntitle: Contract\n---\n# Heading\n",
@@ -136,6 +142,8 @@ const cliContract: CliContract = {
 };
 
 void opaqueNode;
+void brandedNodeId;
+void rawNodeId;
 void snapshot;
 void formatContract;
 void saveEngineContract;

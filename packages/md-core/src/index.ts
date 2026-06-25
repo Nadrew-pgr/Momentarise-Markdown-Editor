@@ -5,7 +5,21 @@ type Brand<Value, Name extends string> = Value & {
 export type DocumentPath = Brand<string, "DocumentPath">;
 export type DocumentHash = Brand<string, "DocumentHash">;
 export type DocumentRevision = Brand<string, "DocumentRevision">;
-export type NodeId = Brand<string, "NodeId"> | string;
+export type NodeId = Brand<string, "NodeId">;
+
+export function nodeId(value: string): NodeId {
+  return value as NodeId;
+}
+
+export function hashMarkdownContent(content: string): DocumentHash {
+  let hash = 0xcbf29ce484222325n;
+  const prime = 0x100000001b3n;
+  for (const codePoint of content) {
+    hash ^= BigInt(codePoint.codePointAt(0) ?? 0);
+    hash = BigInt.asUintN(64, hash * prime);
+  }
+  return `fnv1a64:${hash.toString(16).padStart(16, "0")}` as DocumentHash;
+}
 
 export type DocumentDialect =
   | "commonmark"

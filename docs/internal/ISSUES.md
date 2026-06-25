@@ -1262,6 +1262,10 @@ Architecture Reviewer.
 
 ## MME-0024 — Publishable package restructure
 
+### Status
+
+Completed 2026-06-25; human accepted the package graph, smoke-harness result, and dependency-policy boundary. Commit and push are authorized before moving to `MME-0025`.
+
 ### Goal
 
 Make the package graph survive real package managers and external consumers.

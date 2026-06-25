@@ -1,19 +1,22 @@
-import type {
-  Diagnostic,
-  DocumentHash,
-  DocumentPath,
-  FrontmatterRecord,
-  FrontmatterValue,
-  KnownNode,
-  MomentariseNode,
-  NodeAttributes,
-  OpaqueNode,
-  ParseOptions,
-  ParseResult,
-  SerializeOptions,
-  SerializeResult,
-  SourcePosition,
-  SourceRange
+import {
+  hashMarkdownContent,
+  nodeId,
+  type Diagnostic,
+  type DocumentHash,
+  type DocumentPath,
+  type FrontmatterRecord,
+  type FrontmatterValue,
+  type KnownNode,
+  type MomentariseNode,
+  type NodeAttributeValue,
+  type NodeAttributes,
+  type OpaqueNode,
+  type ParseOptions,
+  type ParseResult,
+  type SerializeOptions,
+  type SerializeResult,
+  type SourcePosition,
+  type SourceRange
 } from "@momentarise/md-core";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
@@ -127,7 +130,7 @@ export function createMarkdownAstParser(): MarkdownParser {
 
   return {
     parse(source: string, options: ParseOptions): ParseResult {
-      const hash = hashContent(source);
+      const hash = hashMarkdownContent(source);
       const diagnostics: Diagnostic[] = [
         {
           code: "ast_parser_foundation",
@@ -157,7 +160,7 @@ export function createMarkdownAstParser(): MarkdownParser {
         });
         const root: KnownNode = {
           children: [fallbackOpaque],
-          id: "root",
+          id: nodeId("root"),
           kind: "root",
           type: "document"
         };
@@ -193,7 +196,7 @@ export function createMarkdownAstParser(): MarkdownParser {
 
       const root: KnownNode = {
         children,
-        id: "root",
+        id: nodeId("root"),
         kind: "root",
         type: "document"
       };
@@ -219,7 +222,7 @@ export function createMarkdownAstFormatter(): MarkdownFormatter {
             severity: "info"
           }
         ],
-        hash: hashContent(content),
+        hash: hashMarkdownContent(content),
         normalizations: []
       };
     }
@@ -229,7 +232,7 @@ export function createMarkdownAstFormatter(): MarkdownFormatter {
 export function createIdentityMarkdownFormatter(): MarkdownFormatter {
   return {
     parse(source: string, options: ParseOptions): ParseResult {
-      const hash = hashContent(source);
+      const hash = hashMarkdownContent(source);
       const frontmatter = parseFrontmatter(source);
       const opaqueNodes = detectOpaqueNodes(source);
       const diagnostics: Diagnostic[] = [
@@ -252,7 +255,7 @@ export function createIdentityMarkdownFormatter(): MarkdownFormatter {
 
       const root: KnownNode = {
         children: opaqueNodes,
-        id: "root",
+        id: nodeId("root"),
         kind: "root",
         type: "document"
       };
@@ -286,10 +289,44 @@ export function createIdentityMarkdownFormatter(): MarkdownFormatter {
             severity: "info"
           }
         ],
-        hash: hashContent(content),
+        hash: hashMarkdownContent(content),
         normalizations: []
       };
     }
+  };
+}
+
+export function serializeMomentariseDocument(
+  result: ParseResult,
+  _options?: SerializeOptions
+): SerializeResult {
+  const source = result.snapshot.content;
+  const rootChildren = result.document.root.children ?? [];
+  const frontmatterSource = leadingFrontmatterSourceFromNodes(rootChildren, source);
+  const body = serializeMomentariseNodeList(
+    rootChildren.filter((node) => node.type !== "yaml" && node.type !== "yamlFrontmatter"),
+    source,
+    0
+  ).trimEnd();
+  const content = frontmatterSource
+    ? body
+      ? `${frontmatterSource}\n\n${body}\n`
+      : `${frontmatterSource}\n`
+    : body
+      ? `${body}\n`
+      : "";
+
+  return {
+    content,
+    diagnostics: [
+      {
+        code: "momentarise_model_serializer",
+        message: "Serialized Momentarise document model nodes to Markdown.",
+        severity: "info"
+      }
+    ],
+    hash: hashMarkdownContent(content),
+    normalizations: []
   };
 }
 
@@ -328,9 +365,203 @@ export function serializeMarkdownEdits(
       },
       ...editDiagnostics
     ],
-    hash: hashContent(content),
+    hash: hashMarkdownContent(content),
     normalizations: resolvedEdits.map((edit) => `${edit.kind}:${edit.nodeId ?? "source-range"}`)
   };
+}
+
+function leadingFrontmatterSourceFromNodes(
+  nodes: readonly MomentariseNode[],
+  source: string
+): string | null {
+  const frontmatter = nodes.find(
+    (node) => (node.type === "yaml" || node.type === "yamlFrontmatter") && Boolean(node.sourceRange)
+  );
+  return frontmatter?.sourceRange ? source.slice(frontmatter.sourceRange.start.offset, frontmatter.sourceRange.end.offset) : null;
+}
+
+function serializeMomentariseNodeList(
+  nodes: readonly MomentariseNode[],
+  source: string,
+  indentLevel: number
+): string {
+  let previousNode: MomentariseNode | null = null;
+  let content = "";
+  for (const node of nodes) {
+    const part = serializeMomentariseBlock(node, source, indentLevel);
+    if (part.length === 0) {
+      continue;
+    }
+    if (content.length === 0) {
+      content = part;
+    } else {
+      content += `${previousNode && areAdjacentListItems(previousNode, node) ? "\n" : "\n\n"}${part}`;
+    }
+    previousNode = node;
+  }
+  return content.replace(/\n{3,}/g, "\n\n");
+}
+
+function areAdjacentListItems(first: MomentariseNode, second: MomentariseNode): boolean {
+  return first.kind !== "opaque" && second.kind !== "opaque" && first.type === "listItem" && second.type === "listItem";
+}
+
+function serializeMomentariseBlock(
+  node: MomentariseNode,
+  source: string,
+  indentLevel: number
+): string {
+  if (node.kind === "opaque") {
+    return node.raw.trimEnd();
+  }
+
+  switch (node.type) {
+    case "heading":
+      return `${"#".repeat(numberAttribute(node.attributes?.depth) ?? 1)} ${serializeMomentariseInlineList(node.children ?? [], source)}`.trimEnd();
+    case "paragraph":
+      return serializeMomentariseInlineList(node.children ?? [], source);
+    case "blockquote":
+      return serializeMomentariseNodeList(node.children ?? [], source, indentLevel)
+        .split("\n")
+        .map((line) => (line.trim() ? `> ${line}` : ">"))
+        .join("\n");
+    case "code":
+    case "codeFence": {
+      const language = stringAttribute(node.attributes?.language) ?? "";
+      const meta = stringAttribute(node.attributes?.meta);
+      const info = [language, meta].filter(Boolean).join(" ");
+      const value = stringAttribute(node.attributes?.value) ?? rawFromRange(node, source);
+      return `\`\`\`${info}\n${withoutOneTrailingLineEnding(value)}\n\`\`\``;
+    }
+    case "rawMarkdown":
+    case "unsupported":
+      return (stringAttribute(node.attributes?.raw) ?? rawFromRange(node, source)).trimEnd();
+    case "list":
+      return serializeMomentariseList(node, source, indentLevel);
+    case "listItem":
+      return serializeMomentariseListItem(node, source, indentLevel, markerForMomentariseListItem(node, false, 1));
+    case "thematicBreak":
+      return "---";
+    default:
+      return rawFromRange(node, source).trimEnd();
+  }
+}
+
+function serializeMomentariseList(
+  node: KnownNode,
+  source: string,
+  indentLevel: number
+): string {
+  const ordered = node.attributes?.ordered === true;
+  let index = numberAttribute(node.attributes?.start) ?? 1;
+  const lines: string[] = [];
+  for (const child of node.children ?? []) {
+    const marker = markerForMomentariseListItem(child, ordered, index);
+    lines.push(serializeMomentariseListItem(child, source, indentLevel, marker));
+    index += 1;
+  }
+  return lines.join("\n");
+}
+
+function markerForMomentariseListItem(
+  node: MomentariseNode,
+  ordered: boolean,
+  index: number
+): string {
+  const checked = node.kind !== "opaque" ? booleanAttribute(node.attributes?.checked) : null;
+  if (typeof checked !== "boolean") {
+    return ordered ? `${index}.` : "-";
+  }
+  const checkbox = checked ? "[x]" : "[ ]";
+  return ordered ? `${index}. ${checkbox}` : `- ${checkbox}`;
+}
+
+function serializeMomentariseListItem(
+  node: MomentariseNode,
+  source: string,
+  indentLevel: number,
+  marker: string
+): string {
+  if (node.kind === "opaque") {
+    return node.raw.trimEnd();
+  }
+  const indentation = "  ".repeat(indentLevel);
+  const childBlocks = node.children ?? [];
+  const [first, ...rest] = childBlocks;
+  const firstText = first ? serializeMomentariseBlock(first, source, indentLevel + 1) : "";
+  const lines = [`${indentation}${marker} ${firstText}`.trimEnd()];
+  for (const child of rest) {
+    const childIsList = child.kind !== "opaque" && child.type === "list";
+    const childIndentation = childIsList ? `${indentation}${" ".repeat(marker.length + 1)}` : `${indentation}  `;
+    lines.push(
+      serializeMomentariseBlock(child, source, childIsList ? 0 : indentLevel + 1)
+        .split("\n")
+        .map((line) => `${childIndentation}${line}`)
+        .join("\n")
+    );
+  }
+  return lines.join("\n");
+}
+
+function serializeMomentariseInlineList(
+  nodes: readonly MomentariseNode[],
+  source: string
+): string {
+  return nodes.map((node) => serializeMomentariseInline(node, source)).join("");
+}
+
+function serializeMomentariseInline(node: MomentariseNode, source: string): string {
+  if (node.kind === "opaque") {
+    return node.raw;
+  }
+  switch (node.type) {
+    case "text":
+      return stringAttribute(node.attributes?.value) ?? rawFromRange(node, source);
+    case "inlineCode":
+      return `\`${stringAttribute(node.attributes?.value) ?? rawFromRange(node, source)}\``;
+    case "emphasis":
+      return `*${serializeMomentariseInlineList(node.children ?? [], source)}*`;
+    case "strong":
+      return `**${serializeMomentariseInlineList(node.children ?? [], source)}**`;
+    case "strikethrough":
+      return `~~${serializeMomentariseInlineList(node.children ?? [], source)}~~`;
+    case "lineBreak":
+    case "break":
+      return "  \n";
+    case "link": {
+      const text = serializeMomentariseInlineList(node.children ?? [], source);
+      const url = stringAttribute(node.attributes?.url) ?? "";
+      const title = stringAttribute(node.attributes?.title);
+      return title ? `[${text}](${url} "${title}")` : `[${text}](${url})`;
+    }
+    case "image": {
+      const alt = stringAttribute(node.attributes?.alt) ?? "";
+      const url = stringAttribute(node.attributes?.url) ?? "";
+      const title = stringAttribute(node.attributes?.title);
+      return title ? `![${alt}](${url} "${title}")` : `![${alt}](${url})`;
+    }
+    default:
+      return node.children ? serializeMomentariseInlineList(node.children, source) : rawFromRange(node, source);
+  }
+}
+
+function rawFromRange(node: MomentariseNode, source: string): string {
+  if (node.kind === "opaque") {
+    return node.raw;
+  }
+  return node.sourceRange ? source.slice(node.sourceRange.start.offset, node.sourceRange.end.offset) : "";
+}
+
+function stringAttribute(value: NodeAttributeValue | undefined): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function numberAttribute(value: NodeAttributeValue | undefined): number | null {
+  return typeof value === "number" ? value : null;
+}
+
+function booleanAttribute(value: NodeAttributeValue | undefined): boolean | null {
+  return typeof value === "boolean" ? value : null;
 }
 
 type ResolvedMarkdownEdit = {
@@ -530,7 +761,7 @@ function mapMdastNode(node: MdastLikeNode, source: string, id: string): Momentar
     ...(attributes ? { attributes } : {}),
     ...(children.length > 0 ? { children } : {}),
     ...(sourceRange ? { sourceRange } : {}),
-    id,
+    id: nodeId(id),
     kind: kindForMdastType(node.type),
     type: typeForMdastType(node.type)
   };
@@ -599,7 +830,7 @@ function opaqueNodeFromMdastNode(
   const sourceRange = rangeFromMdastPosition(node.position);
   if (sourceRange) {
     return {
-      id,
+      id: nodeId(id),
       kind: "opaque",
       preservation: "preserve-raw",
       raw: source.slice(sourceRange.start.offset, sourceRange.end.offset),
@@ -623,7 +854,7 @@ function opaqueNodeFromRaw(
 ): OpaqueNode {
   const raw = source.slice(startOffset, endOffset);
   return {
-    id: `opaque-${index}`,
+    id: nodeId(`opaque-${index}`),
     kind: "opaque",
     preservation: "preserve-raw",
     raw,
@@ -920,7 +1151,7 @@ function detectOpaqueNodes(source: string): readonly OpaqueNode[] {
         continue;
       }
       nodes.push({
-        id: `opaque-${index}`,
+        id: nodeId(`opaque-${index}`),
         kind: "opaque",
         preservation: "preserve-raw",
         raw,
@@ -1006,15 +1237,6 @@ function createReadableDiff(input: string, output: string): string {
     }
   }
   return "Content differs but no line-level difference was found.";
-}
-
-function hashContent(content: string): DocumentHash {
-  let hash = 2166136261;
-  for (let index = 0; index < content.length; index += 1) {
-    hash ^= content.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return `fnv1a:${(hash >>> 0).toString(16).padStart(8, "0")}` as DocumentHash;
 }
 
 export type {

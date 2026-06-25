@@ -3,6 +3,21 @@
   "version": "0.0.0",
   "type": "module",
   "description": "ProseMirror rich-mode bridge for Momentarise Markdown Editor.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor.git",
+    "directory": "packages/md-rich-prosemirror"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "markdown",
+    "editor",
+    "momentarise",
+    "prosemirror"
+  ],
   "sideEffects": false,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,11 +35,22 @@
   },
   "dependencies": {
     "@momentarise/md-core": "0.0.0",
-    "@momentarise/md-format": "0.0.0",
+    "@momentarise/md-format": "0.0.0"
+  },
+  "peerDependencies": {
     "prosemirror-commands": "^1.7.1",
     "prosemirror-history": "^1.5.0",
     "prosemirror-keymap": "^1.2.3",
     "prosemirror-model": "^1.25.4",
-    "prosemirror-state": "^1.4.4"
+    "prosemirror-state": "^1.4.4",
+    "prosemirror-transform": "^1.10.5"
+  },
+  "devDependencies": {
+    "prosemirror-commands": "^1.7.1",
+    "prosemirror-history": "^1.5.0",
+    "prosemirror-keymap": "^1.2.3",
+    "prosemirror-model": "^1.25.4",
+    "prosemirror-state": "^1.4.4",
+    "prosemirror-transform": "^1.10.5"
   }
 }

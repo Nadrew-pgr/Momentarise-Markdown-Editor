@@ -3178,3 +3178,90 @@
   - This evidence was added in a follow-up docs-only commit because the hash/push result cannot be known before the first commit exists.
 - Next issue:
   - `MME-0024 — Publishable package restructure`.
+
+### MME-0024 — Publishable package restructure
+
+- Timestamp: 2026-06-24T11:56:49+02:00
+- Status: completed; human accepted 2026-06-25.
+- Goal:
+  - Make the package graph survive real package managers and external consumers without workspace links or duplicate editor-engine instances.
+- RED proof:
+  - Added `tests/package-publishability.test.mjs`.
+  - Before implementation, `npm run test:contracts` failed because `nodeId` was missing and raw strings still satisfied `NodeId`.
+  - Before implementation, `node tests/package-publishability.test.mjs` failed because packages had no publishability metadata and view engines were still regular dependencies.
+- Change:
+  - Added release-readiness manifest metadata (`license: UNLICENSED`, `repository`, `engines.node >=20`, `keywords`) across publishable packages.
+  - Moved CodeMirror dependencies in `@momentarise/md-source-codemirror` to `peerDependencies` plus `devDependencies`.
+  - Moved ProseMirror dependencies in `@momentarise/md-rich-prosemirror` to `peerDependencies` plus `devDependencies`, including `prosemirror-transform`.
+  - Kept `prosemirror-view` as a demo/host dependency because `md-rich-prosemirror` does not import it; this follows the more specific MME-0024 implementation notes.
+  - Moved shared `hashMarkdownContent` into `@momentarise/md-core`; `@momentarise/md-save` re-exports it for compatibility.
+  - Removed the temporary `@momentarise/md-ai -> @momentarise/md-save` hash dependency; AI now imports the shared hash from core.
+  - Tightened `NodeId` to a branded type and added `nodeId(value)`.
+  - Added `serializeMomentariseDocument(parseResult)` to `@momentarise/md-format` for model-level Markdown generation.
+  - Added `proseMirrorDocToMomentariseNodes(doc)` to `@momentarise/md-rich-prosemirror`; reconstructed rich blocks now route through the model serializer while the byte-preserving matched-block fast path remains intact.
+  - Added `examples/consumer-smoke/` and `scripts/consumer-smoke.mjs`.
+  - Added `test:publishability` to default `npm test`; added `test:consumer-smoke` as an explicit non-default smoke gate.
+- Files changed:
+  - `package.json`
+  - `package-lock.json`
+  - `packages/*/package.json`
+  - `packages/md-core/src/index.ts`
+  - `packages/md-format/src/index.ts`
+  - `packages/md-save/src/index.ts`
+  - `packages/md-ai/src/index.ts`
+  - `packages/md-rich-prosemirror/src/index.ts`
+  - `tests/type-contracts.test.ts`
+  - `tests/package-publishability.test.mjs`
+  - `scripts/consumer-smoke.mjs`
+  - `examples/consumer-smoke/`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+- Visual impact:
+  - No visible editing or general UI changes.
+- Manual/visual verification:
+  - No screenshot required because this is an internal package/publishability slice with no UI behavior change.
+  - Existing dev server remained available at `http://127.0.0.1:5174/`.
+- Checks run:
+  - `npm run test:contracts` — RED before implementation, green after implementation.
+  - `node tests/package-publishability.test.mjs` — RED before implementation, green after implementation.
+  - `npm install` — green; reported one high-severity dev/tooling audit item.
+  - `npm audit --omit=dev --json` — green; zero prod/runtime vulnerabilities.
+  - `npm run test:publishability` — green.
+  - `npm run test:rich-fidelity` — green.
+  - `npm run test:rich-commands` — RED once during implementation for top-level todo serialization, green after serializer fix.
+  - `npm run test:consumer-smoke` — green; packs all 11 packages, installs into temporary npm and pnpm strict consumers, runs `tsc --noEmit`, runs `vite build`, and checks one `@codemirror/state` and one `prosemirror-model` version.
+  - `npm run test:architecture` — green.
+  - `npm run test:save-engine` — green.
+  - `npm run test:ai-writing` — green.
+  - `git diff --check` — green.
+  - `npm test` — green; existing Vite chunk-size warning only.
+- Reviewer/fallback:
+  - Fallback Architecture/DX self-review performed because subagent tooling exists but tool policy does not allow spawning subagents unless the user explicitly asks for delegation.
+  - Review covered host independence, dependency peer boundaries, package metadata, npm/pnpm consumer behavior, duplicate editor-engine instances, serializer ownership, hash ownership, and preservation gates.
+- Deviations from PRD:
+  - No public npm publish was attempted.
+  - Internal `0.0.0` package pins remain intentionally in place until `MME-0036` release engineering/changesets work, per MME-0024 implementation notes.
+  - `UNLICENSED` is explicit package license metadata because the repository has no root public license file yet; public license policy remains a future release decision.
+- Human review:
+  - Accepted 2026-06-25. The review focus was the dependency-policy/package-graph decision, not a manual UI test.
+  - Human authorized commit and push and asked for pushes to be up to date.
+- Commit status:
+  - Pending in this log entry; final report records the created commit hash.
+- Push status:
+  - Pending in this log entry; final report records the push result.
+- Next issue:
+  - `MME-0025 — Theming contracts: tokens, host theme, icon set`, after issue-scoped commit and push for MME-0024.
+
+### Human decision — MME-0024 accepted and commit/push authorized
+
+- Timestamp: 2026-06-25T15:27:38+02:00
+- Status: completed; commit and push authorized.
+- Human decision:
+  - The human clarified that the dependency/package review items were technical review concerns and accepted `MME-0024`.
+  - The human asked to commit and push, with remote pushes kept up to date.
+- Commit status:
+  - Pending in this log entry; the final report records the created commit hash.
+- Push status:
+  - Pending in this log entry; the final report records the push result.
+- Next issue:
+  - `MME-0025 — Theming contracts: tokens, host theme, icon set`.

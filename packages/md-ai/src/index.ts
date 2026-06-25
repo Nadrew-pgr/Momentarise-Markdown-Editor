@@ -1,6 +1,5 @@
-import type { DocumentHash, PolicyDecision } from "@momentarise/md-core";
+import { hashMarkdownContent, type DocumentHash, type PolicyDecision } from "@momentarise/md-core";
 import { createDefaultPolicyResolver, type PolicyResolver } from "@momentarise/md-policy";
-import { hashMarkdownContent } from "@momentarise/md-save";
 
 export interface AiWritingContract {
   readonly packageName: "@momentarise/md-ai";

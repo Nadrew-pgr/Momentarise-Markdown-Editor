@@ -4,12 +4,14 @@ import type {
   FoldState,
   KnownNode,
   MomentariseNode,
+  NodeAttributes,
   NodeAttributeValue,
   OpaqueNode,
   ParseResult,
   SourceRange
 } from "@momentarise/md-core";
-import { createMarkdownAstFormatter } from "@momentarise/md-format";
+import { hashMarkdownContent, nodeId as createNodeId } from "@momentarise/md-core";
+import { createMarkdownAstFormatter, serializeMomentariseDocument } from "@momentarise/md-format";
 import {
   baseKeymap,
   chainCommands,
@@ -525,15 +527,15 @@ export function getRichFoldVisibility(
 
 export function toggleRichHeadingFold(
   folds: readonly FoldState[],
-  nodeId: string
+  foldNodeId: string
 ): readonly FoldState[] {
-  const existingIndex = folds.findIndex((fold) => fold.nodeId === nodeId);
+  const existingIndex = folds.findIndex((fold) => fold.nodeId === foldNodeId);
   if (existingIndex < 0) {
     return [
       ...folds,
       {
         collapsed: true,
-        nodeId
+        nodeId: createNodeId(foldNodeId)
       }
     ];
   }
@@ -582,7 +584,7 @@ function serializeRichMarkdownContent(state: RichMarkdownState): string {
       // the document is untouched, so the original bytes are the truth.
       return source;
     }
-    const body = serializeBlockList(state.editorState.doc, 0).trimEnd();
+    const body = serializeReconstructedProseMirrorDoc(state.editorState.doc).trimEnd();
     return state.frontmatterSource ? `${state.frontmatterSource}\n\n${body}\n` : `${body}\n`;
   }
 
@@ -607,7 +609,7 @@ function serializeRichMarkdownContent(state: RichMarkdownState): string {
       lastOriginalIndex = originalIndex;
     } else {
       const originalIndex = aligned.kind === "replaced" ? aligned.pairIndex : -1;
-      const text = serializeBlock(aligned.block, 0);
+      const text = serializeReconstructedProseMirrorBlock(aligned.block);
       let separator: string;
       if (originalIndex >= 0) {
         const range = pairs[originalIndex]!.model.sourceRange!;
@@ -635,6 +637,209 @@ function serializeRichMarkdownContent(state: RichMarkdownState): string {
     content = `${content.trimEnd()}\n`;
   }
   return content;
+}
+
+export function proseMirrorDocToMomentariseNodes(doc: ProseMirrorNode): readonly MomentariseNode[] {
+  const idFactory = createModelNodeIdFactory();
+  const nodes: MomentariseNode[] = [];
+  doc.forEach((child) => {
+    nodes.push(proseMirrorBlockToMomentariseNode(child, idFactory));
+  });
+  return nodes;
+}
+
+function serializeReconstructedProseMirrorDoc(doc: ProseMirrorNode): string {
+  const result = createSyntheticParseResult(proseMirrorDocToMomentariseNodes(doc));
+  return serializeMomentariseDocument(result).content;
+}
+
+function serializeReconstructedProseMirrorBlock(block: ProseMirrorNode): string {
+  const doc = block.type.schema.nodes.doc!.create(null, [block]);
+  return serializeReconstructedProseMirrorDoc(doc).trimEnd();
+}
+
+function createSyntheticParseResult(nodes: readonly MomentariseNode[]): ParseResult {
+  const content = "";
+  const diagnostics: Diagnostic[] = [];
+  const hash = hashMarkdownContent(content);
+  return {
+    diagnostics,
+    document: {
+      diagnostics,
+      dialect: "momentarise-enhanced",
+      root: {
+        children: nodes,
+        id: createNodeId("rich-reconstructed-root"),
+        kind: "root",
+        type: "document"
+      }
+    },
+    snapshot: {
+      content,
+      dialect: "momentarise-enhanced",
+      hash,
+      path: null
+    }
+  };
+}
+
+function createModelNodeIdFactory(): () => ReturnType<typeof createNodeId> {
+  let index = 0;
+  return () => {
+    index += 1;
+    return createNodeId(`rich-reconstructed-${index}`);
+  };
+}
+
+function proseMirrorBlockToMomentariseNode(
+  node: ProseMirrorNode,
+  nextId: () => ReturnType<typeof createNodeId>
+): KnownNode {
+  switch (node.type.name) {
+    case "heading":
+      return knownNode(nextId, "block", "heading", proseMirrorInlineChildrenToMomentariseNodes(node, nextId), {
+        depth: Number(node.attrs.level) || 1
+      });
+    case "paragraph":
+      return knownNode(nextId, "block", "paragraph", proseMirrorInlineChildrenToMomentariseNodes(node, nextId));
+    case "blockquote":
+      return knownNode(nextId, "block", "blockquote", proseMirrorBlockChildrenToMomentariseNodes(node, nextId));
+    case "code_block":
+      return knownNode(nextId, "block", "codeFence", [], {
+        language: stringAttribute(node.attrs.language),
+        meta: stringAttribute(node.attrs.meta),
+        value: node.textContent
+      });
+    case "bullet_list":
+      return knownNode(nextId, "block", "list", proseMirrorBlockChildrenToMomentariseNodes(node, nextId), {
+        ordered: false
+      });
+    case "ordered_list":
+      return knownNode(nextId, "block", "list", proseMirrorBlockChildrenToMomentariseNodes(node, nextId), {
+        ordered: true,
+        start: Number(node.attrs.order) || 1
+      });
+    case "list_item":
+      return knownNode(nextId, "block", "listItem", proseMirrorBlockChildrenToMomentariseNodes(node, nextId));
+    case "todo_item":
+      return knownNode(nextId, "block", "listItem", proseMirrorBlockChildrenToMomentariseNodes(node, nextId), {
+        checked: Boolean(node.attrs.checked)
+      });
+    case "horizontal_rule":
+      return knownNode(nextId, "block", "thematicBreak", []);
+    case "unsupported_block":
+      return knownNode(nextId, "block", "rawMarkdown", [], {
+        raw: String(node.attrs.raw ?? "")
+      });
+    default:
+      return knownNode(nextId, "block", "paragraph", [
+        knownNode(nextId, "inline", "text", [], {
+          value: node.textContent
+        })
+      ]);
+  }
+}
+
+function proseMirrorBlockChildrenToMomentariseNodes(
+  node: ProseMirrorNode,
+  nextId: () => ReturnType<typeof createNodeId>
+): readonly MomentariseNode[] {
+  const children: MomentariseNode[] = [];
+  node.forEach((child) => {
+    children.push(proseMirrorBlockToMomentariseNode(child, nextId));
+  });
+  return children;
+}
+
+function proseMirrorInlineChildrenToMomentariseNodes(
+  node: ProseMirrorNode,
+  nextId: () => ReturnType<typeof createNodeId>
+): readonly MomentariseNode[] {
+  const children: MomentariseNode[] = [];
+  node.forEach((child) => {
+    children.push(...proseMirrorInlineNodeToMomentariseNodes(child, nextId));
+  });
+  return children;
+}
+
+function proseMirrorInlineNodeToMomentariseNodes(
+  node: ProseMirrorNode,
+  nextId: () => ReturnType<typeof createNodeId>
+): readonly MomentariseNode[] {
+  if (node.isText) {
+    return [wrapMomentariseTextMarks(knownNode(nextId, "inline", "text", [], { value: node.text ?? "" }), node.marks, nextId)];
+  }
+  if (node.type.name === "hard_break") {
+    return [knownNode(nextId, "inline", "lineBreak", [])];
+  }
+  if (node.type.name === "image") {
+    return [
+      knownNode(nextId, "inline", "image", [], {
+        alt: stringAttribute(node.attrs.alt) ?? "",
+        title: stringAttribute(node.attrs.title),
+        url: stringAttribute(node.attrs.src) ?? ""
+      })
+    ];
+  }
+  return [knownNode(nextId, "inline", "text", [], { value: node.textContent })];
+}
+
+function wrapMomentariseTextMarks(
+  base: KnownNode,
+  marks: readonly Mark[],
+  nextId: () => ReturnType<typeof createNodeId>
+): KnownNode {
+  return marks.reduceRight((child, mark) => {
+    if (mark.type.name === "code") {
+      return knownNode(nextId, "inline", "inlineCode", [], { value: inlineTextContent(child) });
+    }
+    if (mark.type.name === "strong") {
+      return knownNode(nextId, "inline", "strong", [child]);
+    }
+    if (mark.type.name === "em") {
+      return knownNode(nextId, "inline", "emphasis", [child]);
+    }
+    if (mark.type.name === "strike") {
+      return knownNode(nextId, "inline", "strikethrough", [child]);
+    }
+    if (mark.type.name === "link") {
+      return knownNode(nextId, "inline", "link", [child], {
+        title: stringAttribute(mark.attrs.title),
+        url: stringAttribute(mark.attrs.href) ?? ""
+      });
+    }
+    return child;
+  }, base);
+}
+
+function inlineTextContent(node: MomentariseNode): string {
+  if (node.kind === "opaque") {
+    return node.raw;
+  }
+  if (node.type === "text") {
+    return stringAttribute(node.attributes?.value) ?? "";
+  }
+  return (node.children ?? []).map((child) => inlineTextContent(child)).join("");
+}
+
+function knownNode(
+  nextId: () => ReturnType<typeof createNodeId>,
+  kind: "root" | "block" | "inline",
+  type: string,
+  children: readonly MomentariseNode[],
+  attributes?: NodeAttributes
+): KnownNode {
+  return {
+    ...(attributes ? { attributes: removeNullAttributes(attributes) } : {}),
+    ...(children.length > 0 ? { children } : {}),
+    id: nextId(),
+    kind,
+    type
+  };
+}
+
+function removeNullAttributes(attributes: NodeAttributes): NodeAttributes {
+  return Object.fromEntries(Object.entries(attributes).filter(([, value]) => value !== null)) as NodeAttributes;
 }
 
 type RichBlockAlignment =

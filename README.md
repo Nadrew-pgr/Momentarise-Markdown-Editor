@@ -36,11 +36,12 @@ Completed slices:
 - MME-0021: Rich list and todo editing baseline, accepted by the human after caret, nesting, Backspace, checkbox keyboard, and input-rule review fixes.
 - MME-0022: Source-mode keymap integrity with explicit CodeMirror extension composition, official Markdown continuation/backspace behavior, and browser-verified source keymap checks.
 - MME-0023: Headless editor session and events, accepted by the human after session/API proof, stale AI suggestion guard, demo session consumption, compact AI popover review fix, and AI follow-up issue planning.
+- MME-0024: Publishable package restructure, accepted by the human after peer-dependency cleanup, shared hash/NodeId tightening, model serializer split, and npm/pnpm strict consumer smoke proof.
 - MME-0039: Interim demo visual refresh (human-directed, out of phase order). CSS-only restyle of the demo chrome and editing surfaces; the values are the draft defaults for the MME-0025 token set.
 
 Current slice:
 
-- MME-0024: Publishable package restructure.
+- MME-0025: Theming contracts: tokens, host theme, icon set.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

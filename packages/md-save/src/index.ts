@@ -1,6 +1,6 @@
-import type { DocumentHash, PersistenceTarget, SaveState, SaveStatus } from "@momentarise/md-core";
+import { hashMarkdownContent, type DocumentHash, type PersistenceTarget, type SaveState, type SaveStatus } from "@momentarise/md-core";
 
-export type { SaveState } from "@momentarise/md-core";
+export { hashMarkdownContent, type SaveState } from "@momentarise/md-core";
 
 export interface SaveEngineContract {
   readonly packageName: "@momentarise/md-save";
@@ -186,16 +186,6 @@ export function createDownloadRequiredSaveTarget(
       return hashMarkdownContent(options.initialContent);
     }
   };
-}
-
-export function hashMarkdownContent(content: string): DocumentHash {
-  let hash = 0xcbf29ce484222325n;
-  const prime = 0x100000001b3n;
-  for (const codePoint of content) {
-    hash ^= BigInt(codePoint.codePointAt(0) ?? 0);
-    hash = BigInt.asUintN(64, hash * prime);
-  }
-  return `fnv1a64:${hash.toString(16).padStart(16, "0")}` as DocumentHash;
 }
 
 export function persistenceTargetLabel(state: SaveState): string {
