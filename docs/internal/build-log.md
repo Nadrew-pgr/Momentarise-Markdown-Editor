@@ -3246,9 +3246,10 @@
   - Accepted 2026-06-25. The review focus was the dependency-policy/package-graph decision, not a manual UI test.
   - Human authorized commit and push and asked for pushes to be up to date.
 - Commit status:
-  - Pending in this log entry; final report records the created commit hash.
+  - Issue-scoped commit created: `1e992d0` (`feat: prepare packages for external consumers`).
 - Push status:
-  - Pending in this log entry; final report records the push result.
+  - Pushed `main` to `origin`: `46b3b3c..1e992d0`.
+  - This evidence was added in a follow-up docs-only commit because the hash/push result cannot be known before the issue commit exists.
 - Next issue:
   - `MME-0025 — Theming contracts: tokens, host theme, icon set`, after issue-scoped commit and push for MME-0024.
 
@@ -3260,8 +3261,9 @@
   - The human clarified that the dependency/package review items were technical review concerns and accepted `MME-0024`.
   - The human asked to commit and push, with remote pushes kept up to date.
 - Commit status:
-  - Pending in this log entry; the final report records the created commit hash.
+  - Issue-scoped commit created: `1e992d0` (`feat: prepare packages for external consumers`).
 - Push status:
-  - Pending in this log entry; the final report records the push result.
+  - Pushed `main` to `origin`: `46b3b3c..1e992d0`.
+  - This evidence was added in a follow-up docs-only commit because the hash/push result cannot be known before the issue commit exists.
 - Next issue:
   - `MME-0025 — Theming contracts: tokens, host theme, icon set`.
