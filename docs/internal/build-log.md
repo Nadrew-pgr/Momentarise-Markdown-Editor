@@ -3367,8 +3367,9 @@
   - `README.md` lists MME-0025 as completed and sets current slice to `MME-0026`.
   - `docs/internal/ISSUES.md` marks MME-0025 completed and MME-0026 unblocked after commit/push.
 - Commit status:
-  - Pending at the time of this build-log entry; issue-scoped commit authorized.
+  - Issue-scoped commit created: `8d79f5b` (`feat: add theming contracts`).
 - Push status:
-  - Pending at the time of this build-log entry; push authorized after commit.
+  - Pushed `main` to `origin`: `5a14735..8d79f5b`.
+  - This evidence was added in a follow-up docs-only commit because the hash/push result cannot be known before the issue commit exists.
 - Next issue:
   - `MME-0026 — Preferences, settings locks, and capability contracts`.
