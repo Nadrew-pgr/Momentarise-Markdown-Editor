@@ -1,99 +1,9 @@
+@import "@momentarise/md-theme/tokens.css";
+
 /*
- * MME-0039 interim demo visual refresh — Vercel-docs aesthetic.
- *
- * SINGLE SOURCE OF COLOR TRUTH for the demo: the --mme-* custom properties below
- * are the draft default values for the MME-0025 design-token set (@momentarise/md-theme).
- * MME-0025 lifts these names verbatim into the token package and the host theme
- * contract. RULE: no rule below this :root block may use a raw color/shadow/radius
- * value — only var(--mme-*). Every UI-touching issue must keep this invariant
- * (Gate 13).
- *
- * Default scheme is dark (matches the Vercel docs reference). Light is provided via
- * :root[data-mme-scheme="light"]. --line and --font-mono are kept as aliases because
- * @momentarise/md-source-codemirror's default theme consumes them; MME-0025 migrates
- * the package off the aliases.
+ * Demo CSS consumes @momentarise/md-theme tokens only. Keep raw colors in
+ * packages/md-theme/src/tokens.css so host overrides stay centralized.
  */
-:root {
-  color-scheme: dark;
-
-  /* color roles */
-  --mme-color-bg: #0a0a0a;
-  --mme-color-surface: #141414;
-  --mme-color-surface-raised: #1c1c1c;
-  --mme-color-border: #2a2a2a;
-  --mme-color-border-strong: #3a3a3a;
-  --mme-color-text: #ededed;
-  --mme-color-text-muted: #8f8f8f;
-  --mme-color-accent: #3b82f6;
-  --mme-color-accent-hover: #5b9bff;
-  --mme-color-accent-contrast: #ffffff;
-  --mme-color-accent-soft: rgba(59, 130, 246, 0.16);
-  --mme-color-accent-softer: rgba(59, 130, 246, 0.09);
-  --mme-color-danger: #f87171;
-  --mme-color-warning: #d8a657;
-  --mme-color-selection: rgba(59, 130, 246, 0.32);
-  --mme-color-focus-ring: rgba(59, 130, 246, 0.6);
-  --mme-color-code-bg: #1a1a1a;
-  /* arbitrary HTML artifacts assume a white canvas in both schemes */
-  --mme-color-preview-canvas: #ffffff;
-  --mme-color-topbar-bg: rgba(10, 10, 10, 0.82);
-  --mme-color-overlay: rgba(0, 0, 0, 0.55);
-
-  /* typography */
-  --mme-font-family-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", Roboto, ui-sans-serif, sans-serif;
-  --mme-font-family-content: var(--mme-font-family-ui);
-  --mme-font-family-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  --mme-font-size-base: 12.5px;
-  --mme-font-scale: 1;
-  --mme-line-height: 1.6;
-
-  /* shape */
-  --mme-radius-sm: 6px;
-  --mme-radius-md: 8px;
-  --mme-radius-lg: 12px;
-
-  /* elevation (Vercel leans on borders, shadows stay subtle) */
-  --mme-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --mme-shadow-md: 0 8px 28px rgba(0, 0, 0, 0.5);
-
-  /* layout */
-  --mme-content-measure: clamp(720px, 58vw, 880px);
-  --mme-active-content-measure: min(var(--mme-content-measure), calc(100vw - 96px));
-
-  /* z layers */
-  --mme-z-toolbar: 20;
-  --mme-z-menu: 45;
-  --mme-z-overlay: 70;
-
-  /* back-compat aliases consumed by @momentarise/md-source-codemirror (removed in MME-0025) */
-  --line: var(--mme-color-border);
-  --font-mono: var(--mme-font-family-mono);
-}
-
-:root[data-mme-scheme="light"] {
-  color-scheme: light;
-  --mme-color-bg: #ffffff;
-  --mme-color-surface: #fafafa;
-  --mme-color-surface-raised: #f4f4f5;
-  --mme-color-border: #ededed;
-  --mme-color-border-strong: #d4d4d8;
-  --mme-color-text: #171717;
-  --mme-color-text-muted: #666666;
-  --mme-color-accent: #0070f3;
-  --mme-color-accent-hover: #0060df;
-  --mme-color-accent-contrast: #ffffff;
-  --mme-color-accent-soft: rgba(0, 112, 243, 0.1);
-  --mme-color-accent-softer: rgba(0, 112, 243, 0.06);
-  --mme-color-danger: #e5484d;
-  --mme-color-warning: #9a5b13;
-  --mme-color-selection: rgba(0, 112, 243, 0.18);
-  --mme-color-focus-ring: rgba(0, 112, 243, 0.45);
-  --mme-color-code-bg: #f4f4f5;
-  --mme-color-topbar-bg: rgba(255, 255, 255, 0.82);
-  --mme-color-overlay: rgba(16, 20, 26, 0.32);
-  --mme-shadow-sm: 0 1px 2px rgba(18, 24, 31, 0.06);
-  --mme-shadow-md: 0 8px 28px rgba(18, 24, 31, 0.12);
-}
 
 * {
   box-sizing: border-box;
@@ -693,6 +603,10 @@ h1 {
 
 .toolbar-button,
 .toolbar-menu-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--mme-space-1) * var(--mme-density));
   min-height: 27px;
   padding: 0 8px;
   border: 1px solid transparent;
@@ -703,6 +617,21 @@ h1 {
   font-size: 12px;
   font-weight: 600;
   transition: background 100ms ease, color 100ms ease;
+}
+
+.toolbar-icon {
+  display: inline-flex;
+  inline-size: 16px;
+  block-size: 16px;
+  flex: 0 0 16px;
+  align-items: center;
+  justify-content: center;
+}
+
+.toolbar-icon svg {
+  display: block;
+  inline-size: 16px;
+  block-size: 16px;
 }
 
 .toolbar-button:hover,

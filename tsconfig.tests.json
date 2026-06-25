@@ -26,6 +26,9 @@
       "@momentarise/md-editor": [
         "packages/md-editor/src/index.ts"
       ],
+      "@momentarise/md-theme": [
+        "packages/md-theme/src/index.ts"
+      ],
       "@momentarise/md-preview-html": [
         "packages/md-preview-html/src/index.ts"
       ],

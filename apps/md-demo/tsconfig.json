@@ -20,6 +20,9 @@
       "path": "../../packages/md-editor"
     },
     {
+      "path": "../../packages/md-theme"
+    },
+    {
       "path": "../../packages/md-policy"
     },
     {

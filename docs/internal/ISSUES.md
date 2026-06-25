@@ -1312,6 +1312,10 @@ Architecture Reviewer and DX Reviewer.
 
 ## MME-0025 — Theming contracts: tokens, host theme, icon set
 
+### Status
+
+Completed 2026-06-25; human accepted the default theming/icon direction, dark/light visual proof, host theme override proof, and the documented CSS-only compatibility-token follow-up. Commit and push are authorized before moving to `MME-0026`.
+
 ### Goal
 
 Establish layer 1 and 2 of the theming/settings separation: framework design tokens and the host theme contract, framework-agnostic and DOM-free at the contract level.

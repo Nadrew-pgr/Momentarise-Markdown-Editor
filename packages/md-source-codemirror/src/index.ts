@@ -1,7 +1,7 @@
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { markdown, markdownKeymap } from "@codemirror/lang-markdown";
-import { bracketMatching, defaultHighlightStyle, indentOnInput, syntaxHighlighting } from "@codemirror/language";
+import { bracketMatching, HighlightStyle, indentOnInput, syntaxHighlighting } from "@codemirror/language";
 import { EditorState, Prec, Transaction, type Extension } from "@codemirror/state";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
 import {
@@ -15,6 +15,7 @@ import {
   lineNumbers,
   type KeyBinding
 } from "@codemirror/view";
+import { tags } from "@lezer/highlight";
 
 export interface MomentariseSourceCodeMirrorContract {
   readonly packageName: "@momentarise/md-source-codemirror";
@@ -41,7 +42,7 @@ export function createMomentariseSourceExtensions(options: MomentariseSourceExte
     dropCursor(),
     EditorState.allowMultipleSelections.of(true),
     indentOnInput(),
-    syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+    syntaxHighlighting(momentariseMarkdownHighlightStyle, { fallback: true }),
     bracketMatching(),
     closeBrackets(),
     highlightActiveLine(),
@@ -78,16 +79,26 @@ export function createMomentariseSourceExtensions(options: MomentariseSourceExte
           height: "100%"
         },
         ".cm-scroller": {
-          fontFamily: "var(--font-mono)",
-          fontSize: "14px",
-          lineHeight: "1.6"
+          fontFamily: "var(--mme-font-family-mono)",
+          fontSize: "calc(var(--mme-font-size-base) * var(--mme-font-scale))",
+          lineHeight: "var(--mme-line-height)"
         },
         ".cm-content": {
-          padding: "24px 28px"
+          padding:
+            "calc(var(--mme-space-6) * var(--mme-density)) calc(var(--mme-space-6) * var(--mme-density))"
         },
         ".cm-gutters": {
           backgroundColor: "transparent",
-          borderRight: "1px solid var(--line)"
+          borderRight: "1px solid var(--mme-color-border)"
+        },
+        ".cm-activeLine, .cm-activeLineGutter": {
+          backgroundColor: "var(--mme-color-surface)"
+        },
+        ".cm-cursor, .cm-dropCursor": {
+          borderLeftColor: "var(--mme-color-text)"
+        },
+        ".cm-selectionBackground, &.cm-focused .cm-selectionBackground, .cm-content ::selection": {
+          backgroundColor: "var(--mme-color-selection) !important"
         }
       })
     );
@@ -95,6 +106,48 @@ export function createMomentariseSourceExtensions(options: MomentariseSourceExte
 
   return extensions;
 }
+
+const momentariseMarkdownHighlightStyle = HighlightStyle.define([
+  {
+    tag: [tags.heading1, tags.heading2, tags.heading3, tags.heading4, tags.heading5, tags.heading6],
+    color: "var(--mme-color-text)",
+    fontWeight: "650"
+  },
+  {
+    tag: tags.heading,
+    color: "var(--mme-color-text)"
+  },
+  {
+    tag: [tags.emphasis, tags.strong],
+    color: "var(--mme-color-text)"
+  },
+  {
+    tag: [tags.link, tags.url],
+    color: "var(--mme-color-accent)",
+    textDecoration: "underline",
+    textUnderlineOffset: "2px"
+  },
+  {
+    tag: [tags.monospace, tags.escape],
+    color: "var(--mme-color-accent)"
+  },
+  {
+    tag: [tags.quote, tags.list, tags.contentSeparator, tags.meta, tags.punctuation],
+    color: "var(--mme-color-text-muted)"
+  },
+  {
+    tag: [tags.keyword, tags.atom, tags.bool, tags.number],
+    color: "var(--mme-color-accent)"
+  },
+  {
+    tag: [tags.string, tags.attributeValue],
+    color: "var(--mme-color-text)"
+  },
+  {
+    tag: tags.invalid,
+    color: "var(--mme-color-danger)"
+  }
+]);
 
 export function momentariseSourceKeymap(options: MomentariseSourceExtensionOptions = {}): KeyBinding[] {
   return [

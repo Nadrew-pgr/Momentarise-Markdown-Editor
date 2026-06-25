@@ -187,6 +187,8 @@ Tags: `public-release`, `dx`, `ax`, `research`
 - Migration guides from Tiptap, BlockNote, and plain textarea integrations.
 - StackBlitz or equivalent example embeds for public docs.
 - Agent-readable public docs and docs-site copy/open-in-chat affordances belong to public framework readiness, not demo-only polish.
+- MME-0025 unreviewed detail: audit whether CSS-only compatibility tokens carried from MME-0039 (`border-strong`, accent hover/soft variants, warning/code/preview/topbar/overlay/content-measure) should remain CSS-only, become typed `MmeTheme` keys, or collapse into the strict public token set during MME-0030/public-release hardening. The human accepted the MME-0025 direction but did not explicitly review each compatibility token.
+- MME-0025 unreviewed detail: audit every default icon glyph, icon-only label, toolbar density, and light/dark accessibility state before public release. The human accepted the toolbar icon direction but did not explicitly review each icon asset as final.
 
 ## Advanced Editor Preferences
 

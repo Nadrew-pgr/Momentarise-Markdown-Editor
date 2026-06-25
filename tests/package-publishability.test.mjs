@@ -12,7 +12,8 @@ const packages = [
   "@momentarise/md-preview-html",
   "@momentarise/md-rich-prosemirror",
   "@momentarise/md-save",
-  "@momentarise/md-source-codemirror"
+  "@momentarise/md-source-codemirror",
+  "@momentarise/md-theme"
 ];
 
 const packagePaths = Object.fromEntries(
@@ -31,6 +32,15 @@ for (const packageName of packages) {
   assert(manifest.files?.includes("dist"), `${packageName} must publish dist only for now.`);
 }
 
+assert(
+  manifests["@momentarise/md-theme"].exports?.["./tokens.css"] === "./src/tokens.css",
+  "@momentarise/md-theme must export its token CSS artifact."
+);
+assert(
+  manifests["@momentarise/md-theme"].files?.includes("src/tokens.css"),
+  "@momentarise/md-theme must include tokens.css in package artifacts."
+);
+
 assertScript("test:consumer-smoke");
 
 const codeMirrorPeers = [
@@ -41,6 +51,7 @@ const codeMirrorPeers = [
   "@codemirror/search",
   "@codemirror/state",
   "@codemirror/view",
+  "@lezer/highlight",
   "codemirror"
 ];
 const sourceManifest = manifests["@momentarise/md-source-codemirror"];

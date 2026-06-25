@@ -63,6 +63,13 @@ import {
   type RichMarkdownState
 } from "@momentarise/md-rich-prosemirror";
 import { createMomentariseSourceExtensions } from "@momentarise/md-source-codemirror";
+import {
+  defaultIconSet,
+  resolveThemeToCssVariables,
+  type IconName,
+  type MmeScheme,
+  type MmeTheme
+} from "@momentarise/md-theme";
 import { Plugin, PluginKey, TextSelection, type EditorState as ProseMirrorEditorState } from "prosemirror-state";
 import { Decoration, DecorationSet, EditorView as ProseMirrorEditorView } from "prosemirror-view";
 import {
@@ -96,6 +103,10 @@ const canonical = "Markdown";
 
 const app = queryRequired<HTMLDivElement>("#app");
 let referenceSurfacePreferences: ReferenceEditorPreferences = resolveReferenceEditorPreferences();
+
+function toolbarIcon(name: IconName): string {
+  return `<span class="toolbar-icon" aria-hidden="true">${defaultIconSet.render(name)}</span>`;
+}
 
 app.innerHTML = `
   <main class="shell reference-editor-shell" data-testid="reference-editor-shell">
@@ -208,27 +219,27 @@ app.innerHTML = `
           </div>
         </div>
         <div class="rich-command-toolbar" data-testid="rich-command-toolbar" aria-label="Rich editing toolbar" hidden>
-          <button class="toolbar-button" type="button" data-rich-command="heading1" data-testid="toolbar-command-heading1">H1</button>
-          <button class="toolbar-button" type="button" data-rich-command="heading2" data-testid="toolbar-command-heading2">H2</button>
-          <button class="toolbar-button" type="button" data-rich-command="bold" data-testid="toolbar-command-bold">B</button>
-          <button class="toolbar-button" type="button" data-rich-command="italic" data-testid="toolbar-command-italic">I</button>
-          <button class="toolbar-button" type="button" data-rich-command="todo" data-testid="toolbar-command-todo">Todo</button>
-          <button class="toolbar-button" type="button" data-rich-command="bulletList" data-testid="toolbar-command-bulletList">List</button>
-          <button class="toolbar-button" type="button" data-rich-command="blockquote" data-testid="toolbar-command-blockquote">Quote</button>
-          <button class="toolbar-button" type="button" data-rich-command="codeBlock" data-testid="toolbar-command-codeBlock">Code block</button>
-          <button class="toolbar-button" type="button" data-rich-command="link" data-testid="toolbar-command-link">Link</button>
-          <button class="toolbar-button" type="button" data-rich-command="divider" data-testid="toolbar-command-divider">Divider</button>
-          <button class="toolbar-button toolbar-ai-button" type="button" data-reference-ai-toolbar data-testid="toolbar-ai-button">AI</button>
+          <button class="toolbar-button" type="button" data-rich-command="heading1" data-testid="toolbar-command-heading1">${toolbarIcon("heading")}<span>H1</span></button>
+          <button class="toolbar-button" type="button" data-rich-command="heading2" data-testid="toolbar-command-heading2">${toolbarIcon("heading")}<span>H2</span></button>
+          <button class="toolbar-button" type="button" data-rich-command="bold" data-testid="toolbar-command-bold" aria-label="Bold" title="Bold">${toolbarIcon("bold")}</button>
+          <button class="toolbar-button" type="button" data-rich-command="italic" data-testid="toolbar-command-italic" aria-label="Italic" title="Italic">${toolbarIcon("italic")}</button>
+          <button class="toolbar-button" type="button" data-rich-command="todo" data-testid="toolbar-command-todo">${toolbarIcon("todo")}<span>Todo</span></button>
+          <button class="toolbar-button" type="button" data-rich-command="bulletList" data-testid="toolbar-command-bulletList">${toolbarIcon("list")}<span>List</span></button>
+          <button class="toolbar-button" type="button" data-rich-command="blockquote" data-testid="toolbar-command-blockquote">${toolbarIcon("quote")}<span>Quote</span></button>
+          <button class="toolbar-button" type="button" data-rich-command="codeBlock" data-testid="toolbar-command-codeBlock">${toolbarIcon("code")}<span>Code block</span></button>
+          <button class="toolbar-button" type="button" data-rich-command="link" data-testid="toolbar-command-link">${toolbarIcon("link")}<span>Link</span></button>
+          <button class="toolbar-button" type="button" data-rich-command="divider" data-testid="toolbar-command-divider">${toolbarIcon("divider")}<span>Divider</span></button>
+          <button class="toolbar-button toolbar-ai-button" type="button" data-reference-ai-toolbar data-testid="toolbar-ai-button">${toolbarIcon("ai")}<span>AI</span></button>
           <div class="toolbar-more">
-            <button class="toolbar-button" type="button" data-testid="toolbar-more-button" aria-expanded="false">More</button>
+            <button class="toolbar-button" type="button" data-testid="toolbar-more-button" aria-expanded="false">${toolbarIcon("more")}<span>More</span></button>
             <div class="toolbar-more-menu" data-testid="toolbar-more-menu" hidden>
-              <button class="toolbar-menu-item" type="button" data-rich-command="paragraph">Paragraph</button>
-              <button class="toolbar-menu-item" type="button" data-rich-command="heading3">H3</button>
-              <button class="toolbar-menu-item" type="button" data-rich-command="orderedList">Numbered list</button>
-              <button class="toolbar-menu-item" type="button" data-rich-command="callout">Callout</button>
-              <button class="toolbar-menu-item" type="button" data-rich-command="toggleBlock" data-testid="toolbar-command-toggleBlock">Toggle block</button>
-              <button class="toolbar-menu-item" type="button" data-rich-command="image">Image</button>
-              <button class="toolbar-menu-item" type="button" data-rich-command="inlineCode">Inline code</button>
+              <button class="toolbar-menu-item" type="button" data-rich-command="paragraph">${toolbarIcon("heading")}<span>Paragraph</span></button>
+              <button class="toolbar-menu-item" type="button" data-rich-command="heading3">${toolbarIcon("heading")}<span>H3</span></button>
+              <button class="toolbar-menu-item" type="button" data-rich-command="orderedList">${toolbarIcon("list")}<span>Numbered list</span></button>
+              <button class="toolbar-menu-item" type="button" data-rich-command="callout">${toolbarIcon("quote")}<span>Callout</span></button>
+              <button class="toolbar-menu-item" type="button" data-rich-command="toggleBlock" data-testid="toolbar-command-toggleBlock">${toolbarIcon("chevron")}<span>Toggle block</span></button>
+              <button class="toolbar-menu-item" type="button" data-rich-command="image">${toolbarIcon("image")}<span>Image</span></button>
+              <button class="toolbar-menu-item" type="button" data-rich-command="inlineCode">${toolbarIcon("code")}<span>Inline code</span></button>
             </div>
           </div>
         </div>
@@ -880,6 +891,7 @@ updateRoundTripStatus();
 
 window.__MME_DEMO_VISUAL_CHECK__ = {
   editor,
+  applyHostThemeForTest,
   getMarkdown,
   getEditorMode() {
     return editorMode;
@@ -2931,6 +2943,14 @@ function clearEditorNotice(): void {
   editorNotice.textContent = "";
 }
 
+function applyHostThemeForTest(theme: MmeTheme, scheme: MmeScheme = "dark"): void {
+  document.documentElement.dataset.mmeScheme = scheme;
+  const variables = resolveThemeToCssVariables(theme, scheme);
+  for (const [property, value] of Object.entries(variables)) {
+    document.documentElement.style.setProperty(property, value);
+  }
+}
+
 function queryRequired<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
   if (!element) {
@@ -2943,6 +2963,7 @@ declare global {
   interface Window {
     __MME_DEMO_VISUAL_CHECK__: {
       editor: CodeMirrorEditorView;
+      applyHostThemeForTest: (theme: MmeTheme, scheme?: MmeScheme) => void;
       flushSave: (reason: SaveFlushReason) => Promise<void>;
       forceStatusRefresh: () => void;
       getActiveDocument: () => {

@@ -3267,3 +3267,108 @@
   - This evidence was added in a follow-up docs-only commit because the hash/push result cannot be known before the issue commit exists.
 - Next issue:
   - `MME-0025 — Theming contracts: tokens, host theme, icon set`.
+
+### MME-0025 — Theming contracts: tokens, host theme, icon set
+
+- Timestamp: 2026-06-25T16:01:07+02:00
+- Status: code-complete; human review required before completion, commit, push, or moving to `MME-0026`.
+- Goal:
+  - Establish layer 1 and 2 of the theming/settings separation: `@momentarise/md-theme` design tokens, DOM-free host theme contract, and framework-free icon set contract.
+- RED proof:
+  - Added `tests/type-contracts.test.ts` imports/usages for `@momentarise/md-theme`.
+  - Before implementation, `npm run test:contracts` failed with missing module `@momentarise/md-theme`.
+  - Added `tests/theme-contracts.test.mjs` and `tests/theme-tokens.test.mjs`.
+  - Before implementation, `npm run test:theme` failed because `packages/md-theme/dist/index.js` was absent; after the package existed it failed because demo CSS still owned token values locally.
+- Change:
+  - Added `packages/md-theme` with `ThemeContract`, `MmeScheme`, `MmeTheme`, `ResolvedMmeTheme`, strict public `MME_TOKEN_VARIABLES`, `resolveTheme`, `resolveThemeToCssVariables`, `IconSet`, `IconName`, `ComponentClassOverrides`, `defaultIconSet`, and `tokens.css`.
+  - Lifted the MME-0039 dark/light values into `@momentarise/md-theme/tokens.css`, added the prescribed spacing/density tokens, and made dark the default scheme with light via `data-mme-scheme="light"`.
+  - Migrated demo CSS to import `@momentarise/md-theme/tokens.css`; removed local root token definitions and legacy `--line` / `--font-mono` aliases.
+  - Migrated the rich toolbar to render the default `IconSet` while keeping command labels where useful and `aria-label` on icon-only bold/italic buttons.
+  - Added a demo visual-test hook that applies a host partial `MmeTheme` at runtime through `resolveThemeToCssVariables`.
+  - Migrated `@momentarise/md-source-codemirror` from `--line`/`--font-mono` and CodeMirror `defaultHighlightStyle` to `--mme-*` tokens plus a package-owned `HighlightStyle`.
+  - Added `@lezer/highlight` as a direct peer/dev dependency for `@momentarise/md-source-codemirror` because the package now imports `tags` directly.
+  - Added `visual:mme-0025` and consumer-smoke/publishability wiring for `@momentarise/md-theme`.
+- Files changed:
+  - `packages/md-theme/`
+  - `packages/md-source-codemirror/package.json`
+  - `packages/md-source-codemirror/src/index.ts`
+  - `apps/md-demo/package.json`
+  - `apps/md-demo/src/main.ts`
+  - `apps/md-demo/src/styles.css`
+  - `apps/md-demo/tsconfig.json`
+  - `package.json`
+  - `package-lock.json`
+  - `tsconfig.json`
+  - `tsconfig.base.json`
+  - `tsconfig.tests.json`
+  - `tests/type-contracts.test.ts`
+  - `tests/no-host-imports.mjs`
+  - `tests/package-publishability.test.mjs`
+  - `tests/theme-contracts.test.mjs`
+  - `tests/theme-tokens.test.mjs`
+  - `scripts/consumer-smoke.mjs`
+  - `scripts/visual-check-mme0025.mjs`
+  - `docs/internal/visual-checks/MME-0025/`
+  - `docs/internal/build-log.md`
+- Visual impact:
+  - Editing surface: source and rich surfaces now consume tokens from `@momentarise/md-theme`; CodeMirror syntax highlighting uses MME token colors instead of the light-oriented default highlighter.
+  - General UI: toolbar commands now render default package icons; dark/light and host theme overrides flow through token variables.
+  - No save/open/persistence, parser, serializer, policy, AI provider, or rich editing behavior changes intended.
+- Visual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174 --strictPort --force`.
+  - Local URL: `http://127.0.0.1:5174/`.
+  - `npm run visual:mme-0025` — first sandboxed run failed because Chrome exited with `SIGABRT` before CDP; rerun with system Chrome permission was green.
+  - Artifacts:
+    - `docs/internal/visual-checks/MME-0025/theme-default-dark-toolbar.png`
+    - `docs/internal/visual-checks/MME-0025/theme-light-toolbar.png`
+    - `docs/internal/visual-checks/MME-0025/theme-host-override.png`
+    - `docs/internal/visual-checks/MME-0025/README.md`
+- Checks run:
+  - `npm run test:contracts` — RED before implementation, green after implementation.
+  - `npm run test:theme` — RED before implementation, green after implementation.
+  - `npm run test:architecture` — green.
+  - `npm run test:publishability` — green.
+  - `npm run build:demo` — failed once before adding the demo project reference to `md-theme`, green after; existing Vite chunk-size warning only.
+  - `npm run test:demo-commands` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:source-codemirror` — green.
+  - `npm run visual:mme-0025` — green with system Chrome permission.
+  - `npm test` — green; existing Vite chunk-size warning only.
+  - `npm run test:consumer-smoke` — sandboxed run failed because npm could not write logs under `~/.npm/_logs`; rerun with permission was green. It packed all 12 packages including `@momentarise/md-theme` with `src/tokens.css`, installed npm and pnpm strict consumers, ran `tsc --noEmit`, ran `vite build`, and checked single editor-engine instances.
+  - `git diff --check` — green.
+- Reviewer/fallback:
+  - Fallback Architecture/UX/DX self-review performed because subagent/tool policy does not allow spawning reviewer subagents unless the human explicitly asks for delegation.
+  - Review covered DOM-free theme contracts, CSS/token ownership, demo host-side variable application, default icon SVG boundary, CodeMirror peer dependency hygiene, package export shape, visual toolbar state, and consumer smoke behavior.
+- Deviations / review focus:
+  - The public typed token list in `MME_TOKEN_VARIABLES` follows the exact prescriptive MME-0025 set.
+  - `tokens.css` also carries MME-0039 compatibility variables already consumed by the accepted demo CSS (`--mme-color-border-strong`, accent hover/soft variants, warning/code/preview/topbar/overlay/content-measure tokens). These are not exposed as `MmeTheme` keys in this slice. Human/architecture review should decide whether to keep them as CSS-only compatibility tokens, promote them later, or collapse them during MME-0030.
+- Human review:
+  - Required before marking complete because MME-0025 sets public theming direction.
+  - Human should review default token direction, toolbar icon direction, dark/light switch, and host override behavior using `http://127.0.0.1:5174/` plus the three screenshots above.
+- Commit status:
+  - Not committed yet. Commit blocker: issue is code-complete but human review is required before completion; per Gate 0.64, pending work is not committed unless the human explicitly asks for a pending-status commit.
+- Push status:
+  - Not pushed. Push blocker: no accepted issue commit exists yet.
+- Next issue:
+  - `MME-0026 — Preferences, settings locks, and capability contracts`, only after human review accepts MME-0025, then issue-scoped commit and push are completed.
+
+### Human decision — MME-0025 accepted and commit/push authorized
+
+- Timestamp: 2026-06-25T16:47:23+02:00
+- Status: completed; `MME-0026` is unblocked after commit and push.
+- Human decision:
+  - The human accepted `MME-0025` after reviewing the theming/icon direction at the level they wanted.
+  - The human asked to commit and push, then continue.
+  - The human also asked to backlog the details they did not explicitly review.
+- Backlog notes added:
+  - `docs/internal/BACKLOG.md` now records that MME-0025 compatibility tokens from MME-0039 were not individually reviewed and should be audited during MME-0030/public-release hardening.
+  - `docs/internal/BACKLOG.md` now records that each default icon glyph, icon-only label, toolbar density, and light/dark accessibility state were not individually reviewed as final assets.
+- Source-of-truth docs updated:
+  - `README.md` lists MME-0025 as completed and sets current slice to `MME-0026`.
+  - `docs/internal/ISSUES.md` marks MME-0025 completed and MME-0026 unblocked after commit/push.
+- Commit status:
+  - Pending at the time of this build-log entry; issue-scoped commit authorized.
+- Push status:
+  - Pending at the time of this build-log entry; push authorized after commit.
+- Next issue:
+  - `MME-0026 — Preferences, settings locks, and capability contracts`.

@@ -19,6 +19,14 @@ import type { HtmlPreviewContract } from "@momentarise/md-preview-html";
 import type { MomentariseRichProseMirrorContract } from "@momentarise/md-rich-prosemirror";
 import type { SaveEngineContract } from "@momentarise/md-save";
 import type { MomentariseSourceCodeMirrorContract } from "@momentarise/md-source-codemirror";
+import type {
+  ComponentClassOverrides,
+  IconName,
+  IconSet,
+  MmeScheme,
+  MmeTheme,
+  ThemeContract
+} from "@momentarise/md-theme";
 import type { WebAdapterContract } from "@momentarise/md-adapter-web";
 import type { CliContract } from "@momentarise/md-cli";
 
@@ -135,6 +143,37 @@ const sourceCodeMirrorContract: MomentariseSourceCodeMirrorContract = {
   sourceMode: "codemirror6"
 };
 
+const themeContract: ThemeContract = {
+  packageName: "@momentarise/md-theme",
+  contract: "theme"
+};
+
+const hostTheme: MmeTheme = {
+  colors: {
+    accent: "#ff00aa"
+  },
+  shape: {
+    radiusMd: "10px"
+  },
+  spacing: {
+    density: "1.1"
+  },
+  typography: {
+    fontScale: "1.08"
+  }
+};
+
+const scheme: MmeScheme = "dark";
+const iconName: IconName = "save";
+const iconSet: IconSet = {
+  render(name) {
+    return `<svg data-icon="${name}" viewBox="0 0 16 16" aria-hidden="true"></svg>`;
+  }
+};
+const classOverrides: ComponentClassOverrides = {
+  toolbar: "host-toolbar"
+};
+
 const cliContract: CliContract = {
   packageName: "@momentarise/md-cli",
   dependsOnCore: true,
@@ -153,5 +192,11 @@ void markdownEditorContract;
 void htmlPreviewContract;
 void richProseMirrorContract;
 void sourceCodeMirrorContract;
+void themeContract;
+void hostTheme;
+void scheme;
+void iconName;
+void iconSet;
+void classOverrides;
 void webAdapterContract;
 void cliContract;

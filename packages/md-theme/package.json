@@ -1,0 +1,41 @@
+{
+  "name": "@momentarise/md-theme",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Design tokens, host theme contract, and icon set contract for Momentarise Markdown Editor.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor.git",
+    "directory": "packages/md-theme"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "markdown",
+    "editor",
+    "momentarise",
+    "theme",
+    "tokens"
+  ],
+  "sideEffects": [
+    "./src/tokens.css"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./tokens.css": "./src/tokens.css"
+  },
+  "files": [
+    "dist",
+    "src/tokens.css"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  }
+}
