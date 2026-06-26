@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import {
+  createMomentariseSourceCompartments,
   createMomentariseSourceExtensions,
+  createMomentariseSourceReconfigureEffects,
   momentariseSourceKeymap,
   momentariseSourcePackage
 } from "../packages/md-source-codemirror/dist/index.js";
@@ -25,6 +27,24 @@ if (!Array.isArray(createMomentariseSourceExtensions()) || createMomentariseSour
 
 if (!Array.isArray(momentariseSourceKeymap()) || momentariseSourceKeymap().length === 0) {
   throw new Error("Source package must expose reusable source keymaps.");
+}
+
+const compartments = createMomentariseSourceCompartments();
+for (const key of ["behavior", "keymap", "theme"]) {
+  if (!compartments[key]) {
+    throw new Error(`Source package must expose a CodeMirror ${key} Compartment for live preferences.`);
+  }
+}
+
+const reconfigureEffects = createMomentariseSourceReconfigureEffects(compartments, {
+  density: "compact",
+  keymapDelegateToHost: true,
+  keymapProfile: "delegate",
+  lineWrapping: false,
+  readableLineWidth: 720
+});
+if (!Array.isArray(reconfigureEffects) || reconfigureEffects.length < 3) {
+  throw new Error("Source package must produce CodeMirror StateEffects for live preference changes.");
 }
 
 const demoSource = readFileSync("apps/md-demo/src/main.ts", "utf8");

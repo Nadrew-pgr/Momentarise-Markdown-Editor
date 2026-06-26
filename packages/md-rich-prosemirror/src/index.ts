@@ -114,7 +114,13 @@ export interface RichMarkdownCommandResult {
 
 export interface CreateRichMarkdownStateOptions {
   readonly dialect?: DocumentDialect;
+  readonly preferences?: MomentariseRichPreferences;
   readonly schema?: MomentariseRichSchema;
+}
+
+export interface MomentariseRichPreferences {
+  readonly keymapDelegateToHost?: boolean;
+  readonly keymapProfile?: "default" | "delegate" | "minimal";
 }
 
 export interface RichMarkdownState {
@@ -261,22 +267,20 @@ export function createMomentariseRichSchema(): MomentariseRichSchema {
   }) as MomentariseRichSchema;
 }
 
-export function createMomentariseRichPlugins(): Plugin[] {
-  return [
+export function createMomentariseRichPlugins(preferences: MomentariseRichPreferences = {}): Plugin[] {
+  const normalized = normalizeRichPreferences(preferences);
+  const plugins: Plugin[] = [
     createRichInputRulesPlugin(),
-    createTodoTogglePlugin(),
-    keymap({
-      "Mod-z": chainCommands(undoRichInputRuleCommand, undo),
-      "Mod-y": redo,
-      "Mod-Shift-z": redo,
-      Backspace: liftOrMergeListItemAtStartCommand,
-      Enter: chainCommands(newlineInCode, splitListItemCommand, createParagraphNear, liftEmptyBlock, splitBlock),
-      Tab: sinkListItemCommand,
-      "Shift-Tab": liftListItemCommand
-    }),
-    history(),
-    keymap(baseKeymap)
+    createTodoTogglePlugin()
   ];
+  if (!normalized.keymapDelegateToHost && normalized.keymapProfile !== "delegate") {
+    plugins.push(...createRichKeymapPlugins(normalized));
+  }
+  plugins.push(history());
+  if (!normalized.keymapDelegateToHost && normalized.keymapProfile !== "delegate") {
+    plugins.push(keymap(baseKeymap));
+  }
+  return plugins;
 }
 
 export function createRichMarkdownState(
@@ -290,7 +294,7 @@ export function createRichMarkdownState(
   const doc = markdownDocumentToProseMirror(parseResult, schema);
   const editorState = EditorState.create({
     doc,
-    plugins: createMomentariseRichPlugins(),
+    plugins: createMomentariseRichPlugins(options.preferences),
     schema
   });
   const frontmatterSource = extractLeadingFrontmatterSource(source);
@@ -311,6 +315,18 @@ export function createRichMarkdownState(
   };
 }
 
+export function reconfigureRichPlugins(
+  state: RichMarkdownState,
+  preferences: MomentariseRichPreferences = {}
+): RichMarkdownState {
+  return {
+    ...state,
+    editorState: state.editorState.reconfigure({
+      plugins: createMomentariseRichPlugins(preferences)
+    })
+  };
+}
+
 export function filterRichMarkdownCommands(query: string): readonly RichMarkdownCommand[] {
   const normalized = normalizeCommandQuery(query);
   if (!normalized) {
@@ -319,6 +335,36 @@ export function filterRichMarkdownCommands(query: string): readonly RichMarkdown
   return richCommandRegistry.filter((command) =>
     [command.id, command.label, ...command.aliases].some((candidate) => normalizeCommandQuery(candidate).includes(normalized))
   );
+}
+
+function createRichKeymapPlugins(preferences: Required<MomentariseRichPreferences>): Plugin[] {
+  if (preferences.keymapProfile === "minimal") {
+    return [
+      keymap({
+        "Mod-z": undo,
+        "Mod-y": redo,
+        "Mod-Shift-z": redo
+      })
+    ];
+  }
+  return [
+    keymap({
+      "Mod-z": chainCommands(undoRichInputRuleCommand, undo),
+      "Mod-y": redo,
+      "Mod-Shift-z": redo,
+      Backspace: liftOrMergeListItemAtStartCommand,
+      Enter: chainCommands(newlineInCode, splitListItemCommand, createParagraphNear, liftEmptyBlock, splitBlock),
+      Tab: sinkListItemCommand,
+      "Shift-Tab": liftListItemCommand
+    })
+  ];
+}
+
+function normalizeRichPreferences(preferences: MomentariseRichPreferences = {}): Required<MomentariseRichPreferences> {
+  return {
+    keymapDelegateToHost: preferences.keymapDelegateToHost ?? false,
+    keymapProfile: preferences.keymapProfile ?? "default"
+  };
 }
 
 export function applyRichMarkdownCommand(

@@ -4,6 +4,7 @@ const requiredExports = [
   "momentariseRichProseMirrorPackage",
   "createMomentariseRichSchema",
   "createRichMarkdownState",
+  "reconfigureRichPlugins",
   "replaceFirstRichText",
   "serializeRichMarkdownState"
 ];
@@ -45,6 +46,20 @@ const state = rich.createRichMarkdownState(source, {
 
 if (state.diagnostics.length === 0) {
   throw new Error("Rich state should include diagnostics proving parse/bridge work.");
+}
+
+const reconfigured = rich.reconfigureRichPlugins(state, {
+  keymapDelegateToHost: true,
+  keymapProfile: "delegate"
+});
+if (reconfigured === state) {
+  throw new Error("Rich reconfiguration must return a new rich state wrapper.");
+}
+if (reconfigured.editorState === state.editorState) {
+  throw new Error("Rich reconfiguration must create a new ProseMirror EditorState without reparsing Markdown.");
+}
+if (reconfigured.source !== state.source) {
+  throw new Error("Rich reconfiguration must not mutate the canonical Markdown source.");
 }
 
 const editedHeading = rich.replaceFirstRichText(state, "Original Heading", "Edited Heading");

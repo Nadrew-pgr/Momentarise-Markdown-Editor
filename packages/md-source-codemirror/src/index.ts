@@ -2,7 +2,7 @@ import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { markdown, markdownKeymap } from "@codemirror/lang-markdown";
 import { bracketMatching, HighlightStyle, indentOnInput, syntaxHighlighting } from "@codemirror/language";
-import { EditorState, Prec, Transaction, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, Prec, Transaction, type Extension, type StateEffect } from "@codemirror/state";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
 import {
   drawSelection,
@@ -23,8 +23,25 @@ export interface MomentariseSourceCodeMirrorContract {
 }
 
 export interface MomentariseSourceExtensionOptions {
+  readonly compartments?: MomentariseSourceCompartments;
   readonly onSave?: () => boolean;
   readonly includeDefaultTheme?: boolean;
+  readonly preferences?: MomentariseSourcePreferences;
+}
+
+export interface MomentariseSourceCompartments {
+  readonly behavior: Compartment;
+  readonly keymap: Compartment;
+  readonly theme: Compartment;
+}
+
+export interface MomentariseSourcePreferences {
+  readonly density?: "compact" | "comfortable" | "spacious";
+  readonly fontScale?: number;
+  readonly keymapDelegateToHost?: boolean;
+  readonly keymapProfile?: "default" | "delegate" | "minimal";
+  readonly lineWrapping?: boolean;
+  readonly readableLineWidth?: number;
 }
 
 export const momentariseSourcePackage: MomentariseSourceCodeMirrorContract = {
@@ -33,6 +50,7 @@ export const momentariseSourcePackage: MomentariseSourceCodeMirrorContract = {
 };
 
 export function createMomentariseSourceExtensions(options: MomentariseSourceExtensionOptions = {}): Extension[] {
+  const preferences = normalizeSourcePreferences(options.preferences);
   const extensions: Extension[] = [
     lineNumbers(),
     highlightActiveLineGutter(),
@@ -48,63 +66,49 @@ export function createMomentariseSourceExtensions(options: MomentariseSourceExte
     highlightActiveLine(),
     highlightSelectionMatches(),
     markdown({ addKeymap: false }),
-    Prec.highest(EditorView.domEventHandlers({
-      keydown(event, view) {
-        if (event.key !== "Enter") {
-          return false;
-        }
-        const handled = exitEmptyMarkdownMarkup(view);
-        if (handled) {
-          event.preventDefault();
-        }
-        return handled;
-      }
-    })),
-    Prec.highest(keymap.of(momentariseSourcePriorityKeymap(options))),
-    Prec.low(keymap.of([
-      ...markdownKeymap,
-      ...closeBracketsKeymap,
-      ...defaultKeymap,
-      ...searchKeymap,
-      ...historyKeymap,
-      indentWithTab
-    ])),
-    EditorView.lineWrapping
+    sourceCompartmentExtension(options.compartments?.behavior, createSourceBehaviorExtension(preferences)),
+    sourceCompartmentExtension(options.compartments?.keymap, createSourceKeymapExtension(options, preferences))
   ];
 
   if (options.includeDefaultTheme !== false) {
-    extensions.push(
-      EditorView.theme({
-        "&": {
-          height: "100%"
-        },
-        ".cm-scroller": {
-          fontFamily: "var(--mme-font-family-mono)",
-          fontSize: "calc(var(--mme-font-size-base) * var(--mme-font-scale))",
-          lineHeight: "var(--mme-line-height)"
-        },
-        ".cm-content": {
-          padding:
-            "calc(var(--mme-space-6) * var(--mme-density)) calc(var(--mme-space-6) * var(--mme-density))"
-        },
-        ".cm-gutters": {
-          backgroundColor: "transparent",
-          borderRight: "1px solid var(--mme-color-border)"
-        },
-        ".cm-activeLine, .cm-activeLineGutter": {
-          backgroundColor: "var(--mme-color-surface)"
-        },
-        ".cm-cursor, .cm-dropCursor": {
-          borderLeftColor: "var(--mme-color-text)"
-        },
-        ".cm-selectionBackground, &.cm-focused .cm-selectionBackground, .cm-content ::selection": {
-          backgroundColor: "var(--mme-color-selection) !important"
-        }
-      })
-    );
+    extensions.push(sourceCompartmentExtension(options.compartments?.theme, createSourceThemeExtension(preferences)));
   }
 
   return extensions;
+}
+
+export function createMomentariseSourceCompartments(): MomentariseSourceCompartments {
+  return {
+    behavior: new Compartment(),
+    keymap: new Compartment(),
+    theme: new Compartment()
+  };
+}
+
+export function createMomentariseSourcePreferenceExtensions(
+  compartments: MomentariseSourceCompartments,
+  preferences: MomentariseSourcePreferences = {},
+  options: Pick<MomentariseSourceExtensionOptions, "includeDefaultTheme" | "onSave"> = {}
+): Extension[] {
+  const normalized = normalizeSourcePreferences(preferences);
+  return [
+    compartments.behavior.of(createSourceBehaviorExtension(normalized)),
+    compartments.keymap.of(createSourceKeymapExtension(options, normalized)),
+    compartments.theme.of(options.includeDefaultTheme === false ? [] : createSourceThemeExtension(normalized))
+  ];
+}
+
+export function createMomentariseSourceReconfigureEffects(
+  compartments: MomentariseSourceCompartments,
+  preferences: MomentariseSourcePreferences = {},
+  options: Pick<MomentariseSourceExtensionOptions, "includeDefaultTheme" | "onSave"> = {}
+): StateEffect<unknown>[] {
+  const normalized = normalizeSourcePreferences(preferences);
+  return [
+    compartments.behavior.reconfigure(createSourceBehaviorExtension(normalized)),
+    compartments.keymap.reconfigure(createSourceKeymapExtension(options, normalized)),
+    compartments.theme.reconfigure(options.includeDefaultTheme === false ? [] : createSourceThemeExtension(normalized))
+  ];
 }
 
 const momentariseMarkdownHighlightStyle = HighlightStyle.define([
@@ -156,6 +160,81 @@ export function momentariseSourceKeymap(options: MomentariseSourceExtensionOptio
   ];
 }
 
+function createSourceBehaviorExtension(preferences: Required<MomentariseSourcePreferences>): Extension {
+  return [
+    Prec.highest(EditorView.domEventHandlers({
+      keydown(event, view) {
+        if (event.key !== "Enter") {
+          return false;
+        }
+        const handled = exitEmptyMarkdownMarkup(view);
+        if (handled) {
+          event.preventDefault();
+        }
+        return handled;
+      }
+    })),
+    preferences.lineWrapping ? EditorView.lineWrapping : []
+  ];
+}
+
+function createSourceKeymapExtension(
+  options: Pick<MomentariseSourceExtensionOptions, "onSave">,
+  preferences: Required<MomentariseSourcePreferences>
+): Extension {
+  if (preferences.keymapDelegateToHost || preferences.keymapProfile === "delegate") {
+    return [];
+  }
+  const baseBindings =
+    preferences.keymapProfile === "minimal"
+      ? [...defaultKeymap, ...historyKeymap]
+      : [
+          ...markdownKeymap,
+          ...closeBracketsKeymap,
+          ...defaultKeymap,
+          ...searchKeymap,
+          ...historyKeymap,
+          indentWithTab
+        ];
+  return [
+    Prec.highest(keymap.of(momentariseSourcePriorityKeymap(options))),
+    Prec.low(keymap.of(baseBindings))
+  ];
+}
+
+function createSourceThemeExtension(preferences: Required<MomentariseSourcePreferences>): Extension {
+  return EditorView.theme({
+    "&": {
+      "--mme-density": sourceDensityValue(preferences.density),
+      "--mme-font-scale": String(preferences.fontScale),
+      height: "100%"
+    },
+    ".cm-scroller": {
+      fontFamily: "var(--mme-font-family-mono)",
+      fontSize: "calc(var(--mme-font-size-base) * var(--mme-font-scale))",
+      lineHeight: "var(--mme-line-height)"
+    },
+    ".cm-content": {
+      maxWidth: `${preferences.readableLineWidth}px`,
+      padding:
+        "calc(var(--mme-space-6) * var(--mme-density)) calc(var(--mme-space-6) * var(--mme-density))"
+    },
+    ".cm-gutters": {
+      backgroundColor: "transparent",
+      borderRight: "1px solid var(--mme-color-border)"
+    },
+    ".cm-activeLine, .cm-activeLineGutter": {
+      backgroundColor: "var(--mme-color-surface)"
+    },
+    ".cm-cursor, .cm-dropCursor": {
+      borderLeftColor: "var(--mme-color-text)"
+    },
+    ".cm-selectionBackground, &.cm-focused .cm-selectionBackground, .cm-content ::selection": {
+      backgroundColor: "var(--mme-color-selection) !important"
+    }
+  });
+}
+
 function momentariseSourcePriorityKeymap(options: MomentariseSourceExtensionOptions = {}): KeyBinding[] {
   return [
     {
@@ -168,6 +247,33 @@ function momentariseSourcePriorityKeymap(options: MomentariseSourceExtensionOpti
       run: exitEmptyMarkdownMarkup
     }
   ];
+}
+
+function normalizeSourcePreferences(preferences: MomentariseSourcePreferences = {}): Required<MomentariseSourcePreferences> {
+  return {
+    density: preferences.density ?? "comfortable",
+    fontScale: preferences.fontScale ?? 1,
+    keymapDelegateToHost: preferences.keymapDelegateToHost ?? false,
+    keymapProfile: preferences.keymapProfile ?? "default",
+    lineWrapping: preferences.lineWrapping ?? true,
+    readableLineWidth: preferences.readableLineWidth ?? 880
+  };
+}
+
+function sourceCompartmentExtension(compartment: Compartment | undefined, extension: Extension): Extension {
+  return compartment ? compartment.of(extension) : extension;
+}
+
+function sourceDensityValue(density: MomentariseSourcePreferences["density"]): string {
+  switch (density) {
+    case "compact":
+      return "0.86";
+    case "spacious":
+      return "1.14";
+    case "comfortable":
+    case undefined:
+      return "1";
+  }
 }
 
 function exitEmptyMarkdownMarkup(view: EditorView): boolean {

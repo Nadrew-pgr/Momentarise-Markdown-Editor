@@ -49,6 +49,7 @@ import {
   getRichFoldVisibility,
   getRichHeadingFoldItems,
   insertParagraphAfterCurrentBlock,
+  reconfigureRichPlugins,
   richCommandRegistry,
   runRichMarkdownCommand,
   serializeRichMarkdownState,
@@ -60,9 +61,15 @@ import {
   type RichHeadingFoldItem,
   type RichCommandId,
   type RichMarkdownCommand,
-  type RichMarkdownState
+  type RichMarkdownState,
+  type MomentariseRichPreferences
 } from "@momentarise/md-rich-prosemirror";
-import { createMomentariseSourceExtensions } from "@momentarise/md-source-codemirror";
+import {
+  createMomentariseSourceCompartments,
+  createMomentariseSourceExtensions,
+  createMomentariseSourceReconfigureEffects,
+  type MomentariseSourcePreferences
+} from "@momentarise/md-source-codemirror";
 import {
   defaultIconSet,
   resolveThemeToCssVariables,
@@ -103,6 +110,7 @@ const canonical = "Markdown";
 
 const app = queryRequired<HTMLDivElement>("#app");
 let referenceSurfacePreferences: ReferenceEditorPreferences = resolveReferenceEditorPreferences();
+const sourcePreferenceCompartments = createMomentariseSourceCompartments();
 
 function toolbarIcon(name: IconName): string {
   return `<span class="toolbar-icon" aria-hidden="true">${defaultIconSet.render(name)}</span>`;
@@ -288,6 +296,8 @@ app.innerHTML = `
               <p><span>Toolbar</span><strong data-testid="surface-toolbar-pref">${referenceSurfacePreferences.toolbarMode}, ${referenceSurfacePreferences.toolbarStyle}</strong></p>
               <p><span>AI entry points</span><strong data-testid="surface-ai-entry-points-pref">${referenceSurfacePreferences.aiEntryPoints.join(", ")}</strong></p>
               <p><span>Status disclosure</span><strong data-testid="surface-status-disclosure-pref">${referenceSurfacePreferences.technicalStatusDisclosure}</strong></p>
+              <p><span>Layout</span><strong data-testid="surface-layout-pref">${referenceSurfacePreferences.layoutDensity}, ${referenceSurfacePreferences.readableLineWidth}px</strong></p>
+              <p><span>Keymap</span><strong data-testid="surface-keymap-pref">${referenceSurfacePreferences.keymapProfile}</strong></p>
             </div>
           </details>
         </section>
@@ -492,6 +502,8 @@ const editorNotice = queryRequired<HTMLElement>('[data-testid="editor-notice"]')
 const surfaceToolbarPrefElement = queryRequired<HTMLElement>('[data-testid="surface-toolbar-pref"]');
 const surfaceAiEntryPointsPrefElement = queryRequired<HTMLElement>('[data-testid="surface-ai-entry-points-pref"]');
 const surfaceStatusDisclosurePrefElement = queryRequired<HTMLElement>('[data-testid="surface-status-disclosure-pref"]');
+const surfaceLayoutPrefElement = queryRequired<HTMLElement>('[data-testid="surface-layout-pref"]');
+const surfaceKeymapPrefElement = queryRequired<HTMLElement>('[data-testid="surface-keymap-pref"]');
 
 let eventCounter = 0;
 let lastCopiedMarkdown: string | null = null;
@@ -565,6 +577,11 @@ const richFoldingPluginKey = new PluginKey<DecorationSet>("momentarise-demo-rich
 let aiSessionStarted = false;
 let commandPaletteSelectedIndex = 0;
 
+function saveFromKeyboardShortcut(): boolean {
+  memorySave("keyboard shortcut");
+  return true;
+}
+
 function createDemoSession(content: string, target: SaveTarget, path: string | null): MarkdownEditorSession {
   return createMarkdownEditorSession({
     aiProvider: demoAiProvider,
@@ -596,10 +613,9 @@ const editor = new CodeMirrorEditorView({
     doc: fixtureMarkdown,
     extensions: [
       ...createMomentariseSourceExtensions({
-        onSave: () => {
-          memorySave("keyboard shortcut");
-          return true;
-        }
+        compartments: sourcePreferenceCompartments,
+        onSave: saveFromKeyboardShortcut,
+        preferences: sourcePreferencesFromReferenceSurface()
       }),
       CodeMirrorEditorView.updateListener.of((update) => {
         if (update.docChanged && editorMode === "source") {
@@ -1664,6 +1680,7 @@ function getAiWritingState(): {
 }
 
 function renderReferenceSurfaceState(): void {
+  applyReferencePreferenceCssVariables();
   const aiGroupVisible = referenceSurfacePreferences.visibleCommandGroups.includes("ai");
   const toolbarAiVisible = aiGroupVisible && isAiEntryPointEnabled("toolbar");
   const selectionAiVisible = aiGroupVisible && isAiEntryPointEnabled("selection");
@@ -1677,6 +1694,7 @@ function renderReferenceSurfaceState(): void {
   app.dataset.toolbarMode = referenceSurfacePreferences.toolbarMode;
   app.dataset.toolbarStyle = referenceSurfacePreferences.toolbarStyle;
   app.dataset.statusDisclosure = referenceSurfacePreferences.technicalStatusDisclosure;
+  richCommandToolbar.hidden = editorMode !== "rich" || referenceSurfacePreferences.toolbarMode === "hidden";
   aiCommandSurface.hidden = !toolbarAiVisible;
   toolbarAiButton.hidden = !toolbarAiVisible || editorMode !== "rich";
   selectedTextAiAction.hidden = !selectionAiVisible;
@@ -1684,6 +1702,71 @@ function renderReferenceSurfaceState(): void {
   surfaceToolbarPrefElement.textContent = `${referenceSurfacePreferences.toolbarMode}, ${referenceSurfacePreferences.toolbarStyle}`;
   surfaceAiEntryPointsPrefElement.textContent = referenceSurfacePreferences.aiEntryPoints.join(", ");
   surfaceStatusDisclosurePrefElement.textContent = referenceSurfacePreferences.technicalStatusDisclosure;
+  surfaceLayoutPrefElement.textContent = `${referenceSurfacePreferences.layoutDensity}, ${referenceSurfacePreferences.readableLineWidth}px`;
+  surfaceKeymapPrefElement.textContent = referenceSurfacePreferences.keymapDelegateToHost
+    ? `${referenceSurfacePreferences.keymapProfile}, delegated`
+    : referenceSurfacePreferences.keymapProfile;
+}
+
+function applyReferenceSurfacePreferences(): void {
+  applyReferencePreferenceCssVariables();
+  editor.dispatch({
+    effects: createMomentariseSourceReconfigureEffects(
+      sourcePreferenceCompartments,
+      sourcePreferencesFromReferenceSurface(),
+      {
+        onSave: saveFromKeyboardShortcut
+      }
+    )
+  });
+  if (!richEditor) {
+    return;
+  }
+  const currentRichState = currentRichStateFromEditor();
+  if (!currentRichState) {
+    return;
+  }
+  richState = withDemoRichPlugins(reconfigureRichPlugins(currentRichState, richPreferencesFromReferenceSurface()));
+  richEditor.updateState(richState.editorState);
+  renderRichBlockControls();
+  renderRichFoldingUi(false);
+}
+
+function applyReferencePreferenceCssVariables(): void {
+  app.style.setProperty("--mme-density", referenceDensityScale(referenceSurfacePreferences.layoutDensity));
+  app.style.setProperty("--mme-font-scale", String(referenceSurfacePreferences.editorFontScale));
+  app.style.setProperty("--mme-active-content-measure", `${referenceSurfacePreferences.readableLineWidth}px`);
+  app.dataset.layoutDensity = referenceSurfacePreferences.layoutDensity;
+  app.dataset.keymapProfile = referenceSurfacePreferences.keymapProfile;
+  app.dataset.keymapDelegateToHost = String(referenceSurfacePreferences.keymapDelegateToHost);
+}
+
+function sourcePreferencesFromReferenceSurface(): MomentariseSourcePreferences {
+  return {
+    density: referenceSurfacePreferences.layoutDensity,
+    fontScale: referenceSurfacePreferences.editorFontScale,
+    keymapDelegateToHost: referenceSurfacePreferences.keymapDelegateToHost,
+    keymapProfile: referenceSurfacePreferences.keymapProfile,
+    readableLineWidth: referenceSurfacePreferences.readableLineWidth
+  };
+}
+
+function richPreferencesFromReferenceSurface(): MomentariseRichPreferences {
+  return {
+    keymapDelegateToHost: referenceSurfacePreferences.keymapDelegateToHost,
+    keymapProfile: referenceSurfacePreferences.keymapProfile
+  };
+}
+
+function referenceDensityScale(density: ReferenceEditorPreferences["layoutDensity"]): string {
+  switch (density) {
+    case "compact":
+      return "0.86";
+    case "spacious":
+      return "1.14";
+    case "comfortable":
+      return "1";
+  }
 }
 
 function isAiEntryPointEnabled(entryPoint: ReferenceEditorPreferences["aiEntryPoints"][number]): boolean {
@@ -1710,10 +1793,15 @@ function getReferenceSurfaceState(): {
   readonly commandPaletteOpen: boolean;
   readonly debugInspectorVisible: boolean;
   readonly documentStatusOpen: boolean;
+  readonly editorFontScale: number;
   readonly hasEditorNativeAi: boolean;
   readonly hasSelectionForAi: boolean;
+  readonly keymapDelegateToHost: boolean;
+  readonly keymapProfile: string;
+  readonly layoutDensity: string;
   readonly modeControl: string;
   readonly optionalStats: boolean;
+  readonly readableLineWidth: number;
   readonly settingsOpen: boolean;
   readonly statusDisclosure: string;
   readonly toolbarMode: string;
@@ -1727,10 +1815,15 @@ function getReferenceSurfaceState(): {
     commandPaletteOpen: !commandPalette.hidden,
     debugInspectorVisible: debugInspector.open,
     documentStatusOpen: documentStatusPopover.open,
+    editorFontScale: referenceSurfacePreferences.editorFontScale,
     hasEditorNativeAi: Boolean(aiCommandSurface && selectedTextAiAction),
     hasSelectionForAi: hasAiEligibleSelection(),
+    keymapDelegateToHost: referenceSurfacePreferences.keymapDelegateToHost,
+    keymapProfile: referenceSurfacePreferences.keymapProfile,
+    layoutDensity: referenceSurfacePreferences.layoutDensity,
     modeControl: referenceSurfacePreferences.modeControl,
     optionalStats: referenceSurfacePreferences.optionalStats,
+    readableLineWidth: referenceSurfacePreferences.readableLineWidth,
     settingsOpen: surfaceSettingsPanel.open,
     statusDisclosure: referenceSurfacePreferences.technicalStatusDisclosure,
     toolbarMode: referenceSurfacePreferences.toolbarMode,
@@ -1743,14 +1836,10 @@ function mountRichEditor(markdown: string): void {
   richEditor?.destroy();
   richEditorHost.replaceChildren();
   const baseRichState = createRichMarkdownState(markdown, {
-    dialect: "momentarise-enhanced"
+    dialect: "momentarise-enhanced",
+    preferences: richPreferencesFromReferenceSurface()
   });
-  richState = {
-    ...baseRichState,
-    editorState: baseRichState.editorState.reconfigure({
-      plugins: [...baseRichState.editorState.plugins, createRichFoldingPlugin()]
-    })
-  };
+  richState = withDemoRichPlugins(baseRichState);
   richBaselineMarkdown = markdown;
   richChanged = false;
   richEditor = new ProseMirrorEditorView(richEditorHost, {
@@ -1781,6 +1870,15 @@ function mountRichEditor(markdown: string): void {
   updateSlashMenuFromRichState();
   renderRichBlockControls();
   renderRichFoldingUi(false);
+}
+
+function withDemoRichPlugins(state: RichMarkdownState): RichMarkdownState {
+  return {
+    ...state,
+    editorState: state.editorState.reconfigure({
+      plugins: [...state.editorState.plugins, createRichFoldingPlugin()]
+    })
+  };
 }
 
 function syncRichMarkdownToSource(source: "rich edit" | "mode switch"): void {
@@ -2629,6 +2727,7 @@ function handleCommandPaletteKeyboard(event: KeyboardEvent): boolean {
 
 function setReferenceSurfacePreferences(preferences: ReferenceEditorPreferenceInput): void {
   referenceSurfacePreferences = resolveReferenceEditorPreferences(preferences);
+  applyReferenceSurfacePreferences();
   renderReferenceSurfaceState();
 }
 
@@ -3034,10 +3133,15 @@ declare global {
         readonly commandPaletteOpen: boolean;
         readonly debugInspectorVisible: boolean;
         readonly documentStatusOpen: boolean;
+        readonly editorFontScale: number;
         readonly hasEditorNativeAi: boolean;
         readonly hasSelectionForAi: boolean;
+        readonly keymapDelegateToHost: boolean;
+        readonly keymapProfile: string;
+        readonly layoutDensity: string;
         readonly modeControl: string;
         readonly optionalStats: boolean;
+        readonly readableLineWidth: number;
         readonly settingsOpen: boolean;
         readonly statusDisclosure: string;
         readonly toolbarMode: string;

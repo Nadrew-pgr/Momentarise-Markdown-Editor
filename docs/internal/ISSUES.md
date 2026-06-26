@@ -1377,6 +1377,8 @@ Architecture Reviewer and UX Reviewer.
 
 ## MME-0026 — Preferences, settings locks, and capability contracts
 
+Completed 2026-06-26. Added the headless `@momentarise/md-editor` preference schema/resolver, document `mme:` allowlist extraction, lock and rejection metadata, source CodeMirror Compartments, rich ProseMirror plugin reconfiguration, and a demo host-preference simulation without adding a settings page. Proven by `tests/preferences-contracts.test.mjs`, `tests/preferences-demo-baseline.test.mjs`, package reconfigure tests, full `npm test`, and `scripts/visual-check-mme0026.mjs` with artifact `docs/internal/visual-checks/MME-0026/runtime-preferences-debug.png`. `MME-0027` is unblocked after issue-scoped commit and push.
+
 ### Goal
 
 Establish layers 3–5 of the separation: user preference contract, editor behavior preferences, and runtime capability flags — with host-controlled exposure and locking. MME must not assume it owns any settings UI.

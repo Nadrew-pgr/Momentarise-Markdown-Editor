@@ -3373,3 +3373,75 @@
   - This evidence was added in a follow-up docs-only commit because the hash/push result cannot be known before the issue commit exists.
 - Next issue:
   - `MME-0026 — Preferences, settings locks, and capability contracts`.
+
+### MME-0026 — Preferences, settings locks, and capability contracts
+
+- Timestamp: 2026-06-26T22:28:00+02:00
+- Status: completed; commit and push pending for this issue-scoped change.
+- Goal:
+  - Establish preference layers 3-5: headless user/editor behavior preferences, locks, runtime capability facts, and host-controlled exposure without assuming MME owns a settings UI.
+- RED proof:
+  - Added `tests/preferences-contracts.test.mjs`; before implementation `npm run test:preferences` failed with missing `DEFAULT_EDITOR_BEHAVIOR_PREFERENCES`.
+  - Extended `tests/source-codemirror-package.test.mjs`; before implementation `npm run test:source-codemirror` failed with missing `createMomentariseSourceCompartments`.
+  - Extended `tests/rich-prosemirror-package.test.mjs`; before implementation `npm run test:rich-prosemirror` failed with missing `reconfigureRichPlugins`.
+- Change:
+  - Added the headless preference contract in `@momentarise/md-editor`: `PreferenceDefinition`, `PreferenceLock`, `ResolvedPreference`, `resolvePreferences`, `extractDocumentPreferences`, `DEFAULT_PREFERENCE_SCHEMA`, `DEFAULT_EDITOR_BEHAVIOR_PREFERENCES`, and `DEFAULT_HOST_CAPABILITIES`.
+  - Implemented resolution precedence framework default -> host -> workspace -> document -> user, with user-visible allowlist rejection, document-scope allowlist diagnostics, lock metadata, and separate host capability facts.
+  - Added CodeMirror source-mode `Compartment` helpers and reconfigure effects for behavior/keymap/theme preferences.
+  - Added ProseMirror rich-mode `MomentariseRichPreferences` and `reconfigureRichPlugins`.
+  - Converted `apps/md-demo/src/reference-surface.ts` into a thin adapter over the headless resolver while preserving the existing MME-0018 export names.
+  - Wired the demo host/test harness to apply preference changes live into source and rich modes. No end-user settings page was added.
+  - Added `visual:mme-0026`, `tests/preferences-demo-baseline.test.mjs`, and `docs/internal/visual-checks/MME-0026/`.
+- Files changed:
+  - `packages/md-editor/src/index.ts`
+  - `packages/md-source-codemirror/src/index.ts`
+  - `packages/md-rich-prosemirror/src/index.ts`
+  - `apps/md-demo/src/reference-surface.ts`
+  - `apps/md-demo/src/main.ts`
+  - `package.json`
+  - `tests/preferences-contracts.test.mjs`
+  - `tests/preferences-demo-baseline.test.mjs`
+  - `tests/source-codemirror-package.test.mjs`
+  - `tests/rich-prosemirror-package.test.mjs`
+  - `tests/type-contracts.test.ts`
+  - `tests/demo-reference-surface-baseline.test.mjs`
+  - `scripts/visual-check-mme0026.mjs`
+  - `docs/internal/visual-checks/MME-0026/`
+  - `README.md`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+- Visual impact:
+  - Debug-host simulation only. The demo can apply host/user preference inputs through `setReferenceSurfacePreferencesForTest`, including density, readable width, keymap profile/delegation, and toolbar mode.
+  - No user-facing settings UI was added.
+- Visual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174 --strictPort --force`.
+  - Local URL: `http://127.0.0.1:5174/`.
+  - `npm run visual:mme-0026` first failed in the sandbox because Chrome exited with `SIGABRT`; rerun with system Chrome permission was green after relaunching the dev server on `5174`.
+  - Artifact: `docs/internal/visual-checks/MME-0026/runtime-preferences-debug.png`.
+  - The script asserts host override, user-visible allowlist behavior, locked toolbar mode, delegated keymap mode, rich-mode live reconfigure, and unchanged rich document text.
+- Checks run:
+  - `npm run test:preferences` — RED before implementation, green after implementation.
+  - `npm run test:source-codemirror` — RED before implementation, green after implementation.
+  - `npm run test:rich-prosemirror` — RED before implementation, green after implementation.
+  - `npm run test:contracts` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:preferences-demo` — green.
+  - `npm run build:demo` — green; existing Vite chunk-size warning only.
+  - `npm run visual:mme-0026` — green with system Chrome permission.
+  - `npm test` — green; existing Vite chunk-size warning only.
+  - `git diff --check` — green.
+- Reviewer/fallback:
+  - Fallback Architecture/DX/Test self-review performed because subagent/tool policy does not allow spawning reviewer subagents unless the human explicitly asks for delegation.
+  - Review covered headless resolver shape, lock semantics, separation from `md-policy`, capability facts vs choices, source/rich runtime reconfigure, demo adapter compatibility with MME-0018, and visual debug proof.
+- Deviations / notes:
+  - The implementation supports list and record preference types in addition to the original issue sketch because behavior keys include list-valued command groups/AI entry points and keymap binding records.
+  - Document scope remains intentionally narrow: only `layout.readableLineWidth` and `stats.enabled` are extracted from `mme:` frontmatter.
+  - `toolbar.mode=hidden` is applied to the rich toolbar in the demo; other toolbar placement variants remain surface-package work for MME-0028/MME-0030.
+- Human review:
+  - Not required by the issue unless lock semantics are ambiguous; lock semantics were implemented from the written issue contract.
+- Commit status:
+  - Not committed yet. This entry is part of the issue-scoped change and will be committed with the implementation.
+- Push status:
+  - Not pushed yet. Push follows the issue-scoped commit.
+- Next issue:
+  - `MME-0027 — Extension registry V0`, only after MME-0026 commit and push are completed.

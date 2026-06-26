@@ -14,11 +14,24 @@ import { nodeId } from "@momentarise/md-core";
 import type { MarkdownFormatContract } from "@momentarise/md-format";
 import type { PolicyContract } from "@momentarise/md-policy";
 import type { AiWritingContract } from "@momentarise/md-ai";
-import type { MarkdownEditorContract } from "@momentarise/md-editor";
+import type {
+  HostCapabilities,
+  MarkdownEditorContract,
+  PreferenceDefinition,
+  PreferenceLock,
+  PreferenceResolutionResult,
+  PreferenceValue
+} from "@momentarise/md-editor";
 import type { HtmlPreviewContract } from "@momentarise/md-preview-html";
-import type { MomentariseRichProseMirrorContract } from "@momentarise/md-rich-prosemirror";
+import type {
+  MomentariseRichPreferences,
+  MomentariseRichProseMirrorContract
+} from "@momentarise/md-rich-prosemirror";
 import type { SaveEngineContract } from "@momentarise/md-save";
-import type { MomentariseSourceCodeMirrorContract } from "@momentarise/md-source-codemirror";
+import type {
+  MomentariseSourceCodeMirrorContract,
+  MomentariseSourcePreferences
+} from "@momentarise/md-source-codemirror";
 import type {
   ComponentClassOverrides,
   IconName,
@@ -127,6 +140,53 @@ const markdownEditorContract: MarkdownEditorContract = {
   packageName: "@momentarise/md-editor"
 };
 
+const hostCapabilities: HostCapabilities = {
+  aiProviderPresent: false,
+  fileSystemAccess: true,
+  offline: false,
+  touchDevice: false,
+  viewportClass: "desktop"
+};
+
+const preferenceValue: PreferenceValue = {
+  "Mod-s": "save"
+};
+
+const preferenceDefinition: PreferenceDefinition = {
+  default: "sticky",
+  enumValues: ["sticky", "floating", "hidden"],
+  key: "toolbar.mode",
+  labelKey: "preferences.toolbar.mode",
+  scopes: ["host", "workspace", "user"],
+  type: "enum"
+};
+
+const preferenceLock: PreferenceLock = {
+  lockedBy: "workspace",
+  reason: "Workspace standard",
+  value: "hidden"
+};
+
+const preferenceResolutionResult: PreferenceResolutionResult = {
+  preferences: {
+    "toolbar.mode": {
+      key: "toolbar.mode",
+      layerValues: {
+        framework: "sticky",
+        workspace: "hidden"
+      },
+      locked: true,
+      lockedBy: "workspace",
+      lockReason: preferenceLock.reason,
+      rejections: [],
+      source: "workspace",
+      userVisible: true,
+      value: preferenceLock.value
+    }
+  },
+  rejections: []
+};
+
 const htmlPreviewContract: HtmlPreviewContract = {
   packageName: "@momentarise/md-preview-html",
   dependsOnCore: true,
@@ -138,9 +198,22 @@ const richProseMirrorContract: MomentariseRichProseMirrorContract = {
   richMode: "prosemirror"
 };
 
+const richPreferences: MomentariseRichPreferences = {
+  keymapDelegateToHost: false,
+  keymapProfile: "default"
+};
+
 const sourceCodeMirrorContract: MomentariseSourceCodeMirrorContract = {
   packageName: "@momentarise/md-source-codemirror",
   sourceMode: "codemirror6"
+};
+
+const sourcePreferences: MomentariseSourcePreferences = {
+  density: "comfortable",
+  fontScale: 1,
+  keymapDelegateToHost: false,
+  keymapProfile: "default",
+  readableLineWidth: 880
 };
 
 const themeContract: ThemeContract = {
@@ -189,9 +262,16 @@ void saveEngineContract;
 void policyContract;
 void aiWritingContract;
 void markdownEditorContract;
+void hostCapabilities;
+void preferenceDefinition;
+void preferenceLock;
+void preferenceResolutionResult;
+void preferenceValue;
 void htmlPreviewContract;
 void richProseMirrorContract;
+void richPreferences;
 void sourceCodeMirrorContract;
+void sourcePreferences;
 void themeContract;
 void hostTheme;
 void scheme;

@@ -11,11 +11,13 @@
   "scripts": {
     "build": "tsc -b packages/md-core packages/md-format packages/md-save packages/md-policy packages/md-ai packages/md-editor packages/md-theme packages/md-preview-html packages/md-rich-prosemirror packages/md-source-codemirror packages/md-adapter-web packages/md-cli",
     "build:demo": "npm run build -w @momentarise/md-demo",
-    "test": "npm run test:contracts && npm run test:architecture && npm run test:theme && npm run test:publishability && npm run test:alignment && npm run test:demo-baseline && npm run test:fixtures && npm run test:roundtrip && npm run test:parser && npm run test:serializer && npm run test:source-ux && npm run test:source-codemirror && npm run test:html-preview && npm run test:rich-prosemirror && npm run test:rich-fidelity && npm run test:rich-targeted-serialization && npm run test:rich-commands && npm run test:rich-input-rules && npm run test:rich-list-editing && npm run test:rich-folding && npm run test:demo-rich && npm run test:demo-commands && npm run test:demo-rich-ux && npm run test:demo-folding && npm run test:demo-html-preview && npm run test:visual-portability && npm run test:properties-ui && npm run test:policy && npm run test:ai-writing && npm run test:editor-session && npm run test:demo-ai-writing && npm run test:demo-reference-surface && npm run test:save-engine && npm run test:web-file-access && npm run test:cli && npm run build && npm run build:demo",
+    "test": "npm run test:contracts && npm run test:architecture && npm run test:theme && npm run test:preferences && npm run test:preferences-demo && npm run test:publishability && npm run test:alignment && npm run test:demo-baseline && npm run test:fixtures && npm run test:roundtrip && npm run test:parser && npm run test:serializer && npm run test:source-ux && npm run test:source-codemirror && npm run test:html-preview && npm run test:rich-prosemirror && npm run test:rich-fidelity && npm run test:rich-targeted-serialization && npm run test:rich-commands && npm run test:rich-input-rules && npm run test:rich-list-editing && npm run test:rich-folding && npm run test:demo-rich && npm run test:demo-commands && npm run test:demo-rich-ux && npm run test:demo-folding && npm run test:demo-html-preview && npm run test:visual-portability && npm run test:properties-ui && npm run test:policy && npm run test:ai-writing && npm run test:editor-session && npm run test:demo-ai-writing && npm run test:demo-reference-surface && npm run test:save-engine && npm run test:web-file-access && npm run test:cli && npm run build && npm run build:demo",
     "test:alignment": "node tests/alignment-gate.test.mjs",
     "test:architecture": "node tests/no-host-imports.mjs",
     "test:contracts": "tsc -p tsconfig.tests.json --noEmit",
     "test:theme": "npm run build && node tests/theme-contracts.test.mjs && node tests/theme-tokens.test.mjs",
+    "test:preferences": "npm run build && node tests/preferences-contracts.test.mjs",
+    "test:preferences-demo": "node tests/preferences-demo-baseline.test.mjs",
     "test:publishability": "npm run build && node tests/package-publishability.test.mjs",
     "test:demo-baseline": "node tests/demo-source-baseline.mjs",
     "test:fixtures": "node tests/fixtures-corpus.test.mjs",
@@ -69,6 +71,7 @@
     "visual:mme-0022": "node scripts/visual-check-mme0022.mjs",
     "visual:mme-0023": "node scripts/visual-check-mme0023-ai-surface.mjs",
     "visual:mme-0025": "node scripts/visual-check-mme0025.mjs",
+    "visual:mme-0026": "node scripts/visual-check-mme0026.mjs",
     "visual:mme-0039": "node scripts/visual-check-mme0039.mjs",
     "ai:review:claude": "node scripts/claude-framework-review.mjs",
     "ai:review:dry-run": "node scripts/claude-framework-review.mjs --dry-run"

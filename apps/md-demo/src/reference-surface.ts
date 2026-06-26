@@ -1,4 +1,12 @@
 import type { AiWritingAction } from "@momentarise/md-ai";
+import {
+  DEFAULT_HOST_CAPABILITIES,
+  DEFAULT_PREFERENCE_SCHEMA,
+  resolvePreferences,
+  type HostCapabilities,
+  type PreferenceLock,
+  type PreferenceValue
+} from "@momentarise/md-editor";
 
 export type ReferenceToolbarMode = "sticky" | "floating" | "inline" | "hidden";
 export type ReferenceToolbarStyle = "glass" | "solid" | "compact";
@@ -6,18 +14,31 @@ export type ReferenceCommandGroup = "blocks" | "marks" | "lists" | "insert" | "a
 export type ReferenceAiEntryPoint = "slash" | "toolbar" | "selection" | "command-palette" | "contextual-toolbar";
 export type ReferenceTechnicalStatusDisclosure = "discreet" | "popover" | "debug-panel" | "hidden";
 export type ReferenceModeControl = "compact-tabs" | "single-toggle" | "host-provided";
+export type ReferenceLayoutDensity = "compact" | "comfortable" | "spacious";
+export type ReferenceKeymapProfile = "default" | "delegate" | "minimal";
 
 export interface ReferenceEditorPreferences {
   readonly aiEntryPoints: readonly ReferenceAiEntryPoint[];
+  readonly capabilities: HostCapabilities;
+  readonly editorFontScale: number;
+  readonly keymapDelegateToHost: boolean;
+  readonly keymapProfile: ReferenceKeymapProfile;
+  readonly layoutDensity: ReferenceLayoutDensity;
   readonly modeControl: ReferenceModeControl;
   readonly optionalStats: boolean;
+  readonly readableLineWidth: number;
   readonly technicalStatusDisclosure: ReferenceTechnicalStatusDisclosure;
   readonly toolbarMode: ReferenceToolbarMode;
   readonly toolbarStyle: ReferenceToolbarStyle;
   readonly visibleCommandGroups: readonly ReferenceCommandGroup[];
 }
 
-export type ReferenceEditorPreferenceInput = Partial<ReferenceEditorPreferences>;
+export interface ReferenceEditorPreferenceInput extends Partial<Omit<ReferenceEditorPreferences, "capabilities">> {
+  readonly capabilities?: Partial<HostCapabilities>;
+  readonly locks?: Readonly<Record<string, PreferenceLock>>;
+  readonly userPreferences?: Partial<Omit<ReferenceEditorPreferences, "capabilities">>;
+  readonly userVisible?: readonly string[];
+}
 
 export type ReferenceAiActionId =
   | "continue"
@@ -130,8 +151,14 @@ export const REFERENCE_AI_ACTIONS: readonly ReferenceAiAction[] = [
 
 export const DEFAULT_REFERENCE_EDITOR_PREFERENCES: ReferenceEditorPreferences = {
   aiEntryPoints: ["slash", "toolbar", "selection", "command-palette"],
+  capabilities: DEFAULT_HOST_CAPABILITIES,
+  editorFontScale: 1,
+  keymapDelegateToHost: false,
+  keymapProfile: "default",
+  layoutDensity: "comfortable",
   modeControl: "compact-tabs",
   optionalStats: false,
+  readableLineWidth: 880,
   technicalStatusDisclosure: "discreet",
   toolbarMode: "sticky",
   toolbarStyle: "glass",
@@ -141,14 +168,50 @@ export const DEFAULT_REFERENCE_EDITOR_PREFERENCES: ReferenceEditorPreferences = 
 export function resolveReferenceEditorPreferences(
   hostPreferences: ReferenceEditorPreferenceInput = {}
 ): ReferenceEditorPreferences {
+  const resolved = resolvePreferences({
+    schema: DEFAULT_PREFERENCE_SCHEMA,
+    layers: {
+      host: referenceInputToPreferenceLayer(hostPreferences),
+      user: referenceInputToPreferenceLayer(hostPreferences.userPreferences ?? {})
+    },
+    ...(hostPreferences.locks ? { locks: hostPreferences.locks } : {}),
+    userVisible: hostPreferences.userVisible ?? [
+      "ai.entryPoints",
+      "editor.fontScale",
+      "keymap.delegateToHost",
+      "keymap.profile",
+      "layout.density",
+      "layout.readableLineWidth",
+      "modeSwitcher.style",
+      "status.disclosure",
+      "stats.enabled",
+      "toolbar.mode",
+      "toolbar.style"
+    ]
+  });
+  const value = (key: string): PreferenceValue => {
+    const preference = resolved.preferences[key];
+    if (!preference) {
+      throw new Error(`Missing resolved reference preference: ${key}`);
+    }
+    return preference.value;
+  };
   return {
-    aiEntryPoints: hostPreferences.aiEntryPoints ?? DEFAULT_REFERENCE_EDITOR_PREFERENCES.aiEntryPoints,
-    modeControl: hostPreferences.modeControl ?? DEFAULT_REFERENCE_EDITOR_PREFERENCES.modeControl,
-    optionalStats: hostPreferences.optionalStats ?? DEFAULT_REFERENCE_EDITOR_PREFERENCES.optionalStats,
-    technicalStatusDisclosure:
-      hostPreferences.technicalStatusDisclosure ?? DEFAULT_REFERENCE_EDITOR_PREFERENCES.technicalStatusDisclosure,
-    toolbarMode: hostPreferences.toolbarMode ?? DEFAULT_REFERENCE_EDITOR_PREFERENCES.toolbarMode,
-    toolbarStyle: hostPreferences.toolbarStyle ?? DEFAULT_REFERENCE_EDITOR_PREFERENCES.toolbarStyle,
+    aiEntryPoints: value("ai.entryPoints") as readonly ReferenceAiEntryPoint[],
+    capabilities: {
+      ...DEFAULT_REFERENCE_EDITOR_PREFERENCES.capabilities,
+      ...hostPreferences.capabilities
+    },
+    editorFontScale: value("editor.fontScale") as number,
+    keymapDelegateToHost: value("keymap.delegateToHost") as boolean,
+    keymapProfile: value("keymap.profile") as ReferenceKeymapProfile,
+    layoutDensity: value("layout.density") as ReferenceLayoutDensity,
+    modeControl: value("modeSwitcher.style") as ReferenceModeControl,
+    optionalStats: value("stats.enabled") as boolean,
+    readableLineWidth: value("layout.readableLineWidth") as number,
+    technicalStatusDisclosure: value("status.disclosure") as ReferenceTechnicalStatusDisclosure,
+    toolbarMode: value("toolbar.mode") as ReferenceToolbarMode,
+    toolbarStyle: value("toolbar.style") as ReferenceToolbarStyle,
     visibleCommandGroups:
       hostPreferences.visibleCommandGroups ?? DEFAULT_REFERENCE_EDITOR_PREFERENCES.visibleCommandGroups
   };
@@ -162,4 +225,44 @@ export function referenceAiActionsForEntryPoint(
     return [];
   }
   return REFERENCE_AI_ACTIONS.filter((action) => action.entryPoints.includes(entryPoint));
+}
+
+function referenceInputToPreferenceLayer(
+  preferences: Partial<Omit<ReferenceEditorPreferences, "capabilities">>
+): Readonly<Record<string, PreferenceValue>> {
+  const layer: Record<string, PreferenceValue> = {};
+  if (preferences.aiEntryPoints) {
+    layer["ai.entryPoints"] = preferences.aiEntryPoints;
+  }
+  if (preferences.editorFontScale !== undefined) {
+    layer["editor.fontScale"] = preferences.editorFontScale;
+  }
+  if (preferences.keymapDelegateToHost !== undefined) {
+    layer["keymap.delegateToHost"] = preferences.keymapDelegateToHost;
+  }
+  if (preferences.keymapProfile) {
+    layer["keymap.profile"] = preferences.keymapProfile;
+  }
+  if (preferences.layoutDensity) {
+    layer["layout.density"] = preferences.layoutDensity;
+  }
+  if (preferences.modeControl) {
+    layer["modeSwitcher.style"] = preferences.modeControl;
+  }
+  if (preferences.optionalStats !== undefined) {
+    layer["stats.enabled"] = preferences.optionalStats;
+  }
+  if (preferences.readableLineWidth !== undefined) {
+    layer["layout.readableLineWidth"] = preferences.readableLineWidth;
+  }
+  if (preferences.technicalStatusDisclosure) {
+    layer["status.disclosure"] = preferences.technicalStatusDisclosure;
+  }
+  if (preferences.toolbarMode) {
+    layer["toolbar.mode"] = preferences.toolbarMode;
+  }
+  if (preferences.toolbarStyle) {
+    layer["toolbar.style"] = preferences.toolbarStyle;
+  }
+  return layer;
 }
