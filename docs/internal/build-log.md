@@ -3377,7 +3377,7 @@
 ### MME-0026 — Preferences, settings locks, and capability contracts
 
 - Timestamp: 2026-06-26T22:28:00+02:00
-- Status: completed; commit and push pending for this issue-scoped change.
+- Status: completed; issue-scoped commit and push done.
 - Goal:
   - Establish preference layers 3-5: headless user/editor behavior preferences, locks, runtime capability facts, and host-controlled exposure without assuming MME owns a settings UI.
 - RED proof:
@@ -3440,8 +3440,9 @@
 - Human review:
   - Not required by the issue unless lock semantics are ambiguous; lock semantics were implemented from the written issue contract.
 - Commit status:
-  - Not committed yet. This entry is part of the issue-scoped change and will be committed with the implementation.
+  - Issue-scoped commit created: `400e3a3` (`feat: add preference contracts`).
 - Push status:
-  - Not pushed yet. Push follows the issue-scoped commit.
+  - Pushed `main` to `origin`: `85c33e0..400e3a3`.
+  - `gh auth setup-git` was used after the first `git push` failed because the HTTPS remote had no Git credential prompt available in this shell.
 - Next issue:
   - `MME-0027 — Extension registry V0`, only after MME-0026 commit and push are completed.
