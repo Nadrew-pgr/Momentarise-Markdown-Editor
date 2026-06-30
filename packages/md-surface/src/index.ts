@@ -71,6 +71,7 @@ export interface MmeStrings {
   readonly mode: {
     readonly label: string;
     readonly preview: string;
+    readonly read?: string;
     readonly rich: string;
     readonly source: string;
     readonly toggleRich: string;
@@ -354,6 +355,7 @@ export const defaultMmeStrings: MmeStrings = {
   mode: {
     label: "Editor mode",
     preview: "Preview",
+    read: "Read",
     rich: "Rich Mode",
     source: "Source",
     toggleRich: "Toggle Rich Mode"
@@ -1592,16 +1594,19 @@ function modeButton(options: CreateModeControlOptions, state: SurfaceModeControl
     button.setAttribute("aria-checked", String(state.editorMode === "rich"));
     button.setAttribute("role", "switch");
     button.append(createElement(options.host, "span"));
+  } else if (mode === "rich") {
+    button.textContent = options.strings.mode.rich;
   } else {
-    button.textContent = mode === "rich" ? options.strings.mode.rich : options.strings.mode.preview;
+    const readLabel = options.strings.mode.read ?? options.strings.mode.preview;
+    button.textContent = state.documentKind === "markdown" ? readLabel : options.strings.mode.preview;
   }
   if (mode === "rich") {
     button.disabled = state.documentKind !== "markdown";
     button.hidden = state.documentKind !== "markdown";
   }
   if (mode === "preview") {
-    button.disabled = state.documentKind !== "html-artifact";
-    button.hidden = state.documentKind !== "html-artifact";
+    button.disabled = state.documentKind !== "html-artifact" && state.documentKind !== "markdown";
+    button.hidden = false;
   }
   return button;
 }

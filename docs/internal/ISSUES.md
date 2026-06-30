@@ -1846,6 +1846,8 @@ Completed 2026-06-30; code HITL remained waived for TypeScript/package work, and
 
 ## MME-0032 — Markdown HTML renderer and inline-HTML policy
 
+Completed 2026-06-30; code-complete with environment-blocked visual proof (`npm run visual:mme-0032` fails in this environment due Chrome SIGABRT and local bind restrictions).
+
 ### Goal
 
 Add the missing render pipeline: `@momentarise/md-render-html` for read-only rendering, print/export, server/static rendering, and the future docs site — with an explicit policy for HTML inside Markdown.

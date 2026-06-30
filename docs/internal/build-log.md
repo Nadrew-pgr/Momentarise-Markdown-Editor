@@ -4145,3 +4145,53 @@
   - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
 - Next issue:
   - `MME-0032 — Markdown HTML renderer and inline-HTML policy`.
+
+## MME-0032 — Markdown HTML renderer and inline-HTML policy
+
+- Timestamp: 2026-06-30T23:17:41+02:00
+- Status:
+  - Completed with code verification; visual/chrome verification is blocked in this environment (Chrome SIGABRT + local bind restrictions). Human review not required before code continuation by this execution request.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short --branch`, and target package/test files.
+  - MME-0031 was completed and commit-scoped recorded as `621fb23`.
+- Acceptance evidence before implementation:
+  - `node tests/demo-render-html-baseline.test.mjs` failed before implementation because demo/README/visual-contract files did not exist.
+- Change:
+  - Added new host-independent package `@momentarise/md-render-html` with:
+    - `renderMarkdownToHtml(markdown, options)` API,
+    - GitHub-style sanitize schema + unsafe-HTML diagnostics,
+    - host/resource scheme filtering and event-handler stripping.
+  - Added CLI `mme render <file> [--json]` with machine-readable diagnostic output and plain HTML output path for non-JSON runs.
+  - Added markdown read-mode view in the demo for `.md` documents (sanitized inline render, source-preserving).
+  - Added HTML preview sandbox default change in `@momentarise/md-preview-html`: `sandboxTokens` defaults to `[]` with opt-in explicit token behavior.
+  - Flipped surface mode control label for markdown previews to `Read` while keeping `Preview` as default for `.html` artifacts.
+  - Extended coverage for architecture alignment, publishability, CLI contract, parser/render behavior, and no-host-import checks to include new package.
+- Visual impact:
+  - Editing surface: no controls removed/added in core editing behavior; Markdown documents now gain a new sanitized read mode when preview mode is selected.
+  - General UI: preview banner text updated for markdown read flow; HTML artifact banner clarifies empty sandbox-token default.
+  - Existing visuals captured under `docs/internal/visual-checks/MME-0032/`; automated script checks for sanitizer behavior and frame token state.
+- Checks run:
+  - `npm run test:render-html` — green.
+  - `npm run test:demo-render-html` — green.
+  - `npm run test:html-preview` — green.
+  - `npm run test:cli` — green with new `render` command assertions.
+  - `npm run test:alignment` — green.
+  - `npm run test:publishability` — green.
+  - `npm test` — green.
+  - `npm run visual:mme-0032` — failed (Chrome exits before CDP: `SIGABRT`) in this environment.
+- Manual verification:
+  - Tried restarting dev server with `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174` (and alternates), but binding is denied in this environment with `EPERM: operation not permitted`; this prevented local browser verification from running.
+  - Existing `docs/internal/visual-checks/MME-0032/README.md` documents the screenshot artifacts and required manual paths.
+- Reviewer result:
+  - Security/architecture reviewer artifacts were not present in repository for this issue window.
+  - Fallback self-review completed: no P0/P1 safety or architecture findings identified.
+- Residual risks:
+  - Visual proof remains pending pending a local browser run (existing issue in this environment).
+  - `docs/internal/visual-checks/MME-0032/` currently contains PNG-path files with JPEG signatures; regenerate from a working CDP session for canonical artifact format.
+  - `npm run visual:mme-0032` requires an available local dev socket plus non-sandboxed Chrome in this run context.
+- Commit status:
+  - Issue-scoped commit created: `fd0a960` (`feat: add markdown html renderer and read-mode policy`).
+- Push status:
+  - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
+- Next issue:
+  - `MME-0033 — Find/replace and outline APIs`.

@@ -36,6 +36,18 @@ if (!Array.isArray(opaque.opaqueNodes) || opaque.opaqueNodes.length === 0) {
   throw new Error("Inspect must report opaque nodes for unknown syntax.");
 }
 
+const renderResult = parseJson(runCli(["render", "fixtures/010-html-inline-block/input.md", "--json"]).stdout, "render html");
+if (renderResult.file !== "fixtures/010-html-inline-block/input.md") {
+  throw new Error(`Render must report the rendered file, got ${renderResult.file}.`);
+}
+if (!renderResult.html.includes("<kbd>Cmd</kbd>") || !renderResult.html.includes("Raw HTML block must survive untouched.")) {
+  throw new Error(`Render must emit sanitized HTML for Markdown fixtures: ${renderResult.html}`);
+}
+const renderPlain = runCli(["render", "fixtures/001-simple-markdown/input.md"]).stdout;
+if (!renderPlain.includes("<h1>Simple Markdown Note</h1>")) {
+  throw new Error(`Non-JSON render output must be HTML, got:\n${renderPlain}`);
+}
+
 const fixturesResult = parseJson(runCli(["test:fixtures", "--json"]).stdout, "fixture test");
 if (fixturesResult.summary.total < 18 || fixturesResult.summary.passed < 10) {
   throw new Error(`CLI fixture test returned weak summary: ${JSON.stringify(fixturesResult.summary)}`);
@@ -73,6 +85,20 @@ try {
   const afterWrite = await readFile(formatFile, "utf8");
   if (writeResult.wrote !== true || afterWrite !== `${unformatted}\n`) {
     throw new Error("mme format --write must explicitly write formatted content.");
+  }
+
+  const unsafeRenderFile = join(tempRoot, "unsafe-render.md");
+  await writeFile(
+    unsafeRenderFile,
+    "# Unsafe\n\n<div onclick=\"alert(1)\">Visible text</div>\n<script>alert(1)</script>\n",
+    "utf8"
+  );
+  const unsafeRender = parseJson(runCli(["render", unsafeRenderFile, "--json"]).stdout, "unsafe render");
+  if (unsafeRender.html.includes("<script") || unsafeRender.html.includes("onclick=")) {
+    throw new Error(`mme render must strip unsafe HTML from render artifacts: ${unsafeRender.html}`);
+  }
+  if (!unsafeRender.diagnostics.some((diagnostic) => diagnostic.code === "render_html_stripped")) {
+    throw new Error("mme render must report render_html_stripped diagnostics for unsafe Markdown HTML.");
   }
 
   const initResult = parseJson(runCli(["init", "--json"], { cwd: tempRoot }).stdout, "init");

@@ -29,6 +29,9 @@
       "path": "packages/md-react"
     },
     {
+      "path": "packages/md-render-html"
+    },
+    {
       "path": "packages/md-preview-html"
     },
     {

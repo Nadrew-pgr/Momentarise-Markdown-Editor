@@ -13,6 +13,7 @@ import {
   type RoundTripFixture,
   type RoundTripHarnessResult
 } from "@momentarise/md-format";
+import { renderMarkdownToHtml, type RenderHtmlDiagnostic } from "@momentarise/md-render-html";
 import { constants as fsConstants } from "node:fs";
 import { access, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { basename, join, relative, resolve } from "node:path";
@@ -29,6 +30,7 @@ export type CliCommandName =
   | "check"
   | "test:fixtures"
   | "inspect"
+  | "render"
   | "format"
   | "create-fixture";
 
@@ -82,6 +84,10 @@ export const cliCommands: readonly CliCommandDefinition[] = [
   },
   {
     mutatesFiles: false,
+    name: "render"
+  },
+  {
+    mutatesFiles: false,
     name: "format"
   },
   {
@@ -119,6 +125,9 @@ export async function runCli(args: readonly string[], options: CliRunOptions = {
     }
     if (parsed.command === "inspect") {
       return ok(formatPayload(await inspectFile(cwd, parsed), parsed.json));
+    }
+    if (parsed.command === "render") {
+      return ok(formatPayload(await renderFile(cwd, parsed), parsed.json));
     }
     if (parsed.command === "format") {
       return ok(formatPayload(await formatFile(cwd, parsed), parsed.json));
@@ -257,6 +266,27 @@ async function inspectFile(
       reason: node.reason ?? null,
       sourceRange: node.sourceRange
     }))
+  };
+}
+
+async function renderFile(
+  cwd: string,
+  parsed: ParsedArgs
+): Promise<{
+  readonly diagnostics: readonly Pick<RenderHtmlDiagnostic, "code" | "severity" | "message">[];
+  readonly file: string;
+  readonly html: string;
+}> {
+  const file = requiredPositional(parsed, 0, "mme render <file>");
+  const path = resolve(cwd, file);
+  const source = await readFile(path, "utf8");
+  const result = renderMarkdownToHtml(source, {
+    fileName: displayPath(cwd, path)
+  });
+  return {
+    diagnostics: result.diagnostics.map(minimalRenderDiagnostic),
+    file: displayPath(cwd, path),
+    html: result.html
   };
 }
 
@@ -425,6 +455,16 @@ function minimalDiagnostic(diagnostic: Diagnostic): Pick<Diagnostic, "code" | "s
   };
 }
 
+function minimalRenderDiagnostic(
+  diagnostic: RenderHtmlDiagnostic
+): Pick<RenderHtmlDiagnostic, "code" | "severity" | "message"> {
+  return {
+    code: diagnostic.code,
+    message: diagnostic.message,
+    severity: diagnostic.severity
+  };
+}
+
 function ensureFinalNewline(value: string): string {
   return value.endsWith("\n") ? value : `${value}\n`;
 }
@@ -458,6 +498,9 @@ function formatPayload(payload: unknown, json: boolean): string {
   if (typeof payload === "object" && payload && "formatted" in payload && typeof payload.formatted === "string") {
     return payload.formatted;
   }
+  if (typeof payload === "object" && payload && "html" in payload && typeof payload.html === "string") {
+    return payload.html.endsWith("\n") ? payload.html : `${payload.html}\n`;
+  }
   return `${JSON.stringify(payload, null, 2)}\n`;
 }
 
@@ -486,6 +529,7 @@ function helpText(): string {
     "  mme check [--json]",
     "  mme test:fixtures [--json]",
     "  mme inspect <file> [--json] [--dialect <dialect>]",
+    "  mme render <file> [--json]",
     "  mme format <file> [--write] [--json] [--dialect <dialect>]",
     "  mme create-fixture <name> [--json]",
     ""

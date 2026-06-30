@@ -41,14 +41,23 @@ if (descriptor.srcdoc !== hostileHtml) {
 if (descriptor.scriptsEnabled !== false) {
   throw new Error("Scripts must be disabled by default.");
 }
-if (descriptor.sandbox !== "allow-same-origin") {
-  throw new Error(`Default sandbox must grant only allow-same-origin for preview compatibility. Actual sandbox: ${descriptor.sandbox}`);
+if (descriptor.sandbox !== "") {
+  throw new Error(`Default sandbox must grant no tokens unless a host opts in. Actual sandbox: ${descriptor.sandbox}`);
 }
 if (sandboxAllowsScripts(descriptor.sandbox)) {
   throw new Error("Default sandbox must not allow scripts.");
 }
 if (!descriptor.warnings.some((warning) => warning.code === "html-preview-scripts-disabled")) {
   throw new Error("Descriptor must explain that scripts are disabled by default.");
+}
+
+const explicitCompatibilityDescriptor = createSandboxedHtmlPreview({
+  fileName: "compat-preview.html",
+  html: "<p>Compatibility preview</p>",
+  sandboxTokens: ["allow-same-origin"]
+});
+if (explicitCompatibilityDescriptor.sandbox !== "allow-same-origin") {
+  throw new Error("Hosts must still be able to opt into allow-same-origin explicitly.");
 }
 
 for (const fileName of ["artifact.html", "artifact.HTML", "fragment.htm"]) {

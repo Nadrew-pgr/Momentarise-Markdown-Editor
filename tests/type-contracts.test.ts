@@ -23,6 +23,7 @@ import type {
   PreferenceValue
 } from "@momentarise/md-editor";
 import type { HtmlPreviewContract } from "@momentarise/md-preview-html";
+import type { MarkdownHtmlRendererContract, RenderHtmlDiagnostic } from "@momentarise/md-render-html";
 import type {
   MomentariseRichPreferences,
   MomentariseRichProseMirrorContract
@@ -193,6 +194,19 @@ const htmlPreviewContract: HtmlPreviewContract = {
   previewKind: "html"
 };
 
+const markdownHtmlRendererContract: MarkdownHtmlRendererContract = {
+  packageName: "@momentarise/md-render-html",
+  renderKind: "markdown-html"
+};
+
+const renderHtmlDiagnostic: RenderHtmlDiagnostic = {
+  code: "render_html_stripped",
+  message: "Removed unsafe render artifact content.",
+  removedAttributes: ["div.onclick"],
+  removedElements: ["script"],
+  severity: "warning"
+};
+
 const richProseMirrorContract: MomentariseRichProseMirrorContract = {
   packageName: "@momentarise/md-rich-prosemirror",
   richMode: "prosemirror"
@@ -268,6 +282,8 @@ void preferenceLock;
 void preferenceResolutionResult;
 void preferenceValue;
 void htmlPreviewContract;
+void markdownHtmlRendererContract;
+void renderHtmlDiagnostic;
 void richProseMirrorContract;
 void richPreferences;
 void sourceCodeMirrorContract;

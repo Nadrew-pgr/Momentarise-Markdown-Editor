@@ -11,6 +11,7 @@ const packages = [
   "@momentarise/md-policy",
   "@momentarise/md-preview-html",
   "@momentarise/md-react",
+  "@momentarise/md-render-html",
   "@momentarise/md-rich-prosemirror",
   "@momentarise/md-save",
   "@momentarise/md-source-codemirror",
@@ -110,6 +111,23 @@ assert(
   !reactManifest.dependencies?.react,
   "@momentarise/md-react must not bundle react as a dependency."
 );
+
+const renderManifest = manifests["@momentarise/md-render-html"];
+for (const dependency of [
+  "rehype-raw",
+  "rehype-sanitize",
+  "rehype-stringify",
+  "remark-frontmatter",
+  "remark-gfm",
+  "remark-parse",
+  "remark-rehype",
+  "unified"
+]) {
+  assert(
+    renderManifest.dependencies?.[dependency],
+    `@momentarise/md-render-html must declare ${dependency} directly.`
+  );
+}
 
 const demoManifest = await readJson("apps/md-demo/package.json");
 for (const dependency of [

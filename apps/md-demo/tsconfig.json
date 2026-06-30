@@ -32,6 +32,9 @@
       "path": "../../packages/md-preview-html"
     },
     {
+      "path": "../../packages/md-render-html"
+    },
+    {
       "path": "../../packages/md-rich-prosemirror"
     },
     {

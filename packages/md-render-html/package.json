@@ -1,13 +1,13 @@
 {
-  "name": "@momentarise/md-cli",
+  "name": "@momentarise/md-render-html",
   "version": "0.0.0",
   "type": "module",
-  "description": "CLI contracts for Momentarise Markdown Editor.",
+  "description": "Safe sanitized Markdown-to-HTML renderer for Momentarise Markdown Editor.",
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor.git",
-    "directory": "packages/md-cli"
+    "directory": "packages/md-render-html"
   },
   "engines": {
     "node": ">=20"
@@ -16,14 +16,12 @@
     "markdown",
     "editor",
     "momentarise",
-    "cli"
+    "html-renderer",
+    "sanitize"
   ],
   "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": {
-    "mme": "./dist/index.js"
-  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -31,14 +29,21 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -b"
   },
   "dependencies": {
-    "@momentarise/md-core": "0.0.0",
-    "@momentarise/md-format": "0.0.0",
-    "@momentarise/md-render-html": "0.0.0"
+    "rehype-raw": "^7.0.0",
+    "rehype-sanitize": "^6.0.0",
+    "rehype-stringify": "^10.0.1",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
+    "unified": "^11.0.5",
+    "vfile": "^6.0.3"
   }
 }

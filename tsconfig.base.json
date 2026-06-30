@@ -48,6 +48,9 @@
       "@momentarise/md-react": [
         "packages/md-react/src/index.ts"
       ],
+      "@momentarise/md-render-html": [
+        "packages/md-render-html/src/index.ts"
+      ],
       "@momentarise/md-preview-html": [
         "packages/md-preview-html/src/index.ts"
       ],

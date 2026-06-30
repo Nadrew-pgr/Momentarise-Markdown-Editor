@@ -459,7 +459,8 @@ Rules:
 - Raw inline and block HTML inside `.md` must always be preserved byte-for-byte in source, whether or not it is rendered.
 - Unsupported or unsafe HTML must never be destroyed; it stays in the source and falls back to raw/opaque display.
 - Render behavior for HTML inside Markdown is sanitized (allowlist, no script execution, diagnostics for stripped content at render time only); render output is an artifact and never mutates the persisted Markdown.
-- Standalone `.html` artifacts keep the separate sandboxed-iframe preview path; the two render paths must not be conflated.
+- `@momentarise/md-render-html` owns cases 1 and 2 as a host-independent read-only renderer. In the demo, sanitized Markdown render output is inserted inline into an `<article>` because the renderer has already stripped unsafe elements/attributes and emits render-only diagnostics for what changed.
+- Standalone `.html` artifacts keep the separate sandboxed-iframe preview path; the two render paths must not be conflated. The artifact preview defaults to an empty sandbox token list (`sandbox=""`) and keeps scripts disabled; hosts may explicitly opt into compatibility tokens such as `allow-same-origin` when their threat model allows it.
 - Source mode remains the universal fallback for all three cases.
 - Obsidian-like live rendering of HTML inside Markdown in the editing surface is tracked in `MME-BACKLOG`; the read-only renderer is `MME-0032`.
 

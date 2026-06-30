@@ -51,7 +51,7 @@ export const htmlPreviewPackage: HtmlPreviewContract = {
 export function createSandboxedHtmlPreview(
   options: CreateSandboxedHtmlPreviewOptions
 ): SandboxedHtmlPreviewDescriptor {
-  const sandboxTokens = normalizeSandboxTokens(options.sandboxTokens ?? ["allow-same-origin"]);
+  const sandboxTokens = normalizeSandboxTokens(options.sandboxTokens ?? []);
   return {
     fileName: options.fileName,
     kind: "html-artifact-preview",
@@ -97,7 +97,7 @@ function htmlPreviewWarnings(
     },
     {
       code: "html-preview-scripts-disabled",
-      message: "Scripts are disabled by default and the preview sandbox does not grant allow-scripts.",
+      message: "Scripts are disabled by default and the preview sandbox grants no tokens unless the host opts in.",
       severity: "info"
     }
   ];

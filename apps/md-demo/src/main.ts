@@ -33,6 +33,10 @@ import {
   type SandboxedHtmlPreviewDescriptor
 } from "@momentarise/md-preview-html";
 import {
+  renderMarkdownToHtml,
+  type RenderMarkdownToHtmlResult
+} from "@momentarise/md-render-html";
+import {
   createOpenAiCompatibleProvider,
   createMockAiProvider,
   type AiProvider,
@@ -246,15 +250,21 @@ app.innerHTML = `
         <div data-testid="slash-command-menu-host"></div>
         <div class="editor-host" data-editor-host data-testid="editor-host"></div>
         <div class="rich-editor-host" data-testid="rich-editor-host" hidden></div>
+        <div class="markdown-read-host" data-testid="markdown-read-host" hidden>
+          <div class="markdown-read-banner" data-testid="markdown-read-banner">
+            Markdown read view · sanitized inline render · source preserved
+          </div>
+          <article class="markdown-read-article" data-testid="markdown-read-article" aria-label="Markdown read view"></article>
+        </div>
         <div class="html-preview-host" data-testid="html-preview-host" hidden>
           <div class="html-preview-banner" data-testid="html-preview-banner">
-            HTML artifact preview · sandboxed · scripts disabled
+            HTML artifact preview · sandboxed · no tokens · scripts disabled
           </div>
           <iframe
             class="html-preview-frame"
             data-testid="html-preview-frame"
             referrerpolicy="no-referrer"
-            sandbox="allow-same-origin"
+            sandbox=""
             title="Sandboxed HTML preview"
           ></iframe>
         </div>
@@ -395,6 +405,9 @@ app.innerHTML = `
 const editorHost = queryRequired<HTMLDivElement>("[data-editor-host]");
 const editorRegion = queryRequired<HTMLDivElement>(".editor-region");
 const richEditorHost = queryRequired<HTMLDivElement>('[data-testid="rich-editor-host"]');
+const markdownReadHost = queryRequired<HTMLDivElement>('[data-testid="markdown-read-host"]');
+const markdownReadBanner = queryRequired<HTMLDivElement>('[data-testid="markdown-read-banner"]');
+const markdownReadArticle = queryRequired<HTMLElement>('[data-testid="markdown-read-article"]');
 const htmlPreviewHost = queryRequired<HTMLDivElement>('[data-testid="html-preview-host"]');
 const htmlPreviewBanner = queryRequired<HTMLDivElement>('[data-testid="html-preview-banner"]');
 const htmlPreviewFrame = queryRequired<HTMLIFrameElement>('[data-testid="html-preview-frame"]');
@@ -591,6 +604,7 @@ let richState: RichMarkdownState = createRichMarkdownState(fixtureMarkdown, {
 let richEditor: ProseMirrorEditorView | null = null;
 let foldStates: readonly FoldState[] = [];
 let htmlPreviewDescriptor: SandboxedHtmlPreviewDescriptor | null = null;
+let markdownReadResult: RenderMarkdownToHtmlResult | null = null;
 let richBaselineMarkdown = fixtureMarkdown;
 let richChanged = false;
 let slashCommandState: SlashCommandState = {
@@ -1485,6 +1499,16 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
       warnings: htmlPreviewDescriptor?.warnings.map((warning) => warning.code) ?? []
     };
   },
+  getMarkdownReadState() {
+    return {
+      available: activeDocument.kind === "markdown",
+      bannerText: markdownReadBanner.textContent ?? "",
+      diagnostics: markdownReadResult?.diagnostics.map((diagnostic) => diagnostic.code) ?? [],
+      html: markdownReadArticle.innerHTML,
+      text: markdownReadArticle.textContent ?? "",
+      visible: !markdownReadHost.hidden
+    };
+  },
   getAiWritingState() {
     return getAiWritingState();
   },
@@ -2024,8 +2048,8 @@ function switchEditorMode(mode: DemoEditorMode): void {
     renderEditorMode();
     return;
   }
-  if (mode === "preview" && activeDocument.kind !== "html-artifact") {
-    logEvent("Preview mode is only available for HTML artifacts in this V0 slice.");
+  if (mode === "preview" && activeDocument.kind !== "html-artifact" && activeDocument.kind !== "markdown") {
+    logEvent("Preview mode is unavailable for this document type.");
     renderEditorMode();
     return;
   }
@@ -2038,9 +2062,13 @@ function switchEditorMode(mode: DemoEditorMode): void {
     if (richChanged) {
       syncRichMarkdownToSource("mode switch");
     }
-    renderHtmlPreview();
+    if (activeDocument.kind === "markdown") {
+      renderMarkdownReadView();
+    } else {
+      renderHtmlPreview();
+    }
     editorMode = "preview";
-    logEvent("Switched to sandboxed HTML preview mode.");
+    logEvent(activeDocument.kind === "markdown" ? "Switched to Markdown read view." : "Switched to sandboxed HTML preview mode.");
   } else {
     if (richChanged) {
       syncRichMarkdownToSource("mode switch");
@@ -2062,9 +2090,12 @@ function switchEditorMode(mode: DemoEditorMode): void {
 function renderEditorMode(): void {
   app.dataset.documentKind = activeDocument.kind;
   app.dataset.editorMode = editorMode;
+  const markdownReadVisible = editorMode === "preview" && activeDocument.kind === "markdown";
+  const htmlPreviewVisible = editorMode === "preview" && activeDocument.kind === "html-artifact";
   editorHost.hidden = editorMode !== "source";
   richEditorHost.hidden = editorMode !== "rich";
-  htmlPreviewHost.hidden = editorMode !== "preview";
+  markdownReadHost.hidden = !markdownReadVisible;
+  htmlPreviewHost.hidden = !htmlPreviewVisible;
   richBlockControls.hidden = editorMode !== "rich";
   modeControlSurface?.setState(surfaceModeState());
   sourceModeButton = queryRequired<HTMLButtonElement>('[data-testid="source-mode-button"]');
@@ -2074,7 +2105,9 @@ function renderEditorMode(): void {
   toolbarAiButton = queryRequired<HTMLButtonElement>('[data-testid="toolbar-ai-button"]');
   toolbarMoreMenu = queryRequired<HTMLDivElement>('[data-testid="toolbar-more-menu"]');
   htmlPreviewStatusBlock.hidden = activeDocument.kind !== "html-artifact";
-  if (editorMode === "preview") {
+  if (markdownReadVisible) {
+    editorSurfaceStateElement.textContent = "Markdown read view";
+  } else if (htmlPreviewVisible) {
     editorSurfaceStateElement.textContent = "Sandboxed HTML preview";
   } else {
     editorSurfaceStateElement.textContent = editorMode === "rich" ? "ProseMirror rich mode" : "CodeMirror source mode";
@@ -2084,7 +2117,9 @@ function renderEditorMode(): void {
     setToolbarMoreOpen(false);
     renderRichBlockControls();
   }
-  if (editorMode === "preview") {
+  if (markdownReadVisible) {
+    renderMarkdownReadView();
+  } else if (htmlPreviewVisible) {
     renderHtmlPreview();
   }
   renderRichFoldingUi();
@@ -2115,6 +2150,25 @@ function renderHtmlPreview(): void {
   htmlPreviewFrame.srcdoc = htmlPreviewDescriptor.srcdoc;
   htmlPreviewBanner.textContent = `${activeDocument.fileName} · HTML artifact preview · sandboxed · scripts disabled`;
   htmlPreviewStatusElement.textContent = htmlPreviewStatusLabel(htmlPreviewDescriptor);
+}
+
+function renderMarkdownReadView(): void {
+  if (activeDocument.kind !== "markdown") {
+    markdownReadResult = null;
+    markdownReadArticle.textContent = "";
+    markdownReadBanner.textContent = "Markdown read view unavailable";
+    return;
+  }
+
+  markdownReadResult = renderMarkdownToHtml(editor.state.doc.toString(), {
+    fileName: activeDocument.fileName
+  });
+  markdownReadArticle.innerHTML = markdownReadResult.html;
+  const strippedCount = markdownReadResult.diagnostics.filter((diagnostic) => diagnostic.code === "render_html_stripped").length;
+  markdownReadBanner.textContent =
+    strippedCount > 0
+      ? `${activeDocument.fileName} · Markdown read view · sanitized ${strippedCount} unsafe render artifact`
+      : `${activeDocument.fileName} · Markdown read view · sanitized inline render · source preserved`;
 }
 
 function readInitialDemoAiProviderConfig(): DemoAiProviderConfig | null {
@@ -3135,6 +3189,8 @@ function restoreLastDemoDocument(): boolean {
   );
   if (snapshot.editorMode === "rich") {
     switchEditorMode("rich");
+  } else if (snapshot.editorMode === "preview") {
+    switchEditorMode("preview");
   }
   lastSaveAction = "restored browser draft; reopen the original file for writable autosave";
   setEditorNotice("Restored a browser draft copy. Reopen the original file with Open file to enable writable disk save and autosave.");
@@ -3154,15 +3210,6 @@ function parseRestorableDemoDocument(raw: string): RestorableDemoDocument | null
     return null;
   }
   if (parsed.kind === "html-artifact" && parsed.editorMode === "rich") {
-    return {
-      content: parsed.content,
-      editorMode: "source",
-      fileName: parsed.fileName,
-      kind: parsed.kind,
-      version: 1
-    };
-  }
-  if (parsed.kind === "markdown" && parsed.editorMode === "preview") {
     return {
       content: parsed.content,
       editorMode: "source",
@@ -3885,7 +3932,8 @@ function renderSaveState(): void {
 
 function htmlPreviewStatusLabel(descriptor: SandboxedHtmlPreviewDescriptor): string {
   const scriptStatus = sandboxAllowsScripts(descriptor.sandbox) ? "scripts allowed" : "scripts disabled";
-  return `HTML artifact preview, sandboxed, ${scriptStatus}`;
+  const tokenStatus = descriptor.sandboxTokens.length === 0 ? "no sandbox tokens" : `tokens: ${descriptor.sandbox}`;
+  return `HTML artifact preview, sandboxed, ${tokenStatus}, ${scriptStatus}`;
 }
 
 function openAiCommandSurface(): void {
@@ -4521,6 +4569,14 @@ declare global {
       getEditorMode: () => DemoEditorMode;
       getLastCopiedMarkdown: () => string | null;
       getMarkdown: () => string;
+      getMarkdownReadState: () => {
+        readonly available: boolean;
+        readonly bannerText: string;
+        readonly diagnostics: readonly string[];
+        readonly html: string;
+        readonly text: string;
+        readonly visible: boolean;
+      };
       getSlashMenuState: () => {
         readonly aiItems: readonly ReferenceAiActionId[];
         readonly items: readonly string[];

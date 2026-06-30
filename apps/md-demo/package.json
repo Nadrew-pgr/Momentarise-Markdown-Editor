@@ -22,6 +22,7 @@
     "@momentarise/md-format": "0.0.0",
     "@momentarise/md-policy": "0.0.0",
     "@momentarise/md-preview-html": "0.0.0",
+    "@momentarise/md-render-html": "0.0.0",
     "@momentarise/md-rich-prosemirror": "0.0.0",
     "@momentarise/md-save": "0.0.0",
     "@momentarise/md-source-codemirror": "0.0.0",
