@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 
 const requiredFiles = [
   "scripts/visual-check-mme0017.mjs",
+  "scripts/visual-check-mme00285.mjs",
   "docs/internal/visual-checks/MME-0017/README.md",
   "apps/md-demo/src/main.ts",
   "apps/md-demo/src/styles.css",
@@ -18,7 +19,8 @@ const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 for (const [scriptName, expected] of [
   ["test:ai-writing", "npm run build && node tests/ai-writing.test.mjs"],
   ["test:demo-ai-writing", "node tests/demo-ai-writing-baseline.test.mjs"],
-  ["visual:mme-0017", "node scripts/visual-check-mme0017.mjs"]
+  ["visual:mme-0017", "node scripts/visual-check-mme0017.mjs"],
+  ["visual:mme-0028.5", "node scripts/visual-check-mme00285.mjs"]
 ]) {
   if (packageJson.scripts[scriptName] !== expected) {
     throw new Error(`Missing ${scriptName} script.`);
@@ -47,19 +49,40 @@ for (const snippet of [
   "session.requestAiSuggestion",
   "session.acceptPendingSuggestion",
   "session.rejectPendingSuggestion",
-  "getAiWritingState"
+  "getAiWritingState",
+  "createInlineAiPrompt",
+  "inline-ai-prompt-host",
+  "inline-ai-prompt-input",
+  "inlineAiProviderState",
+  "openInlineAiPromptFromAction",
+  "submitInlineAiPrompt",
+  "positionInlineAiPrompt",
+  "getInlineAiPromptState"
 ]) {
   if (!main.includes(snippet)) {
     throw new Error(`Demo missing MME-0017 AI writing snippet: ${snippet}`);
   }
 }
 
+if (main.includes("setEditorAiSurfaceState({ visible: true });\n  if (activeDocument.kind !== \"markdown\")")) {
+  throw new Error("Editor-native AI commands must open the inline prompt first, not the detached assistant panel.");
+}
+
 if (main.includes("logEvent(aiByokKeyInput.value") || main.includes("localStorage.setItem(\"momentarise-ai")) {
-  throw new Error("Demo must not log or persist the BYOK key.");
+  throw new Error("Demo must not log or persist the memory-only demo key.");
 }
 
 const styles = readFileSync("apps/md-demo/src/styles.css", "utf8");
-for (const snippet of [".ai-writing-panel", ".ai-writing-controls", ".ai-suggestion-preview", ".ai-policy-note"]) {
+for (const snippet of [
+  ".ai-writing-panel",
+  ".ai-writing-controls",
+  ".ai-suggestion-preview",
+  ".ai-policy-note",
+  ".inline-ai-prompt",
+  ".inline-ai-prompt-actions",
+  ".inline-ai-provider-state",
+  ".inline-ai-suggestion-preview"
+]) {
   if (!styles.includes(snippet)) {
     throw new Error(`Demo styles missing MME-0017 AI UI snippet: ${snippet}`);
   }
@@ -74,5 +97,17 @@ for (const artifact of [
 ]) {
   if (!visual.includes(artifact)) {
     throw new Error(`MME-0017 visual script missing artifact: ${artifact}`);
+  }
+}
+
+const inlineVisual = readFileSync("scripts/visual-check-mme00285.mjs", "utf8");
+for (const artifact of [
+  "inline-ai-prompt-rich.png",
+  "inline-ai-suggestion-staged.png",
+  "inline-ai-provider-missing.png",
+  "inline-ai-policy-blocked.png"
+]) {
+  if (!inlineVisual.includes(artifact)) {
+    throw new Error(`MME-0028.5 visual script missing artifact: ${artifact}`);
   }
 }

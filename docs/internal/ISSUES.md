@@ -1581,6 +1581,8 @@ UX Reviewer and Architecture Reviewer.
 
 ## MME-0028.5 — Inline AI prompt surface and usable writing flow
 
+Completed 2026-06-30; code HITL remained waived by the human for TypeScript/package work, and UX/security subagent reviewers accepted after fixes. Added reusable `createInlineAiPrompt` to `@momentarise/md-surface`, routed `/ai`, slash AI, toolbar AI, and command-palette AI into one inline prompt/review model, made mock/missing/host/disabled provider states explicit, kept generated content staged with accept/reject through the existing `MME-0023` hash/session contract, and removed misleading user-facing BYOK wording from the demo. Reviewer fixes added whole-dialog Escape handling, focus-preserving action-row keyboard navigation, keyboard-driven visual proof, and provider-truth wording. Proven by `npm run test:surface`, `npm run test:demo-ai-writing`, `npm run build:demo`, `npm run visual:mme-0028.5`, full `npm test`, and `git diff --check`. `MME-0028.6` is the next candidate after issue-scoped commit, but it defines real provider/key-handling boundaries and keeps its own security/architecture review gate.
+
 ### Goal
 
 Make AI writing usable as an editor-native interaction, not a debug/demo panel. The reference behavior is BlockNote/Copilot/Gemini-style: `/ai` opens an inline prompt under the current block, the prompt is focused, suggested actions are directly selectable, and every generated change remains explicit review/apply.

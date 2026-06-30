@@ -33,12 +33,18 @@ export interface SurfaceComponentContext {
 export interface MmeStrings {
   readonly ai: {
     readonly accept: string;
+    readonly actionsLabel: string;
     readonly assistantLabel: string;
     readonly close: string;
     readonly connect: string;
+    readonly generate: string;
+    readonly inlineLabel: string;
     readonly keyLabel: string;
     readonly keyPlaceholder: string;
     readonly noSession: string;
+    readonly promptLabel: string;
+    readonly promptPlaceholder: string;
+    readonly providerState: string;
     readonly reject: string;
     readonly statusLabel: string;
   };
@@ -171,6 +177,44 @@ export interface SurfaceAiPendingState {
   readonly title?: string;
 }
 
+export type SurfaceAiProviderKind =
+  | "disabled-by-policy"
+  | "host-managed"
+  | "missing"
+  | "mock"
+  | "personal-byok"
+  | string;
+
+export interface SurfaceAiProviderState {
+  readonly canSubmit: boolean;
+  readonly description: string;
+  readonly kind: SurfaceAiProviderKind;
+  readonly label: string;
+}
+
+export interface SurfaceInlineAiAnchor {
+  readonly left: number;
+  readonly top: number;
+  readonly width?: number;
+}
+
+export interface SurfaceInlineAiPromptState {
+  readonly anchor: SurfaceInlineAiAnchor | null;
+  readonly busy?: boolean;
+  readonly open: boolean;
+  readonly pending: SurfaceAiPendingState | null;
+  readonly prompt: string;
+  readonly provider: SurfaceAiProviderState;
+  readonly selectedActionIndex: number;
+  readonly statusText: string;
+}
+
+export interface SurfaceInlineAiPromptSubmitEvent {
+  readonly actionId?: string;
+  readonly prompt: string;
+  readonly providerKind: SurfaceAiProviderKind;
+}
+
 export interface SurfaceAiAssistantState {
   readonly hasSession: boolean;
   readonly pending: SurfaceAiPendingState | null;
@@ -184,6 +228,16 @@ export interface CreateAiAssistantPanelOptions extends SurfaceComponentContext {
   readonly onReject: () => void | Promise<void>;
   readonly onStartSession: (key: string) => void | Promise<void>;
   readonly state: SurfaceAiAssistantState;
+}
+
+export interface CreateInlineAiPromptOptions extends SurfaceComponentContext {
+  readonly actions: readonly SurfaceAiAction[];
+  readonly onAccept?: () => void | Promise<void>;
+  readonly onClose: () => void;
+  readonly onReject?: () => void | Promise<void>;
+  readonly onSubmit: (event: SurfaceInlineAiPromptSubmitEvent) => void | Promise<void>;
+  readonly returnFocusTo?: HTMLElement;
+  readonly state: SurfaceInlineAiPromptState;
 }
 
 export interface SurfaceModeControlState {
@@ -208,12 +262,18 @@ export const surfaceContract: SurfaceContract = {
 export const defaultMmeStrings: MmeStrings = {
   ai: {
     accept: "Accept",
+    actionsLabel: "AI actions",
     assistantLabel: "AI writing assistant",
     close: "Close",
     connect: "Connect",
-    keyLabel: "Private session",
+    generate: "Generate",
+    inlineLabel: "Inline AI prompt",
+    keyLabel: "Mock session",
     keyPlaceholder: "Memory-only key",
     noSession: "No AI session",
+    promptLabel: "Prompt",
+    promptPlaceholder: "Ask AI to write or transform Markdown",
+    providerState: "Provider state",
     reject: "Reject",
     statusLabel: "AI assistant"
   },
@@ -891,6 +951,245 @@ export function createAiAssistantPanel(options: CreateAiAssistantPanelOptions): 
   };
 }
 
+export function createInlineAiPrompt(options: CreateInlineAiPromptOptions): SurfaceComponent & {
+  close(): void;
+  focusPrompt(): void;
+  readonly root: HTMLElement;
+  setState(state: SurfaceInlineAiPromptState): void;
+} {
+  const root = createElement(options.host, "div", "inline-ai-prompt");
+  const cleanups: ListenerCleanup[] = [];
+  let state = options.state;
+  let promptValue = state.prompt;
+  let selectedActionIndex = state.selectedActionIndex;
+  options.host.replaceChildren(root);
+
+  const enabledActions = (): readonly SurfaceAiAction[] => options.actions.filter((action) => action.entryPoints.length > 0);
+
+  const focusPrompt = (): void => {
+    const prompt = root.querySelector<HTMLTextAreaElement>('[data-testid="inline-ai-prompt-input"]');
+    prompt?.focus();
+  };
+
+  const close = (): void => {
+    state = {
+      ...state,
+      open: false
+    };
+    render(false);
+    options.onClose();
+    options.returnFocusTo?.focus();
+  };
+
+  const setSelectedActionIndex = (index: number, focusAction = false): void => {
+    const count = enabledActions().length;
+    selectedActionIndex = count === 0 ? 0 : (index + count) % count;
+    state = {
+      ...state,
+      selectedActionIndex
+    };
+    render(false);
+    if (focusAction) {
+      root.querySelector<HTMLElement>(`#mme-inline-ai-option-${selectedActionIndex}`)?.focus();
+    }
+  };
+
+  const submitPrompt = (): void => {
+    if (!state.provider.canSubmit || state.busy) {
+      return;
+    }
+    const prompt = promptValue.trim();
+    if (!prompt) {
+      return;
+    }
+    void options.onSubmit({
+      prompt,
+      providerKind: state.provider.kind
+    });
+  };
+
+  const submitAction = (action: SurfaceAiAction): void => {
+    if (!state.provider.canSubmit || state.busy) {
+      return;
+    }
+    void options.onSubmit({
+      actionId: action.id,
+      prompt: promptValue.trim() || action.prompt,
+      providerKind: state.provider.kind
+    });
+  };
+
+  const handleEscape = (event: KeyboardEvent): boolean => {
+    if (event.key !== "Escape") {
+      return false;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    close();
+    return true;
+  };
+
+  const onRootKeyDown = (event: KeyboardEvent): void => {
+    if (root.hidden || event.key !== "Escape") {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    close();
+  };
+
+  const render = (focus = state.open): void => {
+    root.dataset.testid = "inline-ai-prompt";
+    root.hidden = !state.open;
+    root.setAttribute("aria-label", options.strings.ai.inlineLabel);
+    root.setAttribute("role", "dialog");
+    root.setAttribute("aria-live", "polite");
+    applyInlineAnchor(root, state.anchor);
+    root.replaceChildren();
+
+    const header = createElement(options.host, "div", "inline-ai-prompt-header");
+    const titleGroup = createElement(options.host, "div");
+    const title = createElement(options.host, "p", "label");
+    const status = createElement(options.host, "p", "status-value");
+    const closeButton = createElement(options.host, "button", "button secondary");
+    title.textContent = options.strings.ai.inlineLabel;
+    status.dataset.testid = "inline-ai-status";
+    status.textContent = state.statusText || state.provider.description;
+    closeButton.dataset.testid = "inline-ai-close-button";
+    closeButton.type = "button";
+    closeButton.textContent = options.strings.ai.close;
+    closeButton.addEventListener("click", close);
+    titleGroup.append(title, status);
+    header.append(titleGroup, closeButton);
+
+    const provider = createElement(options.host, "div", "inline-ai-provider-state");
+    const providerLabel = createElement(options.host, "span");
+    const providerText = createElement(options.host, "strong");
+    const providerDescription = createElement(options.host, "p");
+    provider.dataset.testid = "inline-ai-provider-state";
+    provider.dataset.providerKind = state.provider.kind;
+    providerLabel.textContent = options.strings.ai.providerState;
+    providerText.textContent = state.provider.label;
+    providerDescription.textContent = state.provider.description;
+    provider.append(providerLabel, providerText, providerDescription);
+
+    const promptLabel = createElement(options.host, "label", "inline-ai-prompt-label");
+    const prompt = createElement(options.host, "textarea");
+    prompt.dataset.testid = "inline-ai-prompt-input";
+    prompt.placeholder = options.strings.ai.promptPlaceholder;
+    prompt.rows = 3;
+    prompt.spellcheck = true;
+    prompt.value = promptValue;
+    prompt.addEventListener("input", () => {
+      promptValue = prompt.value;
+    });
+    prompt.addEventListener("keydown", (event) => {
+      if (handleEscape(event)) {
+        return;
+      }
+      if (event.key === "ArrowDown" && enabledActions().length > 0) {
+        event.preventDefault();
+        setSelectedActionIndex(selectedActionIndex + 1);
+        return;
+      }
+      if (event.key === "ArrowUp" && enabledActions().length > 0) {
+        event.preventDefault();
+        setSelectedActionIndex(selectedActionIndex - 1);
+        return;
+      }
+      if (event.key === "Enter" && (event.metaKey || event.ctrlKey || !event.shiftKey)) {
+        event.preventDefault();
+        submitPrompt();
+      }
+    });
+    promptLabel.append(options.strings.ai.promptLabel, prompt);
+
+    const generate = createElement(options.host, "button", "button primary");
+    generate.dataset.testid = "inline-ai-generate-button";
+    generate.type = "button";
+    generate.textContent = options.strings.ai.generate;
+    generate.disabled = !state.provider.canSubmit || Boolean(state.busy);
+    generate.addEventListener("click", submitPrompt);
+
+    const actionsLabel = createElement(options.host, "p", "inline-ai-actions-label");
+    actionsLabel.textContent = options.strings.ai.actionsLabel;
+    const actions = createElement(options.host, "div", "inline-ai-prompt-actions");
+    actions.dataset.testid = "inline-ai-actions";
+    actions.setAttribute("role", "listbox");
+    actions.setAttribute("aria-label", options.strings.ai.actionsLabel);
+    const actionButtons = enabledActions().map((action, index) =>
+      inlineAiActionButton(options, action, index, selectedActionIndex, {
+        onEscape: close,
+        onMove(nextIndex) {
+          setSelectedActionIndex(nextIndex, true);
+        },
+        onSubmit() {
+          submitAction(action);
+        }
+      })
+    );
+    const activeAction = actionButtons[selectedActionIndex];
+    if (activeAction?.id) {
+      actions.setAttribute("aria-activedescendant", activeAction.id);
+    }
+    actions.replaceChildren(...actionButtons);
+
+    const preview = createElement(options.host, "div", "ai-suggestion-preview inline-ai-suggestion-preview");
+    preview.dataset.testid = "inline-ai-suggestion-preview";
+    preview.hidden = !state.pending;
+    preview.textContent = state.pending?.replacement ?? state.pending?.policyReason ?? "";
+
+    const suggestionActions = createElement(options.host, "div", "ai-suggestion-actions inline-ai-suggestion-actions");
+    const accept = createElement(options.host, "button", "button secondary");
+    const reject = createElement(options.host, "button", "button secondary");
+    accept.dataset.testid = "inline-ai-accept-button";
+    reject.dataset.testid = "inline-ai-reject-button";
+    accept.type = "button";
+    reject.type = "button";
+    accept.textContent = options.strings.ai.accept;
+    reject.textContent = options.strings.ai.reject;
+    accept.disabled = state.pending?.status !== "pending";
+    reject.disabled = state.pending?.status !== "pending";
+    accept.addEventListener("click", () => {
+      void options.onAccept?.();
+    });
+    reject.addEventListener("click", () => {
+      void options.onReject?.();
+    });
+    suggestionActions.append(accept, reject);
+
+    root.append(header, provider, promptLabel, generate, preview, suggestionActions, actionsLabel, actions);
+    if (focus && state.open) {
+      focusPrompt();
+    }
+  };
+
+  root.addEventListener("keydown", onRootKeyDown);
+  cleanups.push(options.session.on("destroy", () => destroy()));
+  cleanups.push(() => root.removeEventListener("keydown", onRootKeyDown));
+  render();
+
+  const destroy = (): void => {
+    for (const cleanup of cleanups.splice(0)) {
+      cleanup();
+    }
+    root.remove();
+  };
+  return {
+    close,
+    destroy,
+    focusPrompt,
+    root,
+    setState(nextState: SurfaceInlineAiPromptState) {
+      state = nextState;
+      promptValue = nextState.prompt;
+      selectedActionIndex = nextState.selectedActionIndex;
+      render(nextState.open);
+    },
+    update: render
+  };
+}
+
 export function createModeControl(options: CreateModeControlOptions): SurfaceComponent & {
   readonly root: HTMLElement;
   setState(state: SurfaceModeControlState): void;
@@ -1167,6 +1466,55 @@ function paletteButton(
   return button;
 }
 
+function inlineAiActionButton(
+  options: CreateInlineAiPromptOptions,
+  action: SurfaceAiAction,
+  index: number,
+  selectedIndex: number,
+  handlers: {
+    readonly onEscape: () => void;
+    readonly onMove: (index: number) => void;
+    readonly onSubmit: () => void;
+  }
+): HTMLButtonElement {
+  const button = createElement(options.host, "button", "inline-ai-action-row");
+  button.type = "button";
+  button.id = `mme-inline-ai-option-${index}`;
+  button.dataset.referenceAiAction = action.id;
+  button.dataset.selected = String(index === selectedIndex);
+  button.dataset.testid = `inline-ai-action-${action.id}`;
+  button.setAttribute("role", "option");
+  button.setAttribute("aria-selected", String(index === selectedIndex));
+  const label = createElement(options.host, "strong");
+  const prompt = createElement(options.host, "span");
+  label.textContent = action.label;
+  prompt.textContent = action.prompt;
+  button.append(label, prompt);
+  button.addEventListener("click", handlers.onSubmit);
+  button.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      handlers.onEscape();
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      handlers.onMove(index + 1);
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      handlers.onMove(index - 1);
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handlers.onSubmit();
+    }
+  });
+  return button;
+}
+
 function modeButton(options: CreateModeControlOptions, state: SurfaceModeControlState, mode: SurfaceEditorMode): HTMLButtonElement {
   const button = createElement(options.host, "button", mode === "source" ? "mode-button mode-switch-track" : mode === "rich" ? "mode-button mode-switch-label" : "mode-button preview-mode-pill");
   button.type = "button";
@@ -1201,6 +1549,22 @@ function statusLine(options: SurfaceComponentContext, label: string, testId: str
   valueElement.textContent = value;
   row.append(labelElement, valueElement);
   return row;
+}
+
+function applyInlineAnchor(root: HTMLElement, anchor: SurfaceInlineAiAnchor | null): void {
+  if (!anchor) {
+    root.style.removeProperty("--inline-ai-left");
+    root.style.removeProperty("--inline-ai-top");
+    root.style.removeProperty("--inline-ai-width");
+    return;
+  }
+  root.style.setProperty("--inline-ai-left", `${Math.round(anchor.left)}px`);
+  root.style.setProperty("--inline-ai-top", `${Math.round(anchor.top)}px`);
+  if (anchor.width !== undefined) {
+    root.style.setProperty("--inline-ai-width", `${Math.round(anchor.width)}px`);
+  } else {
+    root.style.removeProperty("--inline-ai-width");
+  }
 }
 
 function enabledAiItems(

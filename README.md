@@ -41,11 +41,12 @@ Completed slices:
 - MME-0026: Preferences, locks, and capability contracts with headless resolver tests, CodeMirror/ProseMirror live reconfiguration, demo host-preference simulation, and visual proof.
 - MME-0027: Extension registry V0, accepted by the human after public registry contracts, host slash/toolbar/custom-block/AI registrations, compact toolbar review fixes, rich code-block escape fixes, slash query consumption fixes, and visual proof.
 - MME-0028: Editor surface package with i18n and accessibility, accepted for code continuation after subagent review fixes; detailed UX interaction feedback deferred to later follow-ups.
+- MME-0028.5: Inline AI prompt surface and usable writing flow, accepted for code continuation after UX and security subagent review fixes, keyboard/visual proof, explicit mock/missing/provider-policy states, and staged accept/reject flow.
 - MME-0039: Interim demo visual refresh (human-directed, out of phase order). CSS-only restyle of the demo chrome and editing surfaces; the values are the draft defaults for the MME-0025 token set.
 
 Current slice:
 
-- MME-0028.5: Inline AI prompt surface and usable writing flow.
+- MME-0028.6: Real AI provider adapter path.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

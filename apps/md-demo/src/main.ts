@@ -89,13 +89,18 @@ import {
   createAiAssistantPanel,
   createCommandPalette,
   createDocumentStatus,
+  createInlineAiPrompt,
   createModeControl,
   createSlashMenu,
   createToolbar,
   defaultMmeStrings,
   type SurfaceAiAction,
   type SurfaceAiAssistantState,
+  type SurfaceAiProviderKind,
+  type SurfaceAiProviderState,
   type SurfaceDocumentState,
+  type SurfaceInlineAiPromptState,
+  type SurfaceInlineAiPromptSubmitEvent,
   type SurfaceSlashState,
   type SurfaceToolbarState
 } from "@momentarise/md-surface";
@@ -192,6 +197,7 @@ app.innerHTML = `
         <div data-testid="editor-ai-assistant-panel-host"></div>
         <div data-testid="command-palette-host"></div>
         <div data-testid="rich-command-toolbar-host"></div>
+        <div data-testid="inline-ai-prompt-host"></div>
         <div class="rich-block-controls" data-testid="rich-block-controls" aria-label="Rich block controls" hidden>
           <div class="code-block-controls" data-testid="code-block-controls" hidden>
             <label>
@@ -258,12 +264,12 @@ app.innerHTML = `
           <p class="label">AI writing</p>
           <div class="ai-writing-controls">
             <label>
-              BYOK session
+              Mock session
               <input
                 type="password"
                 data-testid="ai-byok-key-input"
                 autocomplete="off"
-                placeholder="Session key, memory only"
+                placeholder="Memory-only demo key"
                 spellcheck="false"
               />
             </label>
@@ -413,6 +419,7 @@ const selectedTextAiAction = queryRequired<HTMLButtonElement>('[data-testid="sel
 const commandPaletteButton = queryRequired<HTMLButtonElement>('[data-testid="command-palette-button"]');
 const commandPaletteHost = queryRequired<HTMLDivElement>('[data-testid="command-palette-host"]');
 const editorAiAssistantPanelHost = queryRequired<HTMLDivElement>('[data-testid="editor-ai-assistant-panel-host"]');
+const inlineAiPromptHost = queryRequired<HTMLDivElement>('[data-testid="inline-ai-prompt-host"]');
 const surfaceSettingsPanel = queryRequired<HTMLDetailsElement>('[data-testid="surface-settings-panel"]');
 const debugInspector = queryRequired<HTMLDetailsElement>('[data-testid="debug-inspector"]');
 const editorNotice = queryRequired<HTMLElement>('[data-testid="editor-notice"]');
@@ -433,8 +440,10 @@ let documentStatusPopover: HTMLDetailsElement;
 let memorySaveButton: HTMLButtonElement;
 let editorAiAssistantPanel: HTMLDivElement;
 let editorAiStatusElement: HTMLElement;
+let inlineAiPrompt: HTMLDivElement;
 let commandPaletteSurface: ReturnType<typeof createCommandPalette> | null = null;
 let documentStatusSurface: ReturnType<typeof createDocumentStatus> | null = null;
+let inlineAiPromptSurface: ReturnType<typeof createInlineAiPrompt> | null = null;
 let modeControlSurface: ReturnType<typeof createModeControl> | null = null;
 let slashMenuSurface: ReturnType<typeof createSlashMenu> | null = null;
 let toolbarSurface: ReturnType<typeof createToolbar> | null = null;
@@ -444,6 +453,21 @@ let editorAiSurfaceState: SurfaceAiAssistantState = {
   pending: null,
   statusText: defaultMmeStrings.ai.noSession,
   visible: false
+};
+let inlineAiProviderOverride: SurfaceAiProviderKind | null = null;
+let inlineAiPromptState: SurfaceInlineAiPromptState = {
+  anchor: null,
+  open: false,
+  pending: null,
+  prompt: "",
+  provider: {
+    canSubmit: false,
+    description: "Mock/offline demo provider is available after a memory-only session starts.",
+    kind: "mock",
+    label: "Mock/offline demo provider"
+  },
+  selectedActionIndex: 0,
+  statusText: defaultMmeStrings.ai.noSession
 };
 
 let eventCounter = 0;
@@ -726,6 +750,15 @@ function replaceDemoSession(content: string, target: SaveTarget, path: string | 
   session.destroy();
   session = createDemoSession(content, target, path);
   aiSessionStarted = false;
+  inlineAiProviderOverride = null;
+  inlineAiPromptState = {
+    ...inlineAiPromptState,
+    open: false,
+    pending: null,
+    prompt: "",
+    provider: inlineAiProviderState(),
+    statusText: defaultMmeStrings.ai.noSession
+  };
   mountReferenceSurfaceComponents();
 }
 
@@ -735,6 +768,7 @@ function mountReferenceSurfaceComponents(): void {
   commandPaletteSurface?.destroy();
   documentStatusSurface?.destroy();
   modeControlSurface?.destroy();
+  inlineAiPromptSurface?.destroy();
   editorAiSurface?.destroy();
 
   modeControlSurface = createModeControl({
@@ -797,6 +831,30 @@ function mountReferenceSurfaceComponents(): void {
     }
   });
   slashCommandMenu = slashMenuSurface.root as HTMLDivElement;
+
+  inlineAiPromptSurface = createInlineAiPrompt({
+    actions: inlineAiPromptActions(),
+    host: inlineAiPromptHost,
+    icons: defaultIconSet,
+    preferences: surfacePreferences(),
+    session,
+    state: inlineAiPromptState,
+    strings: defaultMmeStrings,
+    onAccept() {
+      acceptPendingAiSuggestion();
+    },
+    onClose() {
+      setInlineAiPromptState({ open: false });
+      focusActiveEditor();
+    },
+    onReject() {
+      rejectPendingAiSuggestion();
+    },
+    onSubmit(event) {
+      void submitInlineAiPrompt(event);
+    }
+  });
+  inlineAiPrompt = inlineAiPromptSurface.root as HTMLDivElement;
 
   commandPaletteSurface = createCommandPalette({
     actions: surfaceAiActionsForEntryPoint("command-palette"),
@@ -906,6 +964,80 @@ function surfaceAiActionsForEntryPoint(entryPoint: ReferenceAiEntryPoint): reado
     label: action.label,
     prompt: action.prompt
   }));
+}
+
+function inlineAiPromptActions(): readonly SurfaceAiAction[] {
+  return registeredReferenceAiActions().map((action) => ({
+    entryPoints: action.entryPoints,
+    id: action.id,
+    label: action.label,
+    prompt: action.prompt
+  }));
+}
+
+function setInlineAiPromptState(nextState: Partial<SurfaceInlineAiPromptState>): void {
+  inlineAiPromptState = {
+    ...inlineAiPromptState,
+    provider: inlineAiProviderState(),
+    ...nextState
+  };
+  inlineAiPromptSurface?.setState(inlineAiPromptState);
+  inlineAiPrompt = inlineAiPromptSurface?.root as HTMLDivElement;
+}
+
+function inlineAiProviderState(): SurfaceAiProviderState {
+  if (inlineAiProviderOverride === "missing") {
+    return {
+      canSubmit: false,
+      description: "No host provider adapter is configured. Raw OpenAI, Gemini, or Mistral keys are not called by this demo.",
+      kind: "missing",
+      label: "Missing provider"
+    };
+  }
+  if (inlineAiProviderOverride === "host-managed") {
+    return {
+      canSubmit: aiSessionStarted,
+      description: aiSessionStarted
+        ? "Host-managed provider path is active for this session."
+        : "Host-managed provider exists, but no session is connected.",
+      kind: "host-managed",
+      label: "Host-managed provider"
+    };
+  }
+  if (inlineAiProviderOverride === "disabled-by-policy" || activeDocument.kind !== "markdown") {
+    return {
+      canSubmit: false,
+      description: "AI writing is disabled before document content can leave this editor.",
+      kind: "disabled-by-policy",
+      label: "Disabled by policy"
+    };
+  }
+  return {
+    canSubmit: aiSessionStarted,
+    description: aiSessionStarted
+      ? "Local mock provider only; policy is checked before staged suggestions are generated."
+      : "Mock/offline demo only. Connect a memory-only session; this does not call OpenAI, Gemini, or Mistral.",
+    kind: "mock",
+    label: "Mock/offline demo provider"
+  };
+}
+
+function inlinePendingState(): SurfaceInlineAiPromptState["pending"] {
+  const pendingAiSuggestion = session.getPendingSuggestion();
+  if (!pendingAiSuggestion) {
+    return null;
+  }
+  if (pendingAiSuggestion.status === "blocked") {
+    return {
+      policyReason: pendingAiSuggestion.policyDecision?.reason ?? "Policy blocked AI writing.",
+      status: pendingAiSuggestion.status
+    };
+  }
+  return {
+    replacement: pendingAiSuggestion.replacement,
+    status: pendingAiSuggestion.status,
+    title: pendingAiSuggestion.title
+  };
 }
 
 function setEditorAiSurfaceState(nextState: Partial<SurfaceAiAssistantState>): void {
@@ -1185,6 +1317,9 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   getAiWritingState() {
     return getAiWritingState();
   },
+  getInlineAiPromptState() {
+    return getInlineAiPromptState();
+  },
   getReferenceSurfaceState() {
     return getReferenceSurfaceState();
   },
@@ -1244,8 +1379,15 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
     aiPromptInput.value = prompt;
     return generateAiSuggestion();
   },
+  openInlineAiPromptForTest(actionId?: ReferenceAiActionId) {
+    openInlineAiPromptFromAction(actionId);
+  },
   acceptAiSuggestionForTest() {
     acceptPendingAiSuggestion();
+  },
+  showInlineAiProviderStateForTest(kind: SurfaceAiProviderKind) {
+    inlineAiProviderOverride = kind;
+    openInlineAiPromptFromAction("draft");
   },
   showUnsupportedLocalFileStateForTest() {
     showUnsupportedLocalFileState();
@@ -1777,9 +1919,9 @@ function startAiSession(): void {
 
 function startAiSessionFromKey(apiKey: string): void {
   if (!apiKey) {
-    aiStatusElement.textContent = "Enter a BYOK session key to start mock AI.";
+    aiStatusElement.textContent = "Enter a memory-only key to enable mock AI.";
     setEditorAiSurfaceState({
-      statusText: "Paste a memory-only key to connect a private AI session.",
+      statusText: "Paste a memory-only key to enable the mock/offline demo provider.",
       visible: true
     });
     return;
@@ -1788,15 +1930,15 @@ function startAiSessionFromKey(apiKey: string): void {
   session.startAiSession(apiKey);
   aiSessionStarted = true;
   aiByokKeyInput.value = "";
-  logEvent("AI writing session started with mock provider. BYOK key was kept memory-only.");
+  logEvent("AI writing session started with mock/offline provider. Key was kept memory-only; no external provider was called.");
   renderAiWritingState();
 }
 
 async function generateAiSuggestion(): Promise<void> {
   if (!aiSessionStarted) {
-    aiStatusElement.textContent = "Start a memory-only BYOK session first.";
+    aiStatusElement.textContent = "Enable the mock/offline AI session first.";
     setEditorAiSurfaceState({
-      statusText: "Connect a private AI session first.",
+      statusText: "Enable the mock/offline AI session first.",
       visible: true
     });
     return;
@@ -1883,6 +2025,12 @@ function renderAiWritingState(): void {
       pending: null,
       statusText: aiSessionStarted ? "Private AI session ready" : "No AI session"
     });
+    setInlineAiPromptState({
+      busy: false,
+      pending: null,
+      provider: inlineAiProviderState(),
+      statusText: aiSessionStarted ? "Mock/offline demo ready" : "No AI session"
+    });
     return;
   }
 
@@ -1897,7 +2045,13 @@ function renderAiWritingState(): void {
         status: pendingAiSuggestion.status
       },
       statusText: "AI blocked by policy before provider call",
-      visible: true
+      visible: !inlineAiPromptState.open
+    });
+    setInlineAiPromptState({
+      busy: false,
+      pending: inlinePendingState(),
+      provider: inlineAiProviderState(),
+      statusText: "AI blocked by policy before provider call"
     });
     return;
   }
@@ -1913,7 +2067,13 @@ function renderAiWritingState(): void {
       title: pendingAiSuggestion.title
     },
     statusText: `Suggestion ${pendingAiSuggestion.status}: ${pendingAiSuggestion.title}`,
-    visible: true
+    visible: !inlineAiPromptState.open
+  });
+  setInlineAiPromptState({
+    busy: false,
+    pending: inlinePendingState(),
+    provider: inlineAiProviderState(),
+    statusText: `Suggestion ${pendingAiSuggestion.status}: ${pendingAiSuggestion.title}`
   });
   renderReferenceSurfaceState();
 }
@@ -1988,6 +2148,29 @@ function getAiWritingState(): {
   };
 }
 
+function getInlineAiPromptState(): {
+  readonly activeElement: string | null;
+  readonly open: boolean;
+  readonly pendingStatus: string | null;
+  readonly providerDescription: string;
+  readonly providerKind: string;
+  readonly providerLabel: string;
+  readonly prompt: string;
+  readonly statusText: string;
+} {
+  const input = inlineAiPrompt.querySelector<HTMLTextAreaElement>('[data-testid="inline-ai-prompt-input"]');
+  return {
+    activeElement: document.activeElement instanceof HTMLElement ? document.activeElement.dataset.testid ?? null : null,
+    open: !inlineAiPrompt.hidden,
+    pendingStatus: session.getPendingSuggestion()?.status ?? null,
+    providerDescription: inlineAiPromptState.provider.description,
+    providerKind: inlineAiPromptState.provider.kind,
+    providerLabel: inlineAiPromptState.provider.label,
+    prompt: input?.value ?? inlineAiPromptState.prompt,
+    statusText: inlineAiPromptState.statusText
+  };
+}
+
 function renderReferenceSurfaceState(): void {
   applyReferencePreferenceCssVariables();
   const aiGroupVisible = referenceSurfacePreferences.visibleCommandGroups.includes("ai");
@@ -2008,6 +2191,10 @@ function renderReferenceSurfaceState(): void {
   toolbarSurface?.setState(surfaceToolbarState());
   toolbarAiButton = queryRequired<HTMLButtonElement>('[data-testid="toolbar-ai-button"]');
   toolbarMoreMenu = queryRequired<HTMLDivElement>('[data-testid="toolbar-more-menu"]');
+  setInlineAiPromptState({
+    anchor: inlineAiPromptState.open ? positionInlineAiPrompt(false) : inlineAiPromptState.anchor,
+    provider: inlineAiProviderState()
+  });
   renderEditorAiMenu();
   aiCommandSurface.hidden = !toolbarAiVisible;
   selectedTextAiAction.hidden = !selectionAiVisible;
@@ -2626,6 +2813,13 @@ function updateSlashMenuFromRichState(): void {
   const nextState = detectSlashCommandState();
   const previousQuery = slashCommandState.query;
   slashCommandState = nextState;
+  if (slashCommandState.open && slashCommandState.query.toLowerCase() === "ai") {
+    const targetBlockText = slashQueryBlockText(slashCommandState.query);
+    consumeActiveSlashQuery();
+    const anchor = targetBlockText ? richBlockAnchorForText(targetBlockText) : positionInlineAiPrompt(false);
+    openInlineAiPromptFromAction("draft", anchor);
+    return;
+  }
   if (!slashCommandState.open || slashCommandState.query !== previousQuery) {
     slashCommandSelectedIndex = 0;
   } else {
@@ -2790,7 +2984,7 @@ function handleSlashMenuKeyboard(event: KeyboardEvent): boolean {
 function matchingReferenceAiSlashActions(query: string): readonly ReferenceAiAction[] {
   const normalizedQuery = query.trim().toLowerCase();
   return referenceAiActionsForRegisteredEntryPoint("slash").filter((action: ReferenceAiAction) => {
-    if (!normalizedQuery) {
+    if (!normalizedQuery || normalizedQuery === "ai") {
       return true;
     }
     return `${action.id} ${action.label} ${action.prompt}`.toLowerCase().includes(normalizedQuery);
@@ -2837,7 +3031,9 @@ function typeRichTextForTest(text: string): void {
   syncRichMarkdownToSource("rich edit");
   renderRichBlockControls();
   updateSlashMenuFromRichState();
-  richEditor.focus();
+  if (!inlineAiPromptState.open) {
+    richEditor.focus();
+  }
 }
 
 function pressRichKeyForTest(key: string): void {
@@ -2866,7 +3062,9 @@ function pressRichKeyForTest(key: string): void {
   syncRichMarkdownToSource("rich edit");
   renderRichBlockControls();
   updateSlashMenuFromRichState();
-  richEditor.focus();
+  if (!inlineAiPromptState.open) {
+    richEditor.focus();
+  }
 }
 
 async function copyMarkdown(): Promise<void> {
@@ -2995,7 +3193,7 @@ function openAiCommandSurface(): void {
   if (!isAiEntryPointEnabled("toolbar")) {
     return;
   }
-  aiCommandSurface.open = true;
+  openInlineAiPromptFromAction("draft");
   renderReferenceSurfaceState();
 }
 
@@ -3024,6 +3222,280 @@ function handleCommandPaletteKeyboard(event: KeyboardEvent): boolean {
   return false;
 }
 
+function focusActiveEditor(): void {
+  if (editorMode === "rich" && richEditor) {
+    richEditor.focus();
+    return;
+  }
+  if (editorMode === "source") {
+    editor.focus();
+  }
+}
+
+function positionInlineAiPrompt(applyState = true): SurfaceInlineAiPromptState["anchor"] {
+  const regionRect = editorRegion.getBoundingClientRect();
+  const width = Math.min(520, Math.max(320, regionRect.width - 32));
+  let caretRect: { readonly bottom: number; readonly left: number };
+  if (richEditor && editorMode === "rich") {
+    caretRect = currentRichBlockAnchorRect() ?? richCaretAnchorRect();
+  } else {
+    const hostRect = editorMode === "source" ? editorHost.getBoundingClientRect() : editorRegion.getBoundingClientRect();
+    caretRect = {
+      bottom: hostRect.top + 44,
+      left: hostRect.left + 36
+    };
+  }
+  const left = Math.min(Math.max(caretRect.left - regionRect.left, 12), Math.max(12, regionRect.width - width - 12));
+  const top = Math.max(caretRect.bottom - regionRect.top + 8, 12);
+  const anchor = {
+    left,
+    top,
+    width
+  };
+  if (applyState) {
+    setInlineAiPromptState({ anchor });
+  }
+  return anchor;
+}
+
+function slashQueryBlockText(query: string): string | null {
+  if (!richEditor || !query.trim()) {
+    return null;
+  }
+  const marker = `/${query.trim()}`;
+  const parentText = richEditor.state.selection.$from.parent.textContent;
+  if (parentText.includes(marker)) {
+    return parentText.replace(marker, "").trim() || null;
+  }
+  const block = [...richEditor.dom.querySelectorAll<HTMLElement>(
+    "p,h1,h2,h3,h4,h5,h6,li,pre,blockquote,[data-type='todo-item']"
+  )].find((candidate) => candidate.textContent?.includes(marker));
+  if (!block) {
+    return null;
+  }
+  return block.textContent?.replace(marker, "").trim() || null;
+}
+
+function richBlockAnchorForText(text: string): SurfaceInlineAiPromptState["anchor"] {
+  if (!richEditor || !text.trim()) {
+    return null;
+  }
+  const block = [...richEditor.dom.querySelectorAll<HTMLElement>(
+    "p,h1,h2,h3,h4,h5,h6,li,pre,blockquote,[data-type='todo-item']"
+  )].find((candidate) => candidate.textContent?.trim() === text.trim());
+  if (!block) {
+    return null;
+  }
+  const regionRect = editorRegion.getBoundingClientRect();
+  const rect = block.getBoundingClientRect();
+  const width = Math.min(520, Math.max(320, regionRect.width - 32));
+  return {
+    left: Math.min(Math.max(rect.left - regionRect.left, 12), Math.max(12, regionRect.width - width - 12)),
+    top: Math.max(rect.bottom - regionRect.top + 8, 12),
+    width
+  };
+}
+
+function richCaretAnchorRect(): { readonly bottom: number; readonly left: number } {
+  if (!richEditor) {
+    const editorRect = richEditorHost.getBoundingClientRect();
+    return {
+      bottom: editorRect.top + 44,
+      left: editorRect.left + 36
+    };
+  }
+  try {
+    return richEditor.coordsAtPos(richEditor.state.selection.from);
+  } catch {
+    const editorRect = richEditorHost.getBoundingClientRect();
+    return {
+      bottom: editorRect.top + 44,
+      left: editorRect.left + 36
+    };
+  }
+}
+
+function currentRichBlockAnchorRect(): { readonly bottom: number; readonly left: number } | null {
+  if (!richEditor) {
+    return null;
+  }
+  const parentText = richEditor.state.selection.$from.parent.textContent.trim();
+  if (parentText) {
+    const matchingBlock = [...richEditor.dom.querySelectorAll<HTMLElement>(
+      "p,h1,h2,h3,h4,h5,h6,li,pre,blockquote,[data-type='todo-item']"
+    )].find((candidate) => candidate.textContent?.trim().includes(parentText));
+    if (matchingBlock) {
+      const rect = matchingBlock.getBoundingClientRect();
+      return {
+        bottom: rect.bottom,
+        left: rect.left
+      };
+    }
+  }
+  const caretRect = richCaretAnchorRect();
+  const nearestBlock = [...richEditor.dom.querySelectorAll<HTMLElement>(
+    "p,h1,h2,h3,h4,h5,h6,li,pre,blockquote,[data-type='todo-item']"
+  )]
+    .map((candidate) => ({
+      element: candidate,
+      rect: candidate.getBoundingClientRect()
+    }))
+    .filter((candidate) => candidate.rect.bottom >= caretRect.bottom)
+    .sort((left, right) => left.rect.top - right.rect.top)[0];
+  if (nearestBlock) {
+    return {
+      bottom: nearestBlock.rect.bottom,
+      left: nearestBlock.rect.left
+    };
+  }
+  const elementAtCaret = document.elementFromPoint(caretRect.left, caretRect.bottom);
+  const blockAtCaret = elementAtCaret?.closest<HTMLElement>(
+    "p,h1,h2,h3,h4,h5,h6,li,pre,blockquote,[data-type='todo-item']"
+  );
+  if (blockAtCaret && richEditor.dom.contains(blockAtCaret)) {
+    const rect = blockAtCaret.getBoundingClientRect();
+    return {
+      bottom: rect.bottom,
+      left: rect.left
+    };
+  }
+  const domAtSelection = richEditor.domAtPos(richEditor.state.selection.from).node;
+  const element =
+    domAtSelection instanceof Element
+      ? domAtSelection
+      : domAtSelection.parentElement;
+  const block = element?.closest<HTMLElement>(
+    "p,h1,h2,h3,h4,h5,h6,li,pre,blockquote,[data-type='todo-item']"
+  );
+  if (!block) {
+    return null;
+  }
+  const rect = block.getBoundingClientRect();
+  return {
+    bottom: rect.bottom,
+    left: rect.left
+  };
+}
+
+function openInlineAiPromptFromAction(
+  actionId?: ReferenceAiActionId,
+  anchorOverride?: SurfaceInlineAiPromptState["anchor"]
+): void {
+  const actions = inlineAiPromptActions();
+  const actionIndex = Math.max(0, actions.findIndex((candidate) => candidate.id === actionId));
+  const action = actionId ? referenceAiActionById(actionId) : null;
+  let prompt = action?.prompt ?? "";
+  if (action) {
+    const promptResult = session.extensions.buildAiActionPrompt(action.extensionId, defaultAiParams(action.params ?? []));
+    if (promptResult.handled && promptResult.prompt) {
+      prompt = promptResult.prompt;
+    }
+  }
+  setInlineAiPromptState({
+    anchor: anchorOverride ?? positionInlineAiPrompt(false),
+    busy: false,
+    open: true,
+    pending: inlinePendingState(),
+    prompt,
+    provider: inlineAiProviderState(),
+    selectedActionIndex: actionIndex,
+    statusText: inlineAiProviderState().description
+  });
+  inlineAiPromptSurface?.focusPrompt();
+  renderReferenceSurfaceState();
+}
+
+async function submitInlineAiPrompt(event: SurfaceInlineAiPromptSubmitEvent): Promise<void> {
+  const providerState = inlineAiProviderState();
+  if (activeDocument.kind !== "markdown") {
+    aiStatusElement.textContent = "AI writing is available for Markdown documents only in this demo.";
+    setInlineAiPromptState({
+      busy: false,
+      provider: {
+        canSubmit: false,
+        description: "AI writing is available for Markdown documents only in this demo.",
+        kind: "disabled-by-policy",
+        label: "Disabled by policy"
+      },
+      statusText: "AI writing is available for Markdown documents only in this demo."
+    });
+    return;
+  }
+  if (!providerState.canSubmit) {
+    aiStatusElement.textContent = providerState.description;
+    setInlineAiPromptState({
+      busy: false,
+      provider: providerState,
+      statusText: providerState.description
+    });
+    logEvent(`AI prompt not sent: ${providerState.label}.`);
+    return;
+  }
+  if (richChanged) {
+    syncRichMarkdownToSource("mode switch");
+  }
+
+  const action = event.actionId ? referenceAiActionById(event.actionId) : null;
+  let requestAction: AiWritingAction = "insert-block";
+  let prompt = event.prompt.trim();
+  if (action) {
+    const promptResult = session.extensions.buildAiActionPrompt(action.extensionId, defaultAiParams(action.params ?? []));
+    if (!promptResult.handled || !promptResult.prompt) {
+      const reason = promptResult.diagnostic?.reason ?? action.label;
+      aiStatusElement.textContent = `AI action unavailable: ${reason}.`;
+      setInlineAiPromptState({
+        busy: false,
+        statusText: aiStatusElement.textContent
+      });
+      logEvent(`AI action unavailable: ${reason}.`);
+      return;
+    }
+    requestAction = promptResult.demoAction ?? action.demoAction;
+    prompt = prompt && prompt !== action.prompt ? `${promptResult.prompt}\n\nUser instruction: ${prompt}` : promptResult.prompt;
+  } else if (!prompt) {
+    setInlineAiPromptState({
+      busy: false,
+      statusText: "Type a prompt or choose an AI action."
+    });
+    return;
+  }
+
+  aiActionSelect.value = requestAction;
+  aiPromptInput.value = prompt;
+  aiStatusElement.textContent = "Checking policy...";
+  setInlineAiPromptState({
+    busy: true,
+    pending: inlinePendingState(),
+    prompt,
+    provider: providerState,
+    statusText: "Checking policy..."
+  });
+
+  try {
+    const markdown = getMarkdown();
+    const suggestion = await session.requestAiSuggestion({
+      action: requestAction,
+      ...(prompt ? { prompt } : {}),
+      ...selectionForAiRequest(markdown)
+    });
+    if (suggestion.status === "blocked") {
+      logEvent("AI writing blocked by Document Access Policy before provider call.");
+    } else {
+      logEvent(`Inline AI ${requestAction} suggestion generated by ${providerState.label}; review before applying.`);
+    }
+  } catch (error) {
+    aiStatusElement.textContent = `AI prompt failed: ${errorMessage(error)}`;
+    setInlineAiPromptState({
+      busy: false,
+      provider: providerState,
+      statusText: aiStatusElement.textContent
+    });
+    logEvent(`Inline AI prompt failed: ${errorMessage(error)}`);
+    return;
+  }
+  renderAiWritingState();
+}
+
 function setReferenceSurfacePreferences(preferences: ReferenceEditorPreferenceInput): void {
   referenceSurfacePreferences = resolveReferenceEditorPreferences(preferences);
   applyReferenceSurfacePreferences();
@@ -3031,51 +3503,7 @@ function setReferenceSurfacePreferences(preferences: ReferenceEditorPreferenceIn
 }
 
 async function runEditorNativeAiCommand(actionId: ReferenceAiActionId): Promise<void> {
-  const action = referenceAiActionById(actionId);
-  if (!action) {
-    return;
-  }
-  setEditorAiSurfaceState({ visible: true });
-  if (activeDocument.kind !== "markdown") {
-    aiStatusElement.textContent = "AI writing is available for Markdown documents only in this demo.";
-    setEditorAiSurfaceState({
-      statusText: "AI writing is available for Markdown documents only in this demo.",
-      visible: true
-    });
-    logEvent(`AI action unavailable for ${activeDocument.fileName}: ${action.label}.`);
-    renderReferenceSurfaceState();
-    return;
-  }
-  if (!aiSessionStarted) {
-    aiStatusElement.textContent = `${action.label}: start a memory-only BYOK session first.`;
-    setEditorAiSurfaceState({
-      statusText: `${action.label}: connect a private AI session first.`,
-      visible: true
-    });
-    logEvent(`Queued editor-native AI action without session: ${action.label}.`);
-    renderReferenceSurfaceState();
-    return;
-  }
-
-  const promptResult = session.extensions.buildAiActionPrompt(action.extensionId, defaultAiParams(action.params ?? []));
-  if (!promptResult.handled || !promptResult.prompt) {
-    aiStatusElement.textContent = `AI action unavailable: ${promptResult.diagnostic?.reason ?? action.label}.`;
-    setEditorAiSurfaceState({
-      statusText: aiStatusElement.textContent,
-      visible: true
-    });
-    logEvent(`AI action unavailable: ${promptResult.diagnostic?.reason ?? action.label}.`);
-    renderReferenceSurfaceState();
-    return;
-  }
-
-  aiActionSelect.value = promptResult.demoAction ?? action.demoAction;
-  aiPromptInput.value = promptResult.prompt;
-  setEditorAiSurfaceState({
-    statusText: `Running ${action.label}...`,
-    visible: true
-  });
-  await generateAiSuggestion();
+  openInlineAiPromptFromAction(actionId);
 }
 
 function saveEngineStatusLabel(state: SaveState): string {
@@ -3439,6 +3867,16 @@ declare global {
         readonly statusText: string;
         readonly suggestionText: string;
       };
+      getInlineAiPromptState: () => {
+        readonly activeElement: string | null;
+        readonly open: boolean;
+        readonly pendingStatus: string | null;
+        readonly providerDescription: string;
+        readonly providerKind: string;
+        readonly providerLabel: string;
+        readonly prompt: string;
+        readonly statusText: string;
+      };
       getPropertiesState: () => {
         readonly hiddenText: string;
         readonly listText: string;
@@ -3485,6 +3923,7 @@ declare global {
       loadWritableMarkdownFileForTest: (fileName: string, content: string) => void;
       memorySave: (source: "button" | "keyboard shortcut") => void;
       insertParagraphAfterCurrentRichBlock: () => void;
+      openInlineAiPromptForTest: (actionId?: ReferenceAiActionId) => void;
       openSlashMenuForTest: (query: string) => void;
       pressRichKeyForTest: (key: string) => void;
       runRichCommand: (commandId: RichCommandId, options?: ApplyRichMarkdownCommandOptions) => void;
@@ -3494,6 +3933,7 @@ declare global {
       setCursorAfterText: (text: string) => void;
       setCursorToEnd: () => void;
       setReferenceSurfacePreferencesForTest: (preferences: ReferenceEditorPreferenceInput) => void;
+      showInlineAiProviderStateForTest: (kind: SurfaceAiProviderKind) => void;
       setRichSelectionAfterText: (text: string) => void;
       setSelection: (anchor: number, head: number) => void;
       startMockAiSessionForTest: () => void;

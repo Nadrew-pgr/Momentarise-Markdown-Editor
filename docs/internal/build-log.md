@@ -3792,3 +3792,56 @@
   - `git diff --check`
 - Next issue:
   - `MME-0028 — Editor surface package with i18n and accessibility`.
+
+#### MME-0028.5 completed — inline AI prompt surface and usable writing flow
+
+- Timestamp: 2026-06-30T15:42:34+02:00
+- Status:
+  - Completed for code continuation. Code HITL remains waived by the human for TypeScript/package work; detailed UX interaction feedback remains deferred.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short`, and target files in `packages/md-surface`, `apps/md-demo`, tests, and visual scripts.
+  - Confirmed `MME-0028` was accepted for continuation and committed as `c1b3622`; follow-up docs hash note is `59dfe87`.
+- RED proof before implementation:
+  - `npm run test:surface` failed because `@momentarise/md-surface` did not export `createInlineAiPrompt`.
+  - `npm run test:demo-ai-writing` failed because the demo had no inline prompt wiring.
+- Change:
+  - Added reusable `createInlineAiPrompt` to `@momentarise/md-surface` with provider-state display, focused free-text prompt, built-in action rows, staged suggestion preview, accept/reject controls, Escape close, and keyboard action navigation.
+  - Routed `/ai`, slash-menu AI, toolbar AI, command-palette AI, and test hooks into the same inline prompt/review model in the demo.
+  - Kept generation through `MarkdownEditorSession.requestAiSuggestion`, so policy denial and stale suggestion refusal still use the MME-0023 session/hash contract.
+  - Made provider state truthful in the demo: mock/offline, missing provider, host-managed placeholder, and disabled-by-policy states are explicit; user-facing copy no longer implies raw OpenAI/Gemini/Mistral keys work.
+  - Added `scripts/visual-check-mme00285.mjs` and visual artifacts under `docs/internal/visual-checks/MME-0028.5/`.
+  - Fixed an editor-region grid issue so overlay hosts do not push rich content down while inline prompt, slash menu, command palette, and assistant surfaces are absolutely positioned overlays.
+- Visual impact:
+  - Major editing-surface AI interaction change.
+  - Artifacts:
+    - `docs/internal/visual-checks/MME-0028.5/inline-ai-prompt-rich.png`
+    - `docs/internal/visual-checks/MME-0028.5/inline-ai-suggestion-staged.png`
+    - `docs/internal/visual-checks/MME-0028.5/inline-ai-provider-missing.png`
+    - `docs/internal/visual-checks/MME-0028.5/inline-ai-policy-blocked.png`
+- Checks run:
+  - `npm run test:surface` — RED before implementation, green after implementation and reviewer fixes.
+  - `npm run test:demo-ai-writing` — RED before implementation, green after implementation and reviewer fixes.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:demo-commands` — green.
+  - `npm run test:ai-writing` — green.
+  - `npm run test:editor-session` — green.
+  - `npm run build:demo` — green; existing Vite chunk-size warning only.
+  - `npm run visual:mme-0028.5` — green with system Chrome permission; visual script uses keyboard Enter for action-row submission.
+  - `npm run visual:mme-0028` — green as a regression check; regenerated MME-0028 screenshots were restored to keep this issue scoped.
+  - `npm test` — green; existing Vite chunk-size warning only.
+  - `git diff --check` — green.
+- Reviewer result:
+  - UX reviewer subagent `Faraday` found two P1 issues: Escape only worked from some controls, and action-row arrow navigation could drop focus after rerender.
+  - Fixed both: root dialog Escape handler closes from any focused inline control, action-row ArrowUp/ArrowDown restores focus to the newly selected row, and tests/visual proof cover the behavior.
+  - Security reviewer subagent `Parfit` found one P2 provider-truth issue: legacy debug panel copy still said `BYOK session`.
+  - Fixed by changing user-facing legacy panel copy to `Mock session` / `Memory-only demo key`; reviewer accepted no remaining provider-truth/security blockers.
+  - Follow-up read-only reviews from both subagents accepted with no remaining P0/P1/P2 findings.
+- Residual risks:
+  - Real provider adapter, production key handling, and OpenAI-compatible/LiteLLM mapping are intentionally out of scope and owned by `MME-0028.6`.
+  - Detailed UX interaction tuning remains deferred to Andrew's later feedback.
+- Commit status:
+  - Issue-scoped commit to be created next; hash will be recorded in a follow-up docs/process note because the hash cannot be known before commit creation.
+- Push status:
+  - Not pushed. Branch is local-only and already ahead of `origin/main`; push remains pending explicit safe push approval.
+- Next issue:
+  - `MME-0028.6 — Real AI provider adapter path`; stop before implementation if its provider/key-handling AI-boundary decision needs human confirmation.

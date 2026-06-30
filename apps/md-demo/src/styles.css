@@ -214,6 +214,28 @@ h1 {
   grid-template-rows: auto auto auto minmax(0, 1fr);
 }
 
+[data-testid="rich-command-toolbar-host"] {
+  grid-row: 1;
+  min-width: 0;
+}
+
+[data-testid="editor-ai-assistant-panel-host"],
+[data-testid="command-palette-host"],
+[data-testid="slash-command-menu-host"],
+[data-testid="inline-ai-prompt-host"] {
+  position: absolute;
+  inset: 0;
+  z-index: var(--mme-z-overlay);
+  pointer-events: none;
+}
+
+[data-testid="editor-ai-assistant-panel-host"] > *,
+[data-testid="command-palette-host"] > *,
+[data-testid="slash-command-menu-host"] > *,
+[data-testid="inline-ai-prompt-host"] > * {
+  pointer-events: auto;
+}
+
 .mode-switch {
   display: inline-flex;
   align-items: center;
@@ -537,6 +559,150 @@ h1 {
   max-height: 220px;
 }
 
+.inline-ai-prompt {
+  position: absolute;
+  z-index: var(--mme-z-overlay);
+  top: var(--inline-ai-top, 128px);
+  left: var(--inline-ai-left, 24px);
+  display: grid;
+  gap: 9px;
+  width: min(var(--inline-ai-width, 520px), calc(100% - 24px));
+  max-height: min(520px, calc(100% - var(--inline-ai-top, 128px) - 12px));
+  padding: 10px;
+  overflow: auto;
+  border: 1px solid var(--mme-color-border);
+  border-radius: var(--mme-radius-lg);
+  background: var(--mme-color-surface-raised);
+  box-shadow: var(--mme-shadow-md);
+  pointer-events: auto;
+}
+
+.inline-ai-prompt-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+}
+
+.inline-ai-provider-state {
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+  border: 1px solid var(--mme-color-border);
+  border-radius: var(--mme-radius-md);
+  background: var(--mme-color-surface);
+}
+
+.inline-ai-provider-state span {
+  color: var(--mme-color-text-muted);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.inline-ai-provider-state strong {
+  color: var(--mme-color-text);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.inline-ai-provider-state p {
+  margin: 0;
+  color: var(--mme-color-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.inline-ai-prompt-label {
+  display: grid;
+  gap: 5px;
+  color: var(--mme-color-text-muted);
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.inline-ai-prompt textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 76px;
+  padding: 8px;
+  border: 1px solid var(--mme-color-border);
+  border-radius: var(--mme-radius-md);
+  resize: vertical;
+  background: var(--mme-color-bg);
+  color: var(--mme-color-text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.inline-ai-prompt textarea:focus {
+  border-color: var(--mme-color-accent);
+  outline: 2px solid var(--mme-color-focus-ring);
+  outline-offset: 0;
+}
+
+.inline-ai-actions-label {
+  margin: 2px 0 0;
+  color: var(--mme-color-text-muted);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.inline-ai-prompt-actions {
+  display: grid;
+  gap: 2px;
+}
+
+.inline-ai-action-row {
+  display: grid;
+  gap: 2px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: var(--mme-radius-md);
+  background: transparent;
+  color: var(--mme-color-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.inline-ai-action-row:hover {
+  background: var(--mme-color-surface);
+}
+
+.inline-ai-action-row[data-selected="true"] {
+  background: var(--mme-color-accent-soft);
+}
+
+.inline-ai-action-row[data-selected="true"] strong {
+  color: var(--mme-color-accent);
+}
+
+.inline-ai-action-row strong {
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.inline-ai-action-row span {
+  color: var(--mme-color-text-muted);
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.inline-ai-suggestion-preview {
+  max-height: 180px;
+}
+
+.inline-ai-suggestion-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
 .ai-suggestion-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -687,6 +853,7 @@ h1 {
 }
 
 .rich-block-controls {
+  grid-row: 2;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -812,6 +979,7 @@ h1 {
 .editor-host,
 .rich-editor-host,
 .html-preview-host {
+  grid-row: 4;
   min-height: 0;
   height: 100%;
 }
@@ -1635,6 +1803,18 @@ h1 {
   .ai-assistant-header,
   .editor-ai-session-row {
     align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .inline-ai-prompt {
+    right: 8px;
+    left: 8px;
+    width: auto;
+    max-height: calc(100% - 24px);
+  }
+
+  .inline-ai-prompt-header,
+  .inline-ai-suggestion-actions {
     grid-template-columns: 1fr;
   }
 

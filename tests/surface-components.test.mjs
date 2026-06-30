@@ -9,6 +9,7 @@ const {
   createAiAssistantPanel,
   createCommandPalette,
   createDocumentStatus,
+  createInlineAiPrompt,
   createModeControl,
   createSlashMenu,
   createToolbar,
@@ -21,6 +22,7 @@ for (const exportName of [
   "createCommandPalette",
   "createDocumentStatus",
   "createAiAssistantPanel",
+  "createInlineAiPrompt",
   "createModeControl",
   "createDiagnosticsSurface",
   "defaultMmeStrings"
@@ -262,6 +264,109 @@ query(aiHost, "[data-testid='editor-ai-byok-key-input']").value = "demo-key";
 query(aiHost, "[data-testid='editor-ai-start-session-button']").click();
 assert(aiEvents.includes("session:demo-key"), "AI panel must expose session-start events without persisting the key.");
 
+const inlineAiHost = document.createElement("div");
+const inlineReturnFocus = document.createElement("button");
+document.body.append(inlineAiHost, inlineReturnFocus);
+const inlineEvents = [];
+const inlineAiPrompt = createInlineAiPrompt({
+  ...baseContext,
+  actions: [
+    {
+      entryPoints: ["slash", "toolbar", "command-palette"],
+      id: "continue",
+      label: "Continue writing",
+      prompt: "Continue this Markdown section."
+    },
+    {
+      entryPoints: ["slash", "toolbar"],
+      id: "draft",
+      label: "Draft section",
+      prompt: "Draft a useful Markdown section."
+    }
+  ],
+  host: inlineAiHost,
+  onClose() {
+    inlineEvents.push(["close"]);
+  },
+  onSubmit(event) {
+    inlineEvents.push(["submit", event.actionId ?? null, event.prompt]);
+  },
+  returnFocusTo: inlineReturnFocus,
+  state: {
+    anchor: {
+      left: 24,
+      top: 72,
+      width: 420
+    },
+    open: true,
+    pending: null,
+    prompt: "",
+    provider: {
+      kind: "mock",
+      label: "Mock/offline demo provider",
+      description: "Runs locally for demo proof.",
+      canSubmit: true
+    },
+    selectedActionIndex: 0,
+    statusText: "Mock/offline demo ready"
+  }
+});
+inlineAiPrompt.update();
+const inlineRoot = query(inlineAiHost, "[data-testid='inline-ai-prompt']");
+assert(inlineRoot.getAttribute("role") === "dialog", "Inline AI prompt must render as a dialog.");
+assert(document.activeElement === query(inlineAiHost, "[data-testid='inline-ai-prompt-input']"), "Inline AI prompt input must be focused by default.");
+assert(query(inlineAiHost, "[data-testid='inline-ai-provider-state']").textContent.includes("Mock/offline"), "Inline AI prompt must show explicit provider state.");
+assert(query(inlineAiHost, "[data-testid='inline-ai-action-continue']").getAttribute("role") === "option", "Inline AI action rows must be keyboard addressable options.");
+const inlinePromptInput = query(inlineAiHost, "[data-testid='inline-ai-prompt-input']");
+inlinePromptInput.value = "Write the next concrete paragraph.";
+inlinePromptInput.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+inlinePromptInput.dispatchEvent(
+  new dom.window.KeyboardEvent("keydown", { bubbles: true, key: "Enter", metaKey: true })
+);
+assert(
+  inlineEvents.some(([event, actionId, prompt]) => event === "submit" && actionId === null && prompt === "Write the next concrete paragraph."),
+  "Cmd-Enter from the prompt must submit arbitrary user text."
+);
+query(inlineAiHost, "[data-testid='inline-ai-prompt-input']").dispatchEvent(
+  new dom.window.KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" })
+);
+assert(query(inlineAiHost, "[data-testid='inline-ai-action-draft']").getAttribute("data-selected") === "true", "ArrowDown must rove inline AI action selection.");
+const inlineDraftAction = query(inlineAiHost, "[data-testid='inline-ai-action-draft']");
+inlineDraftAction.focus();
+inlineDraftAction.dispatchEvent(
+  new dom.window.KeyboardEvent("keydown", { bubbles: true, key: "ArrowUp" })
+);
+assert(document.activeElement === query(inlineAiHost, "[data-testid='inline-ai-action-continue']"), "Arrow navigation between inline AI actions must preserve focus.");
+query(inlineAiHost, "[data-testid='inline-ai-action-draft']").dispatchEvent(
+  new dom.window.KeyboardEvent("keydown", { bubbles: true, key: "Enter" })
+);
+assert(inlineEvents.some(([event, actionId]) => event === "submit" && actionId === "draft"), "Enter on an action row must submit that AI action.");
+inlineAiPrompt.setState({
+  anchor: {
+    left: 24,
+    top: 72,
+    width: 420
+  },
+  open: true,
+  pending: null,
+  prompt: "",
+  provider: {
+    kind: "missing",
+    label: "Missing provider",
+    description: "Configure a host-managed provider before sending document content.",
+    canSubmit: false
+  },
+  selectedActionIndex: 0,
+  statusText: "Missing provider"
+});
+assert(query(inlineAiHost, "[data-testid='inline-ai-generate-button']").disabled, "Missing provider state must disable prompt submission.");
+query(inlineAiHost, "[data-testid='inline-ai-generate-button']").focus();
+query(inlineAiHost, "[data-testid='inline-ai-generate-button']").dispatchEvent(
+  new dom.window.KeyboardEvent("keydown", { bubbles: true, key: "Escape" })
+);
+assert(query(inlineAiHost, "[data-testid='inline-ai-prompt']").hidden, "Escape must close inline AI prompt.");
+assert(document.activeElement === inlineReturnFocus, "Escape must return focus to the configured editor target.");
+
 const modeHost = document.createElement("div");
 const modeEvents = [];
 const modeControl = createModeControl({
@@ -286,6 +391,7 @@ gatedPalette.destroy();
 slash.destroy();
 status.destroy();
 aiPanel.destroy();
+inlineAiPrompt.destroy();
 modeControl.destroy();
 session.destroy();
 
