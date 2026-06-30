@@ -58,11 +58,12 @@ For behavior changes, use test-first/TDD:
 - no false done;
 - no toy implementations;
 - never log or commit API keys;
-- commit every completed issue before starting the next issue;
+- commit every completed issue after reviewer/fallback validation and before starting the next issue;
 - push after human validation/acceptance when a remote is configured and no blocker applies;
 - reviewers/subagents review only unless explicitly asked to implement;
 - do not continue to the next issue unless the human explicitly asks for autonomous issue-by-issue execution and the continuation gates below are satisfied;
 - do not mark an issue done unless every acceptance criterion has evidence.
+- continuing in the same session is allowed when the human explicitly asks for autonomy, but every new issue still requires a fresh context rebuild and a Pre-Issue Execution Plan before editing.
 
 ## Current Issue Selection
 
@@ -75,6 +76,8 @@ Determine the next issue from:
 - the latest relevant entries in `docs/internal/build-log.md`;
 - current `git status`;
 - the human's latest instruction.
+
+Default to the next unblocked issue in `docs/internal/ISSUES.md` order. Do not skip ahead or reorder issues unless the human explicitly says to.
 
 If those sources conflict, stop and ask for clarification.
 
@@ -97,6 +100,10 @@ If the human explicitly asks you to continue autonomously, you may continue to t
 - no blocker or uncertainty remains.
 
 Stop and ask the human if any of those conditions fail.
+
+If all continuation gates pass, do not stop at the current issue. Continue through the next unblocked issue in `docs/internal/ISSUES.md` order, then repeat this same gate cycle until a HITL stop condition appears.
+
+Before editing the next issue, output a Pre-Issue Execution Plan: issue id, why it is unblocked, intended files/folders to create or modify, tests/checks, gates, reviewer plan, assumptions, and stop conditions.
 
 Do not start:
 

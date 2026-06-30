@@ -3629,3 +3629,26 @@
   - This evidence is recorded in a follow-up docs/process commit because the hash and push result cannot be known before the issue commit exists.
 - Next issue:
   - `MME-0028 — Editor surface package with i18n and accessibility`.
+
+#### Autonomous continuation docs correction — fresh context, not fresh session
+
+- Timestamp: 2026-06-30T00:00:00+02:00
+- Status:
+  - Documentation correction; human review pending.
+- Human correction:
+  - The workflow should not require a new Codex session/agent before continuing. The requirement is a fresh context rebuild before each issue, not a fresh session.
+  - The current project state should be explicit: completed issue is `MME-0027 — Extension registry V0`; current issue is `MME-0028 — Editor surface package with i18n and accessibility`.
+- Change:
+  - Replaced fresh-agent/session wording with fresh-context-rebuild wording in `AGENT.md`, `CLAUDE.md`, `docs/internal/QUALITY_GATES.md`, and `docs/internal/ISSUES.md`.
+  - Added/confirmed `Pre-Issue Execution Plan` before editing each issue.
+  - Made the sequential rule explicit: implement issues one by one in `docs/internal/ISSUES.md` order unless the human changes the order or the next issue is blocked.
+  - Made autonomous execution explicit: `MME-0028` is the starting issue, not the stopping point; keep going through every unblocked issue until a HITL gate, blocker, failed proof, unsafe git state, or uncertainty appears.
+  - Made issue-scoped commits mandatory immediately after reviewer/fallback validation accepts each issue; do not batch commits at the end of a multi-issue run.
+  - Updated the small-model/autonomous execution protocol to start from `MME-0028` instead of stale `MME-0020`.
+  - Converted per-issue `Fresh agent required` fields into `Fresh context rebuild required`.
+  - Supersedes earlier process wording that implied a new agent/session was required; those older build-log lines are historical only.
+- Checks run:
+  - `rg -n "Fresh agent required|fresh agent|fresh implementation agent|new session|new conversation|Pre-Issue Execution Plan|Fresh context rebuild|MME-0020|MME-0027|MME-0028" AGENT.md CLAUDE.md docs/internal/QUALITY_GATES.md docs/internal/ISSUES.md README.md`
+  - `git diff --check`
+- Next issue:
+  - `MME-0028 — Editor surface package with i18n and accessibility`.

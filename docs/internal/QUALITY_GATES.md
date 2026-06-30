@@ -60,6 +60,8 @@ Do not duplicate a backlog item into a new issue unless it is now actionable and
 
 A completed issue must end in an issue-scoped commit before the implementation agent starts the next issue.
 
+In autonomous issue-by-issue mode, the commit is mandatory after reviewer/subagent pass or documented fallback review accepts the issue. The agent must not defer the commit to the end of a multi-issue run.
+
 An issue is completed only after:
 
 - required tests/checks pass;
@@ -80,6 +82,10 @@ Commit and push evidence must be recorded in the final report and in `docs/inter
 ## Gate 0.65 — Sequential issue execution
 
 The project is built one issue at a time.
+
+Autonomous continuation in the same session is allowed only when the human explicitly requests it. It does not remove the fresh-context requirement: before each new issue, the agent must rebuild context from repo docs/current state and output a Pre-Issue Execution Plan naming intended files/folders to create or modify, tests/checks, gates, reviewer plan, assumptions, and stop conditions.
+
+When autonomous continuation is explicitly requested, the agent keeps going through each subsequent unblocked issue in `docs/internal/ISSUES.md` order after the previous issue is verified and committed. The run stops only at a HITL gate, blocker, failed proof, unsafe git state, or unresolved uncertainty.
 
 An implementation agent must not start a new issue until the previous issue has:
 

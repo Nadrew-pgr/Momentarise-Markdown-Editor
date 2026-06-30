@@ -119,6 +119,8 @@ A finished issue must be committed before starting the next issue.
 
 An issue is finished only when all required tests/checks pass, the build log is updated, reviewer/fallback verification is complete, and any required human review has accepted the issue.
 
+In autonomous issue-by-issue mode, once reviewer/fallback verification has accepted an issue and no human-review gate blocks it, the agent must create an issue-scoped commit before moving to the next issue. This is not optional.
+
 If an issue is only `code-complete, human review pending`, do not call it finished. It may be committed with an explicit pending status only when the human asks for that, but it must not be treated as accepted.
 
 Once an issue is validated/accepted and committed, push the current branch to the configured remote unless one of these is true:
@@ -133,11 +135,11 @@ If commit or push cannot be done, document the blocker in the final report and i
 
 Commits must be issue-scoped. Do not commit unrelated dirty files, secrets, `.env` files, `node_modules`, or generated local-only artifacts.
 
-## Fresh issue agent rule
+## Fresh issue context rule
 
-Each new implementation issue must be handled by one fresh implementation agent or conversation unless the human explicitly continues the same conversation for that issue.
+Each new implementation issue must start from a fresh context rebuild. A new agent/conversation is allowed, but not required when the human explicitly asks for autonomous issue-by-issue execution in the same session.
 
-The fresh implementation agent must not rely on previous conversation memory. It must rebuild context from repository documents and current repository state.
+The implementation agent must not rely on previous conversation memory. Before each issue, including when continuing in the same session, it must rebuild context from repository documents and current repository state.
 
 Before coding, the agent must read, in this order:
 
@@ -151,7 +153,7 @@ Before coding, the agent must read, in this order:
 8. the current `git status`
 9. the files related to the current issue
 
-Before implementation, the agent must output a Slice Start Brief:
+Before implementation, the agent must output a Pre-Issue Execution Plan:
 
 - current issue ID and goal;
 - previous issue status;
@@ -163,11 +165,15 @@ Before implementation, the agent must output a Slice Start Brief:
 - out-of-scope items;
 - stop conditions.
 
-If the Slice Start Brief is missing or incomplete, the agent must not code.
+If the Pre-Issue Execution Plan is missing or incomplete, the agent must not code.
 
 ## Sequential implementation rule
 
 Only one implementation agent may modify production code at a time.
+
+Implement issues one by one in the order listed in `docs/internal/ISSUES.md`, unless the human explicitly changes the order or the issue itself says it is blocked.
+
+When the human asks for autonomous issue-by-issue execution, keep going through every subsequent unblocked issue after each issue-scoped commit until a HITL gate, blocker, or uncertainty requires stopping. Do not stop at the first issue merely because it was the current starting point.
 
 Do not run multiple implementation agents in parallel on separate issues unless explicit human approval is given.
 
