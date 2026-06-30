@@ -107,6 +107,81 @@ export interface RichFoldVisibility {
   readonly visibleText: readonly string[];
 }
 
+export type RichBlockReorderPlacement = "after" | "before";
+
+export interface RichTopLevelBlockRange {
+  readonly from: number;
+  readonly index: number;
+  readonly node: ProseMirrorNode;
+  readonly text: string;
+  readonly to: number;
+  readonly type: string;
+}
+
+export interface ReorderRichTopLevelBlockOptions {
+  readonly fromIndex: number;
+  readonly placement?: RichBlockReorderPlacement;
+  readonly toIndex: number;
+}
+
+export interface RichBlockAffordanceLabels {
+  readonly delete: string;
+  readonly drag: string;
+  readonly dragInstructions: string;
+  readonly duplicate: string;
+  readonly insertAfter: string;
+  readonly menu: string;
+  readonly placeholder: string;
+}
+
+export interface RichEditorViewLike {
+  readonly state: EditorState;
+  dispatch(transaction: Transaction): void;
+  focus(): void;
+  nodeDOM(position: number): Node | null;
+  posAtCoords(coords: { readonly left: number; readonly top: number }): { readonly pos: number } | null;
+}
+
+export interface RichDecorationSetLike {
+  forChild(offset: number, node: ProseMirrorNode): RichDecorationSetLike;
+  forEachSet(callback: (set: any) => void): void;
+  map(mapping: Transaction["mapping"], doc: ProseMirrorNode): RichDecorationSetLike;
+}
+
+export interface RichDecorationAdapter {
+  readonly Decoration: {
+    node(from: number, to: number, attrs: Readonly<Record<string, string>>): unknown;
+    widget(
+      position: number,
+      toDom: (view: RichEditorViewLike) => HTMLElement,
+      options: Readonly<Record<string, unknown>>
+    ): unknown;
+  };
+  readonly DecorationSet: {
+    readonly empty: RichDecorationSetLike;
+    create(doc: ProseMirrorNode, decorations: readonly unknown[]): RichDecorationSetLike;
+  };
+}
+
+export interface RichBlockAffordanceContext extends RichTopLevelBlockRange {
+  readonly view: RichEditorViewLike;
+}
+
+export interface RichBlockAffordancePluginOptions {
+  readonly dragHandle?: boolean;
+  readonly labels?: Partial<RichBlockAffordanceLabels>;
+  readonly onInsertAfter?: (context: RichBlockAffordanceContext) => void;
+  readonly onOpenMenu?: (context: RichBlockAffordanceContext) => void;
+  readonly onReorder?: (context: {
+    readonly fromIndex: number;
+    readonly placement: RichBlockReorderPlacement;
+    readonly toIndex: number;
+    readonly view: RichEditorViewLike;
+  }) => void;
+  readonly placeholder?: string | null;
+  readonly plusButton?: boolean;
+}
+
 export interface RichMarkdownCommandResult {
   readonly handled: boolean;
   readonly state: RichMarkdownState;
@@ -597,6 +672,372 @@ export function toggleRichHeadingFold(
   );
 }
 
+const richBlockAffordancePluginKey = new PluginKey<RichDecorationSetLike>("momentarise-rich-block-affordance");
+
+const defaultRichBlockAffordanceLabels: RichBlockAffordanceLabels = {
+  delete: "Delete block",
+  drag: "Drag block",
+  dragInstructions: "Drag to reorder. Press Enter for block actions.",
+  duplicate: "Duplicate block",
+  insertAfter: "Insert block after",
+  menu: "Block actions",
+  placeholder: "Type / for commands"
+};
+
+export function richTopLevelBlockRanges(state: EditorState): readonly RichTopLevelBlockRange[] {
+  const ranges: RichTopLevelBlockRange[] = [];
+  state.doc.forEach((node, offset, index) => {
+    ranges.push({
+      from: offset,
+      index,
+      node,
+      text: node.textContent,
+      to: offset + node.nodeSize,
+      type: node.type.name
+    });
+  });
+  return ranges;
+}
+
+export function reorderRichTopLevelBlock(
+  state: RichMarkdownState,
+  options: ReorderRichTopLevelBlockOptions
+): RichMarkdownState {
+  const transaction = reorderRichTopLevelBlockTransaction(state.editorState, options);
+  if (!transaction) {
+    return state;
+  }
+  return {
+    ...state,
+    editorState: state.editorState.apply(transaction)
+  };
+}
+
+export function reorderRichTopLevelBlockTransaction(
+  state: EditorState,
+  options: ReorderRichTopLevelBlockOptions
+): Transaction | null {
+  const ranges = richTopLevelBlockRanges(state);
+  const from = ranges[options.fromIndex];
+  const target = ranges[options.toIndex];
+  if (!from || !target || from.index === target.index) {
+    return null;
+  }
+  let transaction = state.tr.delete(from.from, from.to);
+  const placement = options.placement ?? "before";
+  const targetPosition = placement === "after" ? target.to : target.from;
+  const mappedTargetPosition = transaction.mapping.map(targetPosition, placement === "after" ? 1 : -1);
+  const insertPosition = Math.max(0, Math.min(mappedTargetPosition, transaction.doc.content.size));
+  transaction = transaction.insert(insertPosition, from.node);
+  const selectionPosition = Math.min(insertPosition, transaction.doc.content.size);
+  return transaction.setSelection(NodeSelection.create(transaction.doc, selectionPosition)).scrollIntoView();
+}
+
+export function createRichBlockAffordancePlugin(
+  adapter: RichDecorationAdapter,
+  options: RichBlockAffordancePluginOptions = {}
+): Plugin {
+  return new Plugin({
+    key: richBlockAffordancePluginKey,
+    props: {
+      decorations(state) {
+        return richBlockAffordancePluginKey.getState(state) ?? adapter.DecorationSet.empty;
+      },
+      handleDOMEvents: {
+        dragover(_view, event) {
+          const dragEvent = event as DragEvent;
+          if (dragEvent.dataTransfer?.types.includes("application/x-momentarise-rich-block-index")) {
+            dragEvent.preventDefault();
+            dragEvent.dataTransfer.dropEffect = "move";
+            return true;
+          }
+          return false;
+        },
+        drop(view, event) {
+          return handleRichBlockDrop(view, event as DragEvent, options);
+        }
+      }
+    },
+    state: {
+      apply(transaction, previous, _oldState, nextState) {
+        if (transaction.docChanged || transaction.selectionSet || transaction.getMeta(richBlockAffordancePluginKey)) {
+          return createRichBlockAffordanceDecorations(nextState, adapter, options);
+        }
+        return previous.map(transaction.mapping, transaction.doc);
+      },
+      init(_config, state) {
+        return createRichBlockAffordanceDecorations(state, adapter, options);
+      }
+    }
+  });
+}
+
+function createRichBlockAffordanceDecorations(
+  state: EditorState,
+  adapter: RichDecorationAdapter,
+  options: RichBlockAffordancePluginOptions
+): RichDecorationSetLike {
+  const labels = richBlockAffordanceLabels(options);
+  const decorations: unknown[] = [];
+  const ranges = richTopLevelBlockRanges(state);
+  const first = ranges[0];
+  if (
+    first &&
+    ranges.length === 1 &&
+    first.type === "paragraph" &&
+    first.node.content.size === 0 &&
+    options.placeholder !== null
+  ) {
+    decorations.push(
+      adapter.Decoration.node(first.from, first.to, {
+        class: "empty-rich-document",
+        "data-placeholder": options.placeholder ?? labels.placeholder
+      })
+    );
+  }
+
+  for (const range of ranges) {
+    decorations.push(
+      adapter.Decoration.widget(range.from + 1, (view) => createRichBlockAffordanceWidget(view, range, options), {
+        key: `rich-block-affordance:${range.index}:${range.type}:${range.text}`,
+        side: -1
+      })
+    );
+  }
+
+  return adapter.DecorationSet.create(state.doc, decorations);
+}
+
+function createRichBlockAffordanceWidget(
+  view: RichEditorViewLike,
+  range: RichTopLevelBlockRange,
+  options: RichBlockAffordancePluginOptions
+): HTMLElement {
+  const labels = richBlockAffordanceLabels(options);
+  const root = document.createElement("span");
+  root.className = "rich-block-affordance";
+  root.contentEditable = "false";
+  root.dataset.richBlockAffordance = "";
+  root.dataset.richBlockIndex = String(range.index);
+  root.dataset.testid = `rich-block-affordance-${range.index}`;
+  root.addEventListener("focusin", () => {
+    root.dataset.focusVisible = "true";
+  });
+  root.addEventListener("focusout", () => {
+    delete root.dataset.focusVisible;
+  });
+
+  if (options.plusButton !== false) {
+    const insertButton = document.createElement("button");
+    insertButton.className = "rich-block-affordance-button rich-block-insert-button";
+    insertButton.dataset.richBlockInsertAfter = "";
+    insertButton.dataset.testid = `rich-block-insert-after-${range.index}`;
+    insertButton.setAttribute("aria-label", labels.insertAfter);
+    insertButton.title = labels.insertAfter;
+    insertButton.type = "button";
+    insertButton.textContent = "+";
+    insertButton.addEventListener("focus", () => {
+      root.dataset.focusVisible = "true";
+      root.style.opacity = "1";
+    });
+    insertButton.addEventListener("blur", () => {
+      delete root.dataset.focusVisible;
+      root.style.removeProperty("opacity");
+    });
+    insertButton.addEventListener("mousedown", preventEditorBlur);
+    insertButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const currentRange = richTopLevelBlockRanges(view.state)[range.index];
+      if (!currentRange) {
+        return;
+      }
+      insertParagraphAfterRichBlock(view, currentRange);
+      options.onInsertAfter?.(richBlockAffordanceContext(view, currentRange));
+    });
+    root.append(insertButton);
+  }
+
+  const menuButton = document.createElement("button");
+  menuButton.className = "rich-block-affordance-button rich-block-drag-handle";
+  menuButton.dataset.richBlockDragHandle = "";
+  menuButton.dataset.testid = `rich-block-drag-handle-${range.index}`;
+  menuButton.draggable = options.dragHandle !== false;
+  menuButton.setAttribute("aria-describedby", `rich-block-drag-instructions-${range.index}`);
+  menuButton.setAttribute("aria-label", labels.menu);
+  menuButton.title = labels.dragInstructions;
+  menuButton.type = "button";
+  menuButton.textContent = "::";
+  menuButton.addEventListener("focus", () => {
+    root.dataset.focusVisible = "true";
+    root.style.opacity = "1";
+  });
+  menuButton.addEventListener("blur", () => {
+    delete root.dataset.focusVisible;
+    root.style.removeProperty("opacity");
+  });
+  menuButton.addEventListener("mousedown", preventEditorBlur);
+  menuButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openRichBlockMenu(view, range.index, options);
+  });
+  menuButton.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    openRichBlockMenu(view, range.index, options);
+  });
+  menuButton.addEventListener("dragstart", (event) => {
+    if (options.dragHandle === false) {
+      event.preventDefault();
+      return;
+    }
+    const currentRange = richTopLevelBlockRanges(view.state)[range.index];
+    if (!currentRange || !event.dataTransfer) {
+      event.preventDefault();
+      return;
+    }
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("application/x-momentarise-rich-block-index", String(currentRange.index));
+    event.dataTransfer.setData("text/plain", `momentarise-rich-block:${currentRange.index}`);
+    view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, currentRange.from)));
+  });
+  root.append(menuButton);
+
+  const instructions = document.createElement("span");
+  instructions.id = `rich-block-drag-instructions-${range.index}`;
+  instructions.className = "rich-block-drag-instructions";
+  instructions.textContent = labels.dragInstructions;
+  root.append(instructions);
+
+  return root;
+}
+
+function handleRichBlockDrop(
+  view: RichEditorViewLike,
+  event: DragEvent,
+  options: RichBlockAffordancePluginOptions
+): boolean {
+  const viewDom = (view as { readonly dom?: HTMLElement }).dom;
+  viewDom?.setAttribute("data-rich-block-drop-seen", "true");
+  const rawIndex = event.dataTransfer?.getData("application/x-momentarise-rich-block-index");
+  const fallbackIndex = event.dataTransfer?.getData("text/plain").match(/^momentarise-rich-block:(\d+)$/)?.[1] ?? "";
+  const syntheticIndex = (event as DragEvent & { readonly mmeRichBlockIndex?: number }).mmeRichBlockIndex;
+  if (!rawIndex && !fallbackIndex && syntheticIndex === undefined) {
+    viewDom?.setAttribute("data-rich-block-drop-result", "missing-index");
+    return false;
+  }
+  const fromIndex = Number(rawIndex || fallbackIndex || syntheticIndex);
+  if (!Number.isInteger(fromIndex)) {
+    viewDom?.setAttribute("data-rich-block-drop-result", "invalid-index");
+    return false;
+  }
+  const coords = {
+    left: event.clientX,
+    top: event.clientY
+  };
+  const position = view.posAtCoords(coords);
+  if (!position) {
+    viewDom?.setAttribute("data-rich-block-drop-result", "missing-position");
+    return false;
+  }
+  const ranges = richTopLevelBlockRanges(view.state);
+  const target = richBlockRangeAtPosition(ranges, position.pos);
+  if (!target) {
+    viewDom?.setAttribute("data-rich-block-drop-result", "missing-target");
+    return false;
+  }
+  const placement = richBlockDropPlacement(view, target, event.clientY);
+  const transaction = reorderRichTopLevelBlockTransaction(view.state, {
+    fromIndex,
+    placement,
+    toIndex: target.index
+  });
+  if (!transaction) {
+    viewDom?.setAttribute("data-rich-block-drop-result", "missing-transaction");
+    return false;
+  }
+  event.preventDefault();
+  view.dispatch(transaction);
+  viewDom?.setAttribute("data-rich-block-drop-result", `reordered:${fromIndex}:${placement}:${target.index}`);
+  options.onReorder?.({
+    fromIndex,
+    placement,
+    toIndex: target.index,
+    view
+  });
+  return true;
+}
+
+function richBlockRangeAtPosition(
+  ranges: readonly RichTopLevelBlockRange[],
+  position: number
+): RichTopLevelBlockRange | null {
+  return ranges.find((range) => position >= range.from && position <= range.to) ?? ranges.at(-1) ?? null;
+}
+
+function richBlockDropPlacement(
+  view: RichEditorViewLike,
+  target: RichTopLevelBlockRange,
+  clientY: number
+): RichBlockReorderPlacement {
+  const dom = view.nodeDOM(target.from);
+  if (dom instanceof HTMLElement) {
+    const rect = dom.getBoundingClientRect();
+    return clientY > rect.top + rect.height / 2 ? "after" : "before";
+  }
+  return "before";
+}
+
+function insertParagraphAfterRichBlock(view: RichEditorViewLike, range: RichTopLevelBlockRange): void {
+  const paragraph = view.state.schema.nodes.paragraph?.create();
+  if (!paragraph) {
+    return;
+  }
+  let transaction = view.state.tr.insert(range.to, paragraph);
+  const selectionPosition = Math.min(range.to + 1, transaction.doc.content.size);
+  transaction = transaction.setSelection(TextSelection.create(transaction.doc, selectionPosition)).scrollIntoView();
+  view.dispatch(transaction);
+  view.focus();
+}
+
+function openRichBlockMenu(
+  view: RichEditorViewLike,
+  index: number,
+  options: RichBlockAffordancePluginOptions
+): void {
+  const range = richTopLevelBlockRanges(view.state)[index];
+  if (!range) {
+    return;
+  }
+  view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, range.from)));
+  options.onOpenMenu?.(richBlockAffordanceContext(view, range));
+}
+
+function richBlockAffordanceContext(
+  view: RichEditorViewLike,
+  range: RichTopLevelBlockRange
+): RichBlockAffordanceContext {
+  return {
+    ...range,
+    view
+  };
+}
+
+function richBlockAffordanceLabels(options: RichBlockAffordancePluginOptions): RichBlockAffordanceLabels {
+  return {
+    ...defaultRichBlockAffordanceLabels,
+    ...options.labels
+  };
+}
+
+function preventEditorBlur(event: MouseEvent): void {
+  event.preventDefault();
+}
+
 export function serializeRichMarkdownState(state: RichMarkdownState): {
   readonly content: string;
   readonly diagnostics: readonly Diagnostic[];
@@ -648,7 +1089,7 @@ function serializeRichMarkdownContent(state: RichMarkdownState): string {
       let separator: string;
       if (segments.length === 0) {
         separator = originalIndex === 0 ? source.slice(0, range.start.offset) : fallbackPrefix;
-      } else if (originalIndex === lastOriginalIndex + 1) {
+      } else if (lastOriginalIndex >= 0 && originalIndex === lastOriginalIndex + 1) {
         separator = source.slice(pairs[lastOriginalIndex]!.model.sourceRange!.end.offset, range.start.offset);
       } else {
         separator = "\n\n";
@@ -663,7 +1104,7 @@ function serializeRichMarkdownContent(state: RichMarkdownState): string {
         const range = pairs[originalIndex]!.model.sourceRange!;
         if (segments.length === 0) {
           separator = originalIndex === 0 ? source.slice(0, range.start.offset) : fallbackPrefix;
-        } else if (originalIndex === lastOriginalIndex + 1) {
+        } else if (lastOriginalIndex >= 0 && originalIndex === lastOriginalIndex + 1) {
           separator = source.slice(pairs[lastOriginalIndex]!.model.sourceRange!.end.offset, range.start.offset);
         } else {
           separator = "\n\n";
@@ -905,82 +1346,92 @@ function alignRichBlocks(
   blocks: readonly ProseMirrorNode[],
   pairs: readonly RichTopLevelBlockPair[]
 ): readonly RichBlockAlignment[] {
-  type Step = "delete" | "insert" | "match" | "replace";
-  interface Cell {
-    readonly cost: number;
-    readonly step: Step | null;
-  }
-
-  const pairCount = pairs.length;
-  const blockCount = blocks.length;
-  const cells: Cell[][] = Array.from({ length: pairCount + 1 }, () =>
-    Array.from({ length: blockCount + 1 }, () => ({ cost: Number.POSITIVE_INFINITY, step: null }))
-  );
-  cells[pairCount]![blockCount] = { cost: 0, step: null };
-
-  for (let pairIndex = pairCount; pairIndex >= 0; pairIndex -= 1) {
-    for (let blockIndex = blockCount; blockIndex >= 0; blockIndex -= 1) {
-      if (pairIndex === pairCount && blockIndex === blockCount) {
-        continue;
-      }
-
-      let best: Cell = { cost: Number.POSITIVE_INFINITY, step: null };
-      const consider = (step: Step, cost: number): void => {
-        if (cost < best.cost) {
-          best = { cost, step };
-        }
-      };
-
-      if (pairIndex < pairCount && blockIndex < blockCount) {
-        if (pairs[pairIndex]!.pm!.eq(blocks[blockIndex]!)) {
-          consider("match", cells[pairIndex + 1]![blockIndex + 1]!.cost);
-        }
-        consider("replace", 1 + cells[pairIndex + 1]![blockIndex + 1]!.cost);
-      }
-      if (blockIndex < blockCount) {
-        consider("insert", 1.25 + cells[pairIndex]![blockIndex + 1]!.cost);
-      }
-      if (pairIndex < pairCount) {
-        consider("delete", 1.25 + cells[pairIndex + 1]![blockIndex]!.cost);
-      }
-      cells[pairIndex]![blockIndex] = best;
-    }
-  }
-
   const alignment: RichBlockAlignment[] = [];
-  let pairIndex = 0;
-  let blockIndex = 0;
-  while (pairIndex < pairCount || blockIndex < blockCount) {
-    const step = cells[pairIndex]![blockIndex]!.step;
-    if (step === "match") {
+  const consumedPairIndexes = new Set<number>();
+
+  for (let blockIndex = 0; blockIndex < blocks.length; blockIndex += 1) {
+    const block = blocks[blockIndex]!;
+    const exactMatchIndex = findExactRichPairIndex(block, pairs, consumedPairIndexes);
+    if (exactMatchIndex >= 0) {
       alignment.push({
-        block: blocks[blockIndex]!,
+        block,
         kind: "matched",
-        pairIndex
+        pairIndex: exactMatchIndex
       });
-      pairIndex += 1;
-      blockIndex += 1;
-    } else if (step === "replace") {
+      consumedPairIndexes.add(exactMatchIndex);
+      continue;
+    }
+
+    const replacementIndex = findReplacementRichPairIndex(blockIndex, blocks, pairs, consumedPairIndexes);
+    if (replacementIndex >= 0) {
       alignment.push({
-        block: blocks[blockIndex]!,
+        block,
         kind: "replaced",
-        pairIndex
+        pairIndex: replacementIndex
       });
-      pairIndex += 1;
-      blockIndex += 1;
-    } else if (step === "insert") {
+      consumedPairIndexes.add(replacementIndex);
+    } else {
       alignment.push({
-        block: blocks[blockIndex]!,
+        block,
         kind: "inserted"
       });
-      blockIndex += 1;
-    } else if (step === "delete") {
-      pairIndex += 1;
-    } else {
-      break;
     }
   }
+
   return alignment;
+}
+
+function findExactRichPairIndex(
+  block: ProseMirrorNode,
+  pairs: readonly RichTopLevelBlockPair[],
+  consumedPairIndexes: ReadonlySet<number>
+): number {
+  for (let pairIndex = 0; pairIndex < pairs.length; pairIndex += 1) {
+    if (consumedPairIndexes.has(pairIndex)) {
+      continue;
+    }
+    if (pairs[pairIndex]!.pm!.eq(block)) {
+      return pairIndex;
+    }
+  }
+  return -1;
+}
+
+function findReplacementRichPairIndex(
+  blockIndex: number,
+  blocks: readonly ProseMirrorNode[],
+  pairs: readonly RichTopLevelBlockPair[],
+  consumedPairIndexes: ReadonlySet<number>
+): number {
+  for (let pairIndex = 0; pairIndex < pairs.length; pairIndex += 1) {
+    if (consumedPairIndexes.has(pairIndex)) {
+      continue;
+    }
+    const insertScore = countFutureExactRichMatches(blockIndex + 1, blocks, pairs, consumedPairIndexes);
+    const consumedWithReplacement = new Set(consumedPairIndexes);
+    consumedWithReplacement.add(pairIndex);
+    const replaceScore = countFutureExactRichMatches(blockIndex + 1, blocks, pairs, consumedWithReplacement);
+    return replaceScore >= insertScore ? pairIndex : -1;
+  }
+  return -1;
+}
+
+function countFutureExactRichMatches(
+  fromBlockIndex: number,
+  blocks: readonly ProseMirrorNode[],
+  pairs: readonly RichTopLevelBlockPair[],
+  consumedPairIndexes: ReadonlySet<number>
+): number {
+  const consumed = new Set(consumedPairIndexes);
+  let matchCount = 0;
+  for (let blockIndex = fromBlockIndex; blockIndex < blocks.length; blockIndex += 1) {
+    const pairIndex = findExactRichPairIndex(blocks[blockIndex]!, pairs, consumed);
+    if (pairIndex >= 0) {
+      consumed.add(pairIndex);
+      matchCount += 1;
+    }
+  }
+  return matchCount;
 }
 
 export function markdownDocumentToProseMirror(

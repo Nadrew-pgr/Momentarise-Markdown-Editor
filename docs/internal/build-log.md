@@ -3925,3 +3925,61 @@
   - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
 - Next issue:
   - `MME-0029 — Block interaction affordances`.
+
+#### MME-0029 completed — block interaction affordances
+
+- Timestamp: 2026-06-30T20:30:44+02:00
+- Status:
+  - Completed for code continuation. Code HITL remains waived for TypeScript/package work; detailed UX interaction feedback remains deferred.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short --branch`, and target files in `@momentarise/md-rich-prosemirror`, the demo, tests, and visual scripts.
+  - Confirmed `MME-0028.6` was completed and committed as `49fe9c9`; follow-up docs/hash evidence commit is `0c4def3`.
+- RED proof before implementation:
+  - `npm run test:rich-targeted-serialization` first failed on missing `createRichBlockAffordancePlugin`.
+  - `npm run test:demo-rich-ux` first failed on missing `scripts/visual-check-mme0029.mjs`.
+  - Reviewer follow-up added a stronger RED case that failed on reordered rich-compatible raw styles: setext heading and `*` list marker reconstructed as ATX heading and `-` marker before the order-aware matcher fix.
+- Change:
+  - Added `@momentarise/md-rich-prosemirror` block-affordance contracts, `richTopLevelBlockRanges`, `reorderRichTopLevelBlock`, `reorderRichTopLevelBlockTransaction`, and `createRichBlockAffordancePlugin`.
+  - Kept `prosemirror-view` host-owned by requiring hosts to inject a decoration adapter; publishability verifies `@momentarise/md-rich-prosemirror` does not import `prosemirror-view`.
+  - Replaced the reorder-sensitive matcher with order-aware matching over all unconsumed source pairs. Out-of-order exact matches emit original raw bytes with normalized blank-line separators; edited replacements no longer steal future exact matches.
+  - Wired demo block handles, plus insert-after, drag handle, keyboard-opened block menu, menu arrow/Home/End/Escape navigation, plugin drop-path reorder, localized empty-placeholder text, and selection bubble toolbar.
+  - Moved selected-text AI into the bubble path and gated it by both `ai.entryPoints` and visible command groups.
+  - Fixed repeated selected-text AI range mapping by matching the selected-text occurrence index instead of disabling all repeated phrases.
+  - Added `scripts/visual-check-mme0029.mjs` plus visual artifacts under `docs/internal/visual-checks/MME-0029/`.
+- Visual impact:
+  - Major rich editing-surface change: block handles appear in the editor margin, the block menu opens from the handle, reordered blocks update the document, selected text gets a contextual formatting/AI bubble, and empty rich documents show `Type / for commands`.
+  - Artifacts:
+    - `docs/internal/visual-checks/MME-0029/block-handle-hover-focus.png`
+    - `docs/internal/visual-checks/MME-0029/block-menu-keyboard.png`
+    - `docs/internal/visual-checks/MME-0029/block-reordered-targeted.png`
+    - `docs/internal/visual-checks/MME-0029/selection-bubble-toolbar-ai.png`
+    - `docs/internal/visual-checks/MME-0029/empty-placeholder.png`
+- Checks run:
+  - `npm run test:rich-targeted-serialization` — RED before implementation and reviewer fix, green after.
+  - `npm run test:rich-fidelity` — green.
+  - `npm run test:rich-input-rules` — green.
+  - `npm run test:demo-rich-ux` — RED before implementation, green after.
+  - `npm run test:demo-reference-surface` — green after repeated-selection baseline update.
+  - `npm run test:demo-ai-writing` — green.
+  - `npm run test:preferences` — green.
+  - `npm run test:preferences-demo` — green.
+  - `npm run test:surface` — green.
+  - `npm run test:publishability` — green.
+  - `npm run test:architecture` — green.
+  - `npm run build:demo` — green; existing Vite chunk-size warning only.
+  - `curl -I http://localhost:5174/` and `curl -I http://127.0.0.1:5174/` — both returned `200 OK`.
+  - `npm run visual:mme-0029` — green with system Chrome permission.
+  - `npm test` — green; existing Vite chunk-size warning only.
+- Reviewer result:
+  - UX reviewer subagent `Kepler` initially found P1 selection-bubble AI command-group gating and P2 menu keyboard / visual proof / repeated selected-text AI issues.
+  - Test reviewer subagent `Leibniz` initially found P1 order-aware raw preservation weakness and P2 visual proof / AI command-group gating issues.
+  - Builder fixed all P1/P2 findings. Follow-up read-only re-reviews from both reviewers reported no remaining P0/P1/P2 findings.
+- Residual risks:
+  - Block-handle visual density remains intentionally minimal and may receive detailed UX feedback later. Final default-theme polish remains owned by `MME-0030`.
+  - The visual script uses a synthetic event property fallback because browser-created `DataTransfer` strips custom payloads in headless synthetic drop events; real drag still uses normal `DataTransfer` from the handle.
+- Commit status:
+  - Issue-scoped commit to be created next; hash will be recorded in a follow-up docs/process note because the hash cannot be known before commit creation.
+- Push status:
+  - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
+- Next issue:
+  - `MME-0030 — Beautiful default theme V1`.

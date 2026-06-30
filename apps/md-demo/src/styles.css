@@ -900,6 +900,64 @@ h1 {
   outline-offset: 0;
 }
 
+.selection-bubble-toolbar {
+  position: absolute;
+  z-index: var(--mme-z-toolbar);
+  top: var(--selection-bubble-top, 92px);
+  left: var(--selection-bubble-left, 40px);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: min(340px, calc(100% - 24px));
+  padding: 5px;
+  border: 1px solid var(--mme-color-border);
+  border-radius: var(--mme-radius-lg);
+  background: var(--mme-color-surface-raised);
+  box-shadow: var(--mme-shadow-md);
+}
+
+.selection-bubble-toolbar .toolbar-button {
+  min-width: 32px;
+}
+
+.rich-block-menu {
+  position: absolute;
+  z-index: var(--mme-z-toolbar);
+  top: var(--rich-block-menu-top, 120px);
+  left: var(--rich-block-menu-left, 24px);
+  display: grid;
+  gap: 2px;
+  width: min(220px, calc(100% - 24px));
+  padding: 6px;
+  border: 1px solid var(--mme-color-border);
+  border-radius: var(--mme-radius-lg);
+  background: var(--mme-color-surface-raised);
+  box-shadow: var(--mme-shadow-md);
+}
+
+.rich-block-menu button {
+  min-height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--mme-radius-sm);
+  background: transparent;
+  color: var(--mme-color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.rich-block-menu button:hover,
+.rich-block-menu button:focus-visible {
+  background: var(--mme-color-surface);
+}
+
+.rich-block-menu p {
+  margin: 4px 6px 2px;
+  color: var(--mme-color-text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .slash-command-menu {
   position: absolute;
   z-index: var(--mme-z-toolbar);
@@ -1091,6 +1149,77 @@ h1 {
 
 .ProseMirror:focus {
   outline: none;
+}
+
+.ProseMirror > * {
+  position: relative;
+}
+
+.ProseMirror .empty-rich-document[data-placeholder]::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  color: var(--mme-color-text-muted);
+  pointer-events: none;
+}
+
+.rich-block-affordance {
+  position: absolute;
+  left: -58px;
+  top: 0.12em;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0.24;
+  transition: opacity 120ms ease;
+}
+
+.ProseMirror:hover .rich-block-affordance,
+.ProseMirror > *:hover .rich-block-affordance,
+.ProseMirror > *:focus-within .rich-block-affordance,
+.rich-block-affordance:focus-within,
+.rich-block-affordance:has(:focus),
+.rich-block-affordance[data-focus-visible="true"] {
+  opacity: 1;
+}
+
+.rich-block-affordance-button {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 22px;
+  block-size: 22px;
+  padding: 0;
+  border: 1px solid var(--mme-color-border);
+  border-radius: var(--mme-radius-sm);
+  background: var(--mme-color-surface-raised);
+  color: var(--mme-color-text-muted);
+  cursor: pointer;
+  font-family: var(--mme-font-family-ui);
+  font-size: 12px;
+  line-height: 1;
+  box-shadow: var(--mme-shadow-sm);
+}
+
+.rich-block-affordance-button:hover,
+.rich-block-affordance-button:focus-visible {
+  color: var(--mme-color-text);
+  border-color: var(--mme-color-accent);
+}
+
+.rich-block-drag-handle {
+  cursor: grab;
+}
+
+.rich-block-drag-handle:active {
+  cursor: grabbing;
+}
+
+.rich-block-drag-instructions {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .ProseMirror h1,

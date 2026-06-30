@@ -54,6 +54,7 @@ import {
 } from "@momentarise/md-editor";
 import {
   canInsertParagraphAfterCurrentBlock,
+  createRichBlockAffordancePlugin,
   createRichMarkdownState,
   filterRichMarkdownCommands,
   getCurrentCodeBlockInfo,
@@ -61,7 +62,9 @@ import {
   getRichHeadingFoldItems,
   insertParagraphAfterCurrentBlock,
   reconfigureRichPlugins,
+  reorderRichTopLevelBlock,
   richCommandRegistry,
+  richTopLevelBlockRanges,
   runRichMarkdownCommand,
   serializeRichMarkdownState,
   setCurrentCodeBlockInfo,
@@ -107,7 +110,7 @@ import {
   type SurfaceSlashState,
   type SurfaceToolbarState
 } from "@momentarise/md-surface";
-import { Plugin, PluginKey, TextSelection, type EditorState as ProseMirrorEditorState } from "prosemirror-state";
+import { NodeSelection, Plugin, PluginKey, TextSelection, type EditorState as ProseMirrorEditorState } from "prosemirror-state";
 import { Decoration, DecorationSet, EditorView as ProseMirrorEditorView } from "prosemirror-view";
 import {
   REFERENCE_AI_ACTIONS,
@@ -200,7 +203,29 @@ app.innerHTML = `
         <div data-testid="editor-ai-assistant-panel-host"></div>
         <div data-testid="command-palette-host"></div>
         <div data-testid="rich-command-toolbar-host"></div>
+        <div
+          class="selection-bubble-toolbar"
+          data-testid="selection-bubble-toolbar"
+          role="toolbar"
+          aria-label="Selected text actions"
+          hidden
+        >
+          <button class="toolbar-button" type="button" data-rich-bubble-command="bold" data-testid="selection-bubble-bold" aria-label="Bold">B</button>
+          <button class="toolbar-button" type="button" data-rich-bubble-command="italic" data-testid="selection-bubble-italic" aria-label="Italic">I</button>
+          <button class="toolbar-button" type="button" data-rich-bubble-command="inlineCode" data-testid="selection-bubble-inline-code" aria-label="Inline code">
+            <span class="toolbar-icon" aria-hidden="true">${defaultIconSet.render("code")}</span>
+          </button>
+          <button class="toolbar-button selected-text-ai-bubble-action" type="button" data-testid="selected-text-ai-bubble-action" aria-label="Rewrite selection with AI">
+            <span class="toolbar-icon" aria-hidden="true">${defaultIconSet.render("ai")}</span>
+          </button>
+        </div>
         <div data-testid="inline-ai-prompt-host"></div>
+        <div class="rich-block-menu" data-testid="rich-block-menu" role="menu" aria-label="Block actions" hidden>
+          <button type="button" role="menuitem" data-rich-block-menu-action="insert-after" data-testid="rich-block-menu-insert">Insert below</button>
+          <button type="button" role="menuitem" data-rich-block-menu-action="duplicate" data-testid="rich-block-menu-duplicate">Duplicate</button>
+          <button type="button" role="menuitem" data-rich-block-menu-action="delete" data-testid="rich-block-menu-delete">Delete</button>
+          <p data-testid="rich-block-menu-instructions">Drag the handle to reorder blocks.</p>
+        </div>
         <div class="rich-block-controls" data-testid="rich-block-controls" aria-label="Rich block controls" hidden>
           <div class="code-block-controls" data-testid="code-block-controls" hidden>
             <label>
@@ -371,6 +396,9 @@ const htmlPreviewBanner = queryRequired<HTMLDivElement>('[data-testid="html-prev
 const htmlPreviewFrame = queryRequired<HTMLIFrameElement>('[data-testid="html-preview-frame"]');
 const modeControlHost = queryRequired<HTMLDivElement>('[data-testid="mode-control-host"]');
 const richCommandToolbarHost = queryRequired<HTMLDivElement>('[data-testid="rich-command-toolbar-host"]');
+const selectionBubbleToolbar = queryRequired<HTMLDivElement>('[data-testid="selection-bubble-toolbar"]');
+const selectedTextAiBubbleAction = queryRequired<HTMLButtonElement>('[data-testid="selected-text-ai-bubble-action"]');
+const richBlockMenu = queryRequired<HTMLDivElement>('[data-testid="rich-block-menu"]');
 const richBlockControls = queryRequired<HTMLDivElement>('[data-testid="rich-block-controls"]');
 const codeBlockControls = queryRequired<HTMLDivElement>('[data-testid="code-block-controls"]');
 const codeLanguageInput = queryRequired<HTMLInputElement>('[data-testid="code-language-input"]');
@@ -459,6 +487,7 @@ let modeControlSurface: ReturnType<typeof createModeControl> | null = null;
 let slashMenuSurface: ReturnType<typeof createSlashMenu> | null = null;
 let toolbarSurface: ReturnType<typeof createToolbar> | null = null;
 let editorAiSurface: ReturnType<typeof createAiAssistantPanel> | null = null;
+let activeRichBlockMenuIndex: number | null = null;
 let editorAiSurfaceState: SurfaceAiAssistantState = {
   hasSession: false,
   pending: null,
@@ -1258,6 +1287,43 @@ selectedTextAiAction.addEventListener("click", () => {
   void runEditorNativeAiCommand("rewrite");
 });
 
+selectionBubbleToolbar.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const commandButton = target.closest<HTMLElement>("[data-rich-bubble-command]");
+  if (commandButton?.dataset.richBubbleCommand) {
+    event.preventDefault();
+    runRichCommand(commandButton.dataset.richBubbleCommand as RichCommandId);
+    renderSelectionBubbleToolbar();
+    return;
+  }
+  if (target.closest<HTMLElement>('[data-testid="selected-text-ai-bubble-action"]')) {
+    event.preventDefault();
+    if (isSelectionAiVisible()) {
+      void runEditorNativeAiCommand("rewrite");
+    }
+  }
+});
+
+richBlockMenu.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const action = target.closest<HTMLElement>("[data-rich-block-menu-action]")?.dataset.richBlockMenuAction;
+  if (!action) {
+    return;
+  }
+  event.preventDefault();
+  runRichBlockMenuAction(action);
+});
+
+richBlockMenu.addEventListener("keydown", (event) => {
+  handleRichBlockMenuKeyboard(event);
+});
+
 commandPaletteButton.addEventListener("click", () => {
   if (!isAiEntryPointEnabled("command-palette")) {
     return;
@@ -1283,6 +1349,18 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !commandPalette.hidden) {
     event.preventDefault();
     setCommandPaletteOpen(false);
+    return;
+  }
+  if (event.key === "Escape" && !richBlockMenu.hidden) {
+    event.preventDefault();
+    closeRichBlockMenu();
+    richEditor?.focus();
+    return;
+  }
+  if (event.key === "Escape" && !selectionBubbleToolbar.hidden) {
+    event.preventDefault();
+    hideSelectionBubbleToolbar();
+    richEditor?.focus();
   }
 });
 
@@ -1338,6 +1416,38 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
       codeMeta: codeMetaInput.value,
       markdown: getMarkdown()
     };
+  },
+  getBlockAffordanceState() {
+    return getBlockAffordanceState();
+  },
+  getSelectionBubbleState() {
+    return getSelectionBubbleState();
+  },
+  openFirstRichBlockMenuForTest() {
+    openRichBlockMenu(0);
+  },
+  reorderRichBlocksForTest(fromIndex: number, toIndex: number, placement: "after" | "before" = "before") {
+    if (!richEditor) {
+      return null;
+    }
+    richState = reorderRichTopLevelBlock(richState, { fromIndex, placement, toIndex });
+    richEditor.updateState(richState.editorState);
+    richChanged = true;
+    syncRichMarkdownToSource("rich edit");
+    renderRichBlockControls();
+    renderSelectionBubbleToolbar();
+    renderRichFoldingUi(false);
+    return getMarkdown();
+  },
+  selectRichTextForTest(text: string) {
+    setRichSelectionForText(text);
+    renderSelectionBubbleToolbar();
+  },
+  loadEmptyMarkdownForTest() {
+    loadOpenedMarkdownFile(createImportedCopyDocument({ content: "", fileName: "empty.md" }), {
+      sourceLabel: "empty Markdown visual fixture"
+    });
+    switchEditorMode("rich");
   },
   getFoldState() {
     const visibility = getRichFoldVisibility(richState, foldStates);
@@ -2420,27 +2530,48 @@ function richSelectionMarkdownRange(markdown: string): { readonly from: number; 
   if (!richEditor || richEditor.state.selection.empty) {
     return null;
   }
+  const selection = richEditor.state.selection;
   const selectedText = richEditor.state.doc.textBetween(
-    richEditor.state.selection.from,
-    richEditor.state.selection.to,
+    selection.from,
+    selection.to,
     "\n",
     "\n"
   );
   if (!selectedText.trim()) {
     return null;
   }
-  const from = markdown.indexOf(selectedText);
-  if (from < 0) {
-    return null;
-  }
-  const repeatedAt = markdown.indexOf(selectedText, from + selectedText.length);
-  if (repeatedAt >= 0) {
-    return null;
+  const richTextBeforeSelection = richEditor.state.doc.textBetween(0, selection.from, "\n", "\n");
+  const occurrenceIndex = countTextOccurrences(richTextBeforeSelection, selectedText);
+  let from = -1;
+  let searchFrom = 0;
+  for (let index = 0; index <= occurrenceIndex; index += 1) {
+    from = markdown.indexOf(selectedText, searchFrom);
+    if (from < 0) {
+      return null;
+    }
+    searchFrom = from + selectedText.length;
   }
   return {
     from,
     to: from + selectedText.length
   };
+}
+
+function countTextOccurrences(content: string, search: string): number {
+  if (!search) {
+    return 0;
+  }
+  let count = 0;
+  let from = 0;
+  while (from < content.length) {
+    const index = content.indexOf(search, from);
+    if (index < 0) {
+      break;
+    }
+    count += 1;
+    from = index + search.length;
+  }
+  return count;
 }
 
 function getAiWritingState(): {
@@ -2487,13 +2618,51 @@ function getInlineAiPromptState(): {
   };
 }
 
+function getBlockAffordanceState(): {
+  readonly count: number;
+  readonly firstHandleFocusable: boolean;
+  readonly menuIndex: string | null;
+  readonly menuOpen: boolean;
+  readonly placeholder: string | null;
+} {
+  const handles = Array.from(richEditorHost.querySelectorAll<HTMLElement>("[data-rich-block-affordance]"));
+  const firstHandle = handles[0]?.querySelector<HTMLButtonElement>("[data-rich-block-drag-handle]") ?? null;
+  const placeholder = richEditorHost.querySelector<HTMLElement>(".empty-rich-document")?.dataset.placeholder ?? null;
+  return {
+    count: handles.length,
+    firstHandleFocusable: Boolean(firstHandle && firstHandle.tabIndex >= 0 && !firstHandle.disabled),
+    menuIndex: richBlockMenu.dataset.richBlockIndex ?? null,
+    menuOpen: !richBlockMenu.hidden,
+    placeholder
+  };
+}
+
+function getSelectionBubbleState(): {
+  readonly aiDisabled: boolean;
+  readonly aiVisible: boolean;
+  readonly open: boolean;
+  readonly selectedText: string;
+} {
+  const selection = richEditor?.state.selection;
+  return {
+    aiDisabled: selectedTextAiBubbleAction.disabled,
+    aiVisible: !selectedTextAiBubbleAction.hidden,
+    open: !selectionBubbleToolbar.hidden,
+    selectedText:
+      richEditor && selection instanceof TextSelection && !selection.empty
+        ? richEditor.state.doc.textBetween(selection.from, selection.to, "\n", "\n")
+        : ""
+  };
+}
+
 function renderReferenceSurfaceState(): void {
   applyReferencePreferenceCssVariables();
   const aiGroupVisible = referenceSurfacePreferences.visibleCommandGroups.includes("ai");
   const toolbarAiVisible = aiGroupVisible && isAiEntryPointEnabled("toolbar");
-  const selectionAiVisible = aiGroupVisible && isAiEntryPointEnabled("selection");
   const commandPaletteVisible = aiGroupVisible && isAiEntryPointEnabled("command-palette");
-  selectedTextAiAction.disabled = activeDocument.kind !== "markdown" || !hasAiEligibleSelection();
+  selectedTextAiAction.disabled = true;
+  selectedTextAiAction.hidden = true;
+  selectedTextAiBubbleAction.disabled = activeDocument.kind !== "markdown" || !isSelectionAiVisible() || !hasAiEligibleSelection();
   aiCommandSurface.dataset.session = aiSessionStarted ? "ready" : "missing";
   aiCommandSurface.dataset.documentKind = activeDocument.kind;
   documentStatusPopover = queryRequired<HTMLDetailsElement>('[data-testid="document-status-popover"]');
@@ -2513,8 +2682,8 @@ function renderReferenceSurfaceState(): void {
   });
   renderEditorAiMenu();
   aiCommandSurface.hidden = !toolbarAiVisible;
-  selectedTextAiAction.hidden = !selectionAiVisible;
   commandPaletteButton.hidden = !commandPaletteVisible;
+  renderSelectionBubbleToolbar();
   surfaceToolbarPrefElement.textContent = `${referenceSurfacePreferences.toolbarMode}, ${referenceSurfacePreferences.toolbarStyle}`;
   surfaceAiEntryPointsPrefElement.textContent = referenceSurfacePreferences.aiEntryPoints.join(", ");
   surfaceStatusDisclosurePrefElement.textContent = referenceSurfacePreferences.technicalStatusDisclosure;
@@ -2541,6 +2710,157 @@ function renderEditorAiMenu(): void {
       return button;
     })
   );
+}
+
+function renderSelectionBubbleToolbar(): void {
+  if (!richEditor || editorMode !== "rich" || activeDocument.kind !== "markdown") {
+    hideSelectionBubbleToolbar();
+    return;
+  }
+  const selection = richEditor.state.selection;
+  if (!(selection instanceof TextSelection) || selection.empty) {
+    hideSelectionBubbleToolbar();
+    return;
+  }
+  selectionBubbleToolbar.hidden = false;
+  selectionBubbleToolbar.dataset.visible = "true";
+  selectedTextAiBubbleAction.hidden = !isSelectionAiVisible();
+  selectedTextAiBubbleAction.disabled = !isSelectionAiVisible() || !hasAiEligibleSelection();
+  positionSelectionBubbleToolbar();
+}
+
+function hideSelectionBubbleToolbar(): void {
+  selectionBubbleToolbar.hidden = true;
+  selectionBubbleToolbar.dataset.visible = "false";
+  selectionBubbleToolbar.style.removeProperty("--selection-bubble-left");
+  selectionBubbleToolbar.style.removeProperty("--selection-bubble-top");
+}
+
+function positionSelectionBubbleToolbar(): void {
+  if (!richEditor || selectionBubbleToolbar.hidden) {
+    return;
+  }
+  const regionRect = editorRegion.getBoundingClientRect();
+  const toolbarWidth = Math.min(340, Math.max(220, regionRect.width - 24));
+  let selectionRect: { readonly left: number; readonly top: number };
+  try {
+    selectionRect = richEditor.coordsAtPos(richEditor.state.selection.from);
+  } catch {
+    const editorRect = richEditorHost.getBoundingClientRect();
+    selectionRect = {
+      left: editorRect.left + 24,
+      top: editorRect.top + 24
+    };
+  }
+  const left = Math.min(Math.max(selectionRect.left - regionRect.left, 12), Math.max(12, regionRect.width - toolbarWidth - 12));
+  const topAboveSelection = selectionRect.top - regionRect.top - selectionBubbleToolbar.offsetHeight - 8;
+  const top = topAboveSelection > 12 ? topAboveSelection : selectionRect.top - regionRect.top + 28;
+  selectionBubbleToolbar.style.setProperty("--selection-bubble-left", `${Math.round(left)}px`);
+  selectionBubbleToolbar.style.setProperty("--selection-bubble-top", `${Math.round(Math.max(12, top))}px`);
+}
+
+function openRichBlockMenu(index: number): void {
+  if (!richEditor || editorMode !== "rich") {
+    return;
+  }
+  activeRichBlockMenuIndex = index;
+  richBlockMenu.hidden = false;
+  richBlockMenu.dataset.richBlockIndex = String(index);
+  positionRichBlockMenu();
+  queryRequired<HTMLButtonElement>('[data-testid="rich-block-menu-insert"]').focus();
+}
+
+function handleRichBlockMenuKeyboard(event: KeyboardEvent): void {
+  if (richBlockMenu.hidden) {
+    return;
+  }
+  const items = Array.from(richBlockMenu.querySelectorAll<HTMLButtonElement>("[role='menuitem']"));
+  if (items.length === 0) {
+    return;
+  }
+  const currentIndex = Math.max(0, items.indexOf(document.activeElement as HTMLButtonElement));
+  let nextIndex: number | null = null;
+  if (event.key === "ArrowDown") {
+    nextIndex = (currentIndex + 1) % items.length;
+  } else if (event.key === "ArrowUp") {
+    nextIndex = (currentIndex - 1 + items.length) % items.length;
+  } else if (event.key === "Home") {
+    nextIndex = 0;
+  } else if (event.key === "End") {
+    nextIndex = items.length - 1;
+  } else if (event.key === "Escape") {
+    event.preventDefault();
+    closeRichBlockMenu();
+    richEditor?.focus();
+    return;
+  }
+  if (nextIndex === null) {
+    return;
+  }
+  event.preventDefault();
+  items[nextIndex]!.focus();
+}
+
+function closeRichBlockMenu(): void {
+  activeRichBlockMenuIndex = null;
+  richBlockMenu.hidden = true;
+  richBlockMenu.removeAttribute("data-rich-block-index");
+  richBlockMenu.style.removeProperty("--rich-block-menu-left");
+  richBlockMenu.style.removeProperty("--rich-block-menu-top");
+}
+
+function positionRichBlockMenu(): void {
+  if (!richEditor || activeRichBlockMenuIndex === null || richBlockMenu.hidden) {
+    return;
+  }
+  const range = richTopLevelBlockRanges(richEditor.state)[activeRichBlockMenuIndex];
+  if (!range) {
+    closeRichBlockMenu();
+    return;
+  }
+  const regionRect = editorRegion.getBoundingClientRect();
+  const blockDom = richEditor.nodeDOM(range.from);
+  const blockRect = blockDom instanceof HTMLElement ? blockDom.getBoundingClientRect() : richEditorHost.getBoundingClientRect();
+  const left = Math.min(Math.max(blockRect.left - regionRect.left - 6, 12), Math.max(12, regionRect.width - 220));
+  const top = Math.min(Math.max(blockRect.top - regionRect.top, 12), Math.max(12, regionRect.height - richBlockMenu.offsetHeight - 12));
+  richBlockMenu.style.setProperty("--rich-block-menu-left", `${Math.round(left)}px`);
+  richBlockMenu.style.setProperty("--rich-block-menu-top", `${Math.round(top)}px`);
+}
+
+function runRichBlockMenuAction(action: string): void {
+  if (!richEditor || activeRichBlockMenuIndex === null) {
+    return;
+  }
+  const range = richTopLevelBlockRanges(richEditor.state)[activeRichBlockMenuIndex];
+  if (!range) {
+    closeRichBlockMenu();
+    return;
+  }
+  const paragraph = richEditor.state.schema.nodes.paragraph;
+  let transaction = richEditor.state.tr;
+  if (action === "insert-after") {
+    if (!paragraph) {
+      return;
+    }
+    transaction = transaction.insert(range.to, paragraph.create());
+    transaction = transaction.setSelection(TextSelection.create(transaction.doc, Math.min(range.to + 1, transaction.doc.content.size)));
+  } else if (action === "duplicate") {
+    transaction = transaction.insert(range.to, range.node.copy(range.node.content));
+    transaction = transaction.setSelection(NodeSelection.create(transaction.doc, range.to));
+  } else if (action === "delete") {
+    if (richEditor.state.doc.childCount <= 1 && paragraph) {
+      transaction = transaction.replaceWith(range.from, range.to, paragraph.create());
+      transaction = transaction.setSelection(TextSelection.create(transaction.doc, Math.min(range.from + 1, transaction.doc.content.size)));
+    } else {
+      transaction = transaction.delete(range.from, range.to);
+      transaction = transaction.setSelection(TextSelection.near(transaction.doc.resolve(Math.min(range.from, transaction.doc.content.size))));
+    }
+  } else {
+    return;
+  }
+  closeRichBlockMenu();
+  richEditor.dispatch(transaction.scrollIntoView());
+  richEditor.focus();
 }
 
 function applyReferenceSurfacePreferences(): void {
@@ -2606,6 +2926,10 @@ function referenceDensityScale(density: ReferenceEditorPreferences["layoutDensit
 
 function isAiEntryPointEnabled(entryPoint: ReferenceEditorPreferences["aiEntryPoints"][number]): boolean {
   return referenceSurfacePreferences.aiEntryPoints.includes(entryPoint);
+}
+
+function isSelectionAiVisible(): boolean {
+  return referenceSurfacePreferences.visibleCommandGroups.includes("ai") && isAiEntryPointEnabled("selection");
 }
 
 function hasAiEligibleSelection(): boolean {
@@ -2699,19 +3023,49 @@ function mountRichEditor(markdown: string): void {
       updateSlashMenuFromRichState();
       renderRichBlockControls();
       renderRichFoldingUi(false);
+      renderSelectionBubbleToolbar();
       renderReferenceSurfaceState();
     }
   });
   updateSlashMenuFromRichState();
   renderRichBlockControls();
   renderRichFoldingUi(false);
+  renderSelectionBubbleToolbar();
 }
 
 function withDemoRichPlugins(state: RichMarkdownState): RichMarkdownState {
   return {
     ...state,
     editorState: state.editorState.reconfigure({
-      plugins: [...state.editorState.plugins, createRichFoldingPlugin()]
+      plugins: [
+        ...state.editorState.plugins,
+        createRichFoldingPlugin(),
+        createRichBlockAffordancePlugin(
+          { Decoration, DecorationSet },
+          {
+            dragHandle: referenceSurfacePreferences.blockDragHandle,
+            labels: {
+              placeholder: defaultMmeStrings.slash.emptyPlaceholder
+            },
+            onInsertAfter(context) {
+              activeRichBlockMenuIndex = context.index;
+              closeRichBlockMenu();
+              logEvent("Inserted a paragraph from the block handle.");
+            },
+            onOpenMenu(context) {
+              openRichBlockMenu(context.index);
+            },
+            onReorder({ fromIndex, toIndex }) {
+              closeRichBlockMenu();
+              logEvent(`Reordered rich block ${fromIndex + 1} near block ${toIndex + 1}.`);
+            },
+            placeholder: referenceSurfacePreferences.slashEnabled
+              ? defaultMmeStrings.slash.emptyPlaceholder
+              : "Start writing",
+            plusButton: referenceSurfacePreferences.blockPlusButton
+          }
+        )
+      ]
     })
   };
 }
@@ -3328,6 +3682,31 @@ function setRichSelectionAfterText(text: string): void {
   }
   richEditor.focus();
   richEditor.dispatch(richEditor.state.tr.setSelection(TextSelection.create(richEditor.state.doc, position)));
+}
+
+function setRichSelectionForText(text: string): void {
+  if (!richEditor) {
+    throw new Error("Rich editor is not mounted.");
+  }
+  let from: number | null = null;
+  let to: number | null = null;
+  richEditor.state.doc.descendants((node, offset) => {
+    if (!node.isText || typeof node.text !== "string") {
+      return true;
+    }
+    const index = node.text.indexOf(text);
+    if (index < 0) {
+      return true;
+    }
+    from = offset + index;
+    to = from + text.length;
+    return false;
+  });
+  if (from === null || to === null) {
+    throw new Error(`Cannot set rich selection after missing text: ${text}`);
+  }
+  richEditor.focus();
+  richEditor.dispatch(richEditor.state.tr.setSelection(TextSelection.create(richEditor.state.doc, from, to)));
 }
 
 function typeRichTextForTest(text: string): void {
@@ -4230,6 +4609,19 @@ declare global {
         readonly toolbarStyle: string;
         readonly visibleCommandGroups: readonly string[];
       };
+      getBlockAffordanceState: () => {
+        readonly count: number;
+        readonly firstHandleFocusable: boolean;
+        readonly menuIndex: string | null;
+        readonly menuOpen: boolean;
+        readonly placeholder: string | null;
+      };
+      getSelectionBubbleState: () => {
+        readonly aiDisabled: boolean;
+        readonly aiVisible: boolean;
+        readonly open: boolean;
+        readonly selectedText: string;
+      };
       getSaveState: () => SaveState;
       getRichText: () => string;
       getSelectionRange: () => {
@@ -4245,15 +4637,19 @@ declare global {
       configureRelativeSecretEndpointForTest: () => void;
       generateAiSuggestionForTest: (action?: AiWritingAction, prompt?: string) => Promise<void>;
       loadAiPolicyDeniedDocumentForTest: () => void;
+      loadEmptyMarkdownForTest: () => void;
       loadHtmlArtifactForTest: (fileName: string, content: string) => void;
       loadImportedCopyForTest: (fileName: string, content: string) => void;
       loadWritableMarkdownFileForTest: (fileName: string, content: string) => void;
       memorySave: (source: "button" | "keyboard shortcut") => void;
       insertParagraphAfterCurrentRichBlock: () => void;
+      openFirstRichBlockMenuForTest: () => void;
       openInlineAiPromptForTest: (actionId?: ReferenceAiActionId) => void;
       openSlashMenuForTest: (query: string) => void;
       pressRichKeyForTest: (key: string) => void;
       runRichCommand: (commandId: RichCommandId, options?: ApplyRichMarkdownCommandOptions) => void;
+      reorderRichBlocksForTest: (fromIndex: number, toIndex: number, placement?: "after" | "before") => string | null;
+      selectRichTextForTest: (text: string) => void;
       showRealFileOpenUnavailableForTest: () => void;
       showUnsupportedLocalFileStateForTest: () => void;
       simulateExternalConflict: () => void;

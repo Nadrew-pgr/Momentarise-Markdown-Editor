@@ -2,7 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 
 const requiredFiles = [
   "scripts/visual-check-mme00135.mjs",
+  "scripts/visual-check-mme0029.mjs",
   "docs/internal/visual-checks/MME-0013.5/README.md",
+  "docs/internal/visual-checks/MME-0029/README.md",
   "apps/md-demo/src/main.ts",
   "apps/md-demo/src/styles.css"
 ];
@@ -16,6 +18,9 @@ for (const file of requiredFiles) {
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 if (packageJson.scripts["visual:mme-0013.5"] !== "node scripts/visual-check-mme00135.mjs") {
   throw new Error("Missing visual:mme-0013.5 script.");
+}
+if (packageJson.scripts["visual:mme-0029"] !== "node scripts/visual-check-mme0029.mjs") {
+  throw new Error("Missing visual:mme-0029 script.");
 }
 if (!packageJson.scripts.test.includes("test:rich-input-rules")) {
   throw new Error("Root npm test must include rich input rules checks.");
@@ -35,7 +40,17 @@ for (const snippet of [
   "getRichUxState",
   "insertParagraphAfterCurrentBlock",
   "setCurrentCodeBlockInfo",
-  "toggleCurrentTodoItem"
+  "toggleCurrentTodoItem",
+  "createRichBlockAffordancePlugin",
+  "reorderRichTopLevelBlock",
+  "rich-block-affordance",
+  "rich-block-menu",
+  "selection-bubble-toolbar",
+  "selected-text-ai-bubble-action",
+  "renderSelectionBubbleToolbar",
+  "positionSelectionBubbleToolbar",
+  "getBlockAffordanceState",
+  "getSelectionBubbleState"
 ]) {
   if (!main.includes(snippet)) {
     throw new Error(`Demo missing MME-0013.5 rich UX snippet: ${snippet}`);
@@ -47,7 +62,11 @@ for (const snippet of [
   ".rich-block-controls",
   ".code-block-controls",
   "[data-todo-toggle]",
-  "[data-todo-content]"
+  "[data-todo-content]",
+  ".rich-block-affordance",
+  ".rich-block-menu",
+  ".selection-bubble-toolbar",
+  ".ProseMirror .empty-rich-document[data-placeholder]::before"
 ]) {
   if (!styles.includes(snippet)) {
     throw new Error(`Demo styles missing MME-0013.5 rich UX snippet: ${snippet}`);
@@ -64,5 +83,18 @@ for (const artifact of [
 ]) {
   if (!visual.includes(artifact)) {
     throw new Error(`MME-0013.5 visual script missing artifact: ${artifact}`);
+  }
+}
+
+const mme0029Visual = readFileSync("scripts/visual-check-mme0029.mjs", "utf8");
+for (const artifact of [
+  "block-handle-hover-focus.png",
+  "block-menu-keyboard.png",
+  "block-reordered-targeted.png",
+  "selection-bubble-toolbar-ai.png",
+  "empty-placeholder.png"
+]) {
+  if (!mme0029Visual.includes(artifact)) {
+    throw new Error(`MME-0029 visual script missing artifact: ${artifact}`);
   }
 }

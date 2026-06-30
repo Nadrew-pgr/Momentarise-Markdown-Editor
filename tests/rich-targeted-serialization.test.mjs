@@ -5,6 +5,12 @@ const save = await import("../packages/md-save/dist/index.js");
 
 const mixedInput = await readFile("fixtures/014-mixed-real-world/input.md", "utf8");
 
+for (const exportName of ["createRichBlockAffordancePlugin", "reorderRichTopLevelBlock"]) {
+  if (typeof rich[exportName] !== "function") {
+    throw new Error(`@momentarise/md-rich-prosemirror must export ${exportName} for MME-0029 block affordances.`);
+  }
+}
+
 const untouched = rich.createRichMarkdownState(mixedInput, { dialect: "momentarise-enhanced" });
 const untouchedOutput = rich.serializeRichMarkdownState(untouched).content;
 if (untouchedOutput !== mixedInput) {
@@ -83,6 +89,56 @@ assertIncludes(duplicateOutput, "## Changed\n\n## Same", "duplicate heading repl
 assertIncludes(duplicateOutput, "\n\nTail paragraph.\n", "duplicate heading tail preservation");
 if (duplicateOutput.includes("Same\n----\n\nTail paragraph.")) {
   throw new Error(`Duplicate equivalent headings must not preserve the edited heading raw bytes as the untouched sibling.\n${duplicateOutput}`);
+}
+
+const reorderedMixed = rich.reorderRichTopLevelBlock(untouched, {
+  fromIndex: 4,
+  placement: "before",
+  toIndex: 3
+});
+const reorderedOutput = rich.serializeRichMarkdownState(reorderedMixed).content;
+assertIncludes(
+  reorderedOutput,
+  "We need source mode, parser preservation, and a truthful Save Engine before rich mode.\n\n## Summary",
+  "state-level block reorder must move the paragraph before the Summary heading with a single blank-line separator"
+);
+assertIncludes(reorderedOutput, "---\nowner: docs-team\nstatus: review\n---", "reordered fixture frontmatter-like raw block");
+assertIncludes(reorderedOutput, "> [!WARNING] Gate reminder\n> Do not ship a pretty editor that corrupts Markdown.", "reordered fixture callout bytes");
+assertIncludes(reorderedOutput, "| Area | Risk | Mitigation |\n| -- | -- | -- |", "reordered fixture table bytes");
+assertIncludes(reorderedOutput, "```mermaid\nsequenceDiagram", "reordered fixture Mermaid fence bytes");
+assertIncludes(
+  reorderedOutput,
+  "Related: [[Save Engine]], [Quality Gates](../docs/internal/QUALITY_GATES.md)",
+  "reordered fixture wikilink/Markdown-link bytes"
+);
+assertIncludes(reorderedOutput, "<div data-preview=\"safe\">HTML artifact placeholder</div>", "reordered fixture raw HTML bytes");
+assertIncludes(reorderedOutput, "Final note with $a^2 + b^2 = c^2$.", "reordered fixture inline math bytes");
+if (reorderedOutput.includes("## Summary\n\nWe need source mode")) {
+  throw new Error(`Reordered output must not keep the original Summary/paragraph order.\n${reorderedOutput}`);
+}
+
+const styledReorderSource = [
+  "Setext Title",
+  "============",
+  "",
+  "* star marker item",
+  "",
+  "Tail paragraph."
+].join("\n") + "\n";
+const styledReorderState = rich.createRichMarkdownState(styledReorderSource, { dialect: "momentarise-enhanced" });
+const styledReordered = rich.reorderRichTopLevelBlock(styledReorderState, {
+  fromIndex: 1,
+  placement: "before",
+  toIndex: 0
+});
+const styledReorderedOutput = rich.serializeRichMarkdownState(styledReordered).content;
+assertIncludes(
+  styledReorderedOutput,
+  "* star marker item\n\nSetext Title\n============\n\nTail paragraph.",
+  "reordering rich-compatible blocks must preserve moved list marker and setext heading bytes"
+);
+if (styledReorderedOutput.includes("# Setext Title") || styledReorderedOutput.includes("- star marker item")) {
+  throw new Error(`Reordered rich-compatible blocks must not reconstruct raw styles.\n${styledReorderedOutput}`);
 }
 
 let diskContent = mixedInput;

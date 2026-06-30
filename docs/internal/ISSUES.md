@@ -1698,6 +1698,8 @@ Security Reviewer and Architecture Reviewer.
 
 ## MME-0029 — Block interaction affordances
 
+Completed 2026-06-30; code HITL remained waived for TypeScript/package work, and UX/test subagent reviewers accepted after fixes. Added reusable rich block-affordance contracts in `@momentarise/md-rich-prosemirror`, a host-injected decoration adapter boundary so `prosemirror-view` stays host-owned, state-level top-level block reorder helpers, and an order-aware unconsumed-pair matcher that preserves moved raw bytes for rich-compatible blocks such as setext headings and `*` list markers. The demo now wires keyboard-reachable block handles, insert-after, ARIA menu keyboard navigation, plugin drop-path reorder, localized empty-placeholder text, and a contextual selected-text bubble toolbar with AI gating through both entry-point and command-group preferences. Proven by `tests/rich-targeted-serialization.test.mjs`, `tests/demo-rich-ux-baseline.test.mjs`, `scripts/visual-check-mme0029.mjs`, full `npm test`, and visual artifacts under `docs/internal/visual-checks/MME-0029/`. `MME-0030` is the next candidate after issue-scoped commit.
+
 ### Goal
 
 Deliver the signature block-editor interactions benchmarked against BlockNote/Notion: block side menu, drag handle, insert handle, and a contextual selection toolbar.

@@ -71,6 +71,7 @@ export interface MmeStrings {
   };
   readonly slash: {
     readonly aiSection: string;
+    readonly emptyPlaceholder: string;
     readonly label: string;
   };
   readonly status: {
@@ -304,6 +305,7 @@ export const defaultMmeStrings: MmeStrings = {
   },
   slash: {
     aiSection: "AI writing",
+    emptyPlaceholder: "Type / for commands",
     label: "Slash commands"
   },
   status: {

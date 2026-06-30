@@ -78,6 +78,7 @@
     "visual:mme-0028": "node scripts/visual-check-mme0028.mjs",
     "visual:mme-0028.5": "node scripts/visual-check-mme00285.mjs",
     "visual:mme-0028.6": "node scripts/visual-check-mme00286.mjs",
+    "visual:mme-0029": "node scripts/visual-check-mme0029.mjs",
     "visual:mme-0039": "node scripts/visual-check-mme0039.mjs",
     "ai:review:claude": "node scripts/claude-framework-review.mjs",
     "ai:review:dry-run": "node scripts/claude-framework-review.mjs --dry-run"

@@ -20,6 +20,8 @@ export type ReferenceKeymapProfile = "default" | "delegate" | "minimal";
 
 export interface ReferenceEditorPreferences {
   readonly aiEntryPoints: readonly ReferenceAiEntryPoint[];
+  readonly blockDragHandle: boolean;
+  readonly blockPlusButton: boolean;
   readonly capabilities: HostCapabilities;
   readonly editorFontScale: number;
   readonly keymapDelegateToHost: boolean;
@@ -28,6 +30,7 @@ export interface ReferenceEditorPreferences {
   readonly modeControl: ReferenceModeControl;
   readonly optionalStats: boolean;
   readonly readableLineWidth: number;
+  readonly slashEnabled: boolean;
   readonly technicalStatusDisclosure: ReferenceTechnicalStatusDisclosure;
   readonly toolbarMode: ReferenceToolbarMode;
   readonly toolbarStyle: ReferenceToolbarStyle;
@@ -176,6 +179,8 @@ export const REFERENCE_AI_ACTIONS: readonly ReferenceAiAction[] = [
 
 export const DEFAULT_REFERENCE_EDITOR_PREFERENCES: ReferenceEditorPreferences = {
   aiEntryPoints: ["slash", "toolbar", "selection", "command-palette"],
+  blockDragHandle: true,
+  blockPlusButton: true,
   capabilities: DEFAULT_HOST_CAPABILITIES,
   editorFontScale: 1,
   keymapDelegateToHost: false,
@@ -184,6 +189,7 @@ export const DEFAULT_REFERENCE_EDITOR_PREFERENCES: ReferenceEditorPreferences = 
   modeControl: "compact-tabs",
   optionalStats: false,
   readableLineWidth: 880,
+  slashEnabled: true,
   technicalStatusDisclosure: "discreet",
   toolbarMode: "sticky",
   toolbarStyle: "glass",
@@ -196,18 +202,26 @@ export function resolveReferenceEditorPreferences(
   const resolved = resolvePreferences({
     schema: DEFAULT_PREFERENCE_SCHEMA,
     layers: {
-      host: referenceInputToPreferenceLayer(hostPreferences),
+      host: {
+        "blocks.dragHandle": DEFAULT_REFERENCE_EDITOR_PREFERENCES.blockDragHandle,
+        "blocks.plusButton": DEFAULT_REFERENCE_EDITOR_PREFERENCES.blockPlusButton,
+        "slash.enabled": DEFAULT_REFERENCE_EDITOR_PREFERENCES.slashEnabled,
+        ...referenceInputToPreferenceLayer(hostPreferences)
+      },
       user: referenceInputToPreferenceLayer(hostPreferences.userPreferences ?? {})
     },
     ...(hostPreferences.locks ? { locks: hostPreferences.locks } : {}),
     userVisible: hostPreferences.userVisible ?? [
       "ai.entryPoints",
+      "blocks.dragHandle",
+      "blocks.plusButton",
       "editor.fontScale",
       "keymap.delegateToHost",
       "keymap.profile",
       "layout.density",
       "layout.readableLineWidth",
       "modeSwitcher.style",
+      "slash.enabled",
       "status.disclosure",
       "stats.enabled",
       "toolbar.mode",
@@ -223,6 +237,8 @@ export function resolveReferenceEditorPreferences(
   };
   return {
     aiEntryPoints: value("ai.entryPoints") as readonly ReferenceAiEntryPoint[],
+    blockDragHandle: value("blocks.dragHandle") as boolean,
+    blockPlusButton: value("blocks.plusButton") as boolean,
     capabilities: {
       ...DEFAULT_REFERENCE_EDITOR_PREFERENCES.capabilities,
       ...hostPreferences.capabilities
@@ -234,6 +250,7 @@ export function resolveReferenceEditorPreferences(
     modeControl: value("modeSwitcher.style") as ReferenceModeControl,
     optionalStats: value("stats.enabled") as boolean,
     readableLineWidth: value("layout.readableLineWidth") as number,
+    slashEnabled: value("slash.enabled") as boolean,
     technicalStatusDisclosure: value("status.disclosure") as ReferenceTechnicalStatusDisclosure,
     toolbarMode: value("toolbar.mode") as ReferenceToolbarMode,
     toolbarStyle: value("toolbar.style") as ReferenceToolbarStyle,
@@ -260,6 +277,12 @@ function referenceInputToPreferenceLayer(
   if (preferences.aiEntryPoints) {
     layer["ai.entryPoints"] = preferences.aiEntryPoints;
   }
+  if (preferences.blockDragHandle !== undefined) {
+    layer["blocks.dragHandle"] = preferences.blockDragHandle;
+  }
+  if (preferences.blockPlusButton !== undefined) {
+    layer["blocks.plusButton"] = preferences.blockPlusButton;
+  }
   if (preferences.editorFontScale !== undefined) {
     layer["editor.fontScale"] = preferences.editorFontScale;
   }
@@ -280,6 +303,9 @@ function referenceInputToPreferenceLayer(
   }
   if (preferences.readableLineWidth !== undefined) {
     layer["layout.readableLineWidth"] = preferences.readableLineWidth;
+  }
+  if (preferences.slashEnabled !== undefined) {
+    layer["slash.enabled"] = preferences.slashEnabled;
   }
   if (preferences.technicalStatusDisclosure) {
     layer["status.disclosure"] = preferences.technicalStatusDisclosure;
