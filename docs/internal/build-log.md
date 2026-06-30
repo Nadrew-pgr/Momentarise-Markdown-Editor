@@ -3857,3 +3857,59 @@
   - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
 - Next issue:
   - `MME-0028.6 — Real AI provider adapter path`; stop before implementation because real provider adapters, key handling, and provider boundary wording require a non-code AI/security decision before coding.
+
+#### MME-0028.6 completed — real AI provider adapter path
+
+- Timestamp: 2026-06-30T18:40:26+02:00
+- Status:
+  - Completed for code continuation. Code HITL remains waived for TypeScript/package work; security and architecture reviewers accepted after fixes.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short`, and target files in `@momentarise/md-ai`, `@momentarise/md-editor`, the demo, tests, and visual scripts.
+  - Confirmed `MME-0028.5` was completed and committed as `e5e8cd9`; docs/hash evidence commit is `6b8cea2`.
+  - Implemented within the existing issue boundary: host-side OpenAI-compatible/LiteLLM path, no provider SDK in core, mock by default, production guidance through host backend/sidecar/secure storage/user gateway, and memory-only personal BYOK in demo mode.
+- RED proof before implementation:
+  - `npm run test:ai-writing` failed on missing `createOpenAiCompatibleProvider` export.
+  - `npm run test:demo-ai-writing` failed on missing public AI provider adapter docs / demo provider-state path / MME-0028.6 visual script.
+- Change:
+  - Added `createOpenAiCompatibleProvider` and request/response mapping contracts in `@momentarise/md-ai`, with an injected transport and no OpenAI/Gemini/Mistral/Anthropic/LiteLLM/Vercel AI SDK dependency.
+  - Kept provider output in the existing staged `AiWritingSuggestion` flow, including hash anchoring, accept/reject, stale refusal, and policy-before-provider behavior.
+  - Extended the editor session start API so hosts can start host-managed sessions without a browser BYOK key while preserving the legacy string-key path.
+  - Added demo provider runtime modes: mock/offline default, host-managed backend, local gateway/sidecar, and personal BYOK.
+  - Added provider-state UI labels for mode, endpoint, and model; endpoint display/test state strips credentials, query params, and fragments.
+  - Kept browser personal BYOK memory-only; test/visual state reports only whether a key input currently has value, never the key itself.
+  - Added public docs at `docs/public/AI_PROVIDER_ADAPTER.md`.
+  - Added `scripts/visual-check-mme00286.mjs` plus artifacts under `docs/internal/visual-checks/MME-0028.6/`.
+- Visual impact:
+  - Provider-state label/config surface added to the demo AI writing inspector.
+  - Inline AI prompt now reflects host-managed and personal BYOK provider states when configured.
+  - Artifacts:
+    - `docs/internal/visual-checks/MME-0028.6/ai-provider-default-mock.png`
+    - `docs/internal/visual-checks/MME-0028.6/ai-provider-host-managed.png`
+    - `docs/internal/visual-checks/MME-0028.6/ai-provider-personal-byok-staged.png`
+    - `docs/internal/visual-checks/MME-0028.6/ai-provider-policy-blocked.png`
+- Checks run:
+  - `npm run test:ai-writing` — RED before implementation, green after implementation and reviewer fixes.
+  - `npm run test:editor-session` — green, including host-managed session start coverage.
+  - `npm run test:demo-ai-writing` — RED before implementation, green after implementation and reviewer fixes.
+  - `npm run test:contracts` — green.
+  - `npm run test:architecture` — green; no host/browser globals or provider SDK imports in core packages.
+  - `npm run test:publishability` — green.
+  - `npm run test:surface` — green.
+  - `npm run build:demo` — green; existing Vite chunk-size warning only.
+  - `npm run visual:mme-0028.6` — green with system Chrome permission.
+  - `npm test` — green; existing Vite chunk-size warning only.
+  - `git diff --check` — green.
+- Reviewer result:
+  - Security reviewer subagent `Kuhn` found P2 key exposure through `getAiWritingState().keyInputValue` and P3 endpoint redaction / policy-count proof issues.
+  - Architecture reviewer subagent `Nietzsche` found the same P2 key exposure plus P3 host-managed session test and auth-header docs concerns.
+  - Fixed by removing raw key values from test/visual state, redacting endpoint credentials/query/fragments before UI/test/visual exposure, strengthening visual policy no-call proof, adding host-managed session unit coverage, and clarifying docs around md-ai header construction plus host-owned transport/logging.
+  - Follow-up read-only reviews from both reviewers accepted with no remaining P0/P1/P2 findings.
+- Residual risks:
+  - This provides adapter contracts and demo/dev configuration, not managed production auth, billing, rate limits, or secure key storage. Those remain host responsibilities and part of the later security/release pass.
+  - Real external provider calls were not made in tests; proof uses injected fake transports to avoid network/secrets.
+- Commit status:
+  - Issue-scoped commit to be created next; hash will be recorded in a follow-up docs/process note because the hash cannot be known before commit creation.
+- Push status:
+  - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
+- Next issue:
+  - `MME-0029 — Block interaction affordances`.

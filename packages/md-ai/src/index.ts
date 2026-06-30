@@ -38,6 +38,7 @@ export interface AiProviderRequest extends AiWritingRequest {
 
 export interface AiProvider {
   readonly providerName: string;
+  readonly providerKind?: AiProviderKind;
   generate(request: AiProviderRequest): Promise<AiProviderSuggestion>;
 }
 
@@ -46,7 +47,15 @@ export interface AiProviderSuggestion {
   readonly title: string;
 }
 
+export type AiProviderKind =
+  | "host-managed"
+  | "mock"
+  | "personal-byok"
+  | "sidecar-local";
+
 export type AiSuggestionStatus = "pending" | "accepted" | "rejected" | "blocked" | "stale";
+
+export type AiCredentialStatus = "byok-present" | "host-managed";
 
 export interface AiWritingSuggestion {
   readonly action: AiWritingAction;
@@ -60,13 +69,14 @@ export interface AiWritingSuggestion {
 }
 
 export interface AiWritingSession {
-  readonly credentialStatus: "byok-present";
+  readonly credentialStatus: AiCredentialStatus;
   readonly providerName: string;
   requestSuggestion(request: AiWritingRequest): Promise<AiWritingSuggestion>;
 }
 
 export interface CreateAiWritingSessionOptions {
-  readonly apiKey: string;
+  readonly apiKey?: string;
+  readonly credentialStatus?: AiCredentialStatus;
   readonly policyResolver?: PolicyResolver;
   readonly provider: AiProvider;
 }
@@ -80,6 +90,50 @@ export interface MockAiProvider extends AiProvider {
   readonly requests: AiProviderRequest[];
 }
 
+export type OpenAiCompatibleProviderMode = "host-managed" | "personal-byok" | "sidecar-local";
+
+export interface OpenAiCompatibleTransportRequest {
+  readonly body: OpenAiCompatibleRequestBody;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly method: "POST";
+  readonly mode: OpenAiCompatibleProviderMode;
+  readonly providerName: string;
+  readonly url: string;
+}
+
+export interface OpenAiCompatibleTransportResponse {
+  readonly body: unknown;
+  readonly status: number;
+  readonly statusText?: string;
+}
+
+export type OpenAiCompatibleTransport = (
+  request: OpenAiCompatibleTransportRequest
+) => Promise<OpenAiCompatibleTransportResponse>;
+
+export interface OpenAiCompatibleRequestBody {
+  readonly messages: readonly OpenAiCompatibleMessage[];
+  readonly model: string;
+  readonly stream: false;
+  readonly temperature?: number;
+}
+
+export interface OpenAiCompatibleMessage {
+  readonly content: string;
+  readonly role: "assistant" | "system" | "user";
+}
+
+export interface CreateOpenAiCompatibleProviderOptions {
+  readonly apiKey?: string;
+  readonly endpoint: string;
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly mode: OpenAiCompatibleProviderMode;
+  readonly model: string;
+  readonly providerName?: string;
+  readonly temperature?: number;
+  readonly transport: OpenAiCompatibleTransport;
+}
+
 export const aiWritingPackage: AiWritingContract = {
   dependsOnCore: true,
   packageName: "@momentarise/md-ai",
@@ -87,19 +141,22 @@ export const aiWritingPackage: AiWritingContract = {
 };
 
 export function createAiWritingSession(options: CreateAiWritingSessionOptions): AiWritingSession {
-  if (!options.apiKey.trim()) {
+  const apiKey = options.apiKey?.trim() ?? "";
+  const credentialStatus = options.credentialStatus ?? "byok-present";
+  if (credentialStatus === "byok-present" && !apiKey) {
     throw new Error("BYOK API key is required to start an AI writing session.");
   }
 
   const provider = options.provider;
   const policyResolver = options.policyResolver ?? createDefaultPolicyResolver();
   const internalSession = createInternalSession({
+    credentialStatus,
     policyResolver,
     provider
   });
 
   return {
-    credentialStatus: "byok-present",
+    credentialStatus,
     providerName: provider.providerName,
     requestSuggestion(request) {
       return requestAiSuggestion(internalSession, request);
@@ -197,6 +254,7 @@ export function createMockAiProvider(): MockAiProvider {
   const requests: AiProviderRequest[] = [];
   return {
     providerName: "mock",
+    providerKind: "mock",
     requests,
     async generate(request) {
       requests.push(request);
@@ -208,6 +266,89 @@ export function createMockAiProvider(): MockAiProvider {
   };
 }
 
+export function createOpenAiCompatibleProvider(options: CreateOpenAiCompatibleProviderOptions): AiProvider {
+  const endpoint = options.endpoint.trim();
+  if (!endpoint) {
+    throw new Error("OpenAI-compatible provider endpoint is required.");
+  }
+  const model = options.model.trim();
+  if (!model) {
+    throw new Error("OpenAI-compatible provider model is required.");
+  }
+  const providerName = options.providerName?.trim() || "openai-compatible";
+  const apiKey = options.apiKey?.trim() ?? "";
+  const baseHeaders: Record<string, string> = {
+    "content-type": "application/json",
+    ...(options.headers ?? {})
+  };
+
+  return {
+    providerKind: options.mode,
+    providerName,
+    async generate(request) {
+      const headers: Record<string, string> = { ...baseHeaders };
+      if (apiKey) {
+        headers.Authorization = `Bearer ${apiKey}`;
+      }
+      const body = createOpenAiCompatibleRequestBody(request, {
+        model,
+        ...(options.temperature === undefined ? {} : { temperature: options.temperature })
+      });
+      const response = await options.transport({
+        body,
+        headers,
+        method: "POST",
+        mode: options.mode,
+        providerName,
+        url: endpoint
+      });
+      if (response.status < 200 || response.status >= 300) {
+        throw new Error(
+          `OpenAI-compatible provider ${providerName} failed with ${response.status}${response.statusText ? ` ${response.statusText}` : ""}.`
+        );
+      }
+      return {
+        replacement: extractOpenAiCompatibleContent(response.body),
+        title: `${providerName} ${labelForAction(request.action)}`
+      };
+    }
+  };
+}
+
+export function createOpenAiCompatibleRequestBody(
+  request: AiProviderRequest,
+  options: {
+    readonly model: string;
+    readonly temperature?: number;
+  }
+): OpenAiCompatibleRequestBody {
+  const selectedText = request.selectedText.trim();
+  const prompt = request.prompt?.trim();
+  const userParts = [
+    `Action: ${request.action}`,
+    prompt ? `Instruction: ${prompt}` : null,
+    selectedText ? `Selected Markdown:\n${selectedText}` : null,
+    `Document Markdown:\n${request.document.content}`
+  ].filter((part): part is string => Boolean(part));
+
+  return {
+    messages: [
+      {
+        content:
+          "You are an assistive Markdown writing provider. Return only the Markdown replacement text. Do not execute tools, browse, or perform workspace actions.",
+        role: "system"
+      },
+      {
+        content: userParts.join("\n\n"),
+        role: "user"
+      }
+    ],
+    model: options.model,
+    stream: false,
+    ...(options.temperature === undefined ? {} : { temperature: options.temperature })
+  };
+}
+
 interface InternalAiWritingSession extends AiWritingSession {
   readonly policyResolver: PolicyResolver;
   readonly provider: AiProvider;
@@ -216,9 +357,10 @@ interface InternalAiWritingSession extends AiWritingSession {
 function createInternalSession(options: {
   readonly policyResolver: PolicyResolver;
   readonly provider: AiProvider;
+  readonly credentialStatus?: AiCredentialStatus;
 }): InternalAiWritingSession {
   return {
-    credentialStatus: "byok-present",
+    credentialStatus: options.credentialStatus ?? "byok-present",
     policyResolver: options.policyResolver,
     provider: options.provider,
     providerName: options.provider.providerName,
@@ -291,6 +433,37 @@ function labelForAction(action: AiWritingAction): string {
     case "insert-block":
       return "block insertion";
   }
+}
+
+function extractOpenAiCompatibleContent(body: unknown): string {
+  const root = asRecord(body);
+  const choices = Array.isArray(root?.choices) ? root.choices : [];
+  const firstChoice = asRecord(choices[0]);
+  const message = asRecord(firstChoice?.message);
+  const messageContent = stringValue(message?.content);
+  if (messageContent) {
+    return messageContent;
+  }
+  const textContent = stringValue(firstChoice?.text);
+  if (textContent) {
+    return textContent;
+  }
+  const outputText = stringValue(root?.output_text);
+  if (outputText) {
+    return outputText;
+  }
+  throw new Error("OpenAI-compatible provider response did not include text content.");
+}
+
+function asRecord(value: unknown): Readonly<Record<string, unknown>> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as Readonly<Record<string, unknown>>;
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 function createSuggestionId(action: AiWritingAction): string {

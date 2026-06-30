@@ -111,6 +111,27 @@ if (!acceptedContent || !acceptedContent.includes("AI suggestion")) {
   throw new Error("Accepting a fresh AI suggestion should apply it through the session.");
 }
 
+const hostManagedProvider = createMockAiProvider();
+const hostManagedSession = createMarkdownEditorSession({
+  aiProvider: hostManagedProvider,
+  content: "# Host managed\n\nDraft.\n",
+  path: "notes/host-managed.md",
+  scheduler: createManualScheduler(),
+  target: createMemorySaveTarget({
+    initialContent: "# Host managed\n\nDraft.\n"
+  })
+});
+hostManagedSession.startAiSession({
+  credentialStatus: "host-managed"
+});
+const hostManagedSuggestion = await hostManagedSession.requestAiSuggestion({
+  action: "summarize"
+});
+if (hostManagedSuggestion.status !== "pending" || hostManagedProvider.requests.length !== 1) {
+  throw new Error("Host-managed session start must allow provider requests without a browser BYOK key.");
+}
+hostManagedSession.destroy();
+
 const deniedSession = createMarkdownEditorSession({
   aiProvider: createMockAiProvider(),
   content: "# Secret\n\nDo not send.\n",

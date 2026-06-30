@@ -33,10 +33,13 @@ import {
   type SandboxedHtmlPreviewDescriptor
 } from "@momentarise/md-preview-html";
 import {
+  createOpenAiCompatibleProvider,
   createMockAiProvider,
+  type AiProvider,
   type AiWritingAction,
   type AiWritingSuggestion,
-  type MockAiProvider
+  type MockAiProvider,
+  type OpenAiCompatibleTransport
 } from "@momentarise/md-ai";
 import { createDefaultPolicyResolver } from "@momentarise/md-policy";
 import {
@@ -264,12 +267,12 @@ app.innerHTML = `
           <p class="label">AI writing</p>
           <div class="ai-writing-controls">
             <label>
-              Mock session
+              Session
               <input
                 type="password"
                 data-testid="ai-byok-key-input"
                 autocomplete="off"
-                placeholder="Memory-only demo key"
+                placeholder="Memory-only key if required"
                 spellcheck="false"
               />
             </label>
@@ -290,6 +293,11 @@ app.innerHTML = `
               <textarea data-testid="ai-prompt-input" rows="3" placeholder="Optional instruction"></textarea>
             </label>
             <button class="button primary" type="button" data-testid="ai-generate-button">Generate</button>
+          </div>
+          <div class="ai-provider-state" data-testid="ai-provider-state" aria-label="provider mode">
+            <p><span>provider mode</span><strong data-testid="ai-provider-mode">mock/offline</strong></p>
+            <p><span>Endpoint</span><strong data-testid="ai-provider-endpoint">not configured</strong></p>
+            <p><span>Model</span><strong data-testid="ai-provider-model">mock</strong></p>
           </div>
           <p class="ai-policy-note" data-testid="ai-policy-note">Policy checked before content leaves the editor.</p>
           <div class="ai-suggestion-preview" data-testid="ai-suggestion-preview" hidden></div>
@@ -407,6 +415,9 @@ const aiGenerateButton = queryRequired<HTMLButtonElement>('[data-testid="ai-gene
 const aiAcceptButton = queryRequired<HTMLButtonElement>('[data-testid="ai-accept-button"]');
 const aiRejectButton = queryRequired<HTMLButtonElement>('[data-testid="ai-reject-button"]');
 const aiPolicyNoteElement = queryRequired<HTMLElement>('[data-testid="ai-policy-note"]');
+const aiProviderModeElement = queryRequired<HTMLElement>('[data-testid="ai-provider-mode"]');
+const aiProviderEndpointElement = queryRequired<HTMLElement>('[data-testid="ai-provider-endpoint"]');
+const aiProviderModelElement = queryRequired<HTMLElement>('[data-testid="ai-provider-model"]');
 const aiSuggestionPreview = queryRequired<HTMLDivElement>('[data-testid="ai-suggestion-preview"]');
 const aiStatusElement = queryRequired<HTMLElement>('[data-testid="ai-status"]');
 const diagnosticsElement = queryRequired<HTMLOListElement>('[data-testid="roundtrip-diagnostics"]');
@@ -477,6 +488,7 @@ type DemoDocumentMode = "fixture" | WebOpenedMarkdownMode;
 type DemoDocumentKind = "markdown" | "html-artifact";
 type DemoEditorMode = "source" | "rich" | "preview";
 type PropertiesDisplayMode = "visible" | "hidden" | "source";
+type AiDemoProviderMode = "host-managed" | "mock" | "personal-byok" | "sidecar-local";
 
 interface SlashCommandState {
   readonly from: number;
@@ -503,14 +515,32 @@ interface RestorableDemoDocument {
   readonly version: 1;
 }
 
+interface DemoAiProviderConfig {
+  readonly apiKey?: string;
+  readonly endpoint?: string;
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly mode: AiDemoProviderMode;
+  readonly model?: string;
+  readonly providerName?: string;
+  readonly transport?: OpenAiCompatibleTransport;
+}
+
 const fixtureSaveTarget = createMemorySaveTarget({
   initialContent: fixtureMarkdown,
   targetLabel: "fixture://source-mode-fixture.md"
 });
 const lastDemoDocumentStorageKey = "momentarise-md-demo:last-document:v1";
 const demoAiPolicyResolver = createDefaultPolicyResolver();
-let demoAiProvider: MockAiProvider = createMockAiProvider();
+let demoAiProviderMode: AiDemoProviderMode = "mock";
+let demoAiProvider: AiProvider = createMockAiProvider();
+let demoAiProviderEndpoint: string | null = null;
+let demoAiProviderModel = "mock";
+let demoAiProviderName = "mock";
+let demoAiProviderHeaders: Readonly<Record<string, string>> | null = null;
+let demoAiProviderTransport: OpenAiCompatibleTransport | null = null;
+let demoAiProviderTransportCallCount = 0;
 let session: MarkdownEditorSession;
+let activeSaveTarget: SaveTarget = fixtureSaveTarget;
 let activeDocument: ActiveDemoDocument = {
   fileName: "source-mode-fixture.md",
   kind: "markdown",
@@ -744,9 +774,15 @@ function createDemoSession(content: string, target: SaveTarget, path: string | n
   return nextSession;
 }
 
+const initialAiProviderConfig = readInitialDemoAiProviderConfig();
+if (initialAiProviderConfig) {
+  configureDemoAiProvider(initialAiProviderConfig, { reloadSession: false });
+}
+
 session = createDemoSession(fixtureMarkdown, fixtureSaveTarget, "fixture://source-mode-fixture.md");
 
 function replaceDemoSession(content: string, target: SaveTarget, path: string | null): void {
+  activeSaveTarget = target;
   session.destroy();
   session = createDemoSession(content, target, path);
   aiSessionStarted = false;
@@ -994,16 +1030,6 @@ function inlineAiProviderState(): SurfaceAiProviderState {
       label: "Missing provider"
     };
   }
-  if (inlineAiProviderOverride === "host-managed") {
-    return {
-      canSubmit: aiSessionStarted,
-      description: aiSessionStarted
-        ? "Host-managed provider path is active for this session."
-        : "Host-managed provider exists, but no session is connected.",
-      kind: "host-managed",
-      label: "Host-managed provider"
-    };
-  }
   if (inlineAiProviderOverride === "disabled-by-policy" || activeDocument.kind !== "markdown") {
     return {
       canSubmit: false,
@@ -1012,14 +1038,45 @@ function inlineAiProviderState(): SurfaceAiProviderState {
       label: "Disabled by policy"
     };
   }
-  return {
-    canSubmit: aiSessionStarted,
-    description: aiSessionStarted
-      ? "Local mock provider only; policy is checked before staged suggestions are generated."
-      : "Mock/offline demo only. Connect a memory-only session; this does not call OpenAI, Gemini, or Mistral.",
-    kind: "mock",
-    label: "Mock/offline demo provider"
-  };
+  const runtime = getAiProviderRuntimeState();
+  switch (runtime.mode) {
+    case "host-managed":
+      return {
+        canSubmit: aiSessionStarted,
+        description: aiSessionStarted
+          ? "Host-managed provider path is active; policy is checked before document content reaches the host endpoint."
+          : "Host-managed provider exists, but no session is connected.",
+        kind: "host-managed",
+        label: "Host-managed provider"
+      };
+    case "sidecar-local":
+      return {
+        canSubmit: aiSessionStarted,
+        description: aiSessionStarted
+          ? "Local gateway provider path is active; policy is checked before document content reaches the sidecar endpoint."
+          : "Local gateway provider exists, but no session is connected.",
+        kind: "sidecar-local",
+        label: "Local gateway provider"
+      };
+    case "personal-byok":
+      return {
+        canSubmit: aiSessionStarted,
+        description: aiSessionStarted
+          ? "Personal BYOK provider path is active. The browser key is memory-only for this session."
+          : "Personal BYOK requires a memory-only key before any request can be sent.",
+        kind: "personal-byok",
+        label: "Personal BYOK provider"
+      };
+    case "mock":
+      return {
+        canSubmit: aiSessionStarted,
+        description: aiSessionStarted
+          ? "Local mock provider only; policy is checked before staged suggestions are generated."
+          : "Mock/offline demo only. Connect a memory-only session; this does not call OpenAI, Gemini, or Mistral.",
+        kind: "mock",
+        label: "Mock/offline demo provider"
+      };
+  }
 }
 
 function inlinePendingState(): SurfaceInlineAiPromptState["pending"] {
@@ -1317,6 +1374,9 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   getAiWritingState() {
     return getAiWritingState();
   },
+  getAiProviderRuntimeState() {
+    return getAiProviderRuntimeState();
+  },
   getInlineAiPromptState() {
     return getInlineAiPromptState();
   },
@@ -1369,6 +1429,36 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
     loadOpenedMarkdownFile(createImportedCopyDocument({ content: "# Secret\n\nDo not send.\n", fileName: ".env" }), {
       sourceLabel: "AI policy denied fixture"
     });
+  },
+  configureHostAiProviderForTest() {
+    configureDemoAiProvider({
+      endpoint: "http://127.0.0.1:8787/v1/chat/completions",
+      mode: "host-managed",
+      model: "visual-host-model",
+      providerName: "visual-host",
+      transport: createFixtureAiTransport("Visual host-managed provider suggestion")
+    });
+    startAiSessionFromKey("");
+  },
+  configureRelativeSecretEndpointForTest() {
+    configureDemoAiProvider({
+      endpoint: "/api/ai?token=secret#frag-secret",
+      mode: "host-managed",
+      model: "visual-host-model",
+      providerName: "visual-host",
+      transport: createFixtureAiTransport("Visual host-managed provider suggestion")
+    });
+  },
+  configurePersonalByokProviderForTest() {
+    configureDemoAiProvider({
+      endpoint: "http://127.0.0.1:8788/v1/chat/completions",
+      mode: "personal-byok",
+      model: "visual-personal-model",
+      providerName: "visual-personal",
+      transport: createFixtureAiTransport("Visual personal BYOK provider suggestion")
+    });
+    aiByokKeyInput.value = "sk-visual-redacted";
+    startAiSession();
   },
   startMockAiSessionForTest() {
     aiByokKeyInput.value = "sk-test-visual-redacted";
@@ -1913,12 +2003,201 @@ function renderHtmlPreview(): void {
   htmlPreviewStatusElement.textContent = htmlPreviewStatusLabel(htmlPreviewDescriptor);
 }
 
+function readInitialDemoAiProviderConfig(): DemoAiProviderConfig | null {
+  const hostWindow = window as Window & {
+    __MME_AI_PROVIDER_CONFIG__?: Partial<DemoAiProviderConfig>;
+  };
+  const config = hostWindow.__MME_AI_PROVIDER_CONFIG__;
+  if (!config || !config.mode || config.mode === "mock") {
+    return null;
+  }
+  if (!isAiDemoProviderMode(config.mode) || !config.endpoint) {
+    return null;
+  }
+  return {
+    endpoint: config.endpoint,
+    ...(config.headers ? { headers: config.headers } : {}),
+    mode: config.mode,
+    ...(config.model ? { model: config.model } : {}),
+    ...(config.providerName ? { providerName: config.providerName } : {})
+  };
+}
+
+function configureDemoAiProvider(
+  config: DemoAiProviderConfig,
+  options: {
+    readonly reloadSession?: boolean;
+  } = {}
+): void {
+  demoAiProviderMode = config.mode;
+  demoAiProviderTransportCallCount = 0;
+  demoAiProviderHeaders = config.headers ?? null;
+  demoAiProviderTransport = config.transport ?? null;
+
+  if (config.mode === "mock") {
+    demoAiProvider = createMockAiProvider();
+    demoAiProviderEndpoint = null;
+    demoAiProviderModel = "mock";
+    demoAiProviderName = "mock";
+  } else {
+    const endpoint = config.endpoint?.trim();
+    if (!endpoint) {
+      throw new Error("AI provider endpoint is required for host-managed, sidecar-local, and personal BYOK modes.");
+    }
+    demoAiProviderEndpoint = endpoint;
+    demoAiProviderModel = config.model?.trim() || "gpt-4o-mini";
+    demoAiProviderName = config.providerName?.trim() || providerNameForDemoMode(config.mode);
+    demoAiProvider = createOpenAiCompatibleProvider({
+      endpoint,
+      ...(config.apiKey ? { apiKey: config.apiKey } : {}),
+      ...(config.headers ? { headers: config.headers } : {}),
+      mode: config.mode,
+      model: demoAiProviderModel,
+      providerName: demoAiProviderName,
+      transport: config.transport ?? createBrowserOpenAiTransport()
+    });
+  }
+
+  aiSessionStarted = false;
+  renderAiProviderState();
+  if (options.reloadSession ?? true) {
+    replaceDemoSession(getMarkdown(), activeSaveTarget, activeDocument.pathLabel);
+    renderAiWritingState();
+  }
+}
+
+function createBrowserOpenAiTransport(): OpenAiCompatibleTransport {
+  return async (request) => {
+    demoAiProviderTransportCallCount += 1;
+    const response = await fetch(request.url, {
+      body: JSON.stringify(request.body),
+      headers: request.headers,
+      method: request.method
+    });
+    const text = await response.text();
+    let body: unknown = text;
+    if (text) {
+      try {
+        body = JSON.parse(text) as unknown;
+      } catch {
+        body = {
+          error: text
+        };
+      }
+    }
+    return {
+      body,
+      status: response.status,
+      statusText: response.statusText
+    };
+  };
+}
+
+function createFixtureAiTransport(replacement: string): OpenAiCompatibleTransport {
+  return async () => {
+    demoAiProviderTransportCallCount += 1;
+    return {
+      body: {
+        choices: [
+          {
+            message: {
+              content: replacement
+            }
+          }
+        ]
+      },
+      status: 200
+    };
+  };
+}
+
+function getAiProviderRuntimeState(): {
+  readonly endpoint: string;
+  readonly label: string;
+  readonly mode: AiDemoProviderMode;
+  readonly model: string;
+  readonly providerName: string;
+  readonly requestCount: number;
+} {
+  return {
+    endpoint: demoAiProviderEndpoint ? redactProviderEndpoint(demoAiProviderEndpoint) : "not configured",
+    label: labelForAiDemoProviderMode(demoAiProviderMode),
+    mode: demoAiProviderMode,
+    model: demoAiProviderModel,
+    providerName: demoAiProviderName,
+    requestCount: aiProviderRequestCount()
+  };
+}
+
+function redactProviderEndpoint(endpoint: string): string {
+  try {
+    const url = new URL(endpoint);
+    url.username = "";
+    url.password = "";
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    const withoutFragment = endpoint.split("#")[0] ?? "";
+    return withoutFragment.split("?")[0]?.replace(/\/\/[^/@]+@/, "//") ?? "configured endpoint";
+  }
+}
+
+function renderAiProviderState(): void {
+  const runtime = getAiProviderRuntimeState();
+  aiProviderModeElement.textContent = runtime.label;
+  aiProviderEndpointElement.textContent = runtime.endpoint;
+  aiProviderModelElement.textContent = runtime.model;
+}
+
+function aiProviderRequestCount(): number {
+  if (isMockAiProvider(demoAiProvider)) {
+    return demoAiProvider.requests.length;
+  }
+  return demoAiProviderTransportCallCount;
+}
+
+function isMockAiProvider(provider: AiProvider): provider is MockAiProvider {
+  return provider.providerKind === "mock" && "requests" in provider && Array.isArray(provider.requests);
+}
+
+function isAiDemoProviderMode(mode: string): mode is AiDemoProviderMode {
+  return mode === "host-managed" || mode === "mock" || mode === "personal-byok" || mode === "sidecar-local";
+}
+
+function labelForAiDemoProviderMode(mode: AiDemoProviderMode): string {
+  switch (mode) {
+    case "host-managed":
+      return "Host-managed provider";
+    case "sidecar-local":
+      return "Local gateway provider";
+    case "personal-byok":
+      return "Personal BYOK provider";
+    case "mock":
+      return "Mock/offline demo provider";
+  }
+}
+
+function providerNameForDemoMode(mode: AiDemoProviderMode): string {
+  switch (mode) {
+    case "host-managed":
+      return "host-managed";
+    case "sidecar-local":
+      return "local-gateway";
+    case "personal-byok":
+      return "personal-byok";
+    case "mock":
+      return "mock";
+  }
+}
+
 function startAiSession(): void {
   startAiSessionFromKey(aiByokKeyInput.value.trim());
 }
 
 function startAiSessionFromKey(apiKey: string): void {
-  if (!apiKey) {
+  const runtime = getAiProviderRuntimeState();
+  if (runtime.mode === "mock" && !apiKey) {
     aiStatusElement.textContent = "Enter a memory-only key to enable mock AI.";
     setEditorAiSurfaceState({
       statusText: "Paste a memory-only key to enable the mock/offline demo provider.",
@@ -1926,19 +2205,54 @@ function startAiSessionFromKey(apiKey: string): void {
     });
     return;
   }
-
-  session.startAiSession(apiKey);
+  if (runtime.mode === "personal-byok" && !apiKey) {
+    aiStatusElement.textContent = "Enter a memory-only personal provider key for this browser session.";
+    setEditorAiSurfaceState({
+      statusText: "Paste a memory-only personal provider key for this browser session.",
+      visible: true
+    });
+    return;
+  }
+  if (runtime.mode === "personal-byok") {
+    if (!demoAiProviderEndpoint) {
+      aiStatusElement.textContent = "Personal BYOK provider endpoint is not configured.";
+      setEditorAiSurfaceState({
+        statusText: "Personal BYOK provider endpoint is not configured.",
+        visible: true
+      });
+      return;
+    }
+    configureDemoAiProvider({
+      apiKey,
+      endpoint: demoAiProviderEndpoint,
+      ...(demoAiProviderHeaders ? { headers: demoAiProviderHeaders } : {}),
+      mode: "personal-byok",
+      model: demoAiProviderModel,
+      providerName: demoAiProviderName,
+      ...(demoAiProviderTransport ? { transport: demoAiProviderTransport } : {})
+    }, { reloadSession: true });
+    session.startAiSession({
+      apiKey,
+      credentialStatus: "byok-present"
+    });
+  } else if (runtime.mode === "host-managed" || runtime.mode === "sidecar-local") {
+    session.startAiSession({
+      credentialStatus: "host-managed"
+    });
+  } else {
+    session.startAiSession(apiKey);
+  }
   aiSessionStarted = true;
   aiByokKeyInput.value = "";
-  logEvent("AI writing session started with mock/offline provider. Key was kept memory-only; no external provider was called.");
+  logEvent(`AI writing session started with ${runtime.label}. Key material, if any, was kept memory-only and never persisted.`);
   renderAiWritingState();
 }
 
 async function generateAiSuggestion(): Promise<void> {
   if (!aiSessionStarted) {
-    aiStatusElement.textContent = "Enable the mock/offline AI session first.";
+    aiStatusElement.textContent = `Connect the ${getAiProviderRuntimeState().label} session first.`;
     setEditorAiSurfaceState({
-      statusText: "Enable the mock/offline AI session first.",
+      statusText: aiStatusElement.textContent,
       visible: true
     });
     return;
@@ -2007,6 +2321,7 @@ function applyMarkdownFromAi(content: string): void {
 }
 
 function renderAiWritingState(): void {
+  renderAiProviderState();
   const pendingAiSuggestion = session.getPendingSuggestion();
   aiGenerateButton.disabled = !aiSessionStarted;
   aiAcceptButton.disabled = pendingAiSuggestion?.status !== "pending";
@@ -2017,19 +2332,20 @@ function renderAiWritingState(): void {
     : "Policy checked before content leaves the editor.";
 
   if (!pendingAiSuggestion) {
+    const runtime = getAiProviderRuntimeState();
     aiSuggestionPreview.hidden = true;
     aiSuggestionPreview.textContent = "";
-    aiStatusElement.textContent = aiSessionStarted ? "Mock AI session ready" : "No AI session";
+    aiStatusElement.textContent = aiSessionStarted ? `${runtime.label} session ready` : "No AI session";
     setEditorAiSurfaceState({
       hasSession: aiSessionStarted,
       pending: null,
-      statusText: aiSessionStarted ? "Private AI session ready" : "No AI session"
+      statusText: aiSessionStarted ? `${runtime.label} session ready` : "No AI session"
     });
     setInlineAiPromptState({
       busy: false,
       pending: null,
       provider: inlineAiProviderState(),
-      statusText: aiSessionStarted ? "Mock/offline demo ready" : "No AI session"
+      statusText: aiSessionStarted ? `${runtime.label} ready` : "No AI session"
     });
     return;
   }
@@ -2129,7 +2445,7 @@ function richSelectionMarkdownRange(markdown: string): { readonly from: number; 
 
 function getAiWritingState(): {
   readonly hasSession: boolean;
-  readonly keyInputValue: string;
+  readonly keyInputHasValue: boolean;
   readonly pendingStatus: string | null;
   readonly policyText: string;
   readonly providerRequestCount: number;
@@ -2139,10 +2455,10 @@ function getAiWritingState(): {
   const pendingAiSuggestion = session.getPendingSuggestion();
   return {
     hasSession: aiSessionStarted,
-    keyInputValue: aiByokKeyInput.value,
+    keyInputHasValue: aiByokKeyInput.value.length > 0,
     pendingStatus: pendingAiSuggestion?.status ?? null,
     policyText: aiPolicyNoteElement.textContent ?? "",
-    providerRequestCount: demoAiProvider.requests.length,
+    providerRequestCount: aiProviderRequestCount(),
     statusText: aiStatusElement.textContent ?? "",
     suggestionText: aiSuggestionPreview.textContent ?? ""
   };
@@ -3860,12 +4176,20 @@ declare global {
       };
       getAiWritingState: () => {
         readonly hasSession: boolean;
-        readonly keyInputValue: string;
+        readonly keyInputHasValue: boolean;
         readonly pendingStatus: string | null;
         readonly policyText: string;
         readonly providerRequestCount: number;
         readonly statusText: string;
         readonly suggestionText: string;
+      };
+      getAiProviderRuntimeState: () => {
+        readonly endpoint: string;
+        readonly label: string;
+        readonly mode: AiDemoProviderMode;
+        readonly model: string;
+        readonly providerName: string;
+        readonly requestCount: number;
       };
       getInlineAiPromptState: () => {
         readonly activeElement: string | null;
@@ -3916,6 +4240,9 @@ declare global {
       };
       getTestDiskContent: () => string | null;
       acceptAiSuggestionForTest: () => void;
+      configureHostAiProviderForTest: () => void;
+      configurePersonalByokProviderForTest: () => void;
+      configureRelativeSecretEndpointForTest: () => void;
       generateAiSuggestionForTest: (action?: AiWritingAction, prompt?: string) => Promise<void>;
       loadAiPolicyDeniedDocumentForTest: () => void;
       loadHtmlArtifactForTest: (fileName: string, content: string) => void;

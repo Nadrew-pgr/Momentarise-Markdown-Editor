@@ -6,6 +6,7 @@ import {
   rejectAiSuggestion,
   requestAiSuggestion,
   type AiProvider,
+  type AiCredentialStatus,
   type AiWritingAction,
   type AiWritingRequest,
   type AiWritingSession,
@@ -302,6 +303,11 @@ export interface MarkdownEditorSessionOptions {
   readonly target: SaveTarget;
 }
 
+export interface StartAiSessionOptions {
+  readonly apiKey?: string;
+  readonly credentialStatus?: AiCredentialStatus;
+}
+
 export interface SessionChangePayload {
   readonly content: string;
   readonly origin: SessionContentOrigin;
@@ -339,7 +345,7 @@ export interface MarkdownEditorSession {
   requestAiSuggestion(request: Omit<AiWritingRequest, "document">): Promise<AiWritingSuggestion>;
   setContent(next: string, origin: SessionContentOrigin): void;
   setMode(mode: EditorMode): void;
-  startAiSession(apiKey: string): void;
+  startAiSession(apiKeyOrOptions: string | StartAiSessionOptions): void;
 }
 
 export const markdownEditorPackage: MarkdownEditorContract = {
@@ -657,12 +663,14 @@ class DefaultMarkdownEditorSession implements MarkdownEditorSession {
     this.emit("mode", { mode });
   }
 
-  startAiSession(apiKey: string): void {
+  startAiSession(apiKeyOrOptions: string | StartAiSessionOptions): void {
     if (!this.provider) {
       throw new Error("AI provider is not configured.");
     }
+    const options = typeof apiKeyOrOptions === "string" ? { apiKey: apiKeyOrOptions } : apiKeyOrOptions;
     this.aiSession = createAiWritingSession({
-      apiKey,
+      ...(options.apiKey === undefined ? {} : { apiKey: options.apiKey }),
+      ...(options.credentialStatus === undefined ? {} : { credentialStatus: options.credentialStatus }),
       policyResolver: this.policyResolver,
       provider: this.provider
     });

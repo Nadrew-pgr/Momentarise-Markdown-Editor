@@ -6,6 +6,7 @@ const requiredFiles = [
   "docs/internal/visual-checks/MME-0017/README.md",
   "apps/md-demo/src/main.ts",
   "apps/md-demo/src/styles.css",
+  "docs/public/AI_PROVIDER_ADAPTER.md",
   "packages/md-ai/src/index.ts"
 ];
 
@@ -20,7 +21,8 @@ for (const [scriptName, expected] of [
   ["test:ai-writing", "npm run build && node tests/ai-writing.test.mjs"],
   ["test:demo-ai-writing", "node tests/demo-ai-writing-baseline.test.mjs"],
   ["visual:mme-0017", "node scripts/visual-check-mme0017.mjs"],
-  ["visual:mme-0028.5", "node scripts/visual-check-mme00285.mjs"]
+  ["visual:mme-0028.5", "node scripts/visual-check-mme00285.mjs"],
+  ["visual:mme-0028.6", "node scripts/visual-check-mme00286.mjs"]
 ]) {
   if (packageJson.scripts[scriptName] !== expected) {
     throw new Error(`Missing ${scriptName} script.`);
@@ -36,15 +38,21 @@ if (!packageJson.scripts.test.includes("test:demo-ai-writing")) {
 
 const main = readFileSync("apps/md-demo/src/main.ts", "utf8");
 for (const snippet of [
+  "AiDemoProviderMode",
   "ai-writing-panel",
   "ai-byok-key-input",
+  "ai-provider-mode",
+  "ai-provider-endpoint",
   "ai-start-session-button",
   "ai-action-select",
   "ai-prompt-input",
   "ai-generate-button",
   "ai-accept-button",
   "ai-reject-button",
+  "configureDemoAiProvider",
+  "createOpenAiCompatibleProvider",
   "createMockAiProvider",
+  "getAiProviderRuntimeState",
   "session.startAiSession",
   "session.requestAiSuggestion",
   "session.acceptPendingSuggestion",
@@ -55,6 +63,9 @@ for (const snippet of [
   "inline-ai-prompt-input",
   "inlineAiProviderState",
   "openInlineAiPromptFromAction",
+  "configureHostAiProviderForTest",
+  "configurePersonalByokProviderForTest",
+  "configureRelativeSecretEndpointForTest",
   "submitInlineAiPrompt",
   "positionInlineAiPrompt",
   "getInlineAiPromptState"
@@ -72,10 +83,27 @@ if (main.includes("logEvent(aiByokKeyInput.value") || main.includes("localStorag
   throw new Error("Demo must not log or persist the memory-only demo key.");
 }
 
+for (const forbidden of [
+  "import OpenAI",
+  "from \"openai\"",
+  "from \"@ai-sdk",
+  "keyInputValue",
+  "localStorage.setItem(\"mme-ai-provider",
+  "localStorage.setItem(\"momentarise-ai-provider",
+  "sessionStorage.setItem(\"mme-ai-provider",
+  "console.log(apiKey",
+  "console.log(aiByokKeyInput.value"
+]) {
+  if (main.includes(forbidden)) {
+    throw new Error(`Demo provider path must not use forbidden snippet: ${forbidden}`);
+  }
+}
+
 const styles = readFileSync("apps/md-demo/src/styles.css", "utf8");
 for (const snippet of [
   ".ai-writing-panel",
   ".ai-writing-controls",
+  ".ai-provider-state",
   ".ai-suggestion-preview",
   ".ai-policy-note",
   ".inline-ai-prompt",
@@ -109,5 +137,33 @@ for (const artifact of [
 ]) {
   if (!inlineVisual.includes(artifact)) {
     throw new Error(`MME-0028.5 visual script missing artifact: ${artifact}`);
+  }
+}
+
+const providerVisual = readFileSync("scripts/visual-check-mme00286.mjs", "utf8");
+for (const artifact of [
+  "ai-provider-default-mock.png",
+  "ai-provider-host-managed.png",
+  "ai-provider-personal-byok-staged.png",
+  "ai-provider-policy-blocked.png"
+]) {
+  if (!providerVisual.includes(artifact)) {
+    throw new Error(`MME-0028.6 visual script missing artifact: ${artifact}`);
+  }
+}
+
+const providerDocs = readFileSync("docs/public/AI_PROVIDER_ADAPTER.md", "utf8");
+for (const snippet of [
+  "OpenAI-compatible",
+  "LiteLLM",
+  "host backend",
+  "sidecar",
+  "secure storage",
+  "personal BYOK",
+  "memory-only",
+  "Document Access Policy"
+]) {
+  if (!providerDocs.includes(snippet)) {
+    throw new Error(`AI provider adapter docs missing required guidance: ${snippet}`);
   }
 }

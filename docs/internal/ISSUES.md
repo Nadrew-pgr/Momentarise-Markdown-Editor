@@ -1646,6 +1646,8 @@ UX Reviewer and Security Reviewer.
 
 ## MME-0028.6 — Real AI provider adapter path
 
+Completed 2026-06-30; code HITL remained waived for TypeScript/package work, and security/architecture subagent reviewers accepted after fixes. Added `@momentarise/md-ai` OpenAI-compatible provider adapter contracts with injected host transport, response mapping to the existing staged `AiWritingSuggestion` model, no SDK/browser dependency in core, and policy-before-provider tests. The demo now supports mock/default, host-managed, local-gateway/sidecar, and personal BYOK provider states; personal BYOK stays memory-only, provider endpoints are redacted before UI/test/visual state, and visual proof covers default mock, host-managed, personal BYOK staged suggestion, and policy-blocked no-call behavior. Proven by `npm run test:ai-writing`, `npm run test:editor-session`, `npm run test:demo-ai-writing`, `npm run test:architecture`, `npm run test:publishability`, `npm run build:demo`, `npm run visual:mme-0028.6`, full `npm test`, and `git diff --check`. `MME-0029` is the next candidate after issue-scoped commit.
+
 ### Goal
 
 Make the AI flow actually usable with a real provider when a host chooses to configure one, without putting provider SDKs or raw production key handling into MME core.

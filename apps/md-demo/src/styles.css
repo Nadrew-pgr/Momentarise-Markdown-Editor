@@ -1555,6 +1555,33 @@ h1 {
   outline-offset: 0;
 }
 
+.ai-provider-state {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--mme-color-border);
+  border-radius: var(--mme-radius-md);
+  background: var(--mme-color-surface-muted);
+}
+
+.ai-provider-state p {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  color: var(--mme-color-text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.ai-provider-state strong {
+  min-width: 0;
+  color: var(--mme-color-text);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
 .ai-policy-note {
   margin: 0;
   color: var(--mme-color-text-muted);
