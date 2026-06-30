@@ -93,6 +93,10 @@ export type IconName =
   | "save";
 
 export interface IconSet {
+  /**
+   * Returns trusted icon markup, intended for controlled SVG/icon factories only.
+   * Hosts must not pass user-authored or remote HTML because surface packages may insert this with `innerHTML`.
+   */
   render(name: IconName): string;
 }
 

@@ -185,6 +185,7 @@ assertThrows(
 );
 
 const demoMain = readFileSync("apps/md-demo/src/main.ts", "utf8");
+const surfaceSource = readFileSync("packages/md-surface/src/index.ts", "utf8");
 for (const snippet of [
   "registerReferenceExtensions(nextSession)",
   "editorSession.extensions.registerSlashItem",
@@ -196,7 +197,7 @@ for (const snippet of [
   "id: \"host:translate-selection\"",
   "hostCalloutCardBlockDefinition",
   "referenceAiActionsForRegisteredEntryPoint",
-  "renderExtensionToolbarItems",
+  "createToolbar",
   "consumeActiveSlashQuery",
   "dispatchSlashItem",
   "dispatchToolbarItem"
@@ -213,7 +214,7 @@ assert(
   slashKeyboardFunction.includes("consumeActiveSlashQuery()"),
   "Slash AI dispatch must consume the typed /query range before opening an AI action."
 );
-const renderExtensionToolbarItemsFunction = extractFunction(demoMain, "function renderExtensionToolbarItems");
+const renderExtensionToolbarItemsFunction = extractFunction(surfaceSource, "function hostToolbarButtons");
 assert(
   renderExtensionToolbarItemsFunction.includes('button.setAttribute("aria-label", label)') &&
     renderExtensionToolbarItemsFunction.includes("button.title = label"),

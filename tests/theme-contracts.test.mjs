@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 const theme = await import("../packages/md-theme/dist/index.js");
 
 const expectedTokenVariables = [
@@ -103,6 +105,11 @@ const saveIcon = theme.defaultIconSet.render("save");
 assert(saveIcon.includes("<svg"), "default icon set must return SVG markup.");
 assert(saveIcon.includes("currentColor"), "default icons must use currentColor.");
 assert(saveIcon.includes("viewBox=\"0 0 16 16\""), "default icons must use a 16px grid.");
+const themeSource = readFileSync("packages/md-theme/src/index.ts", "utf8");
+assert(
+  themeSource.includes("trusted icon markup") && themeSource.includes("user-authored or remote HTML"),
+  "IconSet must document its trusted HTML boundary."
+);
 
 const allIcons = [
   "bold",

@@ -10,7 +10,6 @@ import {
 import {
   createDownloadRequiredSaveTarget,
   createMemorySaveTarget,
-  persistenceTargetLabel,
   type SaveFlushReason,
   type SaveState,
   type SaveTarget
@@ -86,6 +85,20 @@ import {
   type MmeScheme,
   type MmeTheme
 } from "@momentarise/md-theme";
+import {
+  createAiAssistantPanel,
+  createCommandPalette,
+  createDocumentStatus,
+  createModeControl,
+  createSlashMenu,
+  createToolbar,
+  defaultMmeStrings,
+  type SurfaceAiAction,
+  type SurfaceAiAssistantState,
+  type SurfaceDocumentState,
+  type SurfaceSlashState,
+  type SurfaceToolbarState
+} from "@momentarise/md-surface";
 import { Plugin, PluginKey, TextSelection, type EditorState as ProseMirrorEditorState } from "prosemirror-state";
 import { Decoration, DecorationSet, EditorView as ProseMirrorEditorView } from "prosemirror-view";
 import {
@@ -122,10 +135,6 @@ const app = queryRequired<HTMLDivElement>("#app");
 let referenceSurfacePreferences: ReferenceEditorPreferences = resolveReferenceEditorPreferences();
 const sourcePreferenceCompartments = createMomentariseSourceCompartments();
 
-function toolbarIcon(name: IconName): string {
-  return `<span class="toolbar-icon" aria-hidden="true">${defaultIconSet.render(name)}</span>`;
-}
-
 app.innerHTML = `
   <main class="shell reference-editor-shell" data-testid="reference-editor-shell">
     <header class="topbar reference-topbar">
@@ -145,11 +154,7 @@ app.innerHTML = `
         <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain" data-testid="open-file-input" />
         <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain" data-testid="import-copy-input" />
         <input class="file-input" type="file" accept=".html,.htm,text/html" data-testid="html-file-input" />
-        <div class="mode-switch mode-control" role="group" aria-label="Editor mode">
-          <button class="mode-button mode-switch-track" type="button" data-testid="source-mode-button" aria-label="Toggle Rich Mode" role="switch"><span aria-hidden="true"></span></button>
-          <button class="mode-button mode-switch-label" type="button" data-testid="rich-mode-button">Rich Mode</button>
-          <button class="mode-button preview-mode-pill" type="button" data-testid="preview-mode-button">Preview</button>
-        </div>
+        <div data-testid="mode-control-host"></div>
         <details class="ai-command-surface" data-testid="ai-command-surface">
           <summary class="button secondary editor-ai-button" data-testid="editor-ai-button">AI</summary>
           <div class="floating-ai-menu" data-testid="editor-ai-menu" aria-label="AI writing actions">
@@ -168,99 +173,25 @@ app.innerHTML = `
           </div>
         </details>
         <button class="button secondary selected-text-ai-action utility-action" type="button" data-testid="selected-text-ai-action" tabindex="-1">Ask AI</button>
-        <button class="button secondary command-palette-button utility-action" type="button" data-testid="command-palette-button" tabindex="-1">Cmd K</button>
-        <details class="document-status-popover" data-testid="document-status-popover">
-          <summary class="editor-status-button" data-testid="editor-status-button">
-            <span data-testid="document-name">source-mode-fixture.md</span>
-            <span data-testid="dirty-state">clean</span>
-          </summary>
-          <div class="document-status-menu">
-            <p><span>Path</span><strong data-testid="document-path">fixture://source-mode-fixture.md</strong></p>
-            <p><span>Target</span><strong class="target-label" data-testid="persistence-target">memory only, not persisted</strong></p>
-            <p><span>Save</span><strong data-testid="save-state">memory saved (not persisted)</strong></p>
-          </div>
-        </details>
-        <button class="button primary" type="button" data-testid="memory-save-button">Save</button>
+        <button
+          class="button secondary command-palette-button"
+          type="button"
+          data-testid="command-palette-button"
+          aria-label="${defaultMmeStrings.commandPalette.label}"
+          title="${defaultMmeStrings.commandPalette.label}"
+        >
+          <span class="toolbar-icon" aria-hidden="true">${defaultIconSet.render("search")}</span>
+        </button>
+        <div data-testid="document-status-host"></div>
       </div>
     </header>
     <p class="editor-notice" data-testid="editor-notice" role="status" hidden></p>
 
     <section class="workspace" aria-label="Markdown workspace">
       <div class="editor-region">
-        <div class="ai-assistant-panel" data-testid="editor-ai-assistant-panel" role="dialog" aria-label="AI writing assistant" hidden>
-          <div class="ai-assistant-header">
-            <div>
-              <p class="label">AI assistant</p>
-              <p class="status-value" data-testid="editor-ai-status">No AI session</p>
-            </div>
-            <button class="button secondary" type="button" data-testid="editor-ai-panel-close">Close</button>
-          </div>
-          <div class="editor-ai-session-row">
-            <label>
-              Private session
-              <input
-                type="password"
-                data-testid="editor-ai-byok-key-input"
-                autocomplete="off"
-                placeholder="Memory-only key"
-                spellcheck="false"
-              />
-            </label>
-            <button class="button secondary" type="button" data-testid="editor-ai-start-session-button">Connect</button>
-          </div>
-          <div class="ai-suggestion-preview editor-ai-suggestion-preview" data-testid="editor-ai-suggestion-preview" hidden></div>
-          <div class="ai-suggestion-actions">
-            <button class="button secondary" type="button" data-testid="editor-ai-accept-button" disabled>Accept</button>
-            <button class="button secondary" type="button" data-testid="editor-ai-reject-button" disabled>Reject</button>
-          </div>
-        </div>
-        <div class="command-palette" data-testid="command-palette" hidden>
-          <div class="command-palette-panel">
-            <label>
-              Command
-              <input type="text" data-testid="command-palette-input" autocomplete="off" placeholder="Search commands and AI actions" />
-            </label>
-            <div class="command-palette-items" data-testid="command-palette-items">
-              ${REFERENCE_AI_ACTIONS.map(
-                (action: ReferenceAiAction) => `
-                  <button
-                    class="ai-command-item"
-                    type="button"
-                    data-reference-ai-action="${action.id}"
-                    data-testid="command-palette-ai-action-${action.id}"
-                  >
-                    <strong>${action.label}</strong>
-                    <span>${action.entryPoints.join(", ")}</span>
-                  </button>`
-              ).join("")}
-            </div>
-          </div>
-        </div>
-        <div class="rich-command-toolbar" data-testid="rich-command-toolbar" aria-label="Rich editing toolbar" hidden>
-          <button class="toolbar-button" type="button" data-rich-command="heading1" data-testid="toolbar-command-heading1" aria-label="Heading 1" title="Heading 1">H1</button>
-          <button class="toolbar-button" type="button" data-rich-command="heading2" data-testid="toolbar-command-heading2" aria-label="Heading 2" title="Heading 2">H2</button>
-          <button class="toolbar-button" type="button" data-rich-command="bold" data-testid="toolbar-command-bold" aria-label="Bold" title="Bold">${toolbarIcon("bold")}</button>
-          <button class="toolbar-button" type="button" data-rich-command="italic" data-testid="toolbar-command-italic" aria-label="Italic" title="Italic">${toolbarIcon("italic")}</button>
-          <button class="toolbar-button" type="button" data-rich-command="todo" data-testid="toolbar-command-todo" aria-label="Todo" title="Todo">${toolbarIcon("todo")}</button>
-          <button class="toolbar-button" type="button" data-rich-command="bulletList" data-testid="toolbar-command-bulletList" aria-label="Bullet list" title="Bullet list">${toolbarIcon("list")}</button>
-          <button class="toolbar-button" type="button" data-rich-command="blockquote" data-testid="toolbar-command-blockquote" aria-label="Quote" title="Quote">${toolbarIcon("quote")}</button>
-          <button class="toolbar-button" type="button" data-rich-command="codeBlock" data-testid="toolbar-command-codeBlock" aria-label="Code block" title="Code block">${toolbarIcon("code")}</button>
-          <button class="toolbar-button" type="button" data-rich-command="link" data-testid="toolbar-command-link" aria-label="Link" title="Link">${toolbarIcon("link")}</button>
-          <button class="toolbar-button" type="button" data-rich-command="divider" data-testid="toolbar-command-divider" aria-label="Divider" title="Divider">${toolbarIcon("divider")}</button>
-          <button class="toolbar-button toolbar-ai-button" type="button" data-reference-ai-toolbar data-testid="toolbar-ai-button" aria-label="AI" title="AI">${toolbarIcon("ai")}</button>
-          <div class="toolbar-more">
-            <button class="toolbar-button" type="button" data-testid="toolbar-more-button" aria-label="More commands" title="More commands" aria-expanded="false">${toolbarIcon("more")}</button>
-            <div class="toolbar-more-menu" data-testid="toolbar-more-menu" hidden>
-              <button class="toolbar-menu-item" type="button" data-rich-command="paragraph">${toolbarIcon("heading")}<span>Paragraph</span></button>
-              <button class="toolbar-menu-item" type="button" data-rich-command="heading3">${toolbarIcon("heading")}<span>H3</span></button>
-              <button class="toolbar-menu-item" type="button" data-rich-command="orderedList">${toolbarIcon("list")}<span>Numbered list</span></button>
-              <button class="toolbar-menu-item" type="button" data-rich-command="callout">${toolbarIcon("quote")}<span>Callout</span></button>
-              <button class="toolbar-menu-item" type="button" data-rich-command="toggleBlock" data-testid="toolbar-command-toggleBlock">${toolbarIcon("chevron")}<span>Toggle block</span></button>
-              <button class="toolbar-menu-item" type="button" data-rich-command="image">${toolbarIcon("image")}<span>Image</span></button>
-              <button class="toolbar-menu-item" type="button" data-rich-command="inlineCode">${toolbarIcon("code")}<span>Inline code</span></button>
-            </div>
-          </div>
-        </div>
+        <div data-testid="editor-ai-assistant-panel-host"></div>
+        <div data-testid="command-palette-host"></div>
+        <div data-testid="rich-command-toolbar-host"></div>
         <div class="rich-block-controls" data-testid="rich-block-controls" aria-label="Rich block controls" hidden>
           <div class="code-block-controls" data-testid="code-block-controls" hidden>
             <label>
@@ -274,10 +205,7 @@ app.innerHTML = `
           </div>
           <button class="toolbar-button" type="button" data-testid="insert-after-block-button">Add paragraph</button>
         </div>
-        <div class="slash-command-menu" data-testid="slash-command-menu" hidden>
-          <p class="slash-command-query" data-testid="slash-command-query">/</p>
-          <div class="slash-command-items" data-slash-command-items></div>
-        </div>
+        <div data-testid="slash-command-menu-host"></div>
         <div class="editor-host" data-editor-host data-testid="editor-host"></div>
         <div class="rich-editor-host" data-testid="rich-editor-host" hidden></div>
         <div class="html-preview-host" data-testid="html-preview-host" hidden>
@@ -427,21 +355,14 @@ const richEditorHost = queryRequired<HTMLDivElement>('[data-testid="rich-editor-
 const htmlPreviewHost = queryRequired<HTMLDivElement>('[data-testid="html-preview-host"]');
 const htmlPreviewBanner = queryRequired<HTMLDivElement>('[data-testid="html-preview-banner"]');
 const htmlPreviewFrame = queryRequired<HTMLIFrameElement>('[data-testid="html-preview-frame"]');
-const sourceModeButton = queryRequired<HTMLButtonElement>('[data-testid="source-mode-button"]');
-const richModeButton = queryRequired<HTMLButtonElement>('[data-testid="rich-mode-button"]');
-const previewModeButton = queryRequired<HTMLButtonElement>('[data-testid="preview-mode-button"]');
-const richCommandToolbar = queryRequired<HTMLDivElement>('[data-testid="rich-command-toolbar"]');
-const toolbarAiButton = queryRequired<HTMLButtonElement>('[data-testid="toolbar-ai-button"]');
-const toolbarMoreButton = queryRequired<HTMLButtonElement>('[data-testid="toolbar-more-button"]');
-const toolbarMoreMenu = queryRequired<HTMLDivElement>('[data-testid="toolbar-more-menu"]');
+const modeControlHost = queryRequired<HTMLDivElement>('[data-testid="mode-control-host"]');
+const richCommandToolbarHost = queryRequired<HTMLDivElement>('[data-testid="rich-command-toolbar-host"]');
 const richBlockControls = queryRequired<HTMLDivElement>('[data-testid="rich-block-controls"]');
 const codeBlockControls = queryRequired<HTMLDivElement>('[data-testid="code-block-controls"]');
 const codeLanguageInput = queryRequired<HTMLInputElement>('[data-testid="code-language-input"]');
 const codeMetaInput = queryRequired<HTMLInputElement>('[data-testid="code-meta-input"]');
 const insertAfterBlockButton = queryRequired<HTMLButtonElement>('[data-testid="insert-after-block-button"]');
-const slashCommandMenu = queryRequired<HTMLDivElement>('[data-testid="slash-command-menu"]');
-const slashCommandQueryElement = queryRequired<HTMLElement>('[data-testid="slash-command-query"]');
-const slashCommandItemsElement = queryRequired<HTMLDivElement>("[data-slash-command-items]");
+const slashCommandMenuHost = queryRequired<HTMLDivElement>('[data-testid="slash-command-menu-host"]');
 const openFileButton = queryRequired<HTMLButtonElement>('[data-testid="open-file-button"]');
 const openFileInput = queryRequired<HTMLInputElement>('[data-testid="open-file-input"]');
 const openLocalFileButton = queryRequired<HTMLButtonElement>('[data-testid="open-local-file-button"]');
@@ -451,13 +372,8 @@ const importCopyInput = queryRequired<HTMLInputElement>('[data-testid="import-co
 const htmlFileInput = queryRequired<HTMLInputElement>('[data-testid="html-file-input"]');
 const copyButton = queryRequired<HTMLButtonElement>('[data-testid="copy-button"]');
 const downloadButton = queryRequired<HTMLButtonElement>('[data-testid="download-button"]');
-const memorySaveButton = queryRequired<HTMLButtonElement>('[data-testid="memory-save-button"]');
 const simulateConflictButton = queryRequired<HTMLButtonElement>('[data-testid="simulate-conflict-button"]');
-const documentNameElement = queryRequired<HTMLElement>('[data-testid="document-name"]');
-const documentPathElement = queryRequired<HTMLElement>('[data-testid="document-path"]');
-const saveStateElement = queryRequired<HTMLElement>('[data-testid="save-state"]');
-const dirtyStateElement = queryRequired<HTMLElement>('[data-testid="dirty-state"]');
-const persistenceTargetElement = queryRequired<HTMLElement>('[data-testid="persistence-target"]');
+const documentStatusHost = queryRequired<HTMLDivElement>('[data-testid="document-status-host"]');
 const documentModeElement = queryRequired<HTMLElement>('[data-testid="document-mode"]');
 const saveEngineTargetElement = queryRequired<HTMLElement>('[data-testid="save-engine-target"]');
 const saveEngineStateElement = queryRequired<HTMLElement>('[data-testid="save-engine-state"]');
@@ -495,18 +411,8 @@ const aiCommandSurface = queryRequired<HTMLDetailsElement>('[data-testid="ai-com
 const editorAiMenu = queryRequired<HTMLDivElement>('[data-testid="editor-ai-menu"]');
 const selectedTextAiAction = queryRequired<HTMLButtonElement>('[data-testid="selected-text-ai-action"]');
 const commandPaletteButton = queryRequired<HTMLButtonElement>('[data-testid="command-palette-button"]');
-const commandPalette = queryRequired<HTMLDivElement>('[data-testid="command-palette"]');
-const commandPaletteInput = queryRequired<HTMLInputElement>('[data-testid="command-palette-input"]');
-const commandPaletteItems = queryRequired<HTMLDivElement>('[data-testid="command-palette-items"]');
-const editorAiAssistantPanel = queryRequired<HTMLDivElement>('[data-testid="editor-ai-assistant-panel"]');
-const editorAiByokKeyInput = queryRequired<HTMLInputElement>('[data-testid="editor-ai-byok-key-input"]');
-const editorAiStartSessionButton = queryRequired<HTMLButtonElement>('[data-testid="editor-ai-start-session-button"]');
-const editorAiPanelCloseButton = queryRequired<HTMLButtonElement>('[data-testid="editor-ai-panel-close"]');
-const editorAiStatusElement = queryRequired<HTMLElement>('[data-testid="editor-ai-status"]');
-const editorAiSuggestionPreview = queryRequired<HTMLDivElement>('[data-testid="editor-ai-suggestion-preview"]');
-const editorAiAcceptButton = queryRequired<HTMLButtonElement>('[data-testid="editor-ai-accept-button"]');
-const editorAiRejectButton = queryRequired<HTMLButtonElement>('[data-testid="editor-ai-reject-button"]');
-const documentStatusPopover = queryRequired<HTMLDetailsElement>('[data-testid="document-status-popover"]');
+const commandPaletteHost = queryRequired<HTMLDivElement>('[data-testid="command-palette-host"]');
+const editorAiAssistantPanelHost = queryRequired<HTMLDivElement>('[data-testid="editor-ai-assistant-panel-host"]');
 const surfaceSettingsPanel = queryRequired<HTMLDetailsElement>('[data-testid="surface-settings-panel"]');
 const debugInspector = queryRequired<HTMLDetailsElement>('[data-testid="debug-inspector"]');
 const editorNotice = queryRequired<HTMLElement>('[data-testid="editor-notice"]');
@@ -515,6 +421,30 @@ const surfaceAiEntryPointsPrefElement = queryRequired<HTMLElement>('[data-testid
 const surfaceStatusDisclosurePrefElement = queryRequired<HTMLElement>('[data-testid="surface-status-disclosure-pref"]');
 const surfaceLayoutPrefElement = queryRequired<HTMLElement>('[data-testid="surface-layout-pref"]');
 const surfaceKeymapPrefElement = queryRequired<HTMLElement>('[data-testid="surface-keymap-pref"]');
+let sourceModeButton: HTMLButtonElement;
+let richModeButton: HTMLButtonElement;
+let previewModeButton: HTMLButtonElement;
+let richCommandToolbar: HTMLDivElement;
+let toolbarAiButton: HTMLButtonElement;
+let toolbarMoreMenu: HTMLDivElement;
+let slashCommandMenu: HTMLDivElement;
+let commandPalette: HTMLDivElement;
+let documentStatusPopover: HTMLDetailsElement;
+let memorySaveButton: HTMLButtonElement;
+let editorAiAssistantPanel: HTMLDivElement;
+let editorAiStatusElement: HTMLElement;
+let commandPaletteSurface: ReturnType<typeof createCommandPalette> | null = null;
+let documentStatusSurface: ReturnType<typeof createDocumentStatus> | null = null;
+let modeControlSurface: ReturnType<typeof createModeControl> | null = null;
+let slashMenuSurface: ReturnType<typeof createSlashMenu> | null = null;
+let toolbarSurface: ReturnType<typeof createToolbar> | null = null;
+let editorAiSurface: ReturnType<typeof createAiAssistantPanel> | null = null;
+let editorAiSurfaceState: SurfaceAiAssistantState = {
+  hasSession: false,
+  pending: null,
+  statusText: defaultMmeStrings.ai.noSession,
+  visible: false
+};
 
 let eventCounter = 0;
 let lastCopiedMarkdown: string | null = null;
@@ -586,7 +516,6 @@ let slashCommandState: SlashCommandState = {
 let slashCommandSelectedIndex = 0;
 const richFoldingPluginKey = new PluginKey<DecorationSet>("momentarise-demo-rich-folding");
 let aiSessionStarted = false;
-let commandPaletteSelectedIndex = 0;
 
 function saveFromKeyboardShortcut(): boolean {
   memorySave("keyboard shortcut");
@@ -612,26 +541,6 @@ const richCommandIcons: Partial<Record<RichCommandId, IconName>> = {
   todo: "todo",
   toggleBlock: "chevron"
 };
-
-const knownIconNames = new Set<IconName>([
-  "ai",
-  "bold",
-  "check",
-  "chevron",
-  "close",
-  "code",
-  "divider",
-  "heading",
-  "image",
-  "italic",
-  "link",
-  "list",
-  "more",
-  "quote",
-  "save",
-  "search",
-  "todo"
-]);
 
 function registerReferenceExtensions(editorSession: MarkdownEditorSession): void {
   for (const command of richCommandRegistry) {
@@ -817,7 +726,197 @@ function replaceDemoSession(content: string, target: SaveTarget, path: string | 
   session.destroy();
   session = createDemoSession(content, target, path);
   aiSessionStarted = false;
+  mountReferenceSurfaceComponents();
 }
+
+function mountReferenceSurfaceComponents(): void {
+  toolbarSurface?.destroy();
+  slashMenuSurface?.destroy();
+  commandPaletteSurface?.destroy();
+  documentStatusSurface?.destroy();
+  modeControlSurface?.destroy();
+  editorAiSurface?.destroy();
+
+  modeControlSurface = createModeControl({
+    host: modeControlHost,
+    icons: defaultIconSet,
+    preferences: surfacePreferences(),
+    session,
+    state: surfaceModeState(),
+    strings: defaultMmeStrings,
+    onSwitchMode(mode) {
+      if (mode === "source" && activeDocument.kind === "markdown") {
+        toggleRichMode();
+        return;
+      }
+      switchEditorMode(mode);
+    }
+  });
+  sourceModeButton = queryRequired<HTMLButtonElement>('[data-testid="source-mode-button"]');
+  richModeButton = queryRequired<HTMLButtonElement>('[data-testid="rich-mode-button"]');
+  previewModeButton = queryRequired<HTMLButtonElement>('[data-testid="preview-mode-button"]');
+
+  toolbarSurface = createToolbar({
+    host: richCommandToolbarHost,
+    icons: defaultIconSet,
+    preferences: surfacePreferences(),
+    session,
+    state: surfaceToolbarState(),
+    strings: defaultMmeStrings,
+    onAiToolbar() {
+      openAiCommandSurface();
+    },
+    onRunToolbarItem(id) {
+      void dispatchToolbarItem(id);
+    }
+  });
+  richCommandToolbar = toolbarSurface.root as HTMLDivElement;
+  toolbarAiButton = queryRequired<HTMLButtonElement>('[data-testid="toolbar-ai-button"]');
+  toolbarMoreMenu = queryRequired<HTMLDivElement>('[data-testid="toolbar-more-menu"]');
+
+  slashMenuSurface = createSlashMenu({
+    aiItems: surfaceAiActionsForEntryPoint("slash"),
+    host: slashCommandMenuHost,
+    icons: defaultIconSet,
+    preferences: surfacePreferences(),
+    session,
+    state: surfaceSlashState(),
+    strings: defaultMmeStrings,
+    onClose() {
+      closeSlashMenu();
+    },
+    onRunAiAction(id) {
+      consumeActiveSlashQuery();
+      void runEditorNativeAiCommand(id);
+    },
+    onRunSlashItem(id) {
+      void dispatchSlashItem(id);
+    },
+    onSelectionChange(index) {
+      slashCommandSelectedIndex = index;
+    }
+  });
+  slashCommandMenu = slashMenuSurface.root as HTMLDivElement;
+
+  commandPaletteSurface = createCommandPalette({
+    actions: surfaceAiActionsForEntryPoint("command-palette"),
+    host: commandPaletteHost,
+    icons: defaultIconSet,
+    preferences: surfacePreferences(),
+    returnFocusTo: commandPaletteButton,
+    session,
+    strings: defaultMmeStrings,
+    onRunAiAction(id) {
+      void runEditorNativeAiCommand(id);
+    }
+  });
+  commandPalette = commandPaletteSurface.root as HTMLDivElement;
+
+  documentStatusSurface = createDocumentStatus({
+    document: surfaceDocumentState(),
+    host: documentStatusHost,
+    icons: defaultIconSet,
+    preferences: surfacePreferences(),
+    saveState: session.getSaveState(),
+    session,
+    strings: defaultMmeStrings,
+    onPrimaryAction() {
+      memorySave("button");
+    }
+  });
+  documentStatusPopover = queryRequired<HTMLDetailsElement>('[data-testid="document-status-popover"]');
+  memorySaveButton = queryRequired<HTMLButtonElement>('[data-testid="memory-save-button"]');
+
+  editorAiSurface = createAiAssistantPanel({
+    host: editorAiAssistantPanelHost,
+    icons: defaultIconSet,
+    preferences: surfacePreferences(),
+    session,
+    state: editorAiSurfaceState,
+    strings: defaultMmeStrings,
+    onAccept() {
+      acceptPendingAiSuggestion();
+    },
+    onClose() {
+      setEditorAiSurfaceState({ visible: false });
+    },
+    onReject() {
+      rejectPendingAiSuggestion();
+    },
+    onStartSession(key) {
+      startAiSessionFromKey(key);
+    }
+  });
+  editorAiAssistantPanel = editorAiSurface.root as HTMLDivElement;
+  editorAiStatusElement = queryRequired<HTMLElement>('[data-testid="editor-ai-status"]');
+}
+
+function surfacePreferences(): {
+  readonly aiEntryPoints: readonly string[];
+  readonly toolbarMode: string;
+  readonly visibleCommandGroups: readonly string[];
+} {
+  return {
+    aiEntryPoints: referenceSurfacePreferences.aiEntryPoints,
+    toolbarMode: referenceSurfacePreferences.toolbarMode,
+    visibleCommandGroups: referenceSurfacePreferences.visibleCommandGroups
+  };
+}
+
+function surfaceDocumentState(): SurfaceDocumentState {
+  return {
+    fileName: activeDocument.fileName,
+    kind: activeDocument.kind,
+    mode: activeDocument.mode,
+    pathLabel: activeDocument.pathLabel
+  };
+}
+
+function surfaceModeState(): {
+  readonly documentKind: DemoDocumentKind;
+  readonly editorMode: DemoEditorMode;
+} {
+  return {
+    documentKind: activeDocument.kind,
+    editorMode
+  };
+}
+
+function surfaceToolbarState(): SurfaceToolbarState {
+  return {
+    editorMode,
+    hostToolbarItems: session.extensions.getToolbarItems(),
+    visible: editorMode === "rich"
+  };
+}
+
+function surfaceSlashState(): SurfaceSlashState {
+  return {
+    items: slashCommandState.items,
+    open: slashCommandState.open,
+    query: slashCommandState.query,
+    selectedIndex: slashCommandSelectedIndex
+  };
+}
+
+function surfaceAiActionsForEntryPoint(entryPoint: ReferenceAiEntryPoint): readonly SurfaceAiAction[] {
+  return referenceAiActionsForRegisteredEntryPoint(entryPoint).map((action) => ({
+    entryPoints: action.entryPoints,
+    id: action.id,
+    label: action.label,
+    prompt: action.prompt
+  }));
+}
+
+function setEditorAiSurfaceState(nextState: Partial<SurfaceAiAssistantState>): void {
+  editorAiSurfaceState = {
+    ...editorAiSurfaceState,
+    ...nextState
+  };
+  editorAiSurface?.setState(editorAiSurfaceState);
+}
+
+mountReferenceSurfaceComponents();
 
 const editor = new CodeMirrorEditorView({
   parent: editorHost,
@@ -851,51 +950,6 @@ if (!restoreLastDemoDocument()) {
   renderEditorMode();
 }
 
-sourceModeButton.addEventListener("click", () => {
-  if (activeDocument.kind === "markdown") {
-    toggleRichMode();
-    return;
-  }
-  switchEditorMode("source");
-});
-
-richModeButton.addEventListener("click", () => {
-  toggleRichMode();
-});
-
-previewModeButton.addEventListener("click", () => {
-  switchEditorMode("preview");
-});
-
-richCommandToolbar.addEventListener("click", (event) => {
-  const target = event.target;
-  if (!(target instanceof HTMLElement)) {
-    return;
-  }
-  if (target.closest<HTMLElement>("[data-reference-ai-toolbar]")) {
-    if (!isAiEntryPointEnabled("toolbar")) {
-      return;
-    }
-    openAiCommandSurface();
-    return;
-  }
-  const commandElement = target.closest<HTMLElement>("[data-rich-command]");
-  if (!commandElement) {
-    const extensionElement = target.closest<HTMLElement>("[data-extension-toolbar-item]");
-    if (!extensionElement?.dataset.extensionToolbarItem) {
-      return;
-    }
-    void dispatchToolbarItem(extensionElement.dataset.extensionToolbarItem);
-    return;
-  }
-  void dispatchToolbarItem(richCommandExtensionId(commandElement.dataset.richCommand as RichCommandId));
-});
-
-toolbarMoreButton.addEventListener("click", () => {
-  const expanded = toolbarMoreButton.getAttribute("aria-expanded") === "true";
-  setToolbarMoreOpen(!expanded);
-});
-
 codeLanguageInput.addEventListener("input", () => {
   updateCurrentCodeBlockInfoFromControls();
 });
@@ -906,24 +960,6 @@ codeMetaInput.addEventListener("input", () => {
 
 insertAfterBlockButton.addEventListener("click", () => {
   insertParagraphAfterCurrentRichBlock();
-});
-
-slashCommandItemsElement.addEventListener("click", (event) => {
-  const target = event.target;
-  if (!(target instanceof HTMLElement)) {
-    return;
-  }
-  const aiCommandElement = target.closest<HTMLElement>("[data-reference-ai-action]");
-  if (aiCommandElement) {
-    consumeActiveSlashQuery();
-    void runEditorNativeAiCommand(aiCommandElement.dataset.referenceAiAction as ReferenceAiActionId);
-    return;
-  }
-  const commandElement = target.closest<HTMLElement>("[data-slash-command]");
-  if (!commandElement) {
-    return;
-  }
-  void dispatchSlashItem(commandElement.dataset.slashCommand);
 });
 
 openFileButton.addEventListener("click", () => {
@@ -978,10 +1014,6 @@ copyButton.addEventListener("click", () => {
 
 downloadButton.addEventListener("click", () => {
   downloadMarkdown();
-});
-
-memorySaveButton.addEventListener("click", () => {
-  memorySave("button");
 });
 
 simulateConflictButton.addEventListener("click", () => {
@@ -1042,50 +1074,6 @@ commandPaletteButton.addEventListener("click", () => {
     return;
   }
   setCommandPaletteOpen(true);
-});
-
-commandPalette.addEventListener("click", (event) => {
-  const target = event.target;
-  if (!(target instanceof HTMLElement)) {
-    return;
-  }
-  if (target === commandPalette) {
-    setCommandPaletteOpen(false);
-    return;
-  }
-  const actionElement = target.closest<HTMLElement>("[data-reference-ai-action]");
-  if (!actionElement) {
-    return;
-  }
-  setCommandPaletteOpen(false);
-  void runEditorNativeAiCommand(actionElement.dataset.referenceAiAction as ReferenceAiActionId);
-});
-
-commandPaletteInput.addEventListener("input", () => {
-  commandPaletteSelectedIndex = 0;
-  renderCommandPaletteItems();
-});
-
-commandPaletteInput.addEventListener("keydown", (event) => {
-  if (handleCommandPaletteKeyboard(event)) {
-    event.preventDefault();
-  }
-});
-
-editorAiStartSessionButton.addEventListener("click", () => {
-  startAiSessionFromKey(editorAiByokKeyInput.value.trim());
-});
-
-editorAiPanelCloseButton.addEventListener("click", () => {
-  editorAiAssistantPanel.hidden = true;
-});
-
-editorAiAcceptButton.addEventListener("click", () => {
-  acceptPendingAiSuggestion();
-});
-
-editorAiRejectButton.addEventListener("click", () => {
-  rejectPendingAiSuggestion();
 });
 
 document.addEventListener("visibilitychange", () => {
@@ -1731,16 +1719,14 @@ function renderEditorMode(): void {
   editorHost.hidden = editorMode !== "source";
   richEditorHost.hidden = editorMode !== "rich";
   htmlPreviewHost.hidden = editorMode !== "preview";
-  richCommandToolbar.hidden = editorMode !== "rich";
   richBlockControls.hidden = editorMode !== "rich";
-  sourceModeButton.setAttribute("aria-pressed", String(editorMode === "source"));
-  sourceModeButton.setAttribute("aria-checked", String(editorMode === "rich"));
-  richModeButton.setAttribute("aria-pressed", String(editorMode === "rich"));
-  previewModeButton.setAttribute("aria-pressed", String(editorMode === "preview"));
-  richModeButton.disabled = activeDocument.kind !== "markdown";
-  richModeButton.hidden = activeDocument.kind !== "markdown";
-  previewModeButton.disabled = activeDocument.kind !== "html-artifact";
-  previewModeButton.hidden = activeDocument.kind !== "html-artifact";
+  modeControlSurface?.setState(surfaceModeState());
+  sourceModeButton = queryRequired<HTMLButtonElement>('[data-testid="source-mode-button"]');
+  richModeButton = queryRequired<HTMLButtonElement>('[data-testid="rich-mode-button"]');
+  previewModeButton = queryRequired<HTMLButtonElement>('[data-testid="preview-mode-button"]');
+  toolbarSurface?.setState(surfaceToolbarState());
+  toolbarAiButton = queryRequired<HTMLButtonElement>('[data-testid="toolbar-ai-button"]');
+  toolbarMoreMenu = queryRequired<HTMLDivElement>('[data-testid="toolbar-more-menu"]');
   htmlPreviewStatusBlock.hidden = activeDocument.kind !== "html-artifact";
   if (editorMode === "preview") {
     editorSurfaceStateElement.textContent = "Sandboxed HTML preview";
@@ -1792,15 +1778,16 @@ function startAiSession(): void {
 function startAiSessionFromKey(apiKey: string): void {
   if (!apiKey) {
     aiStatusElement.textContent = "Enter a BYOK session key to start mock AI.";
-    editorAiStatusElement.textContent = "Paste a memory-only key to connect a private AI session.";
-    editorAiAssistantPanel.hidden = false;
+    setEditorAiSurfaceState({
+      statusText: "Paste a memory-only key to connect a private AI session.",
+      visible: true
+    });
     return;
   }
 
   session.startAiSession(apiKey);
   aiSessionStarted = true;
   aiByokKeyInput.value = "";
-  editorAiByokKeyInput.value = "";
   logEvent("AI writing session started with mock provider. BYOK key was kept memory-only.");
   renderAiWritingState();
 }
@@ -1808,8 +1795,10 @@ function startAiSessionFromKey(apiKey: string): void {
 async function generateAiSuggestion(): Promise<void> {
   if (!aiSessionStarted) {
     aiStatusElement.textContent = "Start a memory-only BYOK session first.";
-    editorAiStatusElement.textContent = "Connect a private AI session first.";
-    editorAiAssistantPanel.hidden = false;
+    setEditorAiSurfaceState({
+      statusText: "Connect a private AI session first.",
+      visible: true
+    });
     return;
   }
   if (activeDocument.kind !== "markdown") {
@@ -1880,8 +1869,6 @@ function renderAiWritingState(): void {
   aiGenerateButton.disabled = !aiSessionStarted;
   aiAcceptButton.disabled = pendingAiSuggestion?.status !== "pending";
   aiRejectButton.disabled = pendingAiSuggestion?.status !== "pending";
-  editorAiAcceptButton.disabled = pendingAiSuggestion?.status !== "pending";
-  editorAiRejectButton.disabled = pendingAiSuggestion?.status !== "pending";
   renderReferenceSurfaceState();
   aiPolicyNoteElement.textContent = pendingAiSuggestion?.policyDecision
     ? `Policy ${pendingAiSuggestion.policyDecision.allowed ? "allowed" : "blocked"}: ${pendingAiSuggestion.policyDecision.reason ?? "no reason"}`
@@ -1891,9 +1878,11 @@ function renderAiWritingState(): void {
     aiSuggestionPreview.hidden = true;
     aiSuggestionPreview.textContent = "";
     aiStatusElement.textContent = aiSessionStarted ? "Mock AI session ready" : "No AI session";
-    editorAiSuggestionPreview.hidden = true;
-    editorAiSuggestionPreview.textContent = "";
-    editorAiStatusElement.textContent = aiSessionStarted ? "Private AI session ready" : "No AI session";
+    setEditorAiSurfaceState({
+      hasSession: aiSessionStarted,
+      pending: null,
+      statusText: aiSessionStarted ? "Private AI session ready" : "No AI session"
+    });
     return;
   }
 
@@ -1901,20 +1890,31 @@ function renderAiWritingState(): void {
     aiSuggestionPreview.hidden = false;
     aiSuggestionPreview.textContent = pendingAiSuggestion.policyDecision?.reason ?? "Policy blocked AI writing.";
     aiStatusElement.textContent = "AI blocked by policy before provider call";
-    editorAiAssistantPanel.hidden = false;
-    editorAiSuggestionPreview.hidden = false;
-    editorAiSuggestionPreview.textContent = pendingAiSuggestion.policyDecision?.reason ?? "Policy blocked AI writing.";
-    editorAiStatusElement.textContent = "AI blocked by policy before provider call";
+    setEditorAiSurfaceState({
+      hasSession: aiSessionStarted,
+      pending: {
+        policyReason: pendingAiSuggestion.policyDecision?.reason ?? "Policy blocked AI writing.",
+        status: pendingAiSuggestion.status
+      },
+      statusText: "AI blocked by policy before provider call",
+      visible: true
+    });
     return;
   }
 
   aiSuggestionPreview.hidden = false;
   aiSuggestionPreview.textContent = pendingAiSuggestion.replacement;
   aiStatusElement.textContent = `Suggestion ${pendingAiSuggestion.status}: ${pendingAiSuggestion.title}`;
-  editorAiAssistantPanel.hidden = false;
-  editorAiSuggestionPreview.hidden = false;
-  editorAiSuggestionPreview.textContent = pendingAiSuggestion.replacement;
-  editorAiStatusElement.textContent = `Suggestion ${pendingAiSuggestion.status}: ${pendingAiSuggestion.title}`;
+  setEditorAiSurfaceState({
+    hasSession: aiSessionStarted,
+    pending: {
+      replacement: pendingAiSuggestion.replacement,
+      status: pendingAiSuggestion.status,
+      title: pendingAiSuggestion.title
+    },
+    statusText: `Suggestion ${pendingAiSuggestion.status}: ${pendingAiSuggestion.title}`,
+    visible: true
+  });
   renderReferenceSurfaceState();
 }
 
@@ -1997,17 +1997,19 @@ function renderReferenceSurfaceState(): void {
   selectedTextAiAction.disabled = activeDocument.kind !== "markdown" || !hasAiEligibleSelection();
   aiCommandSurface.dataset.session = aiSessionStarted ? "ready" : "missing";
   aiCommandSurface.dataset.documentKind = activeDocument.kind;
+  documentStatusPopover = queryRequired<HTMLDetailsElement>('[data-testid="document-status-popover"]');
+  memorySaveButton = queryRequired<HTMLButtonElement>('[data-testid="memory-save-button"]');
   documentStatusPopover.dataset.target = session.getSaveState().target;
   surfaceSettingsPanel.dataset.toolbarStyle = referenceSurfacePreferences.toolbarStyle;
   debugInspector.dataset.status = debugInspector.open ? "open" : "closed";
   app.dataset.toolbarMode = referenceSurfacePreferences.toolbarMode;
   app.dataset.toolbarStyle = referenceSurfacePreferences.toolbarStyle;
   app.dataset.statusDisclosure = referenceSurfacePreferences.technicalStatusDisclosure;
-  richCommandToolbar.hidden = editorMode !== "rich" || referenceSurfacePreferences.toolbarMode === "hidden";
-  renderExtensionToolbarItems();
+  toolbarSurface?.setState(surfaceToolbarState());
+  toolbarAiButton = queryRequired<HTMLButtonElement>('[data-testid="toolbar-ai-button"]');
+  toolbarMoreMenu = queryRequired<HTMLDivElement>('[data-testid="toolbar-more-menu"]');
   renderEditorAiMenu();
   aiCommandSurface.hidden = !toolbarAiVisible;
-  toolbarAiButton.hidden = !toolbarAiVisible || editorMode !== "rich";
   selectedTextAiAction.hidden = !selectionAiVisible;
   commandPaletteButton.hidden = !commandPaletteVisible;
   surfaceToolbarPrefElement.textContent = `${referenceSurfacePreferences.toolbarMode}, ${referenceSurfacePreferences.toolbarStyle}`;
@@ -2017,26 +2019,6 @@ function renderReferenceSurfaceState(): void {
   surfaceKeymapPrefElement.textContent = referenceSurfacePreferences.keymapDelegateToHost
     ? `${referenceSurfacePreferences.keymapProfile}, delegated`
     : referenceSurfacePreferences.keymapProfile;
-}
-
-function renderExtensionToolbarItems(): void {
-  for (const item of [...richCommandToolbar.querySelectorAll("[data-extension-toolbar-item]")]) {
-    item.remove();
-  }
-  const moreContainer = richCommandToolbar.querySelector(".toolbar-more");
-  const hostItems = session.extensions.getToolbarItems().filter((item) => item.id.startsWith("host:"));
-  for (const item of hostItems) {
-    const label = extensionLabel(item.labelKey);
-    const button = document.createElement("button");
-    button.className = "toolbar-button toolbar-extension-button";
-    button.dataset.extensionToolbarItem = item.id;
-    button.dataset.testid = `toolbar-extension-${item.id}`;
-    button.type = "button";
-    button.setAttribute("aria-label", label);
-    button.title = label;
-    button.innerHTML = toolbarIcon(toolbarIconName(item.icon));
-    richCommandToolbar.insertBefore(button, moreContainer);
-  }
 }
 
 function renderEditorAiMenu(): void {
@@ -2056,10 +2038,6 @@ function renderEditorAiMenu(): void {
       return button;
     })
   );
-}
-
-function toolbarIconName(icon: string): IconName {
-  return knownIconNames.has(icon as IconName) ? (icon as IconName) : "more";
 }
 
 function applyReferenceSurfacePreferences(): void {
@@ -2639,22 +2617,9 @@ function commandLabel(commandId: RichCommandId): string {
 function extensionLabel(labelKey: string): string {
   const richCommandId = labelKey.startsWith("commands.") ? labelKey.slice("commands.".length) : null;
   if (richCommandId) {
-    return richCommandRegistry.find((command) => command.id === richCommandId)?.label ?? readableExtensionLabel(richCommandId);
+    return richCommandRegistry.find((command) => command.id === richCommandId)?.label ?? defaultMmeStrings.extensions["extensions.unknown"];
   }
-  if (labelKey === "extensions.hostCalloutCard") {
-    return "Host callout card";
-  }
-  if (labelKey === "extensions.hostTranslateSelection") {
-    return "Host translate";
-  }
-  return readableExtensionLabel(labelKey.split(".").at(-1) ?? labelKey);
-}
-
-function readableExtensionLabel(value: string): string {
-  return value
-    .replace(/[-_:]+/g, " ")
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+  return defaultMmeStrings.extensions[labelKey] ?? defaultMmeStrings.extensions["extensions.unknown"];
 }
 
 function updateSlashMenuFromRichState(): void {
@@ -2704,41 +2669,7 @@ function closedSlashCommandState(): SlashCommandState {
 }
 
 function renderSlashMenu(): void {
-  slashCommandMenu.hidden = !slashCommandState.open;
-  slashCommandQueryElement.textContent = `/${slashCommandState.query}`;
-  const aiItems = matchingReferenceAiSlashActions(slashCommandState.query).slice(0, 4);
-  slashCommandItemsElement.replaceChildren(
-    ...slashCommandState.items.map((command, index) => {
-      const button = document.createElement("button");
-      button.className = "slash-command-item";
-      button.dataset.selected = String(index === slashCommandSelectedIndex);
-      button.dataset.slashCommand = command.id;
-      button.dataset.testid = `slash-command-item-${command.id}`;
-      button.type = "button";
-      const label = document.createElement("strong");
-      label.textContent = extensionLabel(command.labelKey);
-      const aliases = document.createElement("span");
-      aliases.textContent = command.aliases.slice(0, 3).join(", ");
-      button.append(label, aliases);
-      return button;
-    }),
-    ...(aiItems.length > 0 ? [slashCommandSectionLabel("AI writing")] : []),
-    ...aiItems.map((action) => {
-      const selectedIndex = slashCommandState.items.length + aiItems.indexOf(action);
-      const button = document.createElement("button");
-      button.className = "slash-command-item slash-command-item-ai";
-      button.dataset.selected = String(selectedIndex === slashCommandSelectedIndex);
-      button.dataset.referenceAiAction = action.id;
-      button.dataset.testid = `slash-ai-action-${action.id}`;
-      button.type = "button";
-      const label = document.createElement("strong");
-      label.textContent = action.label;
-      const aliases = document.createElement("span");
-      aliases.textContent = action.prompt;
-      button.append(label, aliases);
-      return button;
-    })
-  );
+  slashMenuSurface?.setState(surfaceSlashState());
   positionSlashMenu();
 }
 
@@ -2767,9 +2698,15 @@ function positionSlashMenu(): void {
     };
   }
   const left = Math.min(Math.max(caretRect.left - regionRect.left, 12), Math.max(12, regionRect.width - menuWidth - 12));
-  const top = Math.max(caretRect.bottom - regionRect.top + 8, 12);
+  const topBelowCaret = Math.max(caretRect.bottom - regionRect.top + 8, 12);
+  const menuHeight = slashCommandMenu.offsetHeight;
+  const maxTop = Math.max(12, regionRect.height - menuHeight - 12);
+  const top =
+    menuHeight > 0 && topBelowCaret > maxTop
+      ? Math.max(12, caretRect.bottom - regionRect.top - menuHeight - 8)
+      : topBelowCaret;
   slashCommandMenu.style.setProperty("--slash-menu-left", `${Math.round(left)}px`);
-  slashCommandMenu.style.setProperty("--slash-menu-top", `${Math.round(top)}px`);
+  slashCommandMenu.style.setProperty("--slash-menu-top", `${Math.round(Math.min(top, maxTop))}px`);
 }
 
 function richStateForCommand(): RichMarkdownState {
@@ -2800,8 +2737,7 @@ function openSlashMenuForTest(query: string): void {
 }
 
 function setToolbarMoreOpen(open: boolean): void {
-  toolbarMoreButton.setAttribute("aria-expanded", String(open));
-  toolbarMoreMenu.hidden = !open;
+  toolbarSurface?.setMoreOpen(open);
 }
 
 function handleSlashMenuKeyboard(event: KeyboardEvent): boolean {
@@ -2859,13 +2795,6 @@ function matchingReferenceAiSlashActions(query: string): readonly ReferenceAiAct
     }
     return `${action.id} ${action.label} ${action.prompt}`.toLowerCase().includes(normalizedQuery);
   });
-}
-
-function slashCommandSectionLabel(label: string): HTMLElement {
-  const item = document.createElement("p");
-  item.className = "slash-command-section";
-  item.textContent = label;
-  return item;
 }
 
 function setRichSelectionAfterText(text: string): void {
@@ -3043,61 +2972,18 @@ function simulateExternalConflict(): void {
 
 function renderSaveState(): void {
   const state = session.getSaveState();
-  const label = persistenceTargetLabel(state);
-  documentNameElement.textContent = activeDocument.fileName;
-  documentPathElement.textContent = activeDocument.pathLabel;
   documentModeElement.textContent = documentModeLabel(activeDocument.mode);
-  saveStateElement.textContent = label;
-  dirtyStateElement.textContent = dirtyStateLabel(state);
-  persistenceTargetElement.textContent = documentTargetLabel(state);
   saveEngineTargetElement.textContent = state.target;
   saveEngineStateElement.textContent = saveEngineStatusLabel(state);
   saveEngineCurrentHashElement.textContent = shortHash(state.currentHash);
   saveEngineLastSavedHashElement.textContent = state.lastSavedHash ? shortHash(state.lastSavedHash) : "none";
   saveEngineExternalHashElement.textContent = state.externalHash ? shortHash(state.externalHash) : "none";
   saveEngineLastActionElement.textContent = lastSaveAction;
-  memorySaveButton.textContent = primaryActionLabel(state);
-  memorySaveButton.disabled = state.target === "unsupported";
+  documentStatusSurface?.setState({
+    document: surfaceDocumentState(),
+    saveState: state
+  });
   renderReferenceSurfaceState();
-}
-
-function primaryActionLabel(state: SaveState): string {
-  if (activeDocument.mode === "imported-copy" || state.target === "download-required") {
-    return "Export copy";
-  }
-  if (activeDocument.mode === "unsupported" || state.target === "unsupported") {
-    return "Save unavailable";
-  }
-  return "Save";
-}
-
-function dirtyStateLabel(state: SaveState): string {
-  if (state.status === "saved") {
-    return "clean";
-  }
-  return state.status;
-}
-
-function documentTargetLabel(state: SaveState): string {
-  if (state.target === "conflict") {
-    return "conflict, not overwritten";
-  }
-  if (activeDocument.kind === "html-artifact") {
-    return "HTML artifact, sandbox preview, download/export required";
-  }
-  if (activeDocument.mode === "writable-file" || state.target === "disk") {
-    return "disk, original file writable";
-  }
-  if (activeDocument.mode === "imported-copy" || state.target === "download-required") {
-    return "imported copy, download/export required";
-  }
-  if (activeDocument.mode === "unsupported" || state.target === "unsupported") {
-    return "unsupported, use import/download";
-  }
-  if (state.target === "memory-only") {
-    return "fixture, memory only, not persisted";
-  }
-  return persistenceTargetLabel(state);
 }
 
 function htmlPreviewStatusLabel(descriptor: SandboxedHtmlPreviewDescriptor): string {
@@ -3114,78 +3000,25 @@ function openAiCommandSurface(): void {
 }
 
 function setCommandPaletteOpen(open: boolean): void {
-  if (open && !isAiEntryPointEnabled("command-palette")) {
-    return;
-  }
-  commandPalette.hidden = !open;
   if (open) {
-    commandPaletteInput.value = "";
-    renderCommandPaletteItems();
-    commandPaletteInput.focus();
+    commandPaletteSurface?.open();
+  } else {
+    commandPaletteSurface?.close();
   }
   renderReferenceSurfaceState();
 }
 
 function renderCommandPaletteItems(): void {
-  const actions = commandPaletteActions();
-  commandPaletteSelectedIndex = Math.min(commandPaletteSelectedIndex, Math.max(0, actions.length - 1));
-  commandPaletteItems.replaceChildren(
-    ...actions.map((action, index) => {
-      const button = document.createElement("button");
-      button.className = "ai-command-item";
-      button.dataset.referenceAiAction = action.id;
-      button.dataset.selected = String(index === commandPaletteSelectedIndex);
-      button.dataset.testid = `command-palette-ai-action-${action.id}`;
-      button.type = "button";
-      const label = document.createElement("strong");
-      label.textContent = action.label;
-      const entryPoints = document.createElement("span");
-      entryPoints.textContent = action.entryPoints.join(", ");
-      button.append(label, entryPoints);
-      return button;
-    })
-  );
+  commandPaletteSurface?.update();
 }
 
 function commandPaletteActions(): readonly ReferenceAiAction[] {
-  const query = commandPaletteInput.value.trim().toLowerCase();
-  return referenceAiActionsForRegisteredEntryPoint("command-palette").filter((action: ReferenceAiAction) => {
-    if (!query) {
-      return true;
-    }
-    return `${action.id} ${action.label} ${action.prompt}`.toLowerCase().includes(query);
-  });
+  return referenceAiActionsForRegisteredEntryPoint("command-palette");
 }
 
 function handleCommandPaletteKeyboard(event: KeyboardEvent): boolean {
-  if (commandPalette.hidden) {
-    return false;
-  }
-  const actions = commandPaletteActions();
   if (event.key === "Escape") {
     setCommandPaletteOpen(false);
-    return true;
-  }
-  if (event.key === "ArrowDown") {
-    if (actions.length > 0) {
-      commandPaletteSelectedIndex = (commandPaletteSelectedIndex + 1) % actions.length;
-      renderCommandPaletteItems();
-    }
-    return true;
-  }
-  if (event.key === "ArrowUp") {
-    if (actions.length > 0) {
-      commandPaletteSelectedIndex = (commandPaletteSelectedIndex - 1 + actions.length) % actions.length;
-      renderCommandPaletteItems();
-    }
-    return true;
-  }
-  if (event.key === "Enter") {
-    const action = actions[commandPaletteSelectedIndex];
-    if (action) {
-      setCommandPaletteOpen(false);
-      void runEditorNativeAiCommand(action.id);
-    }
     return true;
   }
   return false;
@@ -3202,17 +3035,23 @@ async function runEditorNativeAiCommand(actionId: ReferenceAiActionId): Promise<
   if (!action) {
     return;
   }
-  editorAiAssistantPanel.hidden = false;
+  setEditorAiSurfaceState({ visible: true });
   if (activeDocument.kind !== "markdown") {
     aiStatusElement.textContent = "AI writing is available for Markdown documents only in this demo.";
-    editorAiStatusElement.textContent = "AI writing is available for Markdown documents only in this demo.";
+    setEditorAiSurfaceState({
+      statusText: "AI writing is available for Markdown documents only in this demo.",
+      visible: true
+    });
     logEvent(`AI action unavailable for ${activeDocument.fileName}: ${action.label}.`);
     renderReferenceSurfaceState();
     return;
   }
   if (!aiSessionStarted) {
     aiStatusElement.textContent = `${action.label}: start a memory-only BYOK session first.`;
-    editorAiStatusElement.textContent = `${action.label}: connect a private AI session first.`;
+    setEditorAiSurfaceState({
+      statusText: `${action.label}: connect a private AI session first.`,
+      visible: true
+    });
     logEvent(`Queued editor-native AI action without session: ${action.label}.`);
     renderReferenceSurfaceState();
     return;
@@ -3221,7 +3060,10 @@ async function runEditorNativeAiCommand(actionId: ReferenceAiActionId): Promise<
   const promptResult = session.extensions.buildAiActionPrompt(action.extensionId, defaultAiParams(action.params ?? []));
   if (!promptResult.handled || !promptResult.prompt) {
     aiStatusElement.textContent = `AI action unavailable: ${promptResult.diagnostic?.reason ?? action.label}.`;
-    editorAiStatusElement.textContent = aiStatusElement.textContent;
+    setEditorAiSurfaceState({
+      statusText: aiStatusElement.textContent,
+      visible: true
+    });
     logEvent(`AI action unavailable: ${promptResult.diagnostic?.reason ?? action.label}.`);
     renderReferenceSurfaceState();
     return;
@@ -3229,7 +3071,10 @@ async function runEditorNativeAiCommand(actionId: ReferenceAiActionId): Promise<
 
   aiActionSelect.value = promptResult.demoAction ?? action.demoAction;
   aiPromptInput.value = promptResult.prompt;
-  editorAiStatusElement.textContent = `Running ${action.label}...`;
+  setEditorAiSurfaceState({
+    statusText: `Running ${action.label}...`,
+    visible: true
+  });
   await generateAiSuggestion();
 }
 

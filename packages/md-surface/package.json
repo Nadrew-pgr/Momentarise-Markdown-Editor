@@ -1,0 +1,42 @@
+{
+  "name": "@momentarise/md-surface",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Framework-free DOM surface components for Momentarise Markdown Editor.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor.git",
+    "directory": "packages/md-surface"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "markdown",
+    "editor",
+    "momentarise",
+    "surface",
+    "accessibility"
+  ],
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@momentarise/md-editor": "0.0.0",
+    "@momentarise/md-save": "0.0.0",
+    "@momentarise/md-theme": "0.0.0"
+  }
+}

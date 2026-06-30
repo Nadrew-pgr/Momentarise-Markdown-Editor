@@ -1520,6 +1520,8 @@ Architecture Reviewer and DX Reviewer.
 
 ## MME-0028 — Editor surface package with i18n and accessibility
 
+Completed 2026-06-30; human waived code HITL after subagent reviewer fixes and accepted continuing because Andrew does not need to personally review TypeScript code. Added publishable `@momentarise/md-surface`, extracted toolbar/slash menu/command palette/document status/AI assistant/mode control/diagnostics into framework-free DOM components, wired the demo as composition, added jsdom behavior tests and MME-0028 visual proof, fixed reviewer-blocked command-palette focus return, localized extension labels through `MmeStrings.extensions`, and documented the trusted `IconSet.render()` HTML boundary. Detailed UX interaction feedback is deferred to later follow-ups. Proven by `npm run test:surface`, `npm run test:demo-reference-surface`, `npm run test:theme`, `npm run build:demo`, `MME_DEMO_URL=http://127.0.0.1:5174/ npm run visual:mme-0028`, full `npm test`, and `git diff --check`. `MME-0028.5` is unblocked after issue-scoped commit.
+
 ### Goal
 
 Extract the reference surface out of the demo into `@momentarise/md-surface`: framework-free DOM components consuming tokens, preferences, icons, and an i18n dictionary.

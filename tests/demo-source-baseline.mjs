@@ -6,6 +6,7 @@ const requiredFiles = [
   "apps/md-demo/src/main.ts",
   "apps/md-demo/src/styles.css",
   "apps/md-demo/tsconfig.json",
+  "packages/md-surface/src/index.ts",
   "docs/internal/visual-checks/MME-0002/README.md"
 ];
 
@@ -31,6 +32,7 @@ if (/<textarea\b/i.test(html)) {
 }
 
 const main = readFileSync("apps/md-demo/src/main.ts", "utf8");
+const surface = readFileSync("packages/md-surface/src/index.ts", "utf8");
 const sourceRequirements = [
   ["CodeMirror editor", "EditorView"],
   ["CodeMirror state", "EditorState"],
@@ -40,7 +42,6 @@ const sourceRequirements = [
   ["Save Engine import", "@momentarise/md-save"],
   ["headless session import", "@momentarise/md-editor"],
   ["headless session creation", "createMarkdownEditorSession"],
-  ["truthful persistence label", "persistenceTargetLabel"],
   ["session content updates", "session.setContent"],
   ["external conflict simulation", "simulateExternalConflict"],
   ["tab switch flush", "visibilitychange"],
@@ -59,6 +60,10 @@ for (const [label, snippet] of sourceRequirements) {
   if (!main.includes(snippet)) {
     throw new Error(`MME-0002 source baseline missing ${label}: ${snippet}`);
   }
+}
+
+if (!surface.includes("documentTargetLabel") || !surface.includes("memoryTarget")) {
+  throw new Error("MME-0002 truthful persistence labels must be preserved in md-surface.");
 }
 
 const visualReadme = readFileSync("docs/internal/visual-checks/MME-0002/README.md", "utf8");

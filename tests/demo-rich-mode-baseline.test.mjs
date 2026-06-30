@@ -5,7 +5,8 @@ const requiredFiles = [
   "scripts/visual-check-mme0012.mjs",
   "docs/internal/visual-checks/MME-0012/README.md",
   "apps/md-demo/src/main.ts",
-  "apps/md-demo/src/styles.css"
+  "apps/md-demo/src/styles.css",
+  "packages/md-surface/src/index.ts"
 ];
 
 for (const file of requiredFiles) {
@@ -50,7 +51,6 @@ for (const snippet of [
   "source-mode-button",
   "rich-mode-button",
   "rich-editor-host",
-  "primaryActionLabel",
   "switchEditorMode",
   "syncRichMarkdownToSource",
   "getEditorMode",
@@ -59,6 +59,11 @@ for (const snippet of [
   if (!main.includes(snippet)) {
     throw new Error(`Demo missing rich mode baseline snippet: ${snippet}`);
   }
+}
+
+const surface = readFileSync("packages/md-surface/src/index.ts", "utf8");
+if (!surface.includes("primaryActionLabel")) {
+  throw new Error("Rich mode baseline requires the primary save/export label helper in md-surface.");
 }
 
 const styles = readFileSync("apps/md-demo/src/styles.css", "utf8");

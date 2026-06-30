@@ -3630,6 +3630,134 @@
 - Next issue:
   - `MME-0028 — Editor surface package with i18n and accessibility`.
 
+#### Human decision — MME-0028 code HITL waived and accepted for continuation
+
+- Timestamp: 2026-06-30T14:52:31+02:00
+- Status:
+  - Completed for code continuation. The human explicitly removed code HITL because Andrew does not personally review TypeScript code.
+- Human decision:
+  - Detailed UX interaction feedback will come later.
+  - For code/package work, do not stop at HITL after reviewer/subagent acceptance unless a non-code product/security/licensing/privacy/AI-boundary decision is needed.
+- Accepted MME-0028 state:
+  - Added publishable `@momentarise/md-surface`.
+  - Extracted toolbar, slash menu, command palette, document status popover, AI assistant panel, mode control, and diagnostics surface from the demo into framework-free DOM components.
+  - Kept the demo as composition/wiring against the session and surface components.
+  - Added jsdom behavior coverage, publishability coverage, visual proof, and reviewer-fix coverage.
+  - Subagent reviewer `Banach` accepted the follow-up fixes with no remaining P0/P1/P2 findings.
+- Evidence already run:
+  - `npm run test:surface` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:theme` — green.
+  - `npm run build:demo` — green; existing Vite chunk-size warning only.
+  - `MME_DEMO_URL=http://127.0.0.1:5174/ npm run visual:mme-0028` — green with system Chrome permission.
+  - `npm test` — green; existing Vite chunk-size warning only.
+  - `git diff --check` — green.
+- Source-of-truth docs updated:
+  - `README.md` lists MME-0028 as completed and sets current slice to `MME-0028.5`.
+  - `docs/internal/ISSUES.md` marks MME-0028 completed and MME-0028.5 unblocked after issue-scoped commit.
+- Commit status:
+  - Issue-scoped commit to be created next; hash will be recorded in a follow-up docs/process note because the hash cannot be known before the issue commit exists.
+- Push status:
+  - Not pushed. Existing process-doc commit and MME-0028 commit remain local until explicit push approval is safe.
+- Next issue:
+  - `MME-0028.5 — Inline AI prompt surface and usable writing flow`.
+
+#### MME-0028 reviewer retry — subagent findings fixed
+
+- Timestamp: 2026-06-30T14:35:54+02:00
+- Status:
+  - Code-complete; pending human review. Reviewer retry found blockers, and the builder fixed them.
+- Reviewer result:
+  - Subagent reviewer `Banach` completed read-only review.
+  - P1: command palette focus return targeted a hidden `utility-action` button, and visual proof opened the palette through a programmatic click on that hidden opener.
+  - P1: extension labels still had hard-coded/generated English fallbacks outside `MmeStrings/defaultMmeStrings`.
+  - P2: `IconSet.render()` is an HTML trust boundary and needed explicit public contract documentation.
+  - Follow-up read-only review accepted the fixes with no remaining P0/P1/P2 findings for those issues.
+- Fixes:
+  - Made the command palette opener a visible, focusable compact search button with `aria-label`/`title`, and kept it as the focus-return target.
+  - Strengthened `scripts/visual-check-mme0028.mjs` to fail if the command palette opener is hidden/unfocusable or if Escape close does not return focus to it.
+  - Added `MmeStrings.extensions` with a required localized fallback key and resolved host extension labels through the injected dictionary instead of generated English labels.
+  - Updated demo extension-label resolution to use the same dictionary path.
+  - Documented the trusted SVG/HTML boundary on `IconSet.render()` and left a source comment at the `innerHTML` insertion site in `@momentarise/md-surface`.
+- Proof added:
+  - `tests/surface-components.test.mjs` now proves host toolbar and slash labels come from injected extension strings.
+  - `tests/demo-reference-surface-baseline.test.mjs` now fails on hidden command-palette opener regressions and generated extension-label fallbacks.
+  - `tests/theme-contracts.test.mjs` now checks the `IconSet` trust-boundary documentation.
+  - `docs/internal/visual-checks/MME-0028/README.md` now records visible opener/focus-return proof.
+- Checks run:
+  - `npm run test:surface` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:theme` — green.
+  - `npm run build:demo` — green; existing Vite chunk-size warning only.
+  - `MME_DEMO_URL=http://127.0.0.1:5174/ npm run visual:mme-0028` — green with system Chrome permission.
+  - `npm test` — green; existing Vite chunk-size warning only.
+  - `git diff --check` — green.
+- Commit status:
+  - Not committed. Commit blocker remains required human review/HITL for `MME-0028`.
+- Next issue:
+  - `MME-0028.5 — Inline AI prompt surface and usable writing flow`, still blocked until human accepts `MME-0028` and an issue-scoped commit is created.
+
+#### MME-0028 code-complete — editor surface package with i18n and accessibility
+
+- Timestamp: 2026-06-30T13:12:05+02:00
+- Status:
+  - Code-complete; pending human review. Not marked complete because `MME-0028` has an explicit reusable product surface HITL gate.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short`, and the implementation notes for `apps/md-demo/src/main.ts`.
+  - Confirmed `MME-0027` was human-accepted and committed/pushed as `1535fd2`; `MME-0028` was therefore unblocked.
+  - Separate process-doc clarification commit created before this issue: `6fd5dc9` (`docs: clarify autonomous issue workflow`). Push was attempted, then blocked by auto-review because GitHub upload approval is required.
+- RED proof before implementation:
+  - Added `tests/surface-components.test.mjs` and `npm run test:surface`.
+  - First run failed with `ERR_MODULE_NOT_FOUND` for `packages/md-surface/dist/index.js`, proving the missing package surface before implementation.
+- Change:
+  - Added publishable `@momentarise/md-surface` with framework-free DOM components: toolbar, slash menu, command palette, document status popover, AI assistant panel, mode control, diagnostics surface, default English strings, and status-label helpers.
+  - Wired root workspace build/test/publishability config and demo dependency/reference to include `packages/md-surface`.
+  - Migrated `apps/md-demo/src/main.ts` from embedded surface UI logic to composition against the extracted components while keeping stable `data-testid` hooks.
+  - Replaced string-snippet baseline coverage for extracted surface areas with package-aware jsdom behavior tests and package-boundary assertions.
+  - Added `scripts/visual-check-mme0028.mjs` plus artifacts under `docs/internal/visual-checks/MME-0028/`.
+  - During fallback review, fixed weak visual proof and a real slash-menu collision issue: the script now closes palette/slash surfaces between captures, asserts slash menu viewport bounds, and the demo positions the slash menu above the caret when below-caret placement would clip.
+- Test migration notes:
+  - `tests/demo-slash-toolbar-baseline.test.mjs` now checks demo wiring to `createToolbar`/`createSlashMenu` and extracted surface snippets.
+  - `tests/demo-reference-surface-baseline.test.mjs` now checks extracted status, palette, AI panel, toolbar, slash, and mode-control snippets plus demo wiring.
+  - `tests/extension-registry.test.mjs` now checks host toolbar item rendering through `@momentarise/md-surface`.
+  - `tests/demo-source-baseline.mjs` and `tests/demo-rich-mode-baseline.test.mjs` now verify truthful save/export labels and primary-action helpers in `@momentarise/md-surface`.
+  - `tests/package-publishability.test.mjs` now includes `@momentarise/md-surface`.
+- Visual impact:
+  - Equivalent UI from extracted components, with stronger proof that toolbar focus, palette dialog/listbox, slash listbox, AI command surface, and status disclosure render independently.
+  - Updated artifacts:
+    - `docs/internal/visual-checks/MME-0028/surface-rich-toolbar.png`
+    - `docs/internal/visual-checks/MME-0028/surface-command-palette-a11y.png`
+    - `docs/internal/visual-checks/MME-0028/surface-slash-menu-a11y.png`
+    - `docs/internal/visual-checks/MME-0028/surface-ai-panel.png`
+    - `docs/internal/visual-checks/MME-0028/surface-status-popover.png`
+- Checks run:
+  - `npm run test:surface` — RED before implementation, green after implementation.
+  - `npm run test:demo-commands` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:demo-ai-writing` — green.
+  - `npm run test:extension-registry` — green.
+  - `npm run test:publishability` — green.
+  - `npm run test:contracts` — green.
+  - `npm run build:demo` — green; existing Vite chunk-size warning only.
+  - `MME_DEMO_URL=http://127.0.0.1:5174/ npm run visual:mme-0028` — green with system Chrome permission.
+  - `npm test` — green; existing Vite chunk-size warning only.
+  - `git diff --check` — green.
+- Security/audit check:
+  - `npm audit --omit=dev` failed in sandbox with DNS `ENOTFOUND`.
+  - Escalated retry was rejected by auto-review because npm audit uploads dependency inventory to the registry. No audit result is claimed.
+- Reviewer result:
+  - Reviewer subagents were attempted for UX/accessibility and architecture/DX, but both errored with `stream disconnected before completion`.
+  - Documented fallback self-review performed instead: boundary search found no React/Theia/VS Code imports and no `document.querySelector` in `packages/md-surface`; package tests prove roles, roving tabindex, command palette focus/keyboard behavior, slash keyboard flow, status disclosure, mode control, and AI entry-point gating; visual review found and fixed the slash clipping/proof-contamination issues above.
+- Residual risks:
+  - Human still needs to review the public `@momentarise/md-surface` contract names, i18n dictionary shape, DOM helper API, and whether toolbar/icon HTML rendering is acceptable for trusted host-provided `IconSet` values.
+  - AI interaction remains intentionally non-final; usable inline `/ai` flow is owned by `MME-0028.5`.
+- Commit status:
+  - Not committed. Commit blocker: required human review/HITL for `MME-0028`.
+- Push status:
+  - Not pushed. Push blocker: no accepted issue commit, plus previous process-doc push requires explicit GitHub upload approval.
+- Next issue:
+  - `MME-0028.5 — Inline AI prompt surface and usable writing flow`, blocked until human accepts `MME-0028` and an issue-scoped commit is created.
+
 #### Autonomous continuation docs correction — fresh context, not fresh session
 
 - Timestamp: 2026-06-30T00:00:00+02:00

@@ -4,6 +4,7 @@ const requiredFiles = [
   "apps/md-demo/src/main.ts",
   "apps/md-demo/src/reference-surface.ts",
   "apps/md-demo/src/styles.css",
+  "packages/md-surface/src/index.ts",
   "scripts/visual-check-mme0018.mjs",
   "docs/internal/visual-checks/MME-0018/README.md"
 ];
@@ -69,23 +70,23 @@ for (const snippet of [
 }
 
 const main = readFileSync("apps/md-demo/src/main.ts", "utf8");
+const surface = readFileSync("packages/md-surface/src/index.ts", "utf8");
 for (const snippet of [
   "reference-editor-shell",
   "editor-command-surface",
-  "editor-status-button",
-  "document-status-popover",
   "ai-command-surface",
-  "editor-ai-assistant-panel",
-  "editor-ai-start-session-button",
-  "editor-ai-accept-button",
-  "editor-ai-reject-button",
   "selected-text-ai-action",
-  "command-palette",
   "command-palette-button",
   "surface-settings-panel",
-  "toolbar-ai-button",
   "debug-inspector-toggle",
   "debug-inspector",
+  "createToolbar",
+  "createSlashMenu",
+  "createCommandPalette",
+  "createDocumentStatus",
+  "createAiAssistantPanel",
+  "createModeControl",
+  "mountReferenceSurfaceComponents",
   "runEditorNativeAiCommand",
   "isAiEntryPointEnabled",
   "richSelectionMarkdownRange",
@@ -113,6 +114,27 @@ for (const snippet of [
 ]) {
   if (!main.includes(snippet)) {
     throw new Error(`Demo missing MME-0018 reference surface snippet: ${snippet}`);
+  }
+}
+
+for (const snippet of [
+  "editor-status-button",
+  "document-status-popover",
+  "editor-ai-assistant-panel",
+  "editor-ai-start-session-button",
+  "editor-ai-accept-button",
+  "editor-ai-reject-button",
+  "command-palette",
+  "toolbar-ai-button",
+  "SurfaceComponentContext",
+  "defaultMmeStrings",
+  "role\", \"dialog\"",
+  "aria-activedescendant",
+  "role\", \"toolbar\"",
+  "aria-expanded"
+]) {
+  if (!surface.includes(snippet)) {
+    throw new Error(`Surface package missing MME-0018 reference surface snippet: ${snippet}`);
   }
 }
 
@@ -144,7 +166,7 @@ if (openLocalFileFunction.includes('"text/html"')) {
 if (!main.includes("restored browser draft; reopen the original file for writable autosave")) {
   throw new Error("Reload-restored Markdown must explicitly explain that writable disk autosave requires reopening the original file.");
 }
-if (!main.includes("Export copy")) {
+if (!main.includes("Export copy") && !surface.includes("Export copy")) {
   throw new Error("Imported/download-required documents must label the primary action as exporting a copy.");
 }
 
@@ -153,6 +175,18 @@ if (main.includes('aiCommandSurface.hidden = !toolbarAiVisible || editorMode ===
 }
 if (!main.includes("aiCommandSurface.hidden = !toolbarAiVisible;")) {
   throw new Error("Header AI visibility must depend on preferences, not on source/rich mode.");
+}
+if (main.includes("command-palette-button utility-action") || main.includes('data-testid="command-palette-button" tabindex="-1"')) {
+  throw new Error("Command palette opener must remain visible and focusable so dialog close can return focus.");
+}
+if (!main.includes('aria-label="${defaultMmeStrings.commandPalette.label}"') || !main.includes('defaultIconSet.render("search")')) {
+  throw new Error("Command palette opener must expose an accessible compact search button.");
+}
+if (main.includes('if (labelKey === "extensions.hostCalloutCard")') || main.includes("readableExtensionLabel")) {
+  throw new Error("Demo extension labels must resolve through the i18n dictionary, not hard-coded English fallbacks.");
+}
+if (!surface.includes("readonly extensions: Readonly<Record<string, string>>") || surface.includes("function readableLabel")) {
+  throw new Error("Surface extension labels must be injected through MmeStrings.extensions.");
 }
 
 const aiEntryPointIndex = main.indexOf("ai-command-surface");

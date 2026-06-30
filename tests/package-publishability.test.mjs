@@ -13,6 +13,7 @@ const packages = [
   "@momentarise/md-rich-prosemirror",
   "@momentarise/md-save",
   "@momentarise/md-source-codemirror",
+  "@momentarise/md-surface",
   "@momentarise/md-theme"
 ];
 

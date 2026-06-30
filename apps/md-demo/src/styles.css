@@ -133,6 +133,15 @@ h1 {
   min-width: 76px;
 }
 
+.command-palette-button {
+  display: inline-flex;
+  inline-size: 30px;
+  min-width: 30px;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 0;
+}
+
 .legacy-action,
 .utility-action {
   display: none;

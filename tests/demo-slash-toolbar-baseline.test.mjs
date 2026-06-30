@@ -4,7 +4,8 @@ const requiredFiles = [
   "scripts/visual-check-mme0013.mjs",
   "docs/internal/visual-checks/MME-0013/README.md",
   "apps/md-demo/src/main.ts",
-  "apps/md-demo/src/styles.css"
+  "apps/md-demo/src/styles.css",
+  "packages/md-surface/src/index.ts"
 ];
 
 for (const file of requiredFiles) {
@@ -25,15 +26,11 @@ if (!packageJson.scripts.test.includes("test:demo-commands")) {
 }
 
 const main = readFileSync("apps/md-demo/src/main.ts", "utf8");
+const surface = readFileSync("packages/md-surface/src/index.ts", "utf8");
 for (const snippet of [
-  "rich-command-toolbar",
-  "toolbar-command-heading1",
-  "toolbar-command-bold",
-  "toolbar-command-todo",
-  "toolbar-command-codeBlock",
-  "toolbar-more-menu",
-  "slash-command-menu",
-  "slash-command-item-${command.id}",
+  "createToolbar",
+  "createSlashMenu",
+  "mountReferenceSurfaceComponents",
   "SlashCommandState",
   "handleSlashMenuKeyboard",
   "runRichCommand",
@@ -42,6 +39,24 @@ for (const snippet of [
 ]) {
   if (!main.includes(snippet)) {
     throw new Error(`Demo missing MME-0013 command UI snippet: ${snippet}`);
+  }
+}
+
+for (const snippet of [
+  "rich-command-toolbar",
+  "toolbar-command-heading1",
+  "toolbar-command-bold",
+  "toolbar-command-todo",
+  "toolbar-command-codeBlock",
+  "toolbar-more-menu",
+  "slash-command-menu",
+  "slash-command-item-${item.id}",
+  "role\", \"toolbar\"",
+  "role\", \"listbox\"",
+  "handleKeyDown"
+]) {
+  if (!surface.includes(snippet)) {
+    throw new Error(`Surface package missing MME-0013 command UI snippet: ${snippet}`);
   }
 }
 
@@ -57,24 +72,26 @@ for (const snippet of [
   '${toolbarIcon("ai")}<span>AI</span>',
   '${toolbarIcon("more")}<span>More</span>'
 ]) {
-  if (main.includes(snippet)) {
+  if (main.includes(snippet) || surface.includes(snippet)) {
     throw new Error(`Primary toolbar buttons must be compact and rely on tooltip/accessibility labels, not visible text: ${snippet}`);
   }
 }
 
 for (const snippet of [
-  'data-testid="toolbar-command-heading1" aria-label="Heading 1" title="Heading 1">H1</button>',
-  'data-testid="toolbar-command-heading2" aria-label="Heading 2" title="Heading 2">H2</button>',
-  'data-testid="toolbar-command-todo" aria-label="Todo" title="Todo">${toolbarIcon("todo")}</button>',
-  'data-testid="toolbar-command-bulletList" aria-label="Bullet list" title="Bullet list">${toolbarIcon("list")}</button>',
-  'data-testid="toolbar-command-blockquote" aria-label="Quote" title="Quote">${toolbarIcon("quote")}</button>',
-  'data-testid="toolbar-command-codeBlock" aria-label="Code block" title="Code block">${toolbarIcon("code")}</button>',
-  'data-testid="toolbar-command-link" aria-label="Link" title="Link">${toolbarIcon("link")}</button>',
-  'data-testid="toolbar-command-divider" aria-label="Divider" title="Divider">${toolbarIcon("divider")}</button>',
-  'data-testid="toolbar-ai-button" aria-label="AI" title="AI">${toolbarIcon("ai")}</button>',
-  'data-testid="toolbar-more-button" aria-label="More commands" title="More commands" aria-expanded="false">${toolbarIcon("more")}</button>'
+  'testId: "toolbar-command-heading1"',
+  'testId: "toolbar-command-heading2"',
+  'testId: "toolbar-command-todo"',
+  'testId: "toolbar-command-bulletList"',
+  'testId: "toolbar-command-blockquote"',
+  'testId: "toolbar-command-codeBlock"',
+  'testId: "toolbar-command-link"',
+  'testId: "toolbar-command-divider"',
+  'button.dataset.testid = "toolbar-ai-button"',
+  'button.dataset.testid = "toolbar-more-button"',
+  'button.setAttribute("aria-label", label)',
+  "button.title = label"
 ]) {
-  if (!main.includes(snippet)) {
+  if (!surface.includes(snippet)) {
     throw new Error(`Compact toolbar missing accessible label/tooltip snippet: ${snippet}`);
   }
 }

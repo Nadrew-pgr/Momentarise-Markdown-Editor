@@ -23,6 +23,9 @@
       "path": "../../packages/md-theme"
     },
     {
+      "path": "../../packages/md-surface"
+    },
+    {
       "path": "../../packages/md-policy"
     },
     {
