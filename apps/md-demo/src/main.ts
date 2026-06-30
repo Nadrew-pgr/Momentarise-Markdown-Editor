@@ -210,8 +210,12 @@ app.innerHTML = `
           aria-label="Selected text actions"
           hidden
         >
-          <button class="toolbar-button" type="button" data-rich-bubble-command="bold" data-testid="selection-bubble-bold" aria-label="Bold">B</button>
-          <button class="toolbar-button" type="button" data-rich-bubble-command="italic" data-testid="selection-bubble-italic" aria-label="Italic">I</button>
+          <button class="toolbar-button" type="button" data-rich-bubble-command="bold" data-testid="selection-bubble-bold" aria-label="Bold">
+            <span class="toolbar-icon" aria-hidden="true">${defaultIconSet.render("bold")}</span>
+          </button>
+          <button class="toolbar-button" type="button" data-rich-bubble-command="italic" data-testid="selection-bubble-italic" aria-label="Italic">
+            <span class="toolbar-icon" aria-hidden="true">${defaultIconSet.render("italic")}</span>
+          </button>
           <button class="toolbar-button" type="button" data-rich-bubble-command="inlineCode" data-testid="selection-bubble-inline-code" aria-label="Inline code">
             <span class="toolbar-icon" aria-hidden="true">${defaultIconSet.render("code")}</span>
           </button>

@@ -3995,3 +3995,84 @@
   - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
 - Next issue:
   - `MME-0030 — Beautiful default theme V1`.
+
+#### MME-0030 code-complete — beautiful default theme V1
+
+- Timestamp: 2026-06-30T21:03:25+02:00
+- Status:
+  - Code-complete with mandatory human visual acceptance pending. Do not mark completed, commit as accepted, or continue to `MME-0031` until the human accepts the MME-0030 visuals.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short --branch`, and target files in `@momentarise/md-theme`, `@momentarise/md-surface`, the demo CSS/HTML shell, tests, and visual scripts.
+  - Confirmed `MME-0029` was completed and committed as `ddfe000`; follow-up docs/hash evidence commit is `03c195f`.
+- RED proof before implementation:
+  - `npm run test:theme` first failed on the new contrast gate: dark `accent-contrast` on `accent` was `3.68:1`, below the required `4.5:1`.
+  - `npm run test:default-theme` first failed on missing `scripts/visual-check-mme0030.mjs`.
+- Change:
+  - Updated default dark/light theme token values in `packages/md-theme/src/tokens.css` and mirrored typed public token defaults in `packages/md-theme/src/index.ts`.
+  - Added automated contrast coverage in `tests/theme-contrast.test.mjs` and public-theme artifact/static coverage in `tests/default-theme-v1.test.mjs`.
+  - Made the primary toolbar icon-first for H1/H2, replaced selection-bubble `B`/`I` text with `IconSet` icons, and added icon alignment to slash-menu and command-palette rows.
+  - Polished token-driven demo CSS for toolbar, command palette, slash menu, block handles, premium todo checkbox states, and quiet preserved-Markdown fallback.
+  - Added `scripts/visual-check-mme0030.mjs`, `visual:mme-0030`, and `docs/internal/visual-checks/MME-0030/README.md`.
+  - Kept MME-0039 compatibility tokens CSS-only for now; the README records that they remain outside typed `MmeTheme` until public-release token hardening decides whether to promote or collapse them.
+- Visual impact:
+  - Major editing-surface and general-UI change: default dark/light tokens changed, toolbar/selection bubble are icon-first, slash/palette rows gain icons and aligned copy, todo checkboxes are visually upgraded, block affordances are clearer, and preserved raw Markdown is quieter.
+  - Artifacts:
+    - `docs/internal/visual-checks/MME-0030/theme-dark-desktop.png`
+    - `docs/internal/visual-checks/MME-0030/theme-dark-mobile.png`
+    - `docs/internal/visual-checks/MME-0030/theme-dark-tablet.png`
+    - `docs/internal/visual-checks/MME-0030/theme-dark-ide-pane.png`
+    - `docs/internal/visual-checks/MME-0030/theme-light-desktop.png`
+    - `docs/internal/visual-checks/MME-0030/theme-light-mobile.png`
+    - `docs/internal/visual-checks/MME-0030/theme-light-tablet.png`
+    - `docs/internal/visual-checks/MME-0030/theme-light-ide-pane.png`
+    - `docs/internal/visual-checks/MME-0030/theme-dark-slash-menu.png`
+    - `docs/internal/visual-checks/MME-0030/theme-light-command-palette.png`
+    - `docs/internal/visual-checks/MME-0030/theme-dark-block-affordances.png`
+    - `docs/internal/visual-checks/MME-0030/theme-light-preserved-markdown.png`
+- Checks run:
+  - `npm run test:theme` — RED before implementation, green after.
+  - `npm run test:default-theme` — RED before implementation, green after; now also verifies MME-0030 PNG files exist and are non-trivial.
+  - `npm run test:surface` — green.
+  - `npm run test:demo-commands` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:demo-rich-ux` — green.
+  - `npm run test:rich-commands` — green.
+  - `npm run test:architecture` — green.
+  - `npm run test:publishability` — green.
+  - `npm run test:preferences` — green.
+  - `npm run test:preferences-demo` — green.
+  - `npm run test:rich-fidelity` — green.
+  - `npm run test:rich-targeted-serialization` — green.
+  - `npm run test:demo-ai-writing` — green.
+  - `npm run build:demo` — green; existing Vite chunk-size warning only.
+  - `curl -I http://localhost:5174/` and `curl -I http://127.0.0.1:5174/` — both returned `200 OK`.
+  - `npm run visual:mme-0030` — green with system Chrome permission after sandboxed Chrome returned `SIGABRT`; screenshots captured against `http://localhost:5174/`.
+  - `npm test` — green; existing Vite chunk-size warning only.
+  - `git diff --check` — green.
+- Reviewer result:
+  - UX reviewer subagent `Rawls` used `gpt-5.3-codex-spark` with `xhigh` reasoning as requested. It reported no remaining P0/P1/P2 findings. P3 notes were README/script wording mismatch and Chrome bootstrap guidance; both were addressed.
+  - DX reviewer subagent `Pasteur` used `gpt-5.3-codex-spark` with `xhigh` reasoning as requested. It reported no P0/P1/P2 findings. P3 note was that `tests/default-theme-v1.test.mjs` should verify generated PNGs exist; this was fixed.
+- Residual risks:
+  - Mandatory human visual acceptance is still pending for MME-0030.
+  - Compatibility tokens from MME-0039 remain CSS-only and documented; final public token-surface decision remains future public-release hardening.
+- Commit status:
+  - Commit blocked by repo-declared HITL: `MME-0030` requires mandatory human visual acceptance before completion/commit/continuation.
+- Push status:
+  - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval after accepted commits.
+- Next issue:
+  - `MME-0031 — React binding and external consumer validation`, blocked until human accepts MME-0030 visuals and MME-0030 is committed.
+
+#### MME-0030 human visual acceptance
+
+- Timestamp: 2026-06-30T21:22:27+02:00
+- Status:
+  - Human accepted the MME-0030 color/default-theme direction for continuation. Human noted there are still many UX details to review, but colors are OK; those broader UX refinements remain later-slice/residual work rather than a blocker for MME-0030.
+- Reviewer model note:
+  - Future code reviews should keep using `gpt-5.3-codex-spark` with `xhigh` reasoning when available.
+  - Future visual reviews should use a classic/default reviewer model, not Spark, unless the human overrides.
+- Commit status:
+  - Issue-scoped MME-0030 commit to be created next; hash will be recorded in follow-up commit evidence.
+- Push status:
+  - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
+- Next issue:
+  - `MME-0031 — React binding and external consumer validation`, unblocked after MME-0030 issue-scoped commit.

@@ -59,7 +59,7 @@ for (const tokenVariable of expectedTokenVariables) {
 }
 
 assert(darkVariables["--mme-color-bg"] === "#0a0a0a", "dark scheme must lift the MME-0039 dark background.");
-assert(lightVariables["--mme-color-bg"] === "#ffffff", "light scheme must lift the MME-0039 light background.");
+assert(lightVariables["--mme-color-bg"] === "#fbfcff", "light scheme must expose the MME-0030 light background.");
 assert(
   darkVariables["--mme-color-bg"] !== lightVariables["--mme-color-bg"],
   "scheme switching must change token values."

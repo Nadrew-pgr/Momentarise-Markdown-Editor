@@ -78,6 +78,7 @@ summary:focus-visible {
   border-bottom: 1px solid var(--mme-color-border);
   background: var(--mme-color-topbar-bg);
   backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow: var(--mme-shadow-sm);
 }
 
 .brand-lockup {
@@ -182,6 +183,7 @@ h1 {
   border-color: var(--mme-color-accent);
   color: var(--mme-color-accent-contrast);
   font-weight: 600;
+  box-shadow: var(--mme-shadow-sm);
 }
 
 .button.primary:hover {
@@ -381,6 +383,9 @@ h1 {
 
 .ai-command-item {
   display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 9px;
   gap: 2px;
   padding: 7px 9px;
   border: 0;
@@ -405,12 +410,17 @@ h1 {
   color: var(--mme-color-accent);
 }
 
+.ai-command-item[data-selected="true"] .ai-command-icon {
+  border-color: var(--mme-color-accent);
+  color: var(--mme-color-accent);
+}
+
 .ai-command-item strong {
   font-size: 12.5px;
   font-weight: 600;
 }
 
-.ai-command-item span,
+.ai-command-copy > span,
 .surface-settings-menu span,
 .document-status-menu span {
   color: var(--mme-color-text-muted);
@@ -728,7 +738,7 @@ h1 {
   padding: 10px;
   overflow: auto;
   border: 1px solid var(--mme-color-border);
-  border-radius: 14px;
+  border-radius: var(--mme-radius-lg);
   background: var(--mme-color-surface-raised);
   box-shadow: var(--mme-shadow-md);
 }
@@ -772,7 +782,8 @@ h1 {
   padding-block: 4px;
   padding-inline: max(12px, calc((100% - var(--mme-active-content-measure)) / 2));
   border-bottom: 1px solid var(--mme-color-border);
-  background: var(--mme-color-bg);
+  background: var(--mme-color-surface);
+  box-shadow: var(--mme-shadow-sm);
   overflow-x: auto;
 }
 
@@ -782,16 +793,21 @@ h1 {
   align-items: center;
   justify-content: center;
   gap: calc(var(--mme-space-1) * var(--mme-density));
+  min-width: 29px;
   min-height: 27px;
   padding: 0 8px;
   border: 1px solid transparent;
-  border-radius: var(--mme-radius-sm);
+  border-radius: var(--mme-radius-md);
   background: transparent;
-  color: var(--mme-color-text);
+  color: var(--mme-color-text-muted);
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
-  transition: background 100ms ease, color 100ms ease;
+  transition:
+    background 100ms ease,
+    border-color 100ms ease,
+    color 100ms ease,
+    box-shadow 100ms ease;
 }
 
 .toolbar-icon {
@@ -812,6 +828,7 @@ h1 {
 .toolbar-button:hover,
 .toolbar-menu-item:hover {
   background: var(--mme-color-surface-raised);
+  border-color: var(--mme-color-border);
   color: var(--mme-color-text);
 }
 
@@ -833,7 +850,7 @@ h1 {
 
 .toolbar-more-menu {
   position: absolute;
-  z-index: 30;
+  z-index: var(--mme-z-menu);
   top: calc(100% + 6px);
   right: 0;
   display: grid;
@@ -914,6 +931,7 @@ h1 {
   border-radius: var(--mme-radius-lg);
   background: var(--mme-color-surface-raised);
   box-shadow: var(--mme-shadow-md);
+  backdrop-filter: blur(12px) saturate(1.2);
 }
 
 .selection-bubble-toolbar .toolbar-button {
@@ -963,7 +981,8 @@ h1 {
   z-index: var(--mme-z-toolbar);
   top: var(--slash-menu-top, 132px);
   left: var(--slash-menu-left, 40px);
-  width: min(300px, calc(100% - 24px));
+  width: min(330px, calc(100% - 24px));
+  padding: 5px;
   overflow: hidden;
   border: 1px solid var(--mme-color-border);
   border-radius: var(--mme-radius-lg);
@@ -982,7 +1001,7 @@ h1 {
 
 .slash-command-query {
   margin: 0;
-  padding: 7px 10px;
+  padding: 7px 8px 9px;
   border-bottom: 1px solid var(--mme-color-border);
   color: var(--mme-color-text-muted);
   font-family: var(--mme-font-family-mono);
@@ -991,15 +1010,17 @@ h1 {
 
 .slash-command-items {
   display: grid;
-  gap: 1px;
-  padding: 4px;
+  gap: 2px;
+  padding: 5px 0 0;
 }
 
 .slash-command-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1px;
-  padding: 7px 9px;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 6px 7px;
   border: 0;
   border-radius: var(--mme-radius-md);
   background: transparent;
@@ -1007,6 +1028,25 @@ h1 {
   cursor: pointer;
   text-align: left;
   transition: background 100ms ease;
+}
+
+.slash-command-copy,
+.ai-command-copy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.slash-command-icon,
+.ai-command-icon {
+  display: inline-grid;
+  inline-size: 26px;
+  block-size: 26px;
+  place-items: center;
+  border: 1px solid var(--mme-color-border);
+  border-radius: var(--mme-radius-md);
+  background: var(--mme-color-surface);
+  color: var(--mme-color-text-muted);
 }
 
 .slash-command-item:hover {
@@ -1021,12 +1061,17 @@ h1 {
   color: var(--mme-color-accent);
 }
 
+.slash-command-item[data-selected="true"] .slash-command-icon {
+  border-color: var(--mme-color-accent);
+  color: var(--mme-color-accent);
+}
+
 .slash-command-item strong {
   font-size: 12.5px;
   font-weight: 600;
 }
 
-.slash-command-item span {
+.slash-command-copy > span {
   color: var(--mme-color-text-muted);
   font-size: 11px;
   overflow: hidden;
@@ -1203,6 +1248,7 @@ h1 {
 .rich-block-affordance-button:focus-visible {
   color: var(--mme-color-text);
   border-color: var(--mme-color-accent);
+  background: var(--mme-color-accent-soft);
 }
 
 .rich-block-drag-handle {
@@ -1389,7 +1435,7 @@ h1 {
   position: relative;
   padding-top: 30px;
   border: 1px dashed var(--mme-color-border-strong);
-  background: var(--mme-color-surface);
+  background: var(--mme-color-surface-muted);
   color: var(--mme-color-text);
   white-space: pre-wrap;
 }
@@ -1422,23 +1468,30 @@ h1 {
   padding: 0;
   border: 1.5px solid var(--mme-color-border-strong);
   border-radius: 5px;
-  background: var(--mme-color-surface);
+  background: var(--mme-color-bg);
   color: transparent;
   cursor: pointer;
   font-size: 11px;
   font-weight: 800;
   line-height: 1;
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+  box-shadow: inset 0 0 0 1px var(--mme-color-surface);
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    box-shadow 120ms ease,
+    color 120ms ease;
 }
 
 .ProseMirror [data-todo-toggle]:hover {
   border-color: var(--mme-color-accent);
+  background: var(--mme-color-accent-softer);
 }
 
 .ProseMirror [data-todo-toggle][aria-pressed="true"] {
   border-color: var(--mme-color-accent);
   background: var(--mme-color-accent);
   color: var(--mme-color-accent-contrast);
+  box-shadow: inset 0 0 0 1px var(--mme-color-accent-contrast);
 }
 
 .ProseMirror [data-todo-toggle]:focus {
@@ -1975,7 +2028,11 @@ h1 {
   }
 
   .ProseMirror {
-    padding: 20px 16px 100px;
+    padding: 20px 16px 100px 52px;
+  }
+
+  .rich-block-affordance {
+    left: -40px;
   }
 
   .editor-host .cm-content {

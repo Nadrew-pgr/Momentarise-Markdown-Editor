@@ -44,11 +44,12 @@ Completed slices:
 - MME-0028.5: Inline AI prompt surface and usable writing flow, accepted for code continuation after UX and security subagent review fixes, keyboard/visual proof, explicit mock/missing/provider-policy states, and staged accept/reject flow.
 - MME-0028.6: Real AI provider adapter path, accepted for code continuation after security and architecture subagent review fixes; adds an OpenAI-compatible/LiteLLM host-provider path, memory-only personal BYOK, endpoint/key redaction, policy-before-provider proof, and visual provider-state proof.
 - MME-0029: Block interaction affordances, accepted for code continuation after UX and test subagent review fixes; adds rich block handles/menu, insert-after, state-level drag/drop reorder with raw-byte preservation, contextual selection bubble toolbar, and empty-placeholder proof.
+- MME-0030: Beautiful default theme V1, accepted for continuation after default dark/light token polish, contrast proof, responsive visual artifacts, icon-first command surfaces, and reviewer fixes; broader UX refinements remain expected in later slices.
 - MME-0039: Interim demo visual refresh (human-directed, out of phase order). CSS-only restyle of the demo chrome and editing surfaces; the values are the draft defaults for the MME-0025 token set.
 
 Current slice:
 
-- MME-0030: Beautiful default theme V1.
+- MME-0031: React binding and external consumer validation.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

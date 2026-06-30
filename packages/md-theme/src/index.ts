@@ -152,29 +152,29 @@ export const DEFAULT_MME_THEME: Readonly<Record<MmeScheme, ResolvedMmeTheme>> = 
   dark: {
     colors: {
       bg: "#0a0a0a",
-      surface: "#141414",
-      surfaceRaised: "#1c1c1c",
-      border: "#2a2a2a",
-      text: "#ededed",
-      textMuted: "#8f8f8f",
-      accent: "#3b82f6",
+      surface: "#121318",
+      surfaceRaised: "#1a1c22",
+      border: "#2b2f38",
+      text: "#f5f6f8",
+      textMuted: "#a6adbb",
+      accent: "#2563eb",
       accentContrast: "#ffffff",
-      danger: "#f87171",
-      selection: "rgba(59, 130, 246, 0.32)",
-      focusRing: "rgba(59, 130, 246, 0.6)"
+      danger: "#fb7185",
+      selection: "rgba(37, 99, 235, 0.35)",
+      focusRing: "#8ab4ff"
     },
     typography: {
       fontFamilyUi: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", Roboto, ui-sans-serif, sans-serif',
       fontFamilyContent: "var(--mme-font-family-ui)",
       fontFamilyMono: 'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
-      fontSizeBase: "12.5px",
+      fontSizeBase: "13px",
       fontScale: "1",
       lineHeight: "1.6"
     },
     shape: {
-      radiusSm: "6px",
-      radiusMd: "8px",
-      radiusLg: "12px"
+      radiusSm: "5px",
+      radiusMd: "7px",
+      radiusLg: "8px"
     },
     spacing: {
       space1: "4px",
@@ -186,8 +186,8 @@ export const DEFAULT_MME_THEME: Readonly<Record<MmeScheme, ResolvedMmeTheme>> = 
       density: "1"
     },
     elevation: {
-      shadowSm: "0 1px 2px rgba(0, 0, 0, 0.4)",
-      shadowMd: "0 8px 28px rgba(0, 0, 0, 0.5)"
+      shadowSm: "0 1px 2px rgba(0, 0, 0, 0.36)",
+      shadowMd: "0 12px 36px rgba(0, 0, 0, 0.44)"
     },
     layers: {
       zToolbar: "20",
@@ -197,30 +197,30 @@ export const DEFAULT_MME_THEME: Readonly<Record<MmeScheme, ResolvedMmeTheme>> = 
   },
   light: {
     colors: {
-      bg: "#ffffff",
-      surface: "#fafafa",
-      surfaceRaised: "#f4f4f5",
-      border: "#ededed",
-      text: "#171717",
-      textMuted: "#666666",
-      accent: "#0070f3",
+      bg: "#fbfcff",
+      surface: "#ffffff",
+      surfaceRaised: "#f4f6fa",
+      border: "#dfe4ec",
+      text: "#111827",
+      textMuted: "#4b5563",
+      accent: "#0057c2",
       accentContrast: "#ffffff",
       danger: "#e5484d",
-      selection: "rgba(0, 112, 243, 0.18)",
-      focusRing: "rgba(0, 112, 243, 0.45)"
+      selection: "rgba(0, 87, 194, 0.16)",
+      focusRing: "#0057c2"
     },
     typography: {
       fontFamilyUi: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", Roboto, ui-sans-serif, sans-serif',
       fontFamilyContent: "var(--mme-font-family-ui)",
       fontFamilyMono: 'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
-      fontSizeBase: "12.5px",
+      fontSizeBase: "13px",
       fontScale: "1",
       lineHeight: "1.6"
     },
     shape: {
-      radiusSm: "6px",
-      radiusMd: "8px",
-      radiusLg: "12px"
+      radiusSm: "5px",
+      radiusMd: "7px",
+      radiusLg: "8px"
     },
     spacing: {
       space1: "4px",
@@ -232,8 +232,8 @@ export const DEFAULT_MME_THEME: Readonly<Record<MmeScheme, ResolvedMmeTheme>> = 
       density: "1"
     },
     elevation: {
-      shadowSm: "0 1px 2px rgba(18, 24, 31, 0.06)",
-      shadowMd: "0 8px 28px rgba(18, 24, 31, 0.12)"
+      shadowSm: "0 1px 2px rgba(15, 23, 42, 0.06)",
+      shadowMd: "0 12px 36px rgba(15, 23, 42, 0.14)"
     },
     layers: {
       zToolbar: "20",

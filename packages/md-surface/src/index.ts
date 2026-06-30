@@ -350,8 +350,8 @@ export const defaultMmeStrings: MmeStrings = {
 type ListenerCleanup = () => void;
 
 const toolbarCommands: readonly ToolbarCommandDefinition[] = [
-  { icon: null, id: "mme:heading1", richCommand: "heading1", testId: "toolbar-command-heading1", text: "H1", title: "heading1" },
-  { icon: null, id: "mme:heading2", richCommand: "heading2", testId: "toolbar-command-heading2", text: "H2", title: "heading2" },
+  { icon: "heading", id: "mme:heading1", richCommand: "heading1", testId: "toolbar-command-heading1", title: "heading1" },
+  { icon: "heading", id: "mme:heading2", richCommand: "heading2", testId: "toolbar-command-heading2", title: "heading2" },
   { icon: "bold", id: "mme:bold", richCommand: "bold", testId: "toolbar-command-bold", title: "bold" },
   { icon: "italic", id: "mme:italic", richCommand: "italic", testId: "toolbar-command-italic", title: "italic" },
   { icon: "todo", id: "mme:todo", richCommand: "todo", testId: "toolbar-command-todo", title: "todo" },
@@ -377,7 +377,6 @@ interface ToolbarCommandDefinition {
   readonly id: string;
   readonly richCommand: string;
   readonly testId?: string;
-  readonly text?: string;
   readonly title: keyof MmeStrings["toolbar"];
 }
 
@@ -1327,9 +1326,7 @@ function toolbarButton(options: CreateToolbarOptions, command: ToolbarCommandDef
   button.setAttribute("aria-label", label);
   button.title = label;
   button.tabIndex = roving ? 0 : -1;
-  if (command.text) {
-    button.textContent = command.text;
-  } else if (command.icon) {
+  if (command.icon) {
     button.innerHTML = toolbarIcon(options, command.icon);
   }
   return button;
@@ -1402,6 +1399,8 @@ function slashButton(
   selectedIndex: number
 ): HTMLButtonElement {
   const button = createElement(options.host, "button", "slash-command-item");
+  const icon = createElement(options.host, "span", "slash-command-icon");
+  const copy = createElement(options.host, "span", "slash-command-copy");
   button.type = "button";
   button.id = `mme-slash-option-${index}`;
   button.dataset.selected = String(index === selectedIndex);
@@ -1411,9 +1410,11 @@ function slashButton(
   button.setAttribute("aria-selected", String(index === selectedIndex));
   const label = createElement(options.host, "strong");
   const aliases = createElement(options.host, "span");
+  icon.innerHTML = toolbarIcon(options, slashIconName(item.id, item.group));
   label.textContent = extensionLabel(options.strings, item.labelKey);
   aliases.textContent = item.aliases.slice(0, 3).join(", ");
-  button.append(label, aliases);
+  copy.append(label, aliases);
+  button.append(icon, copy);
   return button;
 }
 
@@ -1424,6 +1425,8 @@ function aiSlashButton(
   selectedIndex: number
 ): HTMLButtonElement {
   const button = createElement(options.host, "button", "slash-command-item slash-command-item-ai");
+  const icon = createElement(options.host, "span", "slash-command-icon");
+  const copy = createElement(options.host, "span", "slash-command-copy");
   button.type = "button";
   button.id = `mme-slash-option-${index}`;
   button.dataset.selected = String(index === selectedIndex);
@@ -1433,9 +1436,11 @@ function aiSlashButton(
   button.setAttribute("aria-selected", String(index === selectedIndex));
   const label = createElement(options.host, "strong");
   const prompt = createElement(options.host, "span");
+  icon.innerHTML = toolbarIcon(options, "ai");
   label.textContent = item.label;
   prompt.textContent = item.prompt;
-  button.append(label, prompt);
+  copy.append(label, prompt);
+  button.append(icon, copy);
   return button;
 }
 
@@ -1453,6 +1458,8 @@ function paletteButton(
   selectedIndex: number
 ): HTMLButtonElement {
   const button = createElement(options.host, "button", "ai-command-item");
+  const icon = createElement(options.host, "span", "ai-command-icon");
+  const copy = createElement(options.host, "span", "ai-command-copy");
   button.type = "button";
   button.id = `mme-command-palette-option-${index}`;
   button.dataset.referenceAiAction = action.id;
@@ -1462,9 +1469,11 @@ function paletteButton(
   button.setAttribute("aria-selected", String(index === selectedIndex));
   const label = createElement(options.host, "strong");
   const entryPoints = createElement(options.host, "span");
+  icon.innerHTML = toolbarIcon(options, "ai");
   label.textContent = action.label;
   entryPoints.textContent = action.entryPoints.join(", ");
-  button.append(label, entryPoints);
+  copy.append(label, entryPoints);
+  button.append(icon, copy);
   return button;
 }
 
@@ -1597,6 +1606,34 @@ function entryPointEnabled(preferences: SurfacePreferences, entryPoint: string):
 function toolbarIcon(options: Pick<SurfaceComponentContext, "icons">, name: IconName): string {
   // IconSet.render is a trusted SVG/HTML boundary documented by @momentarise/md-theme.
   return `<span class="toolbar-icon" aria-hidden="true">${options.icons.render(name)}</span>`;
+}
+
+function slashIconName(id: string, group: string): IconName {
+  if (id.toLowerCase().includes("heading") || id.toLowerCase().includes("paragraph")) {
+    return "heading";
+  }
+  if (id.toLowerCase().includes("todo")) {
+    return "todo";
+  }
+  if (id.toLowerCase().includes("code")) {
+    return "code";
+  }
+  if (id.toLowerCase().includes("quote") || id.toLowerCase().includes("callout")) {
+    return "quote";
+  }
+  if (id.toLowerCase().includes("image")) {
+    return "image";
+  }
+  if (id.toLowerCase().includes("divider") || id.toLowerCase().includes("rule")) {
+    return "divider";
+  }
+  if (group === "lists") {
+    return "list";
+  }
+  if (group === "insert") {
+    return "link";
+  }
+  return "more";
 }
 
 function toolbarIconName(icon: string): IconName {
