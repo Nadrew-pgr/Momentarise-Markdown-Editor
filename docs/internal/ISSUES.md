@@ -1826,7 +1826,7 @@ export function MarkdownEditor(props: { options; onChange?; className? }): JSX.E
 
 No editor logic in the package — if a feature needs more than subscribe/mount/unmount, it belongs in md-editor or md-surface. SSR safety: no DOM access at module top level anywhere (import-time test in the harness); document the Next.js App Router recipe (`"use client"` component + `next/dynamic` with `ssr: false` fallback) in the package README.
 
-Consumer matrix (extends `scripts/consumer-smoke.mjs` from MME-0024): [vite-vanilla-ts, next-app-router] x [npm, pnpm --strict-peer-deps]; a type-check consumer compiled under BOTH `moduleResolution: "bundler"` and `"node16"`, WITHOUT `exactOptionalPropertyTypes` (our packages use it; consumers will not — this catches optional-property type leaks); the duplicate-instance check (`npm ls @codemirror/state prosemirror-model` → exactly one version each); the tree-shake check (a consumer importing ONLY `@momentarise/md-format`, build output must not contain the string `prosemirror`).
+Consumer matrix (extends `scripts/consumer-smoke.mjs` from MME-0024): [vite-vanilla-ts, next-app-router] x [npm, pnpm --strict-peer-deps]; a type-check consumer compiled under BOTH `moduleResolution: "bundler"` and `"node16"`, WITHOUT `exactOptionalPropertyTypes` (our packages use it; consumers will not — this catches optional-property type leaks); the duplicate-instance check (`npm ls @codemirror/state @codemirror/view prosemirror-model prosemirror-state prosemirror-view` → exactly one version each); the tree-shake check (a consumer importing ONLY `@momentarise/md-format`, build output must not contain the string `prosemirror`).
 
 Everything installs from `npm pack` tarballs — never workspace links. One command: `npm run test:consumer-matrix`; each leg skippable via env for offline runs, with skips reported loudly.
 
@@ -1841,6 +1841,8 @@ Everything installs from `npm pack` tarballs — never workspace links. One comm
 ### Reviewer
 
 DX Reviewer.
+
+Completed 2026-06-30; code HITL remained waived for TypeScript/package work, and DX/architecture subagent reviewers accepted after fixes. Added `@momentarise/md-react` with `useMarkdownEditor()` and `<MarkdownEditor/>` lifecycle glue, kept React as a peer dependency, moved reusable presentation derivation into `@momentarise/md-surface`, added a CodeMirror source-view mount helper to `@momentarise/md-source-codemirror`, and documented the Next App Router client-boundary recipe. Extended the packed consumer matrix to cover Vite vanilla TS and Next App Router across npm and pnpm strict installs, import-time DOM safety, dual TypeScript `bundler`/`node16` resolution without consumer `exactOptionalPropertyTypes`, widened duplicate CodeMirror/ProseMirror singleton checks, an md-format tree-shake check, and loud offline skip mode. Proven by `npm run test:consumer-matrix`, `MME_CONSUMER_MATRIX_OFFLINE=1 npm run test:consumer-matrix`, `npm run test:contracts`, `npm run test:architecture`, `npm run test:source-codemirror`, `npm run test:publishability`, full `npm test`, and `git diff --check`. `MME-0032` is the next candidate after issue-scoped commit.
 
 ## MME-0032 — Markdown HTML renderer and inline-HTML policy
 

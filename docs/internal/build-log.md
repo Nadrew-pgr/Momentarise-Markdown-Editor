@@ -4088,3 +4088,48 @@
   - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
 - Next issue:
   - `MME-0031 — React binding and external consumer validation`.
+
+#### MME-0031 completed — React binding and external consumer validation
+
+- Timestamp: 2026-06-30T22:06:49+02:00
+- Status:
+  - Completed and accepted for code continuation. No human visual HITL was required because this slice adds package bindings and external consumer proof, with no MME demo UI change.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short --branch`, and target package/test files.
+  - Confirmed `MME-0030` was accepted and committed as `435af1a`; follow-up docs/hash evidence commit is `fc31079`; worktree was clean before implementation.
+- RED proof before implementation:
+  - `node tests/package-publishability.test.mjs` failed before implementation with `ENOENT: no such file or directory, open 'packages/md-react/package.json'`.
+- Change:
+  - Added `packages/md-react` with `useMarkdownEditor()`, `<MarkdownEditor/>`, package README, React peer dependency, package metadata, and workspace build/TypeScript references.
+  - Added `createMomentariseSourceView()` to `@momentarise/md-source-codemirror` so React lifecycle glue does not directly own CodeMirror construction details.
+  - Moved reusable theme application and surface document-state derivation into `@momentarise/md-surface`, keeping `md-react` focused on session subscription, mount, and cleanup.
+  - Extended `scripts/consumer-smoke.mjs` into the MME-0031 consumer matrix: packed tarballs, Vite vanilla TS npm/pnpm strict consumers, Next App Router npm/pnpm strict consumers, import-time DOM safety, dual `bundler`/`node16` type resolution, widened duplicate-instance checks, md-format tree-shake proof, isolated npm cache, and loud offline skip mode.
+  - Added the Next App Router consumer fixture under `examples/consumer-next-app-router/`, including README guidance that the fixture is harness-owned and dependency blocks are rewritten from `npm pack` outputs.
+  - Updated publishability tests, workspace scripts, package lockfile, README, and issue tracker.
+- Visual impact:
+  - No visible editing or general UI changes in the MME demo.
+  - New external example consumers render the editor during Vite/Next builds through packed package artifacts.
+- Checks run:
+  - `node tests/package-publishability.test.mjs` — RED before implementation, green after.
+  - `npm run build` — green.
+  - `npm run test:source-codemirror` — green.
+  - `npm run test:contracts` — green.
+  - `npm run test:architecture` — green.
+  - `npm run test:publishability` — green.
+  - `npm run test:consumer-matrix` — green with escalation for registry installs; proved Vite vanilla TS npm, Vite vanilla TS pnpm strict, Next App Router npm, Next App Router pnpm strict, import-time safety, duplicate-instance checks, dual TypeScript resolution, and md-format tree-shake output.
+  - `MME_CONSUMER_MATRIX_OFFLINE=1 npm run test:consumer-matrix` — green; workspace build/pack ran, all external-consumer legs skipped loudly.
+  - `npm test` — green; existing Vite chunk-size warning only.
+  - `git diff --check` — green.
+- Reviewer result:
+  - Architecture reviewer subagent `Huygens` used `gpt-5.3-codex-spark` with `xhigh` reasoning as requested. It reported no P0/P1 findings. P2 findings about React-layer presentation derivation were fixed by moving helpers to `md-surface`; P3 duplicate-instance coverage was fixed by widening the singleton list.
+  - DX reviewer subagent `Singer` used `gpt-5.3-codex-spark` with `xhigh` reasoning as requested. It reported no P0/P1 findings. P2 offline/CI robustness was fixed with `MME_CONSUMER_MATRIX_OFFLINE=1`; P3 generated-fixture ambiguity was fixed with a fixture README.
+- Residual risks:
+  - `npm run test:consumer-matrix` requires registry/network access for full external consumer proof; offline mode is intentionally proof-limited and reports skipped legs loudly.
+  - External Next consumer installs reported transient moderate audit warnings, and root `npm i` reported one high audit item in existing dependency graph; no dependency remediation was done in this package-binding slice.
+  - React binding currently mounts the source-mode editor and core surface controls; deeper rich-mode React ergonomics remain future work rather than part of MME-0031.
+- Commit status:
+  - Issue-scoped commit to be created next; hash will be recorded in follow-up commit evidence.
+- Push status:
+  - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
+- Next issue:
+  - `MME-0032 — Markdown HTML renderer and inline-HTML policy`.

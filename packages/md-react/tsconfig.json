@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src"],
+  "references": [
+    {
+      "path": "../md-core"
+    },
+    {
+      "path": "../md-editor"
+    },
+    {
+      "path": "../md-save"
+    },
+    {
+      "path": "../md-source-codemirror"
+    },
+    {
+      "path": "../md-surface"
+    },
+    {
+      "path": "../md-theme"
+    }
+  ]
+}

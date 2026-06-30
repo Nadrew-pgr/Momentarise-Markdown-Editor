@@ -29,6 +29,20 @@ export interface MomentariseSourceExtensionOptions {
   readonly preferences?: MomentariseSourcePreferences;
 }
 
+export interface CreateMomentariseSourceViewOptions extends MomentariseSourceExtensionOptions {
+  readonly doc: string;
+  readonly onChange?: (content: string) => void;
+  readonly parent: HTMLElement;
+}
+
+export interface MomentariseSourceView {
+  readonly dom: HTMLElement;
+  destroy(): void;
+  focus(): void;
+  getContent(): string;
+  replaceContent(content: string): void;
+}
+
 export interface MomentariseSourceCompartments {
   readonly behavior: Compartment;
   readonly keymap: Compartment;
@@ -75,6 +89,56 @@ export function createMomentariseSourceExtensions(options: MomentariseSourceExte
   }
 
   return extensions;
+}
+
+export function createMomentariseSourceView(options: CreateMomentariseSourceViewOptions): MomentariseSourceView {
+  let suppressChange = false;
+  const view = new EditorView({
+    parent: options.parent,
+    state: EditorState.create({
+      doc: options.doc,
+      extensions: [
+        ...createMomentariseSourceExtensions({
+          ...(options.compartments === undefined ? {} : { compartments: options.compartments }),
+          ...(options.includeDefaultTheme === undefined ? {} : { includeDefaultTheme: options.includeDefaultTheme }),
+          ...(options.onSave === undefined ? {} : { onSave: options.onSave }),
+          ...(options.preferences === undefined ? {} : { preferences: options.preferences })
+        }),
+        EditorView.updateListener.of((update) => {
+          if (!update.docChanged || suppressChange) {
+            return;
+          }
+          options.onChange?.(update.state.doc.toString());
+        })
+      ]
+    })
+  });
+  return {
+    dom: view.dom,
+    destroy() {
+      view.destroy();
+    },
+    focus() {
+      view.focus();
+    },
+    getContent() {
+      return view.state.doc.toString();
+    },
+    replaceContent(content: string) {
+      if (view.state.doc.toString() === content) {
+        return;
+      }
+      suppressChange = true;
+      view.dispatch({
+        changes: {
+          from: 0,
+          insert: content,
+          to: view.state.doc.length
+        }
+      });
+      suppressChange = false;
+    }
+  };
 }
 
 export function createMomentariseSourceCompartments(): MomentariseSourceCompartments {

@@ -1,0 +1,52 @@
+{
+  "name": "@momentarise/md-react",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Thin React binding for Momentarise Markdown Editor sessions and DOM surface.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor.git",
+    "directory": "packages/md-react"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "markdown",
+    "editor",
+    "momentarise",
+    "react"
+  ],
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@momentarise/md-core": "0.0.0",
+    "@momentarise/md-editor": "0.0.0",
+    "@momentarise/md-save": "0.0.0",
+    "@momentarise/md-source-codemirror": "0.0.0",
+    "@momentarise/md-surface": "0.0.0",
+    "@momentarise/md-theme": "0.0.0"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "react": "^18.2.0"
+  }
+}

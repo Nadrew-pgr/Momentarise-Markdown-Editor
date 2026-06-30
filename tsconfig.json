@@ -26,6 +26,9 @@
       "path": "packages/md-surface"
     },
     {
+      "path": "packages/md-react"
+    },
+    {
       "path": "packages/md-preview-html"
     },
     {

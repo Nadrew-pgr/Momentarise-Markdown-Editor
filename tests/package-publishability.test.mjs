@@ -10,6 +10,7 @@ const packages = [
   "@momentarise/md-format",
   "@momentarise/md-policy",
   "@momentarise/md-preview-html",
+  "@momentarise/md-react",
   "@momentarise/md-rich-prosemirror",
   "@momentarise/md-save",
   "@momentarise/md-source-codemirror",
@@ -43,6 +44,7 @@ assert(
 );
 
 assertScript("test:consumer-smoke");
+assertScript("test:consumer-matrix");
 
 const codeMirrorPeers = [
   "@codemirror/autocomplete",
@@ -97,6 +99,16 @@ for (const dependency of prosemirrorPeers) {
 assert(
   !richManifest.peerDependencies?.["prosemirror-view"],
   "@momentarise/md-rich-prosemirror does not import prosemirror-view; the demo/host owns the view dependency."
+);
+
+const reactManifest = manifests["@momentarise/md-react"];
+assert(
+  reactManifest.peerDependencies?.react === ">=18",
+  "@momentarise/md-react must expose react >=18 as a peer dependency."
+);
+assert(
+  !reactManifest.dependencies?.react,
+  "@momentarise/md-react must not bundle react as a dependency."
 );
 
 const demoManifest = await readJson("apps/md-demo/package.json");

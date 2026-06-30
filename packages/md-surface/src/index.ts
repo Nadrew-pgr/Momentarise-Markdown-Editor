@@ -4,7 +4,13 @@ import type {
   ToolbarItemDefinition
 } from "@momentarise/md-editor";
 import type { SaveState } from "@momentarise/md-save";
-import type { IconName, IconSet } from "@momentarise/md-theme";
+import {
+  resolveThemeToCssVariables,
+  type IconName,
+  type IconSet,
+  type MmeScheme,
+  type MmeTheme
+} from "@momentarise/md-theme";
 
 export interface SurfaceContract {
   readonly packageName: "@momentarise/md-surface";
@@ -129,6 +135,13 @@ export interface SurfaceDocumentState {
   readonly kind: SurfaceDocumentKind;
   readonly mode: SurfaceDocumentMode;
   readonly pathLabel: string;
+}
+
+export interface CreateSurfaceDocumentStateOptions {
+  readonly overrides?: Partial<SurfaceDocumentState>;
+  readonly path?: string | null;
+  readonly saveState: Pick<SaveState, "target">;
+  readonly targetLabel: string;
 }
 
 export interface SurfaceToolbarState {
@@ -259,6 +272,48 @@ export const surfaceContract: SurfaceContract = {
   contract: "framework-free-dom-surface",
   packageName: "@momentarise/md-surface"
 };
+
+export function applyMmeThemeToElement(
+  element: HTMLElement,
+  theme: MmeTheme = {},
+  scheme?: MmeScheme
+): void {
+  const variables = resolveThemeToCssVariables(theme, scheme);
+  for (const [name, value] of Object.entries(variables)) {
+    element.style.setProperty(name, value);
+  }
+}
+
+export function createSurfaceDocumentState(options: CreateSurfaceDocumentStateOptions): SurfaceDocumentState {
+  const pathLabel = options.path ?? options.targetLabel;
+  const defaults: SurfaceDocumentState = {
+    fileName: surfaceFileNameFromPath(pathLabel),
+    kind: "markdown",
+    mode: surfaceDocumentModeFromSaveTarget(options.saveState.target),
+    pathLabel
+  };
+  return {
+    ...defaults,
+    ...options.overrides
+  };
+}
+
+export function surfaceDocumentModeFromSaveTarget(target: SaveState["target"]): SurfaceDocumentState["mode"] {
+  if (target === "disk") {
+    return "writable-file";
+  }
+  if (target === "memory-only") {
+    return "fixture";
+  }
+  if (target === "download-required") {
+    return "imported-copy";
+  }
+  return target;
+}
+
+export function surfaceFileNameFromPath(pathLabel: string): string {
+  return pathLabel.split(/[\\/]/).filter(Boolean).at(-1) ?? "Untitled.md";
+}
 
 export const defaultMmeStrings: MmeStrings = {
   ai: {
