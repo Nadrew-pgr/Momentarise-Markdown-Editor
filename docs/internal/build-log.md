@@ -3845,3 +3845,15 @@
   - Not pushed. Branch is local-only and already ahead of `origin/main`; push remains pending explicit safe push approval.
 - Next issue:
   - `MME-0028.6 — Real AI provider adapter path`; stop before implementation if its provider/key-handling AI-boundary decision needs human confirmation.
+
+#### MME-0028.5 commit evidence
+
+- Timestamp: 2026-06-30T15:45:27+02:00
+- Status:
+  - Follow-up docs/process note recording the issue commit hash.
+- Commit status:
+  - Issue-scoped commit created: `e5e8cd9` (`feat: add inline AI prompt flow`).
+- Push status:
+  - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
+- Next issue:
+  - `MME-0028.6 — Real AI provider adapter path`; stop before implementation because real provider adapters, key handling, and provider boundary wording require a non-code AI/security decision before coding.
