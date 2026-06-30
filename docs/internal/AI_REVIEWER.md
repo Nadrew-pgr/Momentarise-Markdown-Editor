@@ -43,6 +43,18 @@ npm run ai:review:claude -- --focus "Review MME-0018 against BlockNote/Tiptap/No
 
 Reports are written under `docs/internal/ai-reviews/`. Generated reports are ignored by Git by default.
 
+This markdown report is specific to the external API reviewer flow. It is useful when the reviewer is read-only, out-of-band, or cannot talk directly to the implementation agent.
+
+It is not the normal reviewer-subagent loop. In the normal loop:
+
+1. builder implements;
+2. reviewer inspects;
+3. reviewer returns findings in the active conversation/tool result;
+4. builder fixes immediately;
+5. build log summarizes reviewer result, fixed findings, residual risks and human-review status.
+
+Do not create a review `.md` just to satisfy the reviewer gate when a real reviewer/subagent can return findings directly. Persist a markdown review only for external API reports, fallback self-review, explicit audit/decision records, or when the human asks.
+
 ## What Claude receives
 
 The script sends a controlled context packet:

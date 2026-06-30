@@ -291,6 +291,16 @@ Required reviewer roles by issue type:
 
 Do not rely only on the implementation agent’s own review. If subagents are unavailable, record that in `docs/internal/build-log.md` and label the review as fallback verification.
 
+Normal reviewer loop:
+
+1. builder implements;
+2. reviewer inspects;
+3. reviewer returns findings directly;
+4. builder fixes immediately;
+5. build log summarizes reviewer used, findings fixed, residual risks and human-review status.
+
+Do not create a review `.md` just because a reviewer was used. Persist a markdown review only for fallback self-review, external/read-only API reviewers, explicit audit/decision records, or when the human asks.
+
 ## Build log
 
 The canonical build log path is `docs/internal/build-log.md`.

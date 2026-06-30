@@ -3559,33 +3559,11 @@
 - Push status:
   - Not pushed. Push blocker remains no accepted issue commit.
 
-### Human decision — MME-0027 accepted and commit/push authorized
-
-- Timestamp: 2026-06-30T00:00:00+02:00
-- Status:
-  - Completed; `MME-0028` is unblocked after commit and push.
-- Human decision:
-  - The human accepted MME-0027 after review fixes for rich code-block escape, slash query consumption/custom-block insertion, and compact toolbar labels.
-  - The human asked to commit and push, then report previous/current/next issue.
-- Source-of-truth docs updated:
-  - `README.md` lists MME-0027 as completed and sets current slice to `MME-0028`.
-  - `docs/internal/ISSUES.md` marks MME-0027 completed and MME-0028 unblocked after commit/push.
-- Checks already run for the accepted state:
-  - `npm test` — green; existing Vite chunk-size warning only.
-  - `MME_DEMO_URL=http://127.0.0.1:5174/ npm run visual:mme-0027` — green with system Chrome permission.
-  - `git diff --check` — green.
-- Commit status:
-  - Pending in this operation; final commit hash will be recorded after commit creation.
-- Push status:
-  - Pending in this operation; final push status will be recorded after push.
-- Next issue:
-  - `MME-0028 — Editor surface package with i18n and accessibility`.
-
 #### Reviewer artifact rule clarification
 
 - Timestamp: 2026-06-30T00:00:00+02:00
 - Status:
-  - Documentation correction; human review pending.
+  - Documentation correction; committed separately from MME-0027.
 - Human review feedback:
   - Normal reviewer flow should be builder implements, reviewer inspects, reviewer returns findings, builder fixes immediately, and build-log summarizes.
   - A review `.md` should not be produced just because a reviewer was used.
@@ -3596,9 +3574,9 @@
 - Checks run:
   - Documentation-only correction; no code tests run.
 - Commit status:
-  - Not committed yet.
+  - Included in the follow-up docs/process commit after the MME-0027 issue commit.
 - Push status:
-  - Not pushed.
+  - Included in the follow-up docs/process push after the MME-0027 issue push.
 
 #### Human review correction — compact rich toolbar labels
 
@@ -3628,3 +3606,26 @@
   - Not committed yet. Commit blocker remains human acceptance of MME-0027 unless the human explicitly asks for a pending-status commit.
 - Push status:
   - Not pushed. Push blocker remains no accepted issue commit.
+
+### Human decision — MME-0027 accepted and commit/push authorized
+
+- Timestamp: 2026-06-30T00:00:00+02:00
+- Status:
+  - Completed; `MME-0028` is unblocked after commit and push.
+- Human decision:
+  - The human accepted MME-0027 after review fixes for rich code-block escape, slash query consumption/custom-block insertion, and compact toolbar labels.
+  - The human asked to commit and push, then report previous/current/next issue.
+- Source-of-truth docs updated:
+  - `README.md` lists MME-0027 as completed and sets current slice to `MME-0028`.
+  - `docs/internal/ISSUES.md` marks MME-0027 completed and MME-0028 unblocked after commit/push.
+- Checks already run for the accepted state:
+  - `npm test` — green; existing Vite chunk-size warning only.
+  - `MME_DEMO_URL=http://127.0.0.1:5174/ npm run visual:mme-0027` — green with system Chrome permission.
+  - `git diff --check` — green.
+- Commit status:
+  - Issue-scoped commit created: `1535fd2` (`feat: add extension registry`).
+- Push status:
+  - Pushed `main` to `origin`: `518e08a..1535fd2`.
+  - This evidence is recorded in a follow-up docs/process commit because the hash and push result cannot be known before the issue commit exists.
+- Next issue:
+  - `MME-0028 — Editor surface package with i18n and accessibility`.

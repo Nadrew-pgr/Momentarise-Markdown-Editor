@@ -113,6 +113,13 @@ Forbidden without explicit human approval:
 
 Reviewer subagents may run in parallel, but they must only review and report.
 
+Reviewer report format:
+
+- normal reviewer/subagent loop: reviewer returns findings directly, builder fixes immediately, build log summarizes;
+- markdown review artifact: only for fallback self-review, external/read-only API reviewers, explicit audit/decision records, or human-requested review files.
+
+Do not create a review `.md` just to satisfy the reviewer gate when the reviewer can interact with the implementation agent.
+
 ## Gate 0.7 — No false done
 
 An issue is not done if one of its acceptance criteria is only implied.
@@ -318,6 +325,8 @@ AI V0 must remain writing assistance. No workspace agent, no RAG, no tool execut
 ## Gate 12 — Reviewer pass
 
 Every completed issue must have reviewer verification. Use subagents if available. If unavailable, document fallback verification.
+
+Reviewer verification is usually recorded in `docs/internal/build-log.md`, not as a separate file. Separate markdown reports belong to external/read-only review tooling such as `docs/internal/ai-reviews/`, fallback self-review, or explicit audit/human-requested records.
 
 ## Gate 13 — Theming and preference contracts
 
