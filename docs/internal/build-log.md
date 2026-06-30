@@ -4133,3 +4133,15 @@
   - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
 - Next issue:
   - `MME-0032 — Markdown HTML renderer and inline-HTML policy`.
+
+#### MME-0031 commit evidence
+
+- Timestamp: 2026-06-30T22:06:49+02:00
+- Status:
+  - Follow-up docs/process note recording the issue commit hash.
+- Commit status:
+  - Issue-scoped commit created: `621fb23` (`feat: add react binding consumer matrix`).
+- Push status:
+  - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
+- Next issue:
+  - `MME-0032 — Markdown HTML renderer and inline-HTML policy`.
