@@ -59,6 +59,7 @@ Tags: `baseline/hygiene`, `editing`, `mobile`, `desktop`
 - Enter, Backspace, paste, selection, and undo/redo must remain predictable around headings, lists, todos, quotes, code blocks, callouts, opaque blocks, inserted media, and document end.
 - Indentation/outdent with Tab/Shift+Tab must work across nested bullet lists, ordered lists, and todos.
 - Block insertion affordances are needed before and after framed blocks, opaque blocks, code blocks, and at the end of the document.
+- Clicking in the empty space below the final block should create/focus a paragraph after that block, especially after code fences, opaque extension blocks, callouts, and inserted media. This should be handled as part of the block-affordance pass rather than as a demo-only hack.
 - Mobile/tablet must not be an afterthought: touch selection, virtual keyboard behavior, viewport sizing, and toolbar reachability need a dedicated pass.
 
 ## Core Product Differentiators

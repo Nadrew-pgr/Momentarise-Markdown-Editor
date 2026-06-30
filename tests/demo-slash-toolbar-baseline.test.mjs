@@ -45,6 +45,40 @@ for (const snippet of [
   }
 }
 
+for (const snippet of [
+  '${toolbarIcon("heading")}<span>H1</span>',
+  '${toolbarIcon("heading")}<span>H2</span>',
+  '${toolbarIcon("todo")}<span>Todo</span>',
+  '${toolbarIcon("list")}<span>List</span>',
+  '${toolbarIcon("quote")}<span>Quote</span>',
+  '${toolbarIcon("code")}<span>Code block</span>',
+  '${toolbarIcon("link")}<span>Link</span>',
+  '${toolbarIcon("divider")}<span>Divider</span>',
+  '${toolbarIcon("ai")}<span>AI</span>',
+  '${toolbarIcon("more")}<span>More</span>'
+]) {
+  if (main.includes(snippet)) {
+    throw new Error(`Primary toolbar buttons must be compact and rely on tooltip/accessibility labels, not visible text: ${snippet}`);
+  }
+}
+
+for (const snippet of [
+  'data-testid="toolbar-command-heading1" aria-label="Heading 1" title="Heading 1">H1</button>',
+  'data-testid="toolbar-command-heading2" aria-label="Heading 2" title="Heading 2">H2</button>',
+  'data-testid="toolbar-command-todo" aria-label="Todo" title="Todo">${toolbarIcon("todo")}</button>',
+  'data-testid="toolbar-command-bulletList" aria-label="Bullet list" title="Bullet list">${toolbarIcon("list")}</button>',
+  'data-testid="toolbar-command-blockquote" aria-label="Quote" title="Quote">${toolbarIcon("quote")}</button>',
+  'data-testid="toolbar-command-codeBlock" aria-label="Code block" title="Code block">${toolbarIcon("code")}</button>',
+  'data-testid="toolbar-command-link" aria-label="Link" title="Link">${toolbarIcon("link")}</button>',
+  'data-testid="toolbar-command-divider" aria-label="Divider" title="Divider">${toolbarIcon("divider")}</button>',
+  'data-testid="toolbar-ai-button" aria-label="AI" title="AI">${toolbarIcon("ai")}</button>',
+  'data-testid="toolbar-more-button" aria-label="More commands" title="More commands" aria-expanded="false">${toolbarIcon("more")}</button>'
+]) {
+  if (!main.includes(snippet)) {
+    throw new Error(`Compact toolbar missing accessible label/tooltip snippet: ${snippet}`);
+  }
+}
+
 const styles = readFileSync("apps/md-demo/src/styles.css", "utf8");
 for (const snippet of [".rich-command-toolbar", ".toolbar-button", ".slash-command-menu", ".slash-command-item"]) {
   if (!styles.includes(snippet)) {

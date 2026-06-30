@@ -1454,6 +1454,8 @@ Architecture Reviewer and DX Reviewer.
 
 ## MME-0027 — Extension registry V0
 
+Completed 2026-06-30; human accepted MME-0027 after review fixes for rich code-block escape, slash query consumption/custom-block insertion, and compact toolbar labels. Added the headless `@momentarise/md-editor` extension registry, demo host registrations for slash/toolbar/custom AI/custom block, built-in command re-registration through the same public API, diagnostics for unknown/disabled ids, and MME-0027 visual proof. The accepted review fixes let double Enter / ArrowDown / ArrowRight leave a final rich code block, consume typed slash queries before slash/AI dispatch, insert the host custom block at the current rich selection with a trailing paragraph, and render the primary toolbar as compact glyph/icon buttons with hover/accessibility labels. Proven by `tests/extension-registry.test.mjs`, `tests/rich-input-rules.test.mjs`, `tests/demo-slash-toolbar-baseline.test.mjs`, full `npm test`, and `scripts/visual-check-mme0027.mjs` with artifacts under `docs/internal/visual-checks/MME-0027/`. `MME-0028` is unblocked after issue-scoped commit and push.
+
 ### Goal
 
 Open the closed registries so hosts and third parties can extend MME without forking — the Tiptap-class adoption requirement.

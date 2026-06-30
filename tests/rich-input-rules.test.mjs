@@ -1,5 +1,5 @@
 const rich = await import("../packages/md-rich-prosemirror/dist/index.js");
-const { NodeSelection } = await import("prosemirror-state");
+const { NodeSelection, TextSelection } = await import("prosemirror-state");
 
 const requiredExports = [
   "canInsertParagraphAfterCurrentBlock",
@@ -38,6 +38,19 @@ assertIncludes(
   "```ts\n\n```",
   "code fence enter input rule"
 );
+const codeFenceWithContent = typeIntoRichState(codeFenceEnterState, "const value = 1;");
+const codeFenceWithBlankLine = pressEnterInRichState(codeFenceWithContent);
+assertRootChildTypes(codeFenceWithBlankLine, ["code_block"], "first Enter in code block stays inside code");
+const exitedCodeFenceWithEnter = pressEnterInRichState(codeFenceWithBlankLine);
+assertRootChildTypes(exitedCodeFenceWithEnter, ["code_block", "paragraph"], "second Enter on final blank code line exits code block");
+assertSelectionInParagraph(exitedCodeFenceWithEnter, {
+  label: "second Enter from final blank code line places caret in paragraph after code",
+  parentOffset: 0
+});
+const exitedCodeFenceWithArrowDown = pressKeyInRichState(codeFenceWithContent, "ArrowDown");
+assertRootChildTypes(exitedCodeFenceWithArrowDown, ["code_block", "paragraph"], "ArrowDown at final code position exits code block");
+const exitedCodeFenceWithArrowRight = pressKeyInRichState(codeFenceWithContent, "ArrowRight");
+assertRootChildTypes(exitedCodeFenceWithArrowRight, ["code_block", "paragraph"], "ArrowRight at final code position exits code block");
 
 const uncheckedTodo = typeIntoRichState(rich.createRichMarkdownState(""), "- [ ] Ship it");
 const continuedTodo = pressEnterInRichState(uncheckedTodo);
@@ -137,9 +150,13 @@ function typeIntoRichState(state, text) {
 }
 
 function pressEnterInRichState(state) {
+  return pressKeyInRichState(state, "Enter");
+}
+
+function pressKeyInRichState(state, key) {
   let editorState = state.editorState;
   const event = {
-    key: "Enter",
+    key,
     preventDefault() {}
   };
   for (const plugin of editorState.plugins) {
@@ -166,6 +183,22 @@ function pressEnterInRichState(state) {
     ...state,
     editorState
   };
+}
+
+function assertSelectionInParagraph(state, { label, parentOffset }) {
+  const selection = state.editorState.selection;
+  if (!(selection instanceof TextSelection)) {
+    throw new Error(`${label} expected a text selection.\n${JSON.stringify(state.editorState.doc.toJSON(), null, 2)}`);
+  }
+  if (selection.$from.parent.type.name !== "paragraph" || selection.$from.parentOffset !== parentOffset) {
+    throw new Error(
+      `${label} expected paragraph offset ${parentOffset}, got ${selection.$from.parent.type.name} offset ${selection.$from.parentOffset}.\n${JSON.stringify(
+        state.editorState.doc.toJSON(),
+        null,
+        2
+      )}`
+    );
+  }
 }
 
 function assertNodePath(state, expectedPath, label) {

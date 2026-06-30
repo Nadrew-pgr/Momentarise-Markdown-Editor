@@ -1,4 +1,4 @@
-import type { DocumentDialect, DocumentPath, EditorMode, ParseResult, SaveState } from "@momentarise/md-core";
+import type { DocumentDialect, DocumentPath, EditorMode, MomentariseNode, ParseResult, SaveState } from "@momentarise/md-core";
 import { createMarkdownAstParser } from "@momentarise/md-format";
 import {
   acceptAiSuggestion,
@@ -6,6 +6,7 @@ import {
   rejectAiSuggestion,
   requestAiSuggestion,
   type AiProvider,
+  type AiWritingAction,
   type AiWritingRequest,
   type AiWritingSession,
   type AiWritingSuggestion
@@ -175,6 +176,114 @@ export const DEFAULT_PREFERENCE_SCHEMA: readonly PreferenceDefinition[] = [
   booleanPreference("stats.enabled", DEFAULT_EDITOR_BEHAVIOR_PREFERENCES["stats.enabled"], ["host", "workspace", "document", "user"])
 ];
 
+export type ExtensionDiagnosticCode =
+  | "disabled"
+  | "handler-error"
+  | "invalid-id"
+  | "invalid-params"
+  | "unknown-id";
+
+export interface ExtensionDiagnostic {
+  readonly code: ExtensionDiagnosticCode;
+  readonly id: string;
+  readonly reason: string;
+  readonly overridable: false;
+}
+
+export interface ExtensionCommandResult {
+  readonly handled: boolean;
+  readonly diagnostic?: ExtensionDiagnostic;
+}
+
+export interface AiActionPromptResult extends ExtensionCommandResult {
+  readonly demoAction?: AiWritingAction;
+  readonly params?: Readonly<Record<string, string>>;
+  readonly prompt?: string;
+}
+
+export interface CustomBlockSerializationResult extends ExtensionCommandResult {
+  readonly content?: string;
+}
+
+export interface ExtensionRunContext {
+  readonly session: MarkdownEditorSession;
+  readonly [key: string]: unknown;
+}
+
+export type ExtensionRunResult = void | ExtensionCommandResult | Promise<void | ExtensionCommandResult>;
+
+export interface SlashItemDefinition {
+  readonly aliases: readonly string[];
+  readonly group: "ai" | "blocks" | "insert" | "lists" | string;
+  readonly id: string;
+  readonly labelKey: string;
+  run(context: ExtensionRunContext): ExtensionRunResult;
+}
+
+export interface ToolbarItemDefinition {
+  readonly group: string;
+  readonly icon: string;
+  readonly id: string;
+  readonly labelKey: string;
+  isActive?(context: ExtensionRunContext): boolean;
+  run(context: ExtensionRunContext): ExtensionRunResult;
+}
+
+export interface AiActionParam {
+  readonly labelKey: string;
+  readonly name: string;
+  readonly type: "enum" | "text";
+  readonly values?: readonly string[];
+}
+
+export interface AiActionDefinition {
+  readonly demoAction: AiWritingAction;
+  readonly entryPoints?: readonly string[];
+  readonly id: string;
+  readonly labelKey: string;
+  readonly params?: readonly AiActionParam[];
+  buildPrompt(params: Readonly<Record<string, string>>): string;
+}
+
+export interface KeybindingDefinition {
+  readonly commandId: string;
+  readonly id: string;
+  readonly keys: readonly string[];
+  run?(context: ExtensionRunContext): ExtensionRunResult;
+}
+
+export interface CustomBlockDefinition {
+  readonly id: string;
+  readonly persistence: "fenced-directive" | "opaque-passthrough" | "raw-html";
+  matches?(node: MomentariseNode): boolean;
+  serialize(data: Readonly<Record<string, unknown>>): string;
+}
+
+export interface GetKeybindingsOptions {
+  readonly keymapDelegateToHost?: boolean;
+}
+
+export interface ExtensionRegistry {
+  buildAiActionPrompt(id: string, params?: Readonly<Record<string, string>>): AiActionPromptResult;
+  disableExtension(id: string, reason: string): void;
+  dispatchSlashItem(id: string, context: ExtensionRunContext): Promise<ExtensionCommandResult>;
+  dispatchToolbarItem(id: string, context: ExtensionRunContext): Promise<ExtensionCommandResult>;
+  enableExtension(id: string): void;
+  getAiActions(): readonly AiActionDefinition[];
+  getCustomBlocks(): readonly CustomBlockDefinition[];
+  getKeybindings(options?: GetKeybindingsOptions): readonly KeybindingDefinition[];
+  getSlashItems(): readonly SlashItemDefinition[];
+  getToolbarItems(): readonly ToolbarItemDefinition[];
+  isDisabled(id: string): boolean;
+  registerAiAction(definition: AiActionDefinition): void;
+  registerCustomBlock(definition: CustomBlockDefinition): void;
+  registerKeybinding(definition: KeybindingDefinition): void;
+  registerSlashItem(definition: SlashItemDefinition): void;
+  registerToolbarItem(definition: ToolbarItemDefinition): void;
+  searchSlashItems(query: string): readonly SlashItemDefinition[];
+  serializeCustomBlock(id: string, data: Readonly<Record<string, unknown>>): CustomBlockSerializationResult;
+}
+
 export type SessionEvent = "change" | "save-state" | "diagnostics" | "mode" | "destroy";
 export type SessionContentOrigin = "source-view" | "rich-view" | "ai" | "host";
 
@@ -216,6 +325,7 @@ export type SessionEventPayloadMap = {
 };
 
 export interface MarkdownEditorSession {
+  readonly extensions: ExtensionRegistry;
   acceptPendingSuggestion(): string | null;
   destroy(): void;
   flush(reason: SaveFlushReason): Promise<SaveFlushResult>;
@@ -398,7 +508,13 @@ export function createMarkdownEditorSession(options: MarkdownEditorSessionOption
   return new DefaultMarkdownEditorSession(options);
 }
 
+export function createExtensionRegistry(): ExtensionRegistry {
+  return new DefaultExtensionRegistry();
+}
+
 class DefaultMarkdownEditorSession implements MarkdownEditorSession {
+  readonly extensions = createExtensionRegistry();
+
   private aiSession: AiWritingSession | null = null;
   private cancelAutosave: (() => void) | null = null;
   private destroyed = false;
@@ -586,6 +702,241 @@ class DefaultMarkdownEditorSession implements MarkdownEditorSession {
       }
     }, this.saveEngine.autosaveDelayMs);
   }
+}
+
+class DefaultExtensionRegistry implements ExtensionRegistry {
+  private readonly aiActions = new Map<string, AiActionDefinition>();
+  private readonly customBlocks = new Map<string, CustomBlockDefinition>();
+  private readonly disabled = new Map<string, string>();
+  private readonly keybindings = new Map<string, KeybindingDefinition>();
+  private readonly slashItems = new Map<string, SlashItemDefinition>();
+  private readonly toolbarItems = new Map<string, ToolbarItemDefinition>();
+
+  buildAiActionPrompt(id: string, params: Readonly<Record<string, string>> = {}): AiActionPromptResult {
+    const definition = this.aiActions.get(id);
+    if (!definition) {
+      return {
+        diagnostic: extensionDiagnostic(id, "unknown-id", `Unknown AI action ${id}.`),
+        handled: false
+      };
+    }
+    const disabled = this.disabled.get(id);
+    if (disabled) {
+      return {
+        diagnostic: extensionDiagnostic(id, "disabled", disabled),
+        handled: false
+      };
+    }
+    const normalized = normalizeAiActionParams(definition, params);
+    if (!normalized.valid) {
+      return {
+        diagnostic: extensionDiagnostic(id, "invalid-params", normalized.reason),
+        handled: false
+      };
+    }
+    return {
+      demoAction: definition.demoAction,
+      handled: true,
+      params: normalized.params,
+      prompt: definition.buildPrompt(normalized.params)
+    };
+  }
+
+  disableExtension(id: string, reason: string): void {
+    this.disabled.set(id, reason);
+  }
+
+  dispatchSlashItem(id: string, context: ExtensionRunContext): Promise<ExtensionCommandResult> {
+    return this.dispatch(id, this.slashItems.get(id), context, "slash item");
+  }
+
+  dispatchToolbarItem(id: string, context: ExtensionRunContext): Promise<ExtensionCommandResult> {
+    return this.dispatch(id, this.toolbarItems.get(id), context, "toolbar item");
+  }
+
+  enableExtension(id: string): void {
+    this.disabled.delete(id);
+  }
+
+  getAiActions(): readonly AiActionDefinition[] {
+    return [...this.aiActions.values()].filter((definition) => !this.disabled.has(definition.id));
+  }
+
+  getCustomBlocks(): readonly CustomBlockDefinition[] {
+    return [...this.customBlocks.values()].filter((definition) => !this.disabled.has(definition.id));
+  }
+
+  getKeybindings(options: GetKeybindingsOptions = {}): readonly KeybindingDefinition[] {
+    if (options.keymapDelegateToHost) {
+      return [];
+    }
+    return [...this.keybindings.values()].filter((definition) => !this.disabled.has(definition.id));
+  }
+
+  getSlashItems(): readonly SlashItemDefinition[] {
+    return [...this.slashItems.values()].filter((definition) => !this.disabled.has(definition.id));
+  }
+
+  getToolbarItems(): readonly ToolbarItemDefinition[] {
+    return [...this.toolbarItems.values()].filter((definition) => !this.disabled.has(definition.id));
+  }
+
+  isDisabled(id: string): boolean {
+    return this.disabled.has(id);
+  }
+
+  registerAiAction(definition: AiActionDefinition): void {
+    this.register(definition.id, this.aiActions, definition);
+  }
+
+  registerCustomBlock(definition: CustomBlockDefinition): void {
+    this.register(definition.id, this.customBlocks, definition);
+  }
+
+  registerKeybinding(definition: KeybindingDefinition): void {
+    this.register(definition.id, this.keybindings, definition);
+  }
+
+  registerSlashItem(definition: SlashItemDefinition): void {
+    this.register(definition.id, this.slashItems, definition);
+  }
+
+  registerToolbarItem(definition: ToolbarItemDefinition): void {
+    this.register(definition.id, this.toolbarItems, definition);
+  }
+
+  searchSlashItems(query: string): readonly SlashItemDefinition[] {
+    const normalized = normalizeExtensionQuery(query);
+    if (!normalized) {
+      return this.getSlashItems();
+    }
+    return this.getSlashItems().filter((item) =>
+      [item.id, item.labelKey, item.group, ...item.aliases].some((candidate) =>
+        normalizeExtensionQuery(candidate).includes(normalized)
+      )
+    );
+  }
+
+  serializeCustomBlock(id: string, data: Readonly<Record<string, unknown>>): CustomBlockSerializationResult {
+    const definition = this.customBlocks.get(id);
+    if (!definition) {
+      return {
+        diagnostic: extensionDiagnostic(id, "unknown-id", `Unknown custom block ${id}.`),
+        handled: false
+      };
+    }
+    const disabled = this.disabled.get(id);
+    if (disabled) {
+      return {
+        diagnostic: extensionDiagnostic(id, "disabled", disabled),
+        handled: false
+      };
+    }
+    return {
+      content: definition.serialize(data),
+      handled: true
+    };
+  }
+
+  private async dispatch(
+    id: string,
+    definition: SlashItemDefinition | ToolbarItemDefinition | undefined,
+    context: ExtensionRunContext,
+    label: string
+  ): Promise<ExtensionCommandResult> {
+    if (!definition) {
+      return {
+        diagnostic: extensionDiagnostic(id, "unknown-id", `Unknown ${label} ${id}.`),
+        handled: false
+      };
+    }
+    const disabled = this.disabled.get(id);
+    if (disabled) {
+      return {
+        diagnostic: extensionDiagnostic(id, "disabled", disabled),
+        handled: false
+      };
+    }
+    try {
+      const result = await definition.run(context);
+      return result ?? {
+        handled: true
+      };
+    } catch (error) {
+      return {
+        diagnostic: extensionDiagnostic(id, "handler-error", errorMessage(error)),
+        handled: false
+      };
+    }
+  }
+
+  private register<Definition extends { readonly id: string }>(
+    id: string,
+    target: Map<string, Definition>,
+    definition: Definition
+  ): void {
+    assertValidExtensionId(id);
+    if (target.has(id)) {
+      throw new Error(`Duplicate extension id: ${id}`);
+    }
+    target.set(id, definition);
+  }
+}
+
+function assertValidExtensionId(id: string): void {
+  if (!/^[a-z][a-z0-9-]*:[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(id)) {
+    throw new Error(`Extension id must be namespaced, for example "host:my-action": ${id}`);
+  }
+}
+
+function extensionDiagnostic(
+  id: string,
+  code: ExtensionDiagnosticCode,
+  reason: string
+): ExtensionDiagnostic {
+  return {
+    code,
+    id,
+    overridable: false,
+    reason
+  };
+}
+
+function normalizeAiActionParams(
+  definition: AiActionDefinition,
+  params: Readonly<Record<string, string>>
+):
+  | { readonly params: Readonly<Record<string, string>>; readonly valid: true }
+  | { readonly reason: string; readonly valid: false } {
+  const normalized: Record<string, string> = {};
+  for (const param of definition.params ?? []) {
+    const value = params[param.name];
+    if (typeof value !== "string" || value.length === 0) {
+      return {
+        reason: `Missing parameter ${param.name} for AI action ${definition.id}.`,
+        valid: false
+      };
+    }
+    if (param.type === "enum" && !(param.values ?? []).includes(value)) {
+      return {
+        reason: `Parameter ${param.name} for AI action ${definition.id} must be one of ${(param.values ?? []).join(", ")}.`,
+        valid: false
+      };
+    }
+    normalized[param.name] = value;
+  }
+  return {
+    params: normalized,
+    valid: true
+  };
+}
+
+function normalizeExtensionQuery(query: string): string {
+  return query.trim().replace(/^\//, "").toLowerCase();
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function booleanPreference(key: string, defaultValue: boolean, scopes: readonly PreferenceScope[]): PreferenceDefinition {

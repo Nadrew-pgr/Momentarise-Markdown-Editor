@@ -352,8 +352,10 @@ function createRichKeymapPlugins(preferences: Required<MomentariseRichPreference
       "Mod-z": chainCommands(undoRichInputRuleCommand, undo),
       "Mod-y": redo,
       "Mod-Shift-z": redo,
+      ArrowDown: exitCodeBlockAtEndCommand,
+      ArrowRight: exitCodeBlockAtEndCommand,
       Backspace: liftOrMergeListItemAtStartCommand,
-      Enter: chainCommands(newlineInCode, splitListItemCommand, createParagraphNear, liftEmptyBlock, splitBlock),
+      Enter: chainCommands(exitCodeBlockOnFinalBlankLineCommand, newlineInCode, splitListItemCommand, createParagraphNear, liftEmptyBlock, splitBlock),
       Tab: sinkListItemCommand,
       "Shift-Tab": liftListItemCommand
     })
@@ -1269,6 +1271,58 @@ function splitListItemCommand(state: EditorState, dispatch?: (transaction: Trans
   }
   dispatch?.(transaction);
   return true;
+}
+
+function exitCodeBlockOnFinalBlankLineCommand(state: EditorState, dispatch?: (transaction: Transaction) => void): boolean {
+  const transaction = createCodeBlockExitTransaction(state, {
+    trimFinalBlankLine: true
+  });
+  if (!transaction) {
+    return false;
+  }
+  dispatch?.(transaction);
+  return true;
+}
+
+function exitCodeBlockAtEndCommand(state: EditorState, dispatch?: (transaction: Transaction) => void): boolean {
+  const transaction = createCodeBlockExitTransaction(state, {
+    trimFinalBlankLine: false
+  });
+  if (!transaction) {
+    return false;
+  }
+  dispatch?.(transaction);
+  return true;
+}
+
+function createCodeBlockExitTransaction(
+  state: EditorState,
+  options: { readonly trimFinalBlankLine: boolean }
+): Transaction | null {
+  if (!(state.selection instanceof TextSelection) || !state.selection.empty) {
+    return null;
+  }
+  const { $from } = state.selection;
+  if ($from.parent.type !== state.schema.nodes.code_block || $from.parentOffset !== $from.parent.content.size) {
+    return null;
+  }
+  if (options.trimFinalBlankLine && !$from.parent.textContent.endsWith("\n")) {
+    return null;
+  }
+
+  const codeDepth = $from.depth;
+  const paragraph = state.schema.nodes.paragraph!.create();
+  let transaction = state.tr;
+  if (options.trimFinalBlankLine && $from.parent.content.size > 0) {
+    const contentStart = $from.start(codeDepth);
+    const trimFrom = contentStart + $from.parent.content.size - 1;
+    transaction = transaction.delete(trimFrom, trimFrom + 1);
+  }
+
+  const insertAt = transaction.mapping.map($from.after(codeDepth));
+  transaction = transaction.insert(insertAt, paragraph);
+  const selectionPosition = Math.min(insertAt + 1, transaction.doc.content.size);
+  return transaction.setSelection(TextSelection.create(transaction.doc, selectionPosition));
 }
 
 function createTodoTogglePlugin(): Plugin {

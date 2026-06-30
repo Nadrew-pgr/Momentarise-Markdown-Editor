@@ -3446,3 +3446,185 @@
   - `gh auth setup-git` was used after the first `git push` failed because the HTTPS remote had no Git credential prompt available in this shell.
 - Next issue:
   - `MME-0027 — Extension registry V0`, only after MME-0026 commit and push are completed.
+
+### MME-0027 — Extension registry V0
+
+- Timestamp: 2026-06-26T23:00:45+02:00
+- Status: code-complete; pending human review before completion because this is public extension API.
+- Goal:
+  - Open MME extension points so hosts can register slash items, toolbar items, AI actions, custom blocks, and keybindings without forking package code.
+- RED proof:
+  - Added `tests/extension-registry.test.mjs`; before implementation `npm run test:extension-registry` failed because `createExtensionRegistry` was not exported from `@momentarise/md-editor`.
+- Change:
+  - Added `createExtensionRegistry()` and `MarkdownEditorSession.extensions` in `@momentarise/md-editor`.
+  - Added public registry contracts for slash items, toolbar items, AI actions with parameter schemas, keybindings, custom block serialization, and safe diagnostics for unknown/disabled/invalid ids.
+  - Kept duplicate id checks per registry surface so a host can expose the same logical action in slash and toolbar without a false collision.
+  - Registered built-in rich commands and built-in AI actions through the same public session registry in the demo.
+  - Registered demo host extensions from host code: `host:callout-card` slash item, `host:callout-card` toolbar item, `host:translate-selection` parameterized AI action, and `host:callout-card-block` fenced custom block.
+  - Routed visible slash, toolbar, command-palette, and editor AI menu surfaces through `session.extensions`.
+  - Fixed a runtime initialization-order bug discovered during visual verification: the demo session is now created after registry-dependent constants are initialized, preventing a top-level TDZ crash.
+  - Added `visual:mme-0027`, `scripts/visual-check-mme0027.mjs`, and `docs/internal/visual-checks/MME-0027/`.
+- Files changed:
+  - `packages/md-editor/src/index.ts`
+  - `apps/md-demo/src/reference-surface.ts`
+  - `apps/md-demo/src/main.ts`
+  - `package.json`
+  - `tests/extension-registry.test.mjs`
+  - `tests/demo-reference-surface-baseline.test.mjs`
+  - `scripts/visual-check-mme0027.mjs`
+  - `docs/internal/visual-checks/MME-0027/`
+  - `docs/internal/ISSUES.md`
+  - `docs/internal/build-log.md`
+- Visual impact:
+  - The rich toolbar now shows a host-registered `Host callout card` command.
+  - The slash menu can find the host `card` command.
+  - The command palette can find the host parameterized AI action.
+  - The host custom block renders as preserved Markdown in rich mode through the opaque fenced-directive path.
+- Visual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174 --strictPort --force`.
+  - Local URL: `http://127.0.0.1:5174/`.
+  - `MME_DEMO_URL=http://127.0.0.1:5174/ npm run visual:mme-0027` first failed in the sandbox because Chrome exited with `SIGABRT`; rerun with system Chrome permission was green.
+  - Artifacts:
+    - `docs/internal/visual-checks/MME-0027/extension-toolbar-host.png`
+    - `docs/internal/visual-checks/MME-0027/extension-custom-block-inserted.png`
+    - `docs/internal/visual-checks/MME-0027/extension-slash-host.png`
+    - `docs/internal/visual-checks/MME-0027/extension-ai-command-palette.png`
+    - `docs/internal/visual-checks/MME-0027/extension-ai-host-prompt.png`
+- Checks run:
+  - `npm run test:extension-registry` — RED before implementation, green after implementation.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:demo-commands` — green.
+  - `npm run test:demo-ai-writing` — green.
+  - `npm run test:editor-session` — green.
+  - `npm run build:demo` — green; existing Vite chunk-size warning only.
+  - `MME_DEMO_URL=http://127.0.0.1:5174/ npm run visual:mme-0027` — green with system Chrome permission.
+  - `npm test` — green; existing Vite chunk-size warning only.
+  - `git diff --check` — green.
+- Reviewer/fallback:
+  - Fallback Architecture/DX/Test self-review performed because subagent/tool policy does not allow spawning reviewer subagents unless the human explicitly asks for delegation.
+  - Review covered public registry shape, namespace validation, keymap delegation interaction with MME-0026, built-in parity through public registration, demo host-code boundary, custom block Markdown preservation, and AI parameter validation.
+- Deviations / notes:
+  - MME-0027 proves parameterized AI action plumbing with deterministic default params in the current demo. The final inline `/ai` prompt UX and provider selection remain in the dedicated AI interaction/provider issues.
+  - `input rules` are represented by the registry contract scope but no new host input-rule UI was added in this slice; existing rich input-rule behavior remains covered by the rich tests.
+- Human review:
+  - Required before marking complete because this issue defines public extension API.
+  - Human should review: API naming/shape in `packages/md-editor/src/index.ts`; host-visible toolbar/slash/AI behavior in the MME-0027 screenshots or live at `http://127.0.0.1:5174/`; custom block fenced Markdown preservation.
+- Commit status:
+  - Not committed yet. Commit blocker: issue is code-complete but human review is required before completion; per Gate 0.64, pending work is not committed unless the human explicitly asks for a pending-status commit.
+- Push status:
+  - Not pushed. Push blocker: no accepted issue commit exists yet.
+- Next issue:
+  - `MME-0028 — Editor surface package with i18n and accessibility`, only after human review accepts MME-0027, then issue-scoped commit and push are completed.
+
+#### Human review correction — code block exit and slash query consumption
+
+- Timestamp: 2026-06-26T23:42:00+02:00
+- Status:
+  - MME-0027 remains code-complete and pending human review; not marked complete.
+- Human review feedback:
+  - Rich mode code blocks trapped the user: Enter twice, ArrowDown, ArrowRight, and clicking below did not give an obvious way to continue writing after the code block.
+  - Selecting the host `card` slash item from `/car` left the literal `/car` in the document and inserted the custom block below/elsewhere, making the command feel broken.
+  - The host callout card itself is only registry proof, not a final product command; its product usefulness remains out of scope for MME-0027.
+- RED proof before implementation:
+  - Extended `tests/rich-input-rules.test.mjs`; `npm run test:rich-input-rules` failed because a second Enter at the end of a code block stayed inside the `code_block`.
+  - Extended `tests/extension-registry.test.mjs`; `npm run test:extension-registry` failed because demo slash dispatch did not call `consumeActiveSlashQuery`.
+- Change:
+  - Added rich code-block escape behavior in `@momentarise/md-rich-prosemirror`: Enter still inserts a code newline normally, but a second Enter on the final blank code line exits to a following paragraph; ArrowDown and ArrowRight at the final code position also exit to a following paragraph.
+  - Added demo slash-query consumption before registered slash item dispatch and before slash AI dispatch, so typed queries like `/car` and `/ai` do not remain in the document after selection.
+  - Changed rich-mode host custom-block insertion to use the current rich selection instead of source append: if the current paragraph is empty after slash-query deletion, it is replaced by the custom block; a trailing empty paragraph is inserted so the user can keep typing after the opaque block.
+  - Added visual-test hooks for rich text insertion and rich key dispatch so the browser proof can cover real editor flows.
+  - Added `extension-slash-host-inserted.png` and `rich-code-block-exit.png` to the MME-0027 visual artifacts.
+  - Parked the separate "click empty space below final block to create/focus a paragraph" affordance in `docs/internal/BACKLOG.md` under Core Editor Interactions for the block-affordance pass.
+- Checks run:
+  - `npm run test:rich-input-rules` — RED before implementation, green after implementation.
+  - `npm run test:extension-registry` — RED before implementation, green after implementation.
+  - `npm run test:demo-commands` — green.
+  - `npm run test:demo-rich-ux` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:demo-ai-writing` — green.
+  - `npm run build:demo` — green; existing Vite chunk-size warning only.
+  - `MME_DEMO_URL=http://127.0.0.1:5174/ npm run visual:mme-0027` — green with system Chrome permission.
+  - `npm test` — green; existing Vite chunk-size warning only.
+  - `git diff --check` — green.
+- Updated visual artifacts:
+  - `docs/internal/visual-checks/MME-0027/extension-slash-host.png` — typed `/car` opens the host slash item.
+  - `docs/internal/visual-checks/MME-0027/extension-slash-host-inserted.png` — selecting the item consumes `/car`, inserts at the current rich selection, and leaves a paragraph below.
+  - `docs/internal/visual-checks/MME-0027/rich-code-block-exit.png` — double Enter exits a final rich code block to a paragraph below.
+- Remaining human review:
+  - Re-check in browser: code block double Enter exits below; ArrowDown/ArrowRight from the end of the code block exit below; `/car` no longer remains after selecting `Host callout card`; a writable paragraph appears below the inserted opaque block.
+  - API review is still required before MME-0027 completion: names, registry surface, custom block persistence contract, and whether the host callout card should stay only as a registry demo or be removed/replaced in later surface work.
+  - The pure "click in empty space under the last block" affordance is not claimed complete in MME-0027; it is now explicitly parked for the block-affordance work.
+- Commit status:
+  - Not committed yet. Commit blocker remains human acceptance of MME-0027 unless the human explicitly asks for a pending-status commit.
+- Push status:
+  - Not pushed. Push blocker remains no accepted issue commit.
+
+### Human decision — MME-0027 accepted and commit/push authorized
+
+- Timestamp: 2026-06-30T00:00:00+02:00
+- Status:
+  - Completed; `MME-0028` is unblocked after commit and push.
+- Human decision:
+  - The human accepted MME-0027 after review fixes for rich code-block escape, slash query consumption/custom-block insertion, and compact toolbar labels.
+  - The human asked to commit and push, then report previous/current/next issue.
+- Source-of-truth docs updated:
+  - `README.md` lists MME-0027 as completed and sets current slice to `MME-0028`.
+  - `docs/internal/ISSUES.md` marks MME-0027 completed and MME-0028 unblocked after commit/push.
+- Checks already run for the accepted state:
+  - `npm test` — green; existing Vite chunk-size warning only.
+  - `MME_DEMO_URL=http://127.0.0.1:5174/ npm run visual:mme-0027` — green with system Chrome permission.
+  - `git diff --check` — green.
+- Commit status:
+  - Pending in this operation; final commit hash will be recorded after commit creation.
+- Push status:
+  - Pending in this operation; final push status will be recorded after push.
+- Next issue:
+  - `MME-0028 — Editor surface package with i18n and accessibility`.
+
+#### Reviewer artifact rule clarification
+
+- Timestamp: 2026-06-30T00:00:00+02:00
+- Status:
+  - Documentation correction; human review pending.
+- Human review feedback:
+  - Normal reviewer flow should be builder implements, reviewer inspects, reviewer returns findings, builder fixes immediately, and build-log summarizes.
+  - A review `.md` should not be produced just because a reviewer was used.
+- Change:
+  - Clarified that `docs/internal/ai-reviews/` is specific to external/read-only API review tooling.
+  - Clarified that normal reviewer/subagent findings should be returned directly to the builder and summarized in the build log.
+  - Limited markdown review artifacts to fallback self-review, external/read-only reviewers, explicit audit/decision records, or human-requested review files.
+- Checks run:
+  - Documentation-only correction; no code tests run.
+- Commit status:
+  - Not committed yet.
+- Push status:
+  - Not pushed.
+
+#### Human review correction — compact rich toolbar labels
+
+- Timestamp: 2026-06-26T23:58:00+02:00
+- Status:
+  - MME-0027 remains code-complete and pending human review; not marked complete.
+- Human review feedback:
+  - H1/H2 did not need a heading icon next to the visible `H1`/`H2` glyphs.
+  - Primary toolbar buttons should not show words beside icons; names can be exposed on hover and through accessibility labels.
+- RED proof before implementation:
+  - Extended `tests/demo-slash-toolbar-baseline.test.mjs`; `npm run test:demo-commands` failed while primary toolbar buttons still rendered visible label spans such as `H1`, `Todo`, `List`, `Code block`, `AI`, and `More` next to icons.
+- Change:
+  - Converted the rich primary toolbar to compact glyph/icon buttons: H1/H2 are text glyph buttons without a heading icon; Bold/Italic/Todo/List/Quote/Code/Link/Divider/AI/More are icon-only.
+  - Added `aria-label` and `title` to primary toolbar buttons so hover/tooling and screen-reader names remain available.
+  - Rendered host extension toolbar items as compact icon buttons with `aria-label`/`title`, not visible text.
+  - Updated `docs/internal/visual-checks/MME-0027/README.md` to document that `extension-toolbar-host.png` now also proves compact toolbar labels.
+- Checks run:
+  - `npm run test:demo-commands` — RED before implementation, green after implementation.
+  - `npm run test:extension-registry` — green.
+  - `npm run build:demo` — green; existing Vite chunk-size warning only.
+  - `MME_DEMO_URL=http://127.0.0.1:5174/ npm run visual:mme-0027` — green with system Chrome permission.
+- Updated visual artifact:
+  - `docs/internal/visual-checks/MME-0027/extension-toolbar-host.png` — compact primary toolbar with no redundant H icon beside H1/H2 and no visible word labels beside primary icons.
+- Remaining human review:
+  - Re-check toolbar in browser: hover names are acceptable, compact icon-only density is readable, and the host callout-card icon is understandable enough as a registry proof.
+- Commit status:
+  - Not committed yet. Commit blocker remains human acceptance of MME-0027 unless the human explicitly asks for a pending-status commit.
+- Push status:
+  - Not pushed. Push blocker remains no accepted issue commit.

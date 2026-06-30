@@ -4,6 +4,7 @@ import {
   DEFAULT_PREFERENCE_SCHEMA,
   resolvePreferences,
   type HostCapabilities,
+  type AiActionParam,
   type PreferenceLock,
   type PreferenceValue
 } from "@momentarise/md-editor";
@@ -40,25 +41,16 @@ export interface ReferenceEditorPreferenceInput extends Partial<Omit<ReferenceEd
   readonly userVisible?: readonly string[];
 }
 
-export type ReferenceAiActionId =
-  | "continue"
-  | "draft"
-  | "rewrite"
-  | "improve"
-  | "shorten"
-  | "expand"
-  | "summarize"
-  | "tone"
-  | "explain"
-  | "translate"
-  | "checklist"
-  | "table";
+export type ReferenceAiActionId = string;
 
 export interface ReferenceAiAction {
+  readonly buildPrompt?: (params: Readonly<Record<string, string>>) => string;
   readonly demoAction: AiWritingAction;
   readonly entryPoints: readonly ReferenceAiEntryPoint[];
+  readonly extensionId: string;
   readonly id: ReferenceAiActionId;
   readonly label: string;
+  readonly params?: readonly AiActionParam[];
   readonly prompt: string;
 }
 
@@ -66,6 +58,7 @@ export const REFERENCE_AI_ACTIONS: readonly ReferenceAiAction[] = [
   {
     demoAction: "complete",
     entryPoints: ["slash", "toolbar", "command-palette"],
+    extensionId: "mme:continue",
     id: "continue",
     label: "Continue writing",
     prompt: "Continue this Markdown section in the same voice."
@@ -73,6 +66,7 @@ export const REFERENCE_AI_ACTIONS: readonly ReferenceAiAction[] = [
   {
     demoAction: "insert-block",
     entryPoints: ["slash", "toolbar", "command-palette"],
+    extensionId: "mme:draft",
     id: "draft",
     label: "Draft section",
     prompt: "Draft a useful Markdown section for this document."
@@ -80,6 +74,7 @@ export const REFERENCE_AI_ACTIONS: readonly ReferenceAiAction[] = [
   {
     demoAction: "rewrite",
     entryPoints: ["toolbar", "selection"],
+    extensionId: "mme:rewrite",
     id: "rewrite",
     label: "Rewrite selection",
     prompt: "Rewrite the selected text clearly."
@@ -87,6 +82,7 @@ export const REFERENCE_AI_ACTIONS: readonly ReferenceAiAction[] = [
   {
     demoAction: "improve",
     entryPoints: ["toolbar", "selection"],
+    extensionId: "mme:improve",
     id: "improve",
     label: "Improve writing",
     prompt: "Improve clarity, structure, and precision."
@@ -94,6 +90,7 @@ export const REFERENCE_AI_ACTIONS: readonly ReferenceAiAction[] = [
   {
     demoAction: "rewrite",
     entryPoints: ["selection"],
+    extensionId: "mme:shorten",
     id: "shorten",
     label: "Shorten",
     prompt: "Shorten the selected text without losing the important meaning."
@@ -101,6 +98,7 @@ export const REFERENCE_AI_ACTIONS: readonly ReferenceAiAction[] = [
   {
     demoAction: "rewrite",
     entryPoints: ["selection"],
+    extensionId: "mme:expand",
     id: "expand",
     label: "Expand",
     prompt: "Expand the selected idea with useful detail."
@@ -108,6 +106,7 @@ export const REFERENCE_AI_ACTIONS: readonly ReferenceAiAction[] = [
   {
     demoAction: "summarize",
     entryPoints: ["slash", "toolbar", "selection", "command-palette"],
+    extensionId: "mme:summarize",
     id: "summarize",
     label: "Summarize",
     prompt: "Summarize the current document or selection."
@@ -115,13 +114,26 @@ export const REFERENCE_AI_ACTIONS: readonly ReferenceAiAction[] = [
   {
     demoAction: "rewrite",
     entryPoints: ["selection"],
+    extensionId: "mme:tone",
     id: "tone",
     label: "Adjust tone",
-    prompt: "Rewrite with a calmer, more professional tone."
+    params: [
+      {
+        labelKey: "ai.params.tone",
+        name: "tone",
+        type: "enum",
+        values: ["calmer", "professional", "direct"]
+      }
+    ],
+    prompt: "Rewrite with a calmer, more professional tone.",
+    buildPrompt(params) {
+      return `Rewrite with a ${params.tone} tone.`;
+    }
   },
   {
     demoAction: "summarize",
     entryPoints: ["selection", "command-palette"],
+    extensionId: "mme:explain",
     id: "explain",
     label: "Explain",
     prompt: "Explain the selected passage simply."
@@ -129,13 +141,25 @@ export const REFERENCE_AI_ACTIONS: readonly ReferenceAiAction[] = [
   {
     demoAction: "rewrite",
     entryPoints: ["selection"],
+    extensionId: "mme:translate",
     id: "translate",
     label: "Translate",
-    prompt: "Translate the selected text while preserving Markdown structure."
+    params: [
+      {
+        labelKey: "ai.params.language",
+        name: "language",
+        type: "text"
+      }
+    ],
+    prompt: "Translate the selected text while preserving Markdown structure.",
+    buildPrompt(params) {
+      return `Translate the selected text to ${params.language} while preserving Markdown structure.`;
+    }
   },
   {
     demoAction: "insert-block",
     entryPoints: ["slash", "toolbar"],
+    extensionId: "mme:checklist",
     id: "checklist",
     label: "Make checklist",
     prompt: "Turn the relevant ideas into a Markdown checklist."
@@ -143,6 +167,7 @@ export const REFERENCE_AI_ACTIONS: readonly ReferenceAiAction[] = [
   {
     demoAction: "insert-block",
     entryPoints: ["slash", "toolbar"],
+    extensionId: "mme:table",
     id: "table",
     label: "Make table",
     prompt: "Create a compact Markdown table from the relevant information."
@@ -219,12 +244,13 @@ export function resolveReferenceEditorPreferences(
 
 export function referenceAiActionsForEntryPoint(
   preferences: ReferenceEditorPreferences,
-  entryPoint: ReferenceAiEntryPoint
+  entryPoint: ReferenceAiEntryPoint,
+  actions: readonly ReferenceAiAction[] = REFERENCE_AI_ACTIONS
 ): readonly ReferenceAiAction[] {
   if (!preferences.aiEntryPoints.includes(entryPoint)) {
     return [];
   }
-  return REFERENCE_AI_ACTIONS.filter((action) => action.entryPoints.includes(entryPoint));
+  return actions.filter((action) => action.entryPoints.includes(entryPoint));
 }
 
 function referenceInputToPreferenceLayer(

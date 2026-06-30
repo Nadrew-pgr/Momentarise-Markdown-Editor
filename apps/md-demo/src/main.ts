@@ -40,7 +40,16 @@ import {
   type MockAiProvider
 } from "@momentarise/md-ai";
 import { createDefaultPolicyResolver } from "@momentarise/md-policy";
-import { createMarkdownEditorSession, type MarkdownEditorSession } from "@momentarise/md-editor";
+import {
+  createMarkdownEditorSession,
+  type AiActionDefinition,
+  type AiActionParam,
+  type CustomBlockDefinition,
+  type ExtensionRunContext,
+  type MarkdownEditorSession,
+  type SlashItemDefinition,
+  type ToolbarItemDefinition
+} from "@momentarise/md-editor";
 import {
   canInsertParagraphAfterCurrentBlock,
   createRichMarkdownState,
@@ -85,6 +94,7 @@ import {
   resolveReferenceEditorPreferences,
   type ReferenceAiAction,
   type ReferenceAiActionId,
+  type ReferenceAiEntryPoint,
   type ReferenceEditorPreferenceInput,
   type ReferenceEditorPreferences
 } from "./reference-surface.js";
@@ -227,19 +237,19 @@ app.innerHTML = `
           </div>
         </div>
         <div class="rich-command-toolbar" data-testid="rich-command-toolbar" aria-label="Rich editing toolbar" hidden>
-          <button class="toolbar-button" type="button" data-rich-command="heading1" data-testid="toolbar-command-heading1">${toolbarIcon("heading")}<span>H1</span></button>
-          <button class="toolbar-button" type="button" data-rich-command="heading2" data-testid="toolbar-command-heading2">${toolbarIcon("heading")}<span>H2</span></button>
+          <button class="toolbar-button" type="button" data-rich-command="heading1" data-testid="toolbar-command-heading1" aria-label="Heading 1" title="Heading 1">H1</button>
+          <button class="toolbar-button" type="button" data-rich-command="heading2" data-testid="toolbar-command-heading2" aria-label="Heading 2" title="Heading 2">H2</button>
           <button class="toolbar-button" type="button" data-rich-command="bold" data-testid="toolbar-command-bold" aria-label="Bold" title="Bold">${toolbarIcon("bold")}</button>
           <button class="toolbar-button" type="button" data-rich-command="italic" data-testid="toolbar-command-italic" aria-label="Italic" title="Italic">${toolbarIcon("italic")}</button>
-          <button class="toolbar-button" type="button" data-rich-command="todo" data-testid="toolbar-command-todo">${toolbarIcon("todo")}<span>Todo</span></button>
-          <button class="toolbar-button" type="button" data-rich-command="bulletList" data-testid="toolbar-command-bulletList">${toolbarIcon("list")}<span>List</span></button>
-          <button class="toolbar-button" type="button" data-rich-command="blockquote" data-testid="toolbar-command-blockquote">${toolbarIcon("quote")}<span>Quote</span></button>
-          <button class="toolbar-button" type="button" data-rich-command="codeBlock" data-testid="toolbar-command-codeBlock">${toolbarIcon("code")}<span>Code block</span></button>
-          <button class="toolbar-button" type="button" data-rich-command="link" data-testid="toolbar-command-link">${toolbarIcon("link")}<span>Link</span></button>
-          <button class="toolbar-button" type="button" data-rich-command="divider" data-testid="toolbar-command-divider">${toolbarIcon("divider")}<span>Divider</span></button>
-          <button class="toolbar-button toolbar-ai-button" type="button" data-reference-ai-toolbar data-testid="toolbar-ai-button">${toolbarIcon("ai")}<span>AI</span></button>
+          <button class="toolbar-button" type="button" data-rich-command="todo" data-testid="toolbar-command-todo" aria-label="Todo" title="Todo">${toolbarIcon("todo")}</button>
+          <button class="toolbar-button" type="button" data-rich-command="bulletList" data-testid="toolbar-command-bulletList" aria-label="Bullet list" title="Bullet list">${toolbarIcon("list")}</button>
+          <button class="toolbar-button" type="button" data-rich-command="blockquote" data-testid="toolbar-command-blockquote" aria-label="Quote" title="Quote">${toolbarIcon("quote")}</button>
+          <button class="toolbar-button" type="button" data-rich-command="codeBlock" data-testid="toolbar-command-codeBlock" aria-label="Code block" title="Code block">${toolbarIcon("code")}</button>
+          <button class="toolbar-button" type="button" data-rich-command="link" data-testid="toolbar-command-link" aria-label="Link" title="Link">${toolbarIcon("link")}</button>
+          <button class="toolbar-button" type="button" data-rich-command="divider" data-testid="toolbar-command-divider" aria-label="Divider" title="Divider">${toolbarIcon("divider")}</button>
+          <button class="toolbar-button toolbar-ai-button" type="button" data-reference-ai-toolbar data-testid="toolbar-ai-button" aria-label="AI" title="AI">${toolbarIcon("ai")}</button>
           <div class="toolbar-more">
-            <button class="toolbar-button" type="button" data-testid="toolbar-more-button" aria-expanded="false">${toolbarIcon("more")}<span>More</span></button>
+            <button class="toolbar-button" type="button" data-testid="toolbar-more-button" aria-label="More commands" title="More commands" aria-expanded="false">${toolbarIcon("more")}</button>
             <div class="toolbar-more-menu" data-testid="toolbar-more-menu" hidden>
               <button class="toolbar-menu-item" type="button" data-rich-command="paragraph">${toolbarIcon("heading")}<span>Paragraph</span></button>
               <button class="toolbar-menu-item" type="button" data-rich-command="heading3">${toolbarIcon("heading")}<span>H3</span></button>
@@ -482,6 +492,7 @@ const editorSurfaceStateElement = queryRequired<HTMLElement>('[data-testid="edit
 const htmlPreviewStatusBlock = queryRequired<HTMLElement>('[data-testid="html-preview-status-block"]');
 const htmlPreviewStatusElement = queryRequired<HTMLElement>('[data-testid="html-preview-status"]');
 const aiCommandSurface = queryRequired<HTMLDetailsElement>('[data-testid="ai-command-surface"]');
+const editorAiMenu = queryRequired<HTMLDivElement>('[data-testid="editor-ai-menu"]');
 const selectedTextAiAction = queryRequired<HTMLButtonElement>('[data-testid="selected-text-ai-action"]');
 const commandPaletteButton = queryRequired<HTMLButtonElement>('[data-testid="command-palette-button"]');
 const commandPalette = queryRequired<HTMLDivElement>('[data-testid="command-palette"]');
@@ -515,7 +526,7 @@ type PropertiesDisplayMode = "visible" | "hidden" | "source";
 
 interface SlashCommandState {
   readonly from: number;
-  readonly items: readonly RichMarkdownCommand[];
+  readonly items: readonly SlashItemDefinition[];
   readonly open: boolean;
   readonly query: string;
   readonly to: number;
@@ -545,7 +556,7 @@ const fixtureSaveTarget = createMemorySaveTarget({
 const lastDemoDocumentStorageKey = "momentarise-md-demo:last-document:v1";
 const demoAiPolicyResolver = createDefaultPolicyResolver();
 let demoAiProvider: MockAiProvider = createMockAiProvider();
-let session: MarkdownEditorSession = createDemoSession(fixtureMarkdown, fixtureSaveTarget, "fixture://source-mode-fixture.md");
+let session: MarkdownEditorSession;
 let activeDocument: ActiveDemoDocument = {
   fileName: "source-mode-fixture.md",
   kind: "markdown",
@@ -582,8 +593,205 @@ function saveFromKeyboardShortcut(): boolean {
   return true;
 }
 
+const richCommandIcons: Partial<Record<RichCommandId, IconName>> = {
+  blockquote: "quote",
+  bold: "bold",
+  bulletList: "list",
+  callout: "quote",
+  codeBlock: "code",
+  divider: "divider",
+  heading1: "heading",
+  heading2: "heading",
+  heading3: "heading",
+  image: "image",
+  inlineCode: "code",
+  italic: "italic",
+  link: "link",
+  orderedList: "list",
+  paragraph: "heading",
+  todo: "todo",
+  toggleBlock: "chevron"
+};
+
+const knownIconNames = new Set<IconName>([
+  "ai",
+  "bold",
+  "check",
+  "chevron",
+  "close",
+  "code",
+  "divider",
+  "heading",
+  "image",
+  "italic",
+  "link",
+  "list",
+  "more",
+  "quote",
+  "save",
+  "search",
+  "todo"
+]);
+
+function registerReferenceExtensions(editorSession: MarkdownEditorSession): void {
+  for (const command of richCommandRegistry) {
+    editorSession.extensions.registerSlashItem({
+      aliases: command.aliases,
+      group: richCommandSlashGroup(command.group),
+      id: richCommandExtensionId(command.id),
+      labelKey: `commands.${command.id}`,
+      run() {
+        runRichCommand(command.id);
+        return {
+          handled: true
+        };
+      }
+    });
+    editorSession.extensions.registerToolbarItem({
+      group: command.group,
+      icon: richCommandIcons[command.id] ?? "more",
+      id: richCommandExtensionId(command.id),
+      labelKey: `commands.${command.id}`,
+      run() {
+        runRichCommand(command.id);
+        return {
+          handled: true
+        };
+      }
+    });
+  }
+
+  for (const action of REFERENCE_AI_ACTIONS) {
+    editorSession.extensions.registerAiAction(referenceAiActionDefinition(action));
+  }
+
+  editorSession.extensions.registerCustomBlock(hostCalloutCardBlockDefinition);
+  editorSession.extensions.registerSlashItem({
+    aliases: ["host-card", "card"],
+    group: "insert",
+    id: "host:callout-card",
+    labelKey: "extensions.hostCalloutCard",
+    run() {
+      insertCustomMarkdownBlock("host:callout-card-block", {
+        title: "Host callout card"
+      });
+      return {
+        handled: true
+      };
+    }
+  });
+  editorSession.extensions.registerToolbarItem({
+    group: "insert",
+    icon: "quote",
+    id: "host:callout-card",
+    labelKey: "extensions.hostCalloutCard",
+    run() {
+      insertCustomMarkdownBlock("host:callout-card-block", {
+        title: "Host callout card"
+      });
+      return {
+        handled: true
+      };
+    }
+  });
+  editorSession.extensions.registerAiAction({
+    buildPrompt(params) {
+      return `Translate the selection to ${params.language} with a ${params.tone} tone.`;
+    },
+    demoAction: "rewrite",
+    entryPoints: ["slash", "command-palette"],
+    id: "host:translate-selection",
+    labelKey: "extensions.hostTranslateSelection",
+    params: [
+      {
+        labelKey: "extensions.language",
+        name: "language",
+        type: "text"
+      },
+      {
+        labelKey: "extensions.tone",
+        name: "tone",
+        type: "enum",
+        values: ["plain", "formal"]
+      }
+    ]
+  });
+}
+
+const hostCalloutCardBlockDefinition: CustomBlockDefinition = {
+  id: "host:callout-card-block",
+  persistence: "fenced-directive",
+  serialize(data) {
+    return `:::host:callout-card-block\n${String(data.title ?? "Host block")}\n:::\n`;
+  }
+};
+
+function referenceAiActionDefinition(action: ReferenceAiAction): AiActionDefinition {
+  return {
+    buildPrompt: action.buildPrompt ?? (() => action.prompt),
+    demoAction: action.demoAction,
+    entryPoints: action.entryPoints,
+    id: action.extensionId,
+    labelKey: `ai.actions.${action.id}`,
+    ...(action.params ? { params: action.params } : {})
+  };
+}
+
+function registeredReferenceAiActions(): readonly ReferenceAiAction[] {
+  return session.extensions.getAiActions().map((definition) => referenceAiActionFromDefinition(definition));
+}
+
+function referenceAiActionFromDefinition(definition: AiActionDefinition): ReferenceAiAction {
+  const builtInAction = REFERENCE_AI_ACTIONS.find((action) => action.extensionId === definition.id);
+  if (builtInAction) {
+    return builtInAction;
+  }
+  const params = defaultAiParams(definition.params ?? []);
+  return {
+    buildPrompt: definition.buildPrompt,
+    demoAction: definition.demoAction,
+    entryPoints: (definition.entryPoints ?? ["slash", "toolbar", "selection", "command-palette"]) as readonly ReferenceAiEntryPoint[],
+    extensionId: definition.id,
+    id: definition.id,
+    label: extensionLabel(definition.labelKey),
+    ...(definition.params ? { params: definition.params } : {}),
+    prompt: definition.buildPrompt(params)
+  };
+}
+
+function referenceAiActionById(actionId: ReferenceAiActionId): ReferenceAiAction | null {
+  return registeredReferenceAiActions().find((candidate) => candidate.id === actionId) ?? null;
+}
+
+function referenceAiActionsForRegisteredEntryPoint(entryPoint: ReferenceAiEntryPoint): readonly ReferenceAiAction[] {
+  return referenceAiActionsForEntryPoint(referenceSurfacePreferences, entryPoint, registeredReferenceAiActions());
+}
+
+function defaultAiParams(params: readonly AiActionParam[]): Readonly<Record<string, string>> {
+  const values: Record<string, string> = {};
+  for (const param of params) {
+    if (param.type === "enum") {
+      values[param.name] = param.values?.[0] ?? "";
+    } else {
+      values[param.name] = param.name.toLowerCase().includes("language") ? "French" : "value";
+    }
+  }
+  return values;
+}
+
+function richCommandExtensionId(commandId: RichCommandId): string {
+  return `mme:${commandId}`;
+}
+
+function richCommandSlashGroup(group: RichMarkdownCommand["group"]): SlashItemDefinition["group"] {
+  if (group === "block") {
+    return "blocks";
+  }
+  return group;
+}
+
 function createDemoSession(content: string, target: SaveTarget, path: string | null): MarkdownEditorSession {
-  return createMarkdownEditorSession({
+  const nextSession = createMarkdownEditorSession({
     aiProvider: demoAiProvider,
     autosaveDelayMs: 1000,
     content,
@@ -599,7 +807,11 @@ function createDemoSession(content: string, target: SaveTarget, path: string | n
     },
     target
   });
+  registerReferenceExtensions(nextSession);
+  return nextSession;
 }
+
+session = createDemoSession(fixtureMarkdown, fixtureSaveTarget, "fixture://source-mode-fixture.md");
 
 function replaceDemoSession(content: string, target: SaveTarget, path: string | null): void {
   session.destroy();
@@ -669,9 +881,14 @@ richCommandToolbar.addEventListener("click", (event) => {
   }
   const commandElement = target.closest<HTMLElement>("[data-rich-command]");
   if (!commandElement) {
+    const extensionElement = target.closest<HTMLElement>("[data-extension-toolbar-item]");
+    if (!extensionElement?.dataset.extensionToolbarItem) {
+      return;
+    }
+    void dispatchToolbarItem(extensionElement.dataset.extensionToolbarItem);
     return;
   }
-  runRichCommand(commandElement.dataset.richCommand as RichCommandId);
+  void dispatchToolbarItem(richCommandExtensionId(commandElement.dataset.richCommand as RichCommandId));
 });
 
 toolbarMoreButton.addEventListener("click", () => {
@@ -698,7 +915,7 @@ slashCommandItemsElement.addEventListener("click", (event) => {
   }
   const aiCommandElement = target.closest<HTMLElement>("[data-reference-ai-action]");
   if (aiCommandElement) {
-    closeSlashMenu();
+    consumeActiveSlashQuery();
     void runEditorNativeAiCommand(aiCommandElement.dataset.referenceAiAction as ReferenceAiActionId);
     return;
   }
@@ -706,7 +923,7 @@ slashCommandItemsElement.addEventListener("click", (event) => {
   if (!commandElement) {
     return;
   }
-  runRichCommand(commandElement.dataset.slashCommand as RichCommandId);
+  void dispatchSlashItem(commandElement.dataset.slashCommand);
 });
 
 openFileButton.addEventListener("click", () => {
@@ -1104,6 +1321,12 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   setRichSelectionAfterText(text: string) {
     setRichSelectionAfterText(text);
   },
+  typeRichTextForTest(text: string) {
+    typeRichTextForTest(text);
+  },
+  pressRichKeyForTest(key: string) {
+    pressRichKeyForTest(key);
+  },
   openSlashMenuForTest(query: string) {
     openSlashMenuForTest(query);
   },
@@ -1370,6 +1593,92 @@ function replaceEditorDocument(content: string): void {
       anchor: 0
     }
   });
+}
+
+function insertCustomMarkdownBlock(blockId: string, data: Readonly<Record<string, unknown>>): void {
+  const serialized = session.extensions.serializeCustomBlock(blockId, data);
+  if (!serialized.handled || !serialized.content) {
+    logEvent(`Custom block unavailable: ${serialized.diagnostic?.reason ?? blockId}.`);
+    return;
+  }
+  if (editorMode === "rich" && insertCustomMarkdownBlockInRichEditor(blockId, serialized.content)) {
+    return;
+  }
+  if (richChanged) {
+    syncRichMarkdownToSource("mode switch");
+  }
+  const current = getMarkdown();
+  const separator = current.endsWith("\n\n") ? "" : current.endsWith("\n") ? "\n" : "\n\n";
+  const next = `${current}${separator}${serialized.content}`;
+  replaceEditorDocument(next);
+  session.setContent(next, "host");
+  if (editorMode === "rich") {
+    mountRichEditor(next);
+  }
+  renderSaveState();
+  updateRoundTripStatus();
+  persistRestorableDocument();
+  logEvent(`Inserted custom block: ${blockId}.`);
+}
+
+function insertCustomMarkdownBlockInRichEditor(blockId: string, content: string): boolean {
+  if (!richEditor) {
+    return false;
+  }
+  const range = currentRichTopLevelBlockRange(richEditor.state);
+  if (!range) {
+    return false;
+  }
+  const rawBlock = richEditor.state.schema.nodes.unsupported_block!.create({
+    raw: content.trimEnd(),
+    reason: `registered custom block ${blockId}`
+  });
+  const trailingParagraph = richEditor.state.schema.nodes.paragraph!.create();
+  const replaceCurrentParagraph = range.node.type.name === "paragraph" && range.node.textContent.trim() === "";
+  const blockStart = replaceCurrentParagraph ? range.from : range.to;
+  let transaction = richEditor.state.tr;
+  if (replaceCurrentParagraph) {
+    transaction = transaction.replaceWith(range.from, range.to, rawBlock);
+  } else {
+    transaction = transaction.insert(range.to, rawBlock);
+  }
+  const paragraphPosition = blockStart + rawBlock.nodeSize;
+  transaction = transaction.insert(paragraphPosition, trailingParagraph);
+  const nextEditorState = richEditor.state.apply(
+    transaction.setSelection(TextSelection.create(transaction.doc, paragraphPosition + 1))
+  );
+  richState = {
+    ...richState,
+    editorState: nextEditorState
+  };
+  richEditor.updateState(nextEditorState);
+  richChanged = true;
+  syncRichMarkdownToSource("rich edit");
+  renderSaveState();
+  updateRoundTripStatus();
+  persistRestorableDocument();
+  renderRichBlockControls();
+  richEditor.focus();
+  logEvent(`Inserted custom block: ${blockId}.`);
+  return true;
+}
+
+function currentRichTopLevelBlockRange(state: ProseMirrorEditorState): {
+  readonly from: number;
+  readonly node: ReturnType<ProseMirrorEditorState["doc"]["nodeAt"]> extends infer T ? NonNullable<T> : never;
+  readonly to: number;
+} | null {
+  const { $from } = state.selection;
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    if ($from.node(depth - 1).type === state.schema.nodes.doc) {
+      return {
+        from: $from.before(depth),
+        node: $from.node(depth),
+        to: $from.after(depth)
+      };
+    }
+  }
+  return null;
 }
 
 function switchEditorMode(mode: DemoEditorMode): void {
@@ -1695,6 +2004,8 @@ function renderReferenceSurfaceState(): void {
   app.dataset.toolbarStyle = referenceSurfacePreferences.toolbarStyle;
   app.dataset.statusDisclosure = referenceSurfacePreferences.technicalStatusDisclosure;
   richCommandToolbar.hidden = editorMode !== "rich" || referenceSurfacePreferences.toolbarMode === "hidden";
+  renderExtensionToolbarItems();
+  renderEditorAiMenu();
   aiCommandSurface.hidden = !toolbarAiVisible;
   toolbarAiButton.hidden = !toolbarAiVisible || editorMode !== "rich";
   selectedTextAiAction.hidden = !selectionAiVisible;
@@ -1706,6 +2017,49 @@ function renderReferenceSurfaceState(): void {
   surfaceKeymapPrefElement.textContent = referenceSurfacePreferences.keymapDelegateToHost
     ? `${referenceSurfacePreferences.keymapProfile}, delegated`
     : referenceSurfacePreferences.keymapProfile;
+}
+
+function renderExtensionToolbarItems(): void {
+  for (const item of [...richCommandToolbar.querySelectorAll("[data-extension-toolbar-item]")]) {
+    item.remove();
+  }
+  const moreContainer = richCommandToolbar.querySelector(".toolbar-more");
+  const hostItems = session.extensions.getToolbarItems().filter((item) => item.id.startsWith("host:"));
+  for (const item of hostItems) {
+    const label = extensionLabel(item.labelKey);
+    const button = document.createElement("button");
+    button.className = "toolbar-button toolbar-extension-button";
+    button.dataset.extensionToolbarItem = item.id;
+    button.dataset.testid = `toolbar-extension-${item.id}`;
+    button.type = "button";
+    button.setAttribute("aria-label", label);
+    button.title = label;
+    button.innerHTML = toolbarIcon(toolbarIconName(item.icon));
+    richCommandToolbar.insertBefore(button, moreContainer);
+  }
+}
+
+function renderEditorAiMenu(): void {
+  const actions = referenceAiActionsForRegisteredEntryPoint("toolbar");
+  editorAiMenu.replaceChildren(
+    ...actions.map((action) => {
+      const button = document.createElement("button");
+      button.className = "ai-command-item";
+      button.dataset.referenceAiAction = action.id;
+      button.dataset.testid = `ai-action-${action.id}`;
+      button.type = "button";
+      const label = document.createElement("strong");
+      label.textContent = action.label;
+      const entryPoints = document.createElement("span");
+      entryPoints.textContent = action.entryPoints.slice(0, 3).join(", ");
+      button.append(label, entryPoints);
+      return button;
+    })
+  );
+}
+
+function toolbarIconName(icon: string): IconName {
+  return knownIconNames.has(icon as IconName) ? (icon as IconName) : "more";
 }
 
 function applyReferenceSurfacePreferences(): void {
@@ -2216,6 +2570,48 @@ function runRichCommand(commandId: RichCommandId, options: ApplyRichMarkdownComm
   logEvent(`Ran rich command: ${commandLabel(commandId)}.`);
 }
 
+async function dispatchSlashItem(extensionId: string | undefined): Promise<void> {
+  if (!extensionId) {
+    return;
+  }
+  consumeActiveSlashQuery();
+  const result = await session.extensions.dispatchSlashItem(extensionId, extensionRunContext());
+  if (!result.handled) {
+    closeSlashMenu();
+    logEvent(`Extension slash item unavailable: ${result.diagnostic?.reason ?? extensionId}.`);
+  }
+}
+
+async function dispatchToolbarItem(extensionId: string | undefined): Promise<void> {
+  if (!extensionId) {
+    return;
+  }
+  const result = await session.extensions.dispatchToolbarItem(extensionId, extensionRunContext());
+  if (!result.handled) {
+    logEvent(`Extension toolbar item unavailable: ${result.diagnostic?.reason ?? extensionId}.`);
+  }
+}
+
+function extensionRunContext(): ExtensionRunContext {
+  return {
+    session
+  };
+}
+
+function consumeActiveSlashQuery(): void {
+  if (!richEditor || !slashCommandState.open) {
+    closeSlashMenu();
+    return;
+  }
+  const cleanedState = richStateForCommand();
+  richState = cleanedState;
+  richEditor.updateState(cleanedState.editorState);
+  richChanged = true;
+  closeSlashMenu();
+  syncRichMarkdownToSource("rich edit");
+  richEditor.focus();
+}
+
 function optionsForCommand(
   commandId: RichCommandId,
   options: ApplyRichMarkdownCommandOptions
@@ -2238,6 +2634,27 @@ function optionsForCommand(
 
 function commandLabel(commandId: RichCommandId): string {
   return richCommandRegistry.find((command) => command.id === commandId)?.label ?? commandId;
+}
+
+function extensionLabel(labelKey: string): string {
+  const richCommandId = labelKey.startsWith("commands.") ? labelKey.slice("commands.".length) : null;
+  if (richCommandId) {
+    return richCommandRegistry.find((command) => command.id === richCommandId)?.label ?? readableExtensionLabel(richCommandId);
+  }
+  if (labelKey === "extensions.hostCalloutCard") {
+    return "Host callout card";
+  }
+  if (labelKey === "extensions.hostTranslateSelection") {
+    return "Host translate";
+  }
+  return readableExtensionLabel(labelKey.split(".").at(-1) ?? labelKey);
+}
+
+function readableExtensionLabel(value: string): string {
+  return value
+    .replace(/[-_:]+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function updateSlashMenuFromRichState(): void {
@@ -2265,7 +2682,7 @@ function detectSlashCommandState(): SlashCommandState {
   }
   const query = match[1] ?? "";
   const from = selection.from - query.length - 1;
-  const items = filterRichMarkdownCommands(query).slice(0, 8);
+  const items = session.extensions.searchSlashItems(query).slice(0, 8);
   const aiItems = matchingReferenceAiSlashActions(query);
   return {
     from,
@@ -2299,7 +2716,7 @@ function renderSlashMenu(): void {
       button.dataset.testid = `slash-command-item-${command.id}`;
       button.type = "button";
       const label = document.createElement("strong");
-      label.textContent = command.label;
+      label.textContent = extensionLabel(command.labelKey);
       const aliases = document.createElement("span");
       aliases.textContent = command.aliases.slice(0, 3).join(", ");
       button.append(label, aliases);
@@ -2370,7 +2787,7 @@ function richStateForCommand(): RichMarkdownState {
 }
 
 function openSlashMenuForTest(query: string): void {
-  const items = filterRichMarkdownCommands(query).slice(0, 8);
+  const items = session.extensions.searchSlashItems(query).slice(0, 8);
   slashCommandState = {
     from: 0,
     items,
@@ -2421,11 +2838,11 @@ function handleSlashMenuKeyboard(event: KeyboardEvent): boolean {
     const command =
       slashCommandSelectedIndex < slashCommandState.items.length ? slashCommandState.items[slashCommandSelectedIndex] : null;
     if (command) {
-      runRichCommand(command.id);
+      void dispatchSlashItem(command.id);
     } else {
       const aiAction = aiItems[slashCommandSelectedIndex - slashCommandState.items.length];
       if (aiAction) {
-        closeSlashMenu();
+        consumeActiveSlashQuery();
         void runEditorNativeAiCommand(aiAction.id);
       }
     }
@@ -2436,7 +2853,7 @@ function handleSlashMenuKeyboard(event: KeyboardEvent): boolean {
 
 function matchingReferenceAiSlashActions(query: string): readonly ReferenceAiAction[] {
   const normalizedQuery = query.trim().toLowerCase();
-  return referenceAiActionsForEntryPoint(referenceSurfacePreferences, "slash").filter((action: ReferenceAiAction) => {
+  return referenceAiActionsForRegisteredEntryPoint("slash").filter((action: ReferenceAiAction) => {
     if (!normalizedQuery) {
       return true;
     }
@@ -2472,6 +2889,55 @@ function setRichSelectionAfterText(text: string): void {
   }
   richEditor.focus();
   richEditor.dispatch(richEditor.state.tr.setSelection(TextSelection.create(richEditor.state.doc, position)));
+}
+
+function typeRichTextForTest(text: string): void {
+  if (!richEditor) {
+    throw new Error("Rich editor is not mounted.");
+  }
+  let nextState = richEditor.state;
+  for (const character of text) {
+    nextState = nextState.apply(nextState.tr.insertText(character));
+  }
+  richState = {
+    ...richState,
+    editorState: nextState
+  };
+  richEditor.updateState(nextState);
+  richChanged = true;
+  syncRichMarkdownToSource("rich edit");
+  renderRichBlockControls();
+  updateSlashMenuFromRichState();
+  richEditor.focus();
+}
+
+function pressRichKeyForTest(key: string): void {
+  if (!richEditor) {
+    throw new Error("Rich editor is not mounted.");
+  }
+  const event = {
+    key,
+    preventDefault() {},
+    stopPropagation() {}
+  } as KeyboardEvent;
+  for (const plugin of richEditor.state.plugins) {
+    const handler = plugin.props.handleKeyDown;
+    if (!handler) {
+      continue;
+    }
+    if (handler.call(plugin, richEditor, event)) {
+      break;
+    }
+  }
+  richState = {
+    ...richState,
+    editorState: richEditor.state
+  };
+  richChanged = true;
+  syncRichMarkdownToSource("rich edit");
+  renderRichBlockControls();
+  updateSlashMenuFromRichState();
+  richEditor.focus();
 }
 
 async function copyMarkdown(): Promise<void> {
@@ -2683,7 +3149,7 @@ function renderCommandPaletteItems(): void {
 
 function commandPaletteActions(): readonly ReferenceAiAction[] {
   const query = commandPaletteInput.value.trim().toLowerCase();
-  return referenceAiActionsForEntryPoint(referenceSurfacePreferences, "command-palette").filter((action: ReferenceAiAction) => {
+  return referenceAiActionsForRegisteredEntryPoint("command-palette").filter((action: ReferenceAiAction) => {
     if (!query) {
       return true;
     }
@@ -2732,7 +3198,7 @@ function setReferenceSurfacePreferences(preferences: ReferenceEditorPreferenceIn
 }
 
 async function runEditorNativeAiCommand(actionId: ReferenceAiActionId): Promise<void> {
-  const action = REFERENCE_AI_ACTIONS.find((candidate: ReferenceAiAction) => candidate.id === actionId);
+  const action = referenceAiActionById(actionId);
   if (!action) {
     return;
   }
@@ -2752,8 +3218,17 @@ async function runEditorNativeAiCommand(actionId: ReferenceAiActionId): Promise<
     return;
   }
 
-  aiActionSelect.value = action.demoAction;
-  aiPromptInput.value = action.prompt;
+  const promptResult = session.extensions.buildAiActionPrompt(action.extensionId, defaultAiParams(action.params ?? []));
+  if (!promptResult.handled || !promptResult.prompt) {
+    aiStatusElement.textContent = `AI action unavailable: ${promptResult.diagnostic?.reason ?? action.label}.`;
+    editorAiStatusElement.textContent = aiStatusElement.textContent;
+    logEvent(`AI action unavailable: ${promptResult.diagnostic?.reason ?? action.label}.`);
+    renderReferenceSurfaceState();
+    return;
+  }
+
+  aiActionSelect.value = promptResult.demoAction ?? action.demoAction;
+  aiPromptInput.value = promptResult.prompt;
   editorAiStatusElement.textContent = `Running ${action.label}...`;
   await generateAiSuggestion();
 }
@@ -3076,11 +3551,11 @@ declare global {
       getMarkdown: () => string;
       getSlashMenuState: () => {
         readonly aiItems: readonly ReferenceAiActionId[];
-        readonly items: readonly RichCommandId[];
+        readonly items: readonly string[];
         readonly open: boolean;
         readonly query: string;
         readonly selectedAiId: ReferenceAiActionId | null;
-        readonly selectedId: RichCommandId | null;
+        readonly selectedId: string | null;
         readonly selectedIndex: number;
       };
       getToolbarState: () => {
@@ -3166,6 +3641,7 @@ declare global {
       memorySave: (source: "button" | "keyboard shortcut") => void;
       insertParagraphAfterCurrentRichBlock: () => void;
       openSlashMenuForTest: (query: string) => void;
+      pressRichKeyForTest: (key: string) => void;
       runRichCommand: (commandId: RichCommandId, options?: ApplyRichMarkdownCommandOptions) => void;
       showRealFileOpenUnavailableForTest: () => void;
       showUnsupportedLocalFileStateForTest: () => void;
@@ -3179,6 +3655,7 @@ declare global {
       switchEditorMode: (mode: DemoEditorMode) => void;
       toggleCurrentRichTodo: () => void;
       toggleRichFoldForText: (text: string) => void;
+      typeRichTextForTest: (text: string) => void;
     };
     __MME_HTML_PREVIEW_SCRIPT_RAN__?: boolean;
   }
