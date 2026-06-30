@@ -3662,6 +3662,18 @@
 - Next issue:
   - `MME-0028.5 — Inline AI prompt surface and usable writing flow`.
 
+#### MME-0028 commit evidence
+
+- Timestamp: 2026-06-30T14:52:31+02:00
+- Status:
+  - Follow-up docs/process note recording the issue commit hash.
+- Commit status:
+  - Issue-scoped commit created: `c1b3622` (`feat: add editor surface package`).
+- Push status:
+  - Not pushed. Branch is local-only pending explicit safe push approval.
+- Next issue:
+  - `MME-0028.5 — Inline AI prompt surface and usable writing flow`.
+
 #### MME-0028 reviewer retry — subagent findings fixed
 
 - Timestamp: 2026-06-30T14:35:54+02:00
