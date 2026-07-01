@@ -1,4 +1,5 @@
-import type { DocumentDialect, DocumentPath, EditorMode, MomentariseNode, ParseResult, SaveState } from "@momentarise/md-core";
+import type { DocumentDialect, DocumentPath, EditorMode, MomentariseNode, ParseResult, SaveState, SourceRange } from "@momentarise/md-core";
+import { createHeadingSlugSegment } from "@momentarise/md-core";
 import { createMarkdownAstParser } from "@momentarise/md-format";
 import {
   acceptAiSuggestion,
@@ -322,6 +323,37 @@ export interface SessionModePayload {
   readonly mode: EditorMode;
 }
 
+export interface FindOptions {
+  readonly caseSensitive?: boolean;
+  readonly regex?: boolean;
+}
+
+export interface FindMatch {
+  readonly from: number;
+  readonly index: number;
+  readonly text: string;
+  readonly to: number;
+}
+
+export interface ReplaceResult {
+  readonly content: string;
+  readonly matches: readonly FindMatch[];
+  readonly replaced: number;
+}
+
+export interface TextRange {
+  readonly from: number;
+  readonly to: number;
+}
+
+export interface OutlineItem {
+  readonly children: readonly OutlineItem[];
+  readonly depth: number;
+  readonly slug: string;
+  readonly sourceRange: SourceRange;
+  readonly text: string;
+}
+
 export type SessionEventPayloadMap = {
   readonly change: SessionChangePayload;
   readonly "save-state": SaveState;
@@ -334,14 +366,18 @@ export interface MarkdownEditorSession {
   readonly extensions: ExtensionRegistry;
   acceptPendingSuggestion(): string | null;
   destroy(): void;
+  find(query: string, options?: FindOptions): readonly FindMatch[];
   flush(reason: SaveFlushReason): Promise<SaveFlushResult>;
   getContent(): string;
   getMode(): EditorMode;
+  getOutline(): readonly OutlineItem[];
   getParseResult(): ParseResult;
   getPendingSuggestion(): AiWritingSuggestion | null;
   getSaveState(): SaveState;
   on<Event extends SessionEvent>(event: Event, handler: (payload: SessionEventPayloadMap[Event]) => void): () => void;
   rejectPendingSuggestion(): void;
+  replace(range: TextRange, replacement: string, origin?: SessionContentOrigin): ReplaceResult;
+  replaceAll(query: string, replacement: string, options?: FindOptions & { readonly origin?: SessionContentOrigin }): ReplaceResult;
   requestAiSuggestion(request: Omit<AiWritingRequest, "document">): Promise<AiWritingSuggestion>;
   setContent(next: string, origin: SessionContentOrigin): void;
   setMode(mode: EditorMode): void;
@@ -515,7 +551,9 @@ export function createMarkdownEditorSession(options: MarkdownEditorSessionOption
 }
 
 export function createExtensionRegistry(): ExtensionRegistry {
-  return new DefaultExtensionRegistry();
+  const registry = new DefaultExtensionRegistry();
+  registerDefaultKeybindings(registry);
+  return registry;
 }
 
 class DefaultMarkdownEditorSession implements MarkdownEditorSession {
@@ -587,6 +625,14 @@ class DefaultMarkdownEditorSession implements MarkdownEditorSession {
     return this.mode;
   }
 
+  find(query: string, options: FindOptions = {}): readonly FindMatch[] {
+    return findMarkdownMatches(this.getContent(), query, options);
+  }
+
+  getOutline(): readonly OutlineItem[] {
+    return createMarkdownOutline(this.getParseResult());
+  }
+
   getParseResult(): ParseResult {
     this.parseCache ??= this.parser.parse(this.getContent(), {
       dialect: this.dialect,
@@ -621,6 +667,53 @@ class DefaultMarkdownEditorSession implements MarkdownEditorSession {
     }
     const result = rejectAiSuggestion(this.getContent(), this.pendingSuggestion);
     this.pendingSuggestion = result.suggestion;
+  }
+
+  replace(range: TextRange, replacement: string, origin: SessionContentOrigin = "host"): ReplaceResult {
+    this.assertAlive();
+    const content = this.getContent();
+    const normalized = normalizeTextRange(range, content.length);
+    const before = content.slice(0, normalized.from);
+    const after = content.slice(normalized.to);
+    const next = `${before}${replacement}${after}`;
+    const match: FindMatch = {
+      from: normalized.from,
+      index: 0,
+      text: content.slice(normalized.from, normalized.to),
+      to: normalized.to
+    };
+    this.setContent(next, origin);
+    return {
+      content: next,
+      matches: [match],
+      replaced: 1
+    };
+  }
+
+  replaceAll(
+    query: string,
+    replacement: string,
+    options: FindOptions & { readonly origin?: SessionContentOrigin } = {}
+  ): ReplaceResult {
+    this.assertAlive();
+    const matches = this.find(query, options);
+    if (matches.length === 0) {
+      return {
+        content: this.getContent(),
+        matches,
+        replaced: 0
+      };
+    }
+    let next = this.getContent();
+    for (const match of [...matches].reverse()) {
+      next = `${next.slice(0, match.from)}${replacement}${next.slice(match.to)}`;
+    }
+    this.setContent(next, options.origin ?? "host");
+    return {
+      content: next,
+      matches,
+      replaced: matches.length
+    };
   }
 
   async requestAiSuggestion(request: Omit<AiWritingRequest, "document">): Promise<AiWritingSuggestion> {
@@ -710,6 +803,138 @@ class DefaultMarkdownEditorSession implements MarkdownEditorSession {
       }
     }, this.saveEngine.autosaveDelayMs);
   }
+}
+
+function registerDefaultKeybindings(registry: ExtensionRegistry): void {
+  registry.registerKeybinding({
+    commandId: "mme.find.open",
+    id: "mme:find-open",
+    keys: ["Mod-f"]
+  });
+}
+
+function findMarkdownMatches(source: string, query: string, options: FindOptions = {}): readonly FindMatch[] {
+  if (!query) {
+    return [];
+  }
+  if (options.regex) {
+    return findRegexMatches(source, query, options);
+  }
+  return findLiteralMatches(source, query, options);
+}
+
+function findLiteralMatches(source: string, query: string, options: FindOptions): readonly FindMatch[] {
+  const caseSensitive = options.caseSensitive ?? true;
+  const haystack = caseSensitive ? source : source.toLowerCase();
+  const needle = caseSensitive ? query : query.toLowerCase();
+  const matches: FindMatch[] = [];
+  let from = 0;
+  while (from <= haystack.length) {
+    const index = haystack.indexOf(needle, from);
+    if (index < 0) {
+      break;
+    }
+    matches.push({
+      from: index,
+      index: matches.length,
+      text: source.slice(index, index + query.length),
+      to: index + query.length
+    });
+    from = index + Math.max(needle.length, 1);
+  }
+  return matches;
+}
+
+function findRegexMatches(source: string, query: string, options: FindOptions): readonly FindMatch[] {
+  const flags = options.caseSensitive === false ? "giu" : "gu";
+  const expression = new RegExp(query, flags);
+  const matches: FindMatch[] = [];
+  for (const match of source.matchAll(expression)) {
+    const text = match[0] ?? "";
+    if (match.index === undefined || text.length === 0) {
+      continue;
+    }
+    matches.push({
+      from: match.index,
+      index: matches.length,
+      text,
+      to: match.index + text.length
+    });
+  }
+  return matches;
+}
+
+function normalizeTextRange(range: TextRange, contentLength: number): TextRange {
+  const from = Math.max(0, Math.min(range.from, contentLength));
+  const to = Math.max(from, Math.min(range.to, contentLength));
+  return { from, to };
+}
+
+function createMarkdownOutline(parseResult: ParseResult): readonly OutlineItem[] {
+  const headings = collectHeadingNodes(parseResult.document.root.children ?? []);
+  const root: OutlineItem[] = [];
+  const stack: OutlineItem[] = [];
+  const slugPath: { level: number; segment: string }[] = [];
+  const siblingCounts = new Map<string, number>();
+
+  for (const heading of headings) {
+    const depth = headingDepth(heading);
+    while (stack.length > 0 && stack[stack.length - 1]!.depth >= depth) {
+      stack.pop();
+    }
+    while (slugPath.length > 0 && slugPath[slugPath.length - 1]!.level >= depth) {
+      slugPath.pop();
+    }
+    const slug = createHeadingSlugSegment(slugPath, depth, headingText(heading), siblingCounts);
+    const item: OutlineItem = {
+      children: [],
+      depth,
+      slug,
+      sourceRange: heading.sourceRange!,
+      text: headingText(heading)
+    };
+    const parent = stack[stack.length - 1];
+    if (parent) {
+      (parent.children as OutlineItem[]).push(item);
+    } else {
+      root.push(item);
+    }
+    stack.push(item);
+    slugPath.push({
+      level: depth,
+      segment: slug
+    });
+  }
+
+  return root;
+}
+
+function collectHeadingNodes(nodes: readonly MomentariseNode[]): readonly MomentariseNode[] {
+  const headings: MomentariseNode[] = [];
+  for (const node of nodes) {
+    if (node.kind !== "opaque" && node.type === "heading" && node.sourceRange) {
+      headings.push(node);
+    }
+    if (node.kind !== "opaque" && node.children) {
+      headings.push(...collectHeadingNodes(node.children));
+    }
+  }
+  return headings;
+}
+
+function headingDepth(node: MomentariseNode): number {
+  const depth = node.kind !== "opaque" ? node.attributes?.depth : undefined;
+  return typeof depth === "number" && depth >= 1 && depth <= 6 ? depth : 1;
+}
+
+function headingText(node: MomentariseNode): string {
+  if (node.kind === "opaque") {
+    return node.raw.trim();
+  }
+  if (node.type === "text") {
+    return typeof node.attributes?.value === "string" ? node.attributes.value : "";
+  }
+  return (node.children ?? []).map((child) => headingText(child)).join("").trim();
 }
 
 class DefaultExtensionRegistry implements ExtensionRegistry {

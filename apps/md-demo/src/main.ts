@@ -1,4 +1,4 @@
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView as CodeMirrorEditorView } from "@codemirror/view";
 import {
   createMarkdownAstFormatter,
@@ -52,7 +52,9 @@ import {
   type AiActionParam,
   type CustomBlockDefinition,
   type ExtensionRunContext,
+  type FindMatch,
   type MarkdownEditorSession,
+  type OutlineItem,
   type SlashItemDefinition,
   type ToolbarItemDefinition
 } from "@momentarise/md-editor";
@@ -67,6 +69,7 @@ import {
   insertParagraphAfterCurrentBlock,
   reconfigureRichPlugins,
   reorderRichTopLevelBlock,
+  richRangeForSourceRange,
   richCommandRegistry,
   richTopLevelBlockRanges,
   runRichMarkdownCommand,
@@ -84,6 +87,7 @@ import {
 } from "@momentarise/md-rich-prosemirror";
 import {
   createMomentariseSourceCompartments,
+  createMomentariseSourceFindHighlightExtension,
   createMomentariseSourceExtensions,
   createMomentariseSourceReconfigureEffects,
   type MomentariseSourcePreferences
@@ -99,6 +103,7 @@ import {
   createAiAssistantPanel,
   createCommandPalette,
   createDocumentStatus,
+  createFindReplaceSurface,
   createInlineAiPrompt,
   createModeControl,
   createSlashMenu,
@@ -149,6 +154,7 @@ const canonical = "Markdown";
 const app = queryRequired<HTMLDivElement>("#app");
 let referenceSurfacePreferences: ReferenceEditorPreferences = resolveReferenceEditorPreferences();
 const sourcePreferenceCompartments = createMomentariseSourceCompartments();
+const sourceFindCompartment = new Compartment();
 
 app.innerHTML = `
   <main class="shell reference-editor-shell" data-testid="reference-editor-shell">
@@ -205,6 +211,7 @@ app.innerHTML = `
     <section class="workspace" aria-label="Markdown workspace">
       <div class="editor-region">
         <div data-testid="editor-ai-assistant-panel-host"></div>
+        <div data-testid="find-replace-host"></div>
         <div data-testid="command-palette-host"></div>
         <div data-testid="rich-command-toolbar-host"></div>
         <div
@@ -473,6 +480,7 @@ const aiCommandSurface = queryRequired<HTMLDetailsElement>('[data-testid="ai-com
 const editorAiMenu = queryRequired<HTMLDivElement>('[data-testid="editor-ai-menu"]');
 const selectedTextAiAction = queryRequired<HTMLButtonElement>('[data-testid="selected-text-ai-action"]');
 const commandPaletteButton = queryRequired<HTMLButtonElement>('[data-testid="command-palette-button"]');
+const findReplaceHost = queryRequired<HTMLDivElement>('[data-testid="find-replace-host"]');
 const commandPaletteHost = queryRequired<HTMLDivElement>('[data-testid="command-palette-host"]');
 const editorAiAssistantPanelHost = queryRequired<HTMLDivElement>('[data-testid="editor-ai-assistant-panel-host"]');
 const inlineAiPromptHost = queryRequired<HTMLDivElement>('[data-testid="inline-ai-prompt-host"]');
@@ -499,6 +507,7 @@ let editorAiStatusElement: HTMLElement;
 let inlineAiPrompt: HTMLDivElement;
 let commandPaletteSurface: ReturnType<typeof createCommandPalette> | null = null;
 let documentStatusSurface: ReturnType<typeof createDocumentStatus> | null = null;
+let findReplaceSurface: ReturnType<typeof createFindReplaceSurface> | null = null;
 let inlineAiPromptSurface: ReturnType<typeof createInlineAiPrompt> | null = null;
 let modeControlSurface: ReturnType<typeof createModeControl> | null = null;
 let slashMenuSurface: ReturnType<typeof createSlashMenu> | null = null;
@@ -542,6 +551,14 @@ interface SlashCommandState {
   readonly open: boolean;
   readonly query: string;
   readonly to: number;
+}
+
+interface FindReplaceDemoState {
+  readonly activeIndex: number;
+  readonly matches: readonly FindMatch[];
+  readonly open: boolean;
+  readonly query: string;
+  readonly replacement: string;
 }
 
 interface ActiveDemoDocument {
@@ -615,7 +632,15 @@ let slashCommandState: SlashCommandState = {
   to: 0
 };
 let slashCommandSelectedIndex = 0;
+let findReplaceState: FindReplaceDemoState = {
+  activeIndex: 0,
+  matches: [],
+  open: false,
+  query: "",
+  replacement: ""
+};
 const richFoldingPluginKey = new PluginKey<DecorationSet>("momentarise-demo-rich-folding");
+const richFindHighlightPluginKey = new PluginKey("momentarise-demo-rich-find");
 let aiSessionStarted = false;
 
 function saveFromKeyboardShortcut(): boolean {
@@ -849,6 +874,7 @@ function mountReferenceSurfaceComponents(): void {
   toolbarSurface?.destroy();
   slashMenuSurface?.destroy();
   commandPaletteSurface?.destroy();
+  findReplaceSurface?.destroy();
   documentStatusSurface?.destroy();
   modeControlSurface?.destroy();
   inlineAiPromptSurface?.destroy();
@@ -914,6 +940,34 @@ function mountReferenceSurfaceComponents(): void {
     }
   });
   slashCommandMenu = slashMenuSurface.root as HTMLDivElement;
+
+  findReplaceSurface = createFindReplaceSurface({
+    host: findReplaceHost,
+    icons: defaultIconSet,
+    preferences: surfacePreferences(),
+    session,
+    state: findReplaceState,
+    strings: defaultMmeStrings,
+    onClose() {
+      setFindReplaceState({ open: false });
+      focusActiveEditor();
+    },
+    onFind(query) {
+      runFindQuery(query);
+    },
+    onFindNext() {
+      stepFindMatch(1);
+    },
+    onFindPrevious() {
+      stepFindMatch(-1);
+    },
+    onReplace(replacement) {
+      replaceActiveFindMatch(replacement);
+    },
+    onReplaceAll(replacement) {
+      replaceAllFindMatches(replacement);
+    }
+  });
 
   inlineAiPromptSurface = createInlineAiPrompt({
     actions: inlineAiPromptActions(),
@@ -1040,6 +1094,139 @@ function surfaceSlashState(): SurfaceSlashState {
   };
 }
 
+function setFindReplaceState(nextState: Partial<FindReplaceDemoState>): void {
+  findReplaceState = {
+    ...findReplaceState,
+    ...nextState
+  };
+  findReplaceSurface?.setState(findReplaceState);
+}
+
+function runFindQuery(query: string): void {
+  const matches = query ? session.find(query, { caseSensitive: false }) : [];
+  setFindReplaceState({
+    activeIndex: 0,
+    matches,
+    query
+  });
+  setFindMatches(matches);
+}
+
+function refreshFindMatches(): void {
+  if (!findReplaceState.query) {
+    setFindMatches([]);
+    return;
+  }
+  const matches = session.find(findReplaceState.query, { caseSensitive: false });
+  const activeIndex = Math.max(0, Math.min(findReplaceState.activeIndex, Math.max(0, matches.length - 1)));
+  setFindReplaceState({
+    activeIndex,
+    matches
+  });
+  setFindMatches(matches);
+}
+
+function setFindMatches(matches: readonly FindMatch[]): void {
+  const activeIndex = Math.max(0, Math.min(findReplaceState.activeIndex, Math.max(0, matches.length - 1)));
+  editor.dispatch({
+    effects: sourceFindCompartment.reconfigure(
+      createMomentariseSourceFindHighlightExtension(
+        matches.map((match, index) => ({
+          active: index === activeIndex,
+          from: match.from,
+          to: match.to
+        }))
+      )
+    )
+  });
+  if (richEditor) {
+    richEditor.dispatch(richEditor.state.tr.setMeta(richFindHighlightPluginKey, { activeIndex }));
+  }
+}
+
+function stepFindMatch(direction: 1 | -1): void {
+  if (findReplaceState.matches.length === 0) {
+    return;
+  }
+  const activeIndex = (findReplaceState.activeIndex + direction + findReplaceState.matches.length) % findReplaceState.matches.length;
+  setFindReplaceState({ activeIndex });
+  setFindMatches(findReplaceState.matches);
+}
+
+function replaceActiveFindMatch(replacement: string): void {
+  const match = findReplaceState.matches[findReplaceState.activeIndex];
+  if (!match) {
+    return;
+  }
+  setFindReplaceState({ replacement });
+  if (editorMode === "rich" && richEditor) {
+    const mapped = richRangeForSourceRange(richState, {
+      from: match.from,
+      to: match.to
+    });
+    if (mapped && !mapped.approximate && mapped.from < mapped.to) {
+      richEditor.dispatch(richEditor.state.tr.insertText(replacement, mapped.from, mapped.to));
+      logEvent(`Replaced find match in rich mode: ${match.text}.`);
+      return;
+    }
+  }
+  if (editorMode === "source") {
+    editor.dispatch({
+      changes: {
+        from: match.from,
+        insert: replacement,
+        to: match.to
+      },
+      selection: {
+        anchor: match.from + replacement.length
+      }
+    });
+  } else {
+    const result = session.replace(match, replacement, editorMode === "rich" ? "rich-view" : "host");
+    replaceEditorDocument(result.content);
+    if (editorMode === "rich") {
+      mountRichEditor(result.content);
+    }
+  }
+  refreshFindMatches();
+  renderSaveState();
+  updateRoundTripStatus();
+  persistRestorableDocument();
+  logEvent(`Replaced find match: ${match.text}.`);
+}
+
+function replaceAllFindMatches(replacement: string): void {
+  if (!findReplaceState.query || findReplaceState.matches.length === 0) {
+    return;
+  }
+  if (richChanged) {
+    syncRichMarkdownToSource("mode switch");
+  }
+  setFindReplaceState({ replacement });
+  const result = session.replaceAll(findReplaceState.query, replacement, {
+    caseSensitive: false,
+    origin: editorMode === "rich" ? "rich-view" : "host"
+  });
+  replaceEditorDocument(result.content);
+  if (editorMode === "rich") {
+    mountRichEditor(result.content);
+  }
+  refreshFindMatches();
+  renderSaveState();
+  updateRoundTripStatus();
+  persistRestorableDocument();
+  logEvent(`Replaced ${result.replaced} find matches.`);
+}
+
+function openFindReplaceSurface(): void {
+  setFindReplaceState({
+    matches: findReplaceState.query ? session.find(findReplaceState.query, { caseSensitive: false }) : [],
+    open: true
+  });
+  setFindMatches(findReplaceState.matches);
+  findReplaceSurface?.open();
+}
+
 function surfaceAiActionsForEntryPoint(entryPoint: ReferenceAiEntryPoint): readonly SurfaceAiAction[] {
   return referenceAiActionsForRegisteredEntryPoint(entryPoint).map((action) => ({
     entryPoints: action.entryPoints,
@@ -1164,9 +1351,11 @@ const editor = new CodeMirrorEditorView({
         onSave: saveFromKeyboardShortcut,
         preferences: sourcePreferencesFromReferenceSurface()
       }),
+      sourceFindCompartment.of(createMomentariseSourceFindHighlightExtension()),
       CodeMirrorEditorView.updateListener.of((update) => {
         if (update.docChanged && editorMode === "source") {
           session.setContent(editor.state.doc.toString(), "source-view");
+          refreshFindMatches();
           persistRestorableDocument();
           renderSaveState();
           updateRoundTripStatus();
@@ -1356,6 +1545,16 @@ document.addEventListener("visibilitychange", () => {
 });
 
 document.addEventListener("keydown", (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
+    const findBinding = session.extensions
+      .getKeybindings({ keymapDelegateToHost: referenceSurfacePreferences.keymapDelegateToHost })
+      .find((binding) => binding.commandId === "mme.find.open" && binding.keys.includes("Mod-f"));
+    if (findBinding) {
+      event.preventDefault();
+      openFindReplaceSurface();
+      return;
+    }
+  }
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
     if (!isAiEntryPointEnabled("command-palette")) {
       return;
@@ -1520,6 +1719,32 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   },
   getReferenceSurfaceState() {
     return getReferenceSurfaceState();
+  },
+  getFindReplaceState() {
+    return {
+      activeIndex: findReplaceState.activeIndex,
+      count: findReplaceState.matches.length,
+      matches: findReplaceState.matches,
+      open: findReplaceState.open,
+      query: findReplaceState.query,
+      replacement: findReplaceState.replacement
+    };
+  },
+  getOutline() {
+    return session.getOutline();
+  },
+  openFindReplaceForTest(query = "") {
+    openFindReplaceSurface();
+    if (query) {
+      runFindQuery(query);
+    }
+  },
+  replaceActiveFindMatchForTest(replacement: string) {
+    replaceActiveFindMatch(replacement);
+  },
+  replaceAllFindMatchesForTest(query: string, replacement: string) {
+    runFindQuery(query);
+    replaceAllFindMatches(replacement);
   },
   setReferenceSurfacePreferencesForTest(preferences: ReferenceEditorPreferenceInput) {
     setReferenceSurfacePreferences(preferences);
@@ -1828,6 +2053,7 @@ function showUnsupportedLocalFileState(): void {
   setEditorNotice(realFileOpenUnavailableMessage());
   logEvent("Real local file open is unavailable in this browser; no original file handle was granted.");
   renderEditorMode();
+  refreshFindMatches();
   renderSaveState();
   updateRoundTripStatus();
 }
@@ -1879,6 +2105,7 @@ function loadHtmlArtifact(fileName: string, content: string, sourceLabel: string
     html: content
   });
   renderHtmlPreview();
+  refreshFindMatches();
   logEvent(`Opened ${fileName} as HTML artifact via ${sourceLabel}; preview is sandboxed and scripts are disabled.`);
   renderEditorMode();
   renderSaveState();
@@ -1926,6 +2153,7 @@ function loadOpenedMarkdownFile(
   if (editorMode === "rich") {
     mountRichEditor(opened.content);
   }
+  refreshFindMatches();
   logEvent(`Opened ${opened.fileName} as ${documentModeLabel(opened.mode)} via ${options.sourceLabel ?? "document loader"}.`);
   renderEditorMode();
   renderSaveState();
@@ -3089,6 +3317,7 @@ function mountRichEditor(markdown: string): void {
   renderRichBlockControls();
   renderRichFoldingUi(false);
   renderSelectionBubbleToolbar();
+  refreshFindMatches();
 }
 
 function withDemoRichPlugins(state: RichMarkdownState): RichMarkdownState {
@@ -3122,16 +3351,60 @@ function withDemoRichPlugins(state: RichMarkdownState): RichMarkdownState {
               : "Start writing",
             plusButton: referenceSurfacePreferences.blockPlusButton
           }
-        )
+        ),
+        createRichFindHighlightPlugin()
       ]
     })
   };
 }
 
+function createRichFindHighlightPlugin(): Plugin {
+  return new Plugin({
+    key: richFindHighlightPluginKey,
+    props: {
+      decorations(state) {
+        if (findReplaceState.matches.length === 0) {
+          return DecorationSet.empty;
+        }
+        const stateWithCurrentDoc: RichMarkdownState = {
+          ...richState,
+          editorState: state
+        };
+        const decorations = findReplaceState.matches.flatMap((match, index) => {
+          const mapped = richRangeForSourceRange(stateWithCurrentDoc, {
+            from: match.from,
+            to: match.to
+          });
+          if (!mapped || mapped.from >= mapped.to) {
+            return [];
+          }
+          return [
+            Decoration.inline(mapped.from, mapped.to, {
+              class: index === findReplaceState.activeIndex ? "mme-rich-find-match mme-rich-find-match-active" : "mme-rich-find-match",
+              "data-find-approximate": String(mapped.approximate)
+            })
+          ];
+        });
+        return DecorationSet.create(state.doc, decorations);
+      }
+    }
+  });
+}
+
 function syncRichMarkdownToSource(source: "rich edit" | "mode switch"): void {
   const markdown = serializeRichMarkdownState(richState).content;
+  const parsedRichState = createRichMarkdownState(markdown, {
+    dialect: "momentarise-enhanced",
+    preferences: richPreferencesFromReferenceSurface(),
+    schema: richState.schema
+  });
+  richState = {
+    ...parsedRichState,
+    editorState: richState.editorState
+  };
   replaceEditorDocument(markdown);
   session.setContent(markdown, "rich-view");
+  refreshFindMatches();
   persistRestorableDocument();
   renderSaveState();
   updateRoundTripStatus();
@@ -4647,6 +4920,15 @@ declare global {
         readonly rawSource: string;
         readonly sourceHidden: boolean;
       };
+      getFindReplaceState: () => {
+        readonly activeIndex: number;
+        readonly count: number;
+        readonly matches: readonly FindMatch[];
+        readonly open: boolean;
+        readonly query: string;
+        readonly replacement: string;
+      };
+      getOutline: () => readonly OutlineItem[];
       getReferenceSurfaceState: () => {
         readonly aiEntryPoints: readonly string[];
         readonly aiMenuOpen: boolean;
@@ -4704,9 +4986,12 @@ declare global {
       memorySave: (source: "button" | "keyboard shortcut") => void;
       insertParagraphAfterCurrentRichBlock: () => void;
       openFirstRichBlockMenuForTest: () => void;
+      openFindReplaceForTest: (query?: string) => void;
       openInlineAiPromptForTest: (actionId?: ReferenceAiActionId) => void;
       openSlashMenuForTest: (query: string) => void;
       pressRichKeyForTest: (key: string) => void;
+      replaceActiveFindMatchForTest: (replacement: string) => void;
+      replaceAllFindMatchesForTest: (query: string, replacement: string) => void;
       runRichCommand: (commandId: RichCommandId, options?: ApplyRichMarkdownCommandOptions) => void;
       reorderRichBlocksForTest: (fromIndex: number, toIndex: number, placement?: "after" | "before") => string | null;
       selectRichTextForTest: (text: string) => void;

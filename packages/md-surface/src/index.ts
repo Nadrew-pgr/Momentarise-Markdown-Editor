@@ -68,6 +68,21 @@ export interface MmeStrings {
   readonly extensions: Readonly<Record<string, string>> & {
     readonly "extensions.unknown": string;
   };
+  readonly find: {
+    readonly activeMatch: string;
+    readonly close: string;
+    readonly label: string;
+    readonly matchCount: string;
+    readonly next: string;
+    readonly noMatches: string;
+    readonly previous: string;
+    readonly queryLabel: string;
+    readonly queryPlaceholder: string;
+    readonly replace: string;
+    readonly replaceAll: string;
+    readonly replacementLabel: string;
+    readonly replacementPlaceholder: string;
+  };
   readonly mode: {
     readonly label: string;
     readonly preview: string;
@@ -177,6 +192,29 @@ export interface CreateCommandPaletteOptions extends SurfaceComponentContext {
   readonly actions: readonly SurfaceAiAction[];
   readonly onRunAiAction: (id: string) => void | Promise<void>;
   readonly returnFocusTo?: HTMLElement;
+}
+
+export interface SurfaceFindMatch {
+  readonly from: number;
+  readonly to: number;
+}
+
+export interface SurfaceFindReplaceState {
+  readonly activeIndex: number;
+  readonly matches: readonly SurfaceFindMatch[];
+  readonly open: boolean;
+  readonly query: string;
+  readonly replacement: string;
+}
+
+export interface CreateFindReplaceSurfaceOptions extends SurfaceComponentContext {
+  readonly onClose?: () => void;
+  readonly onFind: (query: string) => void;
+  readonly onFindNext: () => void;
+  readonly onFindPrevious: () => void;
+  readonly onReplace: (replacement: string) => void;
+  readonly onReplaceAll: (replacement: string) => void;
+  readonly state: SurfaceFindReplaceState;
 }
 
 export interface CreateDocumentStatusOptions extends SurfaceComponentContext {
@@ -351,6 +389,21 @@ export const defaultMmeStrings: MmeStrings = {
     "extensions.language": "Language",
     "extensions.tone": "Tone",
     "extensions.unknown": "Extension"
+  },
+  find: {
+    activeMatch: "Active match",
+    close: "Close find",
+    label: "Find and replace",
+    matchCount: "Matches",
+    next: "Next match",
+    noMatches: "0 / 0",
+    previous: "Previous match",
+    queryLabel: "Find",
+    queryPlaceholder: "Find in document",
+    replace: "Replace",
+    replaceAll: "Replace all",
+    replacementLabel: "Replace",
+    replacementPlaceholder: "Replace with"
   },
   mode: {
     label: "Editor mode",
@@ -836,6 +889,127 @@ export function createCommandPalette(options: CreateCommandPaletteOptions): Surf
     open,
     root,
     update: renderItems
+  };
+}
+
+export function createFindReplaceSurface(options: CreateFindReplaceSurfaceOptions): SurfaceComponent & {
+  close(): void;
+  open(): void;
+  readonly root: HTMLElement;
+  setState(state: SurfaceFindReplaceState): void;
+} {
+  const root = createElement(options.host, "div", "find-replace-surface");
+  const cleanups: ListenerCleanup[] = [];
+  let state = options.state;
+  let queryValue = state.query;
+  let replacementValue = state.replacement;
+  options.host.replaceChildren(root);
+
+  const close = (): void => {
+    state = {
+      ...state,
+      open: false
+    };
+    render();
+    options.onClose?.();
+  };
+
+  const open = (): void => {
+    state = {
+      ...state,
+      open: true
+    };
+    render();
+    root.querySelector<HTMLInputElement>('[data-testid="find-query-input"]')?.focus();
+  };
+
+  const render = (): void => {
+    root.dataset.testid = "find-replace-surface";
+    root.hidden = !state.open;
+    root.setAttribute("aria-label", options.strings.find.label);
+    root.setAttribute("role", "search");
+    queryValue = state.query;
+    replacementValue = state.replacement;
+    const queryLabel = createElement(options.host, "label", "find-replace-field");
+    const query = createElement(options.host, "input", "find-query-input");
+    const replacementLabel = createElement(options.host, "label", "find-replace-field");
+    const replacement = createElement(options.host, "input", "find-replace-input");
+    const count = createElement(options.host, "span", "find-match-count");
+    const previous = findIconButton(options, "chevron", options.strings.find.previous, "find-previous-button");
+    const next = findIconButton(options, "chevron", options.strings.find.next, "find-next-button");
+    const replace = findIconButton(options, "check", options.strings.find.replace, "find-replace-button");
+    const replaceAll = findIconButton(options, "more", options.strings.find.replaceAll, "find-replace-all-button");
+    const closeButton = findIconButton(options, "close", options.strings.find.close, "find-close-button");
+
+    query.dataset.testid = "find-query-input";
+    query.type = "search";
+    query.autocomplete = "off";
+    query.spellcheck = false;
+    query.value = queryValue;
+    query.placeholder = options.strings.find.queryPlaceholder;
+    query.setAttribute("aria-label", options.strings.find.queryLabel);
+    replacement.dataset.testid = "find-replacement-input";
+    replacement.type = "text";
+    replacement.autocomplete = "off";
+    replacement.spellcheck = false;
+    replacement.value = replacementValue;
+    replacement.placeholder = options.strings.find.replacementPlaceholder;
+    replacement.setAttribute("aria-label", options.strings.find.replacementLabel);
+    count.dataset.testid = "find-match-count";
+    count.setAttribute("aria-label", options.strings.find.matchCount);
+    count.textContent = findMatchCountLabel(state, options.strings);
+
+    previous.disabled = state.matches.length === 0;
+    next.disabled = state.matches.length === 0;
+    replace.disabled = state.matches.length === 0;
+    replaceAll.disabled = state.matches.length === 0;
+
+    query.addEventListener("input", () => {
+      queryValue = query.value;
+      options.onFind(queryValue);
+    });
+    replacement.addEventListener("input", () => {
+      replacementValue = replacement.value;
+    });
+    previous.addEventListener("click", () => options.onFindPrevious());
+    next.addEventListener("click", () => options.onFindNext());
+    replace.addEventListener("click", () => options.onReplace(replacementValue));
+    replaceAll.addEventListener("click", () => options.onReplaceAll(replacementValue));
+    closeButton.addEventListener("click", () => close());
+
+    queryLabel.append(options.strings.find.queryLabel, query);
+    replacementLabel.append(options.strings.find.replacementLabel, replacement);
+    root.replaceChildren(queryLabel, previous, next, count, replacementLabel, replace, replaceAll, closeButton);
+  };
+
+  const onKeyDown = (event: KeyboardEvent): void => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      close();
+    }
+  };
+
+  cleanups.push(options.session.on("destroy", () => destroy()));
+  root.addEventListener("keydown", onKeyDown);
+  render();
+
+  const destroy = (): void => {
+    for (const cleanup of cleanups.splice(0)) {
+      cleanup();
+    }
+    root.removeEventListener("keydown", onKeyDown);
+    root.remove();
+  };
+  return {
+    close,
+    destroy,
+    open,
+    root,
+    setState(nextState: SurfaceFindReplaceState) {
+      state = nextState;
+      render();
+    },
+    update: render
   };
 }
 
@@ -1447,6 +1621,29 @@ function toolbarMore(options: CreateToolbarOptions, open: boolean): HTMLDivEleme
   );
   container.append(button, menu);
   return container;
+}
+
+function findIconButton(
+  options: Pick<SurfaceComponentContext, "host" | "icons">,
+  icon: IconName,
+  label: string,
+  testId: string
+): HTMLButtonElement {
+  const button = createElement(options.host, "button", "toolbar-button find-replace-button");
+  button.dataset.testid = testId;
+  button.type = "button";
+  button.setAttribute("aria-label", label);
+  button.title = label;
+  button.innerHTML = toolbarIcon(options, icon);
+  return button;
+}
+
+function findMatchCountLabel(state: SurfaceFindReplaceState, strings: MmeStrings): string {
+  if (state.matches.length === 0) {
+    return strings.find.noMatches;
+  }
+  const active = Math.max(0, Math.min(state.activeIndex, state.matches.length - 1)) + 1;
+  return `${active} / ${state.matches.length}`;
 }
 
 function slashButton(

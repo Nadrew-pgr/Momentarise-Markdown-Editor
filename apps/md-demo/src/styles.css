@@ -222,6 +222,7 @@ h1 {
 }
 
 [data-testid="editor-ai-assistant-panel-host"],
+[data-testid="find-replace-host"],
 [data-testid="command-palette-host"],
 [data-testid="slash-command-menu-host"],
 [data-testid="inline-ai-prompt-host"] {
@@ -232,6 +233,7 @@ h1 {
 }
 
 [data-testid="editor-ai-assistant-panel-host"] > *,
+[data-testid="find-replace-host"] > *,
 [data-testid="command-palette-host"] > *,
 [data-testid="slash-command-menu-host"] > *,
 [data-testid="inline-ai-prompt-host"] > * {
@@ -728,6 +730,71 @@ h1 {
   padding-top: 12vh;
   background: var(--mme-color-overlay);
   backdrop-filter: blur(2px);
+}
+
+.find-replace-surface {
+  position: absolute;
+  z-index: var(--mme-z-overlay);
+  top: 10px;
+  right: 14px;
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto auto auto minmax(130px, 0.8fr) auto auto auto;
+  align-items: end;
+  gap: 5px;
+  width: min(720px, calc(100% - 28px));
+  padding: 8px;
+  border: 1px solid var(--mme-color-border);
+  border-radius: var(--mme-radius-lg);
+  background: var(--mme-color-surface-raised);
+  box-shadow: var(--mme-shadow-md);
+}
+
+.find-replace-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--mme-color-text-muted);
+  font-size: 10px;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.find-query-input,
+.find-replace-input {
+  min-width: 0;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--mme-color-border);
+  border-radius: var(--mme-radius-md);
+  background: var(--mme-color-bg);
+  color: var(--mme-color-text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.find-query-input:focus,
+.find-replace-input:focus {
+  border-color: var(--mme-color-accent);
+  outline: 2px solid var(--mme-color-focus-ring);
+}
+
+.find-match-count {
+  align-self: center;
+  min-width: 44px;
+  color: var(--mme-color-text-muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.mme-rich-find-match {
+  border-radius: 3px;
+  background: var(--mme-color-accent-soft);
+}
+
+.mme-rich-find-match-active {
+  background: var(--mme-color-selection);
+  outline: 1px solid var(--mme-color-accent);
 }
 
 .command-palette-panel {
@@ -2104,6 +2171,17 @@ h1 {
     left: 8px;
     width: auto;
     max-height: calc(100% - 24px);
+  }
+
+  .find-replace-surface {
+    left: 8px;
+    right: 8px;
+    width: auto;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+  }
+
+  .find-replace-field {
+    grid-column: span 4;
   }
 
   .inline-ai-prompt-header,

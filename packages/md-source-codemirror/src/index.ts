@@ -5,6 +5,7 @@ import { bracketMatching, HighlightStyle, indentOnInput, syntaxHighlighting } fr
 import { Compartment, EditorState, Prec, Transaction, type Extension, type StateEffect } from "@codemirror/state";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
 import {
+  Decoration,
   drawSelection,
   dropCursor,
   EditorView,
@@ -31,6 +32,7 @@ export interface MomentariseSourceExtensionOptions {
 
 export interface CreateMomentariseSourceViewOptions extends MomentariseSourceExtensionOptions {
   readonly doc: string;
+  readonly findMatches?: readonly MomentariseSourceFindMatch[];
   readonly onChange?: (content: string) => void;
   readonly parent: HTMLElement;
 }
@@ -41,6 +43,7 @@ export interface MomentariseSourceView {
   focus(): void;
   getContent(): string;
   replaceContent(content: string): void;
+  setFindMatches(matches: readonly MomentariseSourceFindMatch[]): void;
 }
 
 export interface MomentariseSourceCompartments {
@@ -56,6 +59,12 @@ export interface MomentariseSourcePreferences {
   readonly keymapProfile?: "default" | "delegate" | "minimal";
   readonly lineWrapping?: boolean;
   readonly readableLineWidth?: number;
+}
+
+export interface MomentariseSourceFindMatch {
+  readonly active?: boolean;
+  readonly from: number;
+  readonly to: number;
 }
 
 export const momentariseSourcePackage: MomentariseSourceCodeMirrorContract = {
@@ -91,8 +100,37 @@ export function createMomentariseSourceExtensions(options: MomentariseSourceExte
   return extensions;
 }
 
+export function createMomentariseSourceFindHighlightExtension(
+  matches: readonly MomentariseSourceFindMatch[] = []
+): Extension {
+  const decorations = Decoration.set(
+    matches
+      .filter((match) => Number.isFinite(match.from) && Number.isFinite(match.to) && match.to >= match.from)
+      .map((match) =>
+        Decoration.mark({
+          class: match.active ? "mme-source-find-match mme-source-find-match-active" : "mme-source-find-match"
+        }).range(match.from, match.to)
+      ),
+    true
+  );
+  return [
+    EditorView.decorations.of(decorations),
+    EditorView.theme({
+      ".mme-source-find-match": {
+        backgroundColor: "var(--mme-color-accent-soft)",
+        borderRadius: "3px"
+      },
+      ".mme-source-find-match-active": {
+        backgroundColor: "var(--mme-color-selection)",
+        outline: "1px solid var(--mme-color-accent)"
+      }
+    })
+  ];
+}
+
 export function createMomentariseSourceView(options: CreateMomentariseSourceViewOptions): MomentariseSourceView {
   let suppressChange = false;
+  const findCompartment = new Compartment();
   const view = new EditorView({
     parent: options.parent,
     state: EditorState.create({
@@ -104,6 +142,7 @@ export function createMomentariseSourceView(options: CreateMomentariseSourceView
           ...(options.onSave === undefined ? {} : { onSave: options.onSave }),
           ...(options.preferences === undefined ? {} : { preferences: options.preferences })
         }),
+        findCompartment.of(createMomentariseSourceFindHighlightExtension(options.findMatches ?? [])),
         EditorView.updateListener.of((update) => {
           if (!update.docChanged || suppressChange) {
             return;
@@ -137,6 +176,11 @@ export function createMomentariseSourceView(options: CreateMomentariseSourceView
         }
       });
       suppressChange = false;
+    },
+    setFindMatches(matches: readonly MomentariseSourceFindMatch[]) {
+      view.dispatch({
+        effects: findCompartment.reconfigure(createMomentariseSourceFindHighlightExtension(matches))
+      });
     }
   };
 }

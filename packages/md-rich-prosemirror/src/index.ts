@@ -10,7 +10,7 @@ import type {
   ParseResult,
   SourceRange
 } from "@momentarise/md-core";
-import { hashMarkdownContent, nodeId as createNodeId } from "@momentarise/md-core";
+import { createHeadingNodeId, hashMarkdownContent, headingSegmentFromNodeId, nodeId as createNodeId } from "@momentarise/md-core";
 import { createMarkdownAstFormatter, serializeMomentariseDocument } from "@momentarise/md-format";
 import {
   baseKeymap,
@@ -116,6 +116,27 @@ export interface RichTopLevelBlockRange {
   readonly text: string;
   readonly to: number;
   readonly type: string;
+}
+
+export interface RichSourcePosition {
+  readonly approximate: boolean;
+  readonly blockIndex: number;
+  readonly position: number;
+  readonly sourceOffset: number;
+}
+
+export interface RichSourceRange {
+  readonly approximate: boolean;
+  readonly blockIndex: number;
+  readonly from: number;
+  readonly sourceFrom: number;
+  readonly sourceTo: number;
+  readonly to: number;
+}
+
+export interface SourceOffsetRange {
+  readonly from: number;
+  readonly to: number;
 }
 
 export interface ReorderRichTopLevelBlockOptions {
@@ -699,6 +720,65 @@ export function richTopLevelBlockRanges(state: EditorState): readonly RichTopLev
   return ranges;
 }
 
+export function richPositionForSourceOffset(
+  state: RichMarkdownState,
+  sourceOffset: number
+): RichSourcePosition | null {
+  const mappedRange = richRangeForSourceRange(state, {
+    from: sourceOffset,
+    to: sourceOffset
+  });
+  return mappedRange
+    ? {
+        approximate: mappedRange.approximate,
+        blockIndex: mappedRange.blockIndex,
+        position: mappedRange.from,
+        sourceOffset
+      }
+    : null;
+}
+
+export function richRangeForSourceRange(
+  state: RichMarkdownState,
+  sourceRange: SourceOffsetRange
+): RichSourceRange | null {
+  const pairs = richTopLevelBlockPairs(state.parseResult, state.schema).filter(
+    (pair) => pair.pm !== null && Boolean(pair.model.sourceRange)
+  );
+  const blocks: ProseMirrorNode[] = [];
+  state.editorState.doc.forEach((child) => {
+    blocks.push(child);
+  });
+  const blockRanges = richTopLevelBlockRanges(state.editorState);
+  const alignedBlocks = alignRichBlocks(blocks, pairs);
+  for (let blockIndex = 0; blockIndex < alignedBlocks.length; blockIndex += 1) {
+    const aligned = alignedBlocks[blockIndex]!;
+    if (aligned.kind === "inserted") {
+      continue;
+    }
+    const pair = pairs[aligned.pairIndex]!;
+    const modelRange = pair.model.sourceRange!;
+    if (sourceRange.from < modelRange.start.offset || sourceRange.to > modelRange.end.offset) {
+      continue;
+    }
+    const blockRange = blockRanges[blockIndex];
+    if (!blockRange) {
+      return null;
+    }
+    const mapped = mapSourceRangeInsideRichBlock(
+      state.source,
+      modelRange,
+      sourceRange,
+      blockRange,
+      aligned.kind !== "matched"
+    );
+    if (mapped) {
+      return mapped;
+    }
+  }
+  return null;
+}
+
 export function reorderRichTopLevelBlock(
   state: RichMarkdownState,
   options: ReorderRichTopLevelBlockOptions
@@ -1031,6 +1111,36 @@ function richBlockAffordanceLabels(options: RichBlockAffordancePluginOptions): R
   return {
     ...defaultRichBlockAffordanceLabels,
     ...options.labels
+  };
+}
+
+function mapSourceRangeInsideRichBlock(
+  source: string,
+  modelRange: SourceRange,
+  sourceRange: SourceOffsetRange,
+  blockRange: RichTopLevelBlockRange,
+  approximate: boolean
+): RichSourceRange | null {
+  const raw = source.slice(modelRange.start.offset, modelRange.end.offset);
+  const text = blockRange.text;
+  const textStartInRaw = text ? raw.indexOf(text) : 0;
+  if (textStartInRaw < 0) {
+    return null;
+  }
+  const sourceTextStart = modelRange.start.offset + textStartInRaw;
+  const sourceTextEnd = sourceTextStart + text.length;
+  if (sourceRange.from < sourceTextStart || sourceRange.to > sourceTextEnd) {
+    return null;
+  }
+  const relativeFrom = Math.max(0, Math.min(sourceRange.from - sourceTextStart, text.length));
+  const relativeTo = Math.max(relativeFrom, Math.min(sourceRange.to - sourceTextStart, text.length));
+  return {
+    approximate,
+    blockIndex: blockRange.index,
+    from: blockRange.from + 1 + relativeFrom,
+    sourceFrom: sourceRange.from,
+    sourceTo: sourceRange.to,
+    to: blockRange.from + 1 + relativeTo
   };
 }
 
@@ -2442,7 +2552,7 @@ function richTopLevelBlockRecords(
       while (headingPath.length > 0 && headingPath[headingPath.length - 1]!.level >= headingLevel) {
         headingPath.pop();
       }
-      nodeId = richHeadingFoldNodeId(headingPath, headingLevel, node.textContent, siblingCounts);
+      nodeId = createHeadingNodeId(headingPath, headingLevel, node.textContent, siblingCounts);
     }
 
     const hiddenBy = collapsedStack[collapsedStack.length - 1]?.nodeId ?? null;
@@ -2469,39 +2579,11 @@ function richTopLevelBlockRecords(
     if (headingLevel !== null) {
       headingPath.push({
         level: headingLevel,
-        segment: richHeadingFoldSegmentFromNodeId(nodeId)
+        segment: headingSegmentFromNodeId(nodeId)
       });
     }
   });
   return records;
-}
-
-function richHeadingFoldNodeId(
-  headingPath: readonly { readonly level: number; readonly segment: string }[],
-  level: number,
-  text: string,
-  siblingCounts: Map<string, number>
-): string {
-  const parentPath = headingPath.map((entry) => entry.segment).join("/");
-  const slug = slugFoldIdText(text);
-  const countKey = `${parentPath}|h${level}|${slug}`;
-  const occurrence = (siblingCounts.get(countKey) ?? 0) + 1;
-  siblingCounts.set(countKey, occurrence);
-  const segment = `h${level}-${slug}${occurrence > 1 ? `-${occurrence}` : ""}`;
-  return `heading:${[...headingPath.map((entry) => entry.segment), segment].join("/")}`;
-}
-
-function richHeadingFoldSegmentFromNodeId(nodeId: string): string {
-  return nodeId.slice(nodeId.lastIndexOf("/") + 1).replace(/^heading:/, "");
-}
-
-function slugFoldIdText(text: string): string {
-  const slug = text
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return slug || "empty";
 }
 
 function countHeadingSectionBlocks(

@@ -1846,7 +1846,7 @@ Completed 2026-06-30; code HITL remained waived for TypeScript/package work, and
 
 ## MME-0032 — Markdown HTML renderer and inline-HTML policy
 
-Completed 2026-06-30; code-complete with environment-blocked visual proof (`npm run visual:mme-0032` fails in this environment due Chrome SIGABRT and local bind restrictions).
+Completed 2026-06-30; visual proof regenerated 2026-07-01 with system Chrome permission after fixing stripped unsafe images to render as visible alt text instead of broken image placeholders.
 
 ### Goal
 
@@ -1935,6 +1935,8 @@ Keybinding `Mod-f` registers through the MME-0026/0027 keybinding registry (so I
 ### Reviewer
 
 UX Reviewer.
+
+Completed 2026-07-01; code HITL remained waived for TypeScript/package work by current execution instruction, and code/visual reviewers accepted after fixes. Added `session.find()`, `session.replace()`, `session.replaceAll()`, `session.getOutline()`, shared heading slug helpers, source and rich find-highlight mapping, an accessible find/replace surface, `Mod-f` registry wiring, and demo visual hooks. Fixed reviewer findings by rejecting non-mappable rich source ranges instead of returning zero-length mappings, remounting rich mode after fallback targeted replacement, refreshing rich parse/source state after rich edits, and adding rich replace visual proof. Also closed the pending MME-0032 visual review by rendering stripped unsafe image URLs as alt text and regenerating visual artifacts. Proven by `npm run test:find-outline`, `npm run test:render-html`, `npm run test:rich-prosemirror`, full `npm test`, `npm run visual:mme-0032`, and `npm run visual:mme-0033`. `MME-0034` is the next candidate after issue-scoped commits.
 
 ## MME-0034 — Theia adapter alpha
 

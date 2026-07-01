@@ -11,6 +11,48 @@ export function nodeId(value: string): NodeId {
   return value as NodeId;
 }
 
+export interface HeadingSlugPathEntry {
+  readonly level: number;
+  readonly segment: string;
+}
+
+export function slugHeadingText(text: string): string {
+  const slug = text
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || "empty";
+}
+
+export function createHeadingSlugSegment(
+  headingPath: readonly HeadingSlugPathEntry[],
+  level: number,
+  text: string,
+  siblingCounts: Map<string, number>
+): string {
+  const parentPath = headingPath.map((entry) => entry.segment).join("/");
+  const slug = slugHeadingText(text);
+  const countKey = `${parentPath}|h${level}|${slug}`;
+  const occurrence = (siblingCounts.get(countKey) ?? 0) + 1;
+  siblingCounts.set(countKey, occurrence);
+  return `h${level}-${slug}${occurrence > 1 ? `-${occurrence}` : ""}`;
+}
+
+export function createHeadingNodeId(
+  headingPath: readonly HeadingSlugPathEntry[],
+  level: number,
+  text: string,
+  siblingCounts: Map<string, number>
+): string {
+  const segment = createHeadingSlugSegment(headingPath, level, text, siblingCounts);
+  return `heading:${[...headingPath.map((entry) => entry.segment), segment].join("/")}`;
+}
+
+export function headingSegmentFromNodeId(nodeIdValue: string): string {
+  return nodeIdValue.slice(nodeIdValue.lastIndexOf("/") + 1).replace(/^heading:/, "");
+}
+
 export function hashMarkdownContent(content: string): DocumentHash {
   let hash = 0xcbf29ce484222325n;
   const prime = 0x100000001b3n;

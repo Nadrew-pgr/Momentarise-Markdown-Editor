@@ -4195,3 +4195,72 @@
   - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
 - Next issue:
   - `MME-0033 — Find/replace and outline APIs`.
+
+#### MME-0032 visual closeout follow-up
+
+- Timestamp: 2026-07-01T09:20:23+02:00
+- Status:
+  - Completed the previously pending visual verification after restarting the demo server on `http://127.0.0.1:5175/` and allowing system Chrome for the visual script.
+- Change:
+  - Regenerated `docs/internal/visual-checks/MME-0032/markdown-read-view.png` and `docs/internal/visual-checks/MME-0032/markdown-read-sanitized-html.png`.
+  - Fixed the read renderer so stripped unsafe image URLs render as visible alt text instead of broken image placeholders while source Markdown remains untouched.
+  - Updated the MME-0032 visual script to use a blocked external image URL and assert the sanitized render has no `<img>` element for that stripped image.
+- Checks run:
+  - `npm run test:render-html` — green.
+  - `npm run visual:mme-0032` — green with system Chrome permission after sandbox Chrome `SIGABRT`.
+  - Full `npm test` rerun later in the MME-0033 closeout — green.
+- Reviewer result:
+  - Visual reviewer subagent found the broken-image placeholder; builder fixed it.
+  - Follow-up visual self-review accepted the regenerated screenshot: no broken image placeholder remains and unsafe image alt text stays visible.
+- Commit status:
+  - Corrective follow-up commit created: `60e2217` (`fix: render stripped markdown images as alt text`).
+- Residual risks:
+  - Visual scripts still require system Chrome permission in this local sandbox because sandbox Chrome aborts before CDP.
+- Next issue:
+  - Continue `MME-0033 — Find/replace and outline APIs`.
+
+## MME-0033 — Find/replace and outline APIs
+
+- Timestamp: 2026-07-01T09:20:23+02:00
+- Status:
+  - Completed and accepted for code continuation after reviewer fixes. No human code HITL was required by the current execution instruction.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short --branch`, and target package/test files.
+  - MME-0032 was already issue-committed as `fd0a960`; visual follow-up now committed as `60e2217`.
+- RED proof before implementation:
+  - Added `tests/find-outline-api.test.mjs`, `tests/find-outline-view-helpers.test.mjs`, and `tests/find-outline-surface.test.mjs` before implementation to require session find/replace/outline APIs, source/rich highlight helpers, demo wiring, a registered visual script, and an accessible find/replace surface.
+- Change:
+  - Added `session.find()`, `session.replace()`, `session.replaceAll()`, and `session.getOutline()` in `@momentarise/md-editor`.
+  - Moved reusable heading slug helpers into `@momentarise/md-core`; `@momentarise/md-rich-prosemirror` imports them back for folding IDs.
+  - Added CodeMirror source find decorations and ProseMirror rich find decorations, with source-offset mapping helpers exported from `@momentarise/md-rich-prosemirror`.
+  - Added `createFindReplaceSurface()` with i18n strings, accessible labels, icon buttons, match count, replace, replace-all, and close controls.
+  - Wired the demo `Mod-f` path through the extension keybinding registry, respecting host delegation.
+  - Added MME-0033 visual script and artifacts for source find, source replace, rich find, and rich replace.
+  - Fixed reviewer findings by rejecting non-mappable rich source ranges instead of returning zero-length mappings, requiring exact non-empty rich mappings before direct ProseMirror replacement, remounting rich mode after targeted fallback replacement, and refreshing rich parse/source state after rich edits.
+- Visual impact:
+  - New compact floating find/replace surface appears over source and rich modes.
+  - Source mode highlights all matches and active match through CodeMirror decorations.
+  - Rich mode highlights all matches and active match through ProseMirror decorations.
+  - Screenshots captured under `docs/internal/visual-checks/MME-0033/`.
+- Checks run:
+  - `npm run test:find-outline` — green.
+  - `npm run test:render-html` — green after MME-0032 visual follow-up fix.
+  - `npm run test:rich-prosemirror` — green.
+  - `npm run visual:mme-0032` — green with system Chrome permission.
+  - `npm run visual:mme-0033` — green with system Chrome permission.
+  - `npm test` — green.
+  - `git diff --check` — green.
+- Reviewer result:
+  - Code reviewer subagent `Sartre` used `gpt-5.3-codex-spark` with `xhigh` reasoning as requested. It found rich replacement mapping/synchronization blockers; builder fixed them.
+  - Focused code reviewer subagent `Ampere` used `gpt-5.3-codex-spark` with `xhigh` reasoning as requested. It found one remaining non-mappable inline-code marker range; builder fixed it and expanded tests.
+  - Visual reviewer subagent `Ohm` found the MME-0032 broken-image visual blocker and a MME-0033 rich-replace proof gap; builder fixed both. Follow-up visual subagent could not spawn because the agent thread limit was reached, so fallback self-review inspected the refreshed screenshots.
+- Residual risks:
+  - Find/replace UI semantics are V0; detailed UX interaction feedback is intentionally deferred by current human instruction.
+  - Approximate rich mapping is deliberately conservative: syntax-only or non-representable source ranges return `null` and use the safer targeted Markdown fallback/remount path.
+  - Visual scripts need system Chrome permission in this environment because sandbox Chrome aborts with `SIGABRT`.
+- Commit status:
+  - Issue-scoped MME-0033 commit to be created next; hash will be recorded in follow-up commit evidence.
+- Push status:
+  - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
+- Next issue:
+  - `MME-0034 — Theia adapter alpha`.
