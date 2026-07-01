@@ -4264,3 +4264,16 @@
   - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
 - Next issue:
   - `MME-0034 — Theia adapter alpha`.
+
+#### MME-0033 commit evidence
+
+- Timestamp: 2026-07-01T09:20:23+02:00
+- Status:
+  - Follow-up docs/process note recording the issue commit hash.
+- Commit status:
+  - MME-0032 visual follow-up commit created: `60e2217` (`fix: render stripped markdown images as alt text`).
+  - Issue-scoped MME-0033 commit created: `866aee1` (`feat: add find replace outline APIs`).
+- Push status:
+  - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
+- Next issue:
+  - `MME-0034 — Theia adapter alpha`.
