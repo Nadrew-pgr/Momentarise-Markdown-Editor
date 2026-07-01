@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 
 const rootPackage = await readJson("package.json");
 const packages = [
+  "@momentarise/md-adapter-theia",
   "@momentarise/md-adapter-web",
   "@momentarise/md-ai",
   "@momentarise/md-cli",
@@ -126,6 +127,30 @@ for (const dependency of [
   assert(
     renderManifest.dependencies?.[dependency],
     `@momentarise/md-render-html must declare ${dependency} directly.`
+  );
+}
+
+const theiaManifest = manifests["@momentarise/md-adapter-theia"];
+for (const dependency of ["@theia/core", "@theia/filesystem"]) {
+  assert(
+    theiaManifest.peerDependencies?.[dependency],
+    `@momentarise/md-adapter-theia must expose ${dependency} as a peer dependency.`
+  );
+  assert(
+    theiaManifest.devDependencies?.[dependency],
+    `@momentarise/md-adapter-theia must keep ${dependency} as a dev dependency for local builds.`
+  );
+}
+for (const dependency of [
+  "@momentarise/md-editor",
+  "@momentarise/md-save",
+  "@momentarise/md-source-codemirror",
+  "@momentarise/md-surface",
+  "@momentarise/md-theme"
+]) {
+  assert(
+    theiaManifest.dependencies?.[dependency],
+    `@momentarise/md-adapter-theia must depend on ${dependency}.`
   );
 }
 

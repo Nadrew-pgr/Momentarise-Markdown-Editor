@@ -1,0 +1,35 @@
+{
+  "name": "@momentarise/theia-demo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Theia browser app shell for Momentarise Markdown Editor adapter verification.",
+  "scripts": {
+    "build": "theia build --mode development",
+    "start": "theia start --hostname 127.0.0.1 --port 5176"
+  },
+  "dependencies": {
+    "@momentarise/md-adapter-theia": "0.0.0",
+    "@theia/core": "1.73.0",
+    "@theia/editor": "1.73.0",
+    "@theia/filesystem": "1.73.0",
+    "@theia/markers": "1.73.0",
+    "@theia/messages": "1.73.0",
+    "@theia/monaco": "1.73.0",
+    "@theia/navigator": "1.73.0",
+    "@theia/preferences": "1.73.0",
+    "@theia/workspace": "1.73.0"
+  },
+  "devDependencies": {
+    "@theia/cli": "1.73.0"
+  },
+  "theia": {
+    "frontend": {
+      "config": {
+        "applicationName": "Momentarise Theia Demo"
+      }
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

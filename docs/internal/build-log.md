@@ -4265,6 +4265,58 @@
 - Next issue:
   - `MME-0034 — Theia adapter alpha`.
 
+## MME-0034 — Theia adapter alpha
+
+- Timestamp: 2026-07-01T11:24:37+02:00
+- Status:
+  - Completed and accepted for code continuation after reviewer fixes. No human code HITL was required by the current execution instruction.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short --branch`, and target package/test files.
+  - MME-0033 was issue-committed as `866aee1`; commit hash evidence was recorded in follow-up commit `3e274d6`.
+- RED proof before implementation:
+  - Added `tests/theia-adapter.test.mjs` before implementation to require a publishable `@momentarise/md-adapter-theia` package, a real Theia frontend module, a demo app, build integration, keybinding/preference/open-handler contracts, save-target behavior, and visual-check hooks.
+- Change:
+  - Added `packages/md-adapter-theia` with Theia adapter contract exports, `createTheiaFileSaveTarget()`, `readTheiaMarkdownDocument()`, `createTheiaMarkdownEditorMount()`, widget class factory, OpenHandler helper, Theia keybinding registration, and PreferenceService input mapping.
+  - Added a real Theia frontend module with `WidgetFactory`, `OpenHandler`, command contribution, keybinding contribution, `ContextKeyService` focus key, `PreferenceService` bridge, and `FileService`-backed Markdown loading.
+  - Mounted shared `@momentarise/md-editor`, `@momentarise/md-surface`, and `@momentarise/md-source-codemirror` pieces instead of copying demo orchestration.
+  - Wired Theia find command into the shared MME find surface and kept save routed through the MME session/SaveTarget.
+  - Added `apps/theia-demo` plus a no-space-worktree-compatible `esbuild.mjs` customization for deterministic Theia browser-app verification.
+  - Added a demo-scoped `mme-demo:` Theia `FileService` provider for visual proof resources, keeping demo-specific provider behavior outside `packages/md-adapter-theia`.
+  - Added `scripts/visual-check-mme0034.mjs` and visual artifacts under `docs/internal/visual-checks/MME-0034/`.
+- Visual impact:
+  - New Theia demo shell can open a Markdown resource into the MME source editor widget and open the shared find/replace surface through Theia command dispatch.
+  - Screenshots captured:
+    - `docs/internal/visual-checks/MME-0034/theia-shell-loaded.png`
+    - `docs/internal/visual-checks/MME-0034/theia-markdown-open-find.png`
+  - UI is intentionally alpha/basic; detailed Theia/editor UX polish remains out of scope for this adapter-package slice.
+- Checks run:
+  - `npm run build -w @momentarise/md-adapter-theia` — green in the no-space temp worktree.
+  - `npm run build` in `/private/tmp/mme-theia-worktree/apps/theia-demo` — green.
+  - `npm run test:theia-adapter` — green.
+  - `npm run test:publishability` — green.
+  - `npm run test:architecture` — green.
+  - `npm run test:contracts` — green.
+  - `npm run visual:mme-0034` — green against `http://127.0.0.1:5176/` with system Chrome permission.
+  - `npm test` — green; existing Vite chunk-size warning only.
+- Visual verification:
+  - Theia demo server ran from `/private/tmp/mme-theia-worktree/apps/theia-demo` on `http://127.0.0.1:5176/` because Theia CLI/esbuild cannot build from the repository path containing spaces.
+  - Visual script now waits for Theia frontend `ready` state before screenshots and uses bounded diagnostics for resource open/find failures.
+  - Manual screenshot inspection accepted the refreshed artifacts: no busy spinner remains; Markdown source content and find UI are visible.
+- Reviewer result:
+  - Code reviewer subagent `Meitner` used `gpt-5.3-codex-spark` with `xhigh` reasoning as requested. Initial review rejected unused PreferenceService bridge, missing focus context wiring, focused-node-only find command, and shell-only visual proof.
+  - Builder fixed those findings by bridging preferences into source/surface preferences, setting/resetting the context key, routing find through the active Theia widget, and proving OpenHandler/source/find through the visual script.
+  - Follow-up reviewer pass reported no blocking findings. Non-blocking flake risk from short visual timeouts was reduced by widening the waits.
+- Residual risks:
+  - Save/write behavior is proven by unit tests rather than a visual mutation path.
+  - Theia visual verification currently needs a no-space temp worktree plus system Chrome permission in this local sandbox.
+  - The Theia adapter is alpha: source-mode open/save/find/focus/preference integration is covered; deeper rich-mode and host UX polish remain later work.
+- Commit status:
+  - Issue-scoped MME-0034 commit to be created next; hash will be recorded in follow-up commit evidence.
+- Push status:
+  - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
+- Next issue:
+  - `MME-0035 — Host adapter external-change strategy`.
+
 #### MME-0033 commit evidence
 
 - Timestamp: 2026-07-01T09:20:23+02:00

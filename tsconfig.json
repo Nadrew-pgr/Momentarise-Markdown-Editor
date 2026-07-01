@@ -44,6 +44,9 @@
       "path": "packages/md-adapter-web"
     },
     {
+      "path": "packages/md-adapter-theia"
+    },
+    {
       "path": "packages/md-cli"
     }
   ]

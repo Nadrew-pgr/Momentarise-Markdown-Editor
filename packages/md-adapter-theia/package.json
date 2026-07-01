@@ -1,0 +1,60 @@
+{
+  "name": "@momentarise/md-adapter-theia",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Theia adapter alpha for Momentarise Markdown Editor.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor.git",
+    "directory": "packages/md-adapter-theia"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "markdown",
+    "editor",
+    "momentarise",
+    "theia-adapter"
+  ],
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./dist/browser/theia-markdown-frontend-module": {
+      "types": "./dist/browser/theia-markdown-frontend-module.d.ts",
+      "default": "./dist/browser/theia-markdown-frontend-module.js"
+    }
+  },
+  "theiaExtensions": [
+    {
+      "frontend": "dist/browser/theia-markdown-frontend-module"
+    }
+  ],
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@momentarise/md-editor": "0.0.0",
+    "@momentarise/md-save": "0.0.0",
+    "@momentarise/md-source-codemirror": "0.0.0",
+    "@momentarise/md-surface": "0.0.0",
+    "@momentarise/md-theme": "0.0.0"
+  },
+  "peerDependencies": {
+    "@theia/core": "^1.73.0",
+    "@theia/filesystem": "^1.73.0"
+  },
+  "devDependencies": {
+    "@theia/core": "1.73.0",
+    "@theia/filesystem": "1.73.0"
+  }
+}

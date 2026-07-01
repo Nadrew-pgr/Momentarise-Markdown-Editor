@@ -1975,6 +1975,8 @@ Build reality: Theia requires its own application shell — create `apps/theia-d
 
 Architecture Reviewer.
 
+Completed 2026-07-01; code HITL remained waived for TypeScript/package work by current execution instruction, and code reviewer accepted after fixes. Added `@momentarise/md-adapter-theia`, a real Theia frontend module with widget factory/OpenHandler/commands/keybindings, `SaveTarget` via Theia `FileService`, `PreferenceService` bridging, focus context key integration, find command routing to the shared MME find surface, and `apps/theia-demo` browser shell verification. Visual proof uses a demo-scoped `mme-demo:` Theia `FileService` provider to open a Markdown resource through the real OpenHandler without relying on host `file:` provider availability in the stripped demo shell. Proven by `npm run test:theia-adapter`, `npm run test:publishability`, `npm run test:architecture`, `npm run test:contracts`, full `npm test`, and `npm run visual:mme-0034`. `MME-0035` is the next candidate after issue-scoped commit.
+
 ## MME-0035 — Host adapter external-change strategy
 
 Previously numbered MME-0020.
