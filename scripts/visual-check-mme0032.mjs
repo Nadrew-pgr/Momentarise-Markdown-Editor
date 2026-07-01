@@ -261,7 +261,7 @@ const durable = "Markdown";
 
 <div onclick="window.__MME_RENDER_HTML_SCRIPT_RAN__ = true">Visible div text</div>
 <a href="javascript:alert(1)">Visible unsafe link label</a>
-<img src="x" onerror="window.__MME_RENDER_HTML_SCRIPT_RAN__ = true" alt="Unsafe image">
+<img src="https://example.invalid/unsafe.png" onerror="window.__MME_RENDER_HTML_SCRIPT_RAN__ = true" alt="Unsafe image">
 <script>window.__MME_RENDER_HTML_SCRIPT_RAN__ = true</script>
 <iframe src="https://example.invalid"></iframe>
 `;
@@ -280,11 +280,15 @@ const durable = "Markdown";
         snapshot.read.visible === true &&
         snapshot.read.text.includes("Visible div text") &&
         snapshot.read.text.includes("Visible unsafe link label") &&
+        snapshot.read.text.includes("Unsafe image") &&
         snapshot.read.diagnostics.includes("render_html_stripped") &&
         snapshot.renderScriptRan === false,
       "sanitized Markdown HTML rendered"
     );
     assertNoUnsafeRenderedHtml(sanitized.read.html);
+    if (sanitized.read.html.toLowerCase().includes("<img")) {
+      throw new Error(`Markdown Read view rendered stripped unsafe image as an image element:\n${sanitized.read.html}`);
+    }
     await screenshot(cdp, "markdown-read-sanitized-html.png");
 
     const hostileArtifact = `<!doctype html>

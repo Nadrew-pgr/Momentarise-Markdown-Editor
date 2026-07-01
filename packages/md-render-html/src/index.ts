@@ -87,6 +87,7 @@ export function renderMarkdownToHtml(
   const sanitizableTree = cloneTree(rawTree);
   sanitizeResourceAttributes(sanitizableTree);
   const sanitizedTree = sanitizeProcessor.runSync(sanitizableTree as never, file) as HastLikeNode;
+  renderImagesWithoutSourceAsAltText(sanitizedTree);
   const postInventory = inventoryTree(sanitizedTree);
   const html = String(stringifyProcessor.stringify(sanitizedTree as never));
   const diagnostics = createStripDiagnostics(preInventory, postInventory);
@@ -126,6 +127,28 @@ function sanitizeResourceAttributes(tree: HastLikeNode): void {
       }
     }
   });
+}
+
+function renderImagesWithoutSourceAsAltText(tree: HastLikeNode): void {
+  const mutableTree = tree as unknown as { children?: HastLikeNode[] };
+  if (mutableTree.children) {
+    mutableTree.children = mutableTree.children.flatMap((child) => {
+      if (child.type === "element" && child.tagName?.toLowerCase() === "img") {
+        const src = child.properties?.src;
+        const alt = child.properties?.alt;
+        if (typeof src !== "string" && typeof alt === "string" && alt.trim().length > 0) {
+          return [
+            {
+              type: "text",
+              value: alt
+            } satisfies HastLikeNode
+          ];
+        }
+      }
+      renderImagesWithoutSourceAsAltText(child);
+      return [child];
+    });
+  }
 }
 
 function sanitizeUrlAttributeValue(value: unknown): string | readonly string[] | null {

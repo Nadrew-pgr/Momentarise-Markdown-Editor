@@ -120,6 +120,11 @@ const hostileResult = renderMarkdownToHtml(hostileMarkdown, {
 assert(hostileMarkdown === hostileBefore, "Render must not mutate the input Markdown string.");
 assert(hostileResult.html.includes("Keep div text"), "Safe text inside stripped HTML must remain visible.");
 assert(hostileResult.html.includes("Unsafe link text"), "Unsafe link label must remain visible.");
+assert(hostileResult.html.includes("unsafe data image"), "Stripped image alt text must remain visible.");
+assert(
+  !hostileResult.html.includes('<img alt="unsafe data image"'),
+  "Stripped image URLs must render as alt text, not broken images without src."
+);
 
 for (const forbidden of [
   "<script",

@@ -23,6 +23,7 @@ The schema starts from the `rehype-sanitize` default schema, then applies MME-sp
 - `script`, `style`, and `iframe` elements are denied;
 - `on*` event handler attributes are denied;
 - URL-bearing attributes are filtered to block external schemes (`http`, `https`, `javascript`, `data`, etc.) by default;
+- images whose `src` is stripped render as visible alt text instead of broken image placeholders;
 - `className` is allowed for token styling, restricted to `language-*`, `token-*`, and `mme-*`;
 - disabled task-list checkboxes are allowed with `input[type=checkbox][disabled]`;
 - clobbered IDs/names use the `mme-render-` prefix.
