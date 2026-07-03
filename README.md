@@ -49,10 +49,12 @@ Completed slices:
 - MME-0032: Markdown HTML renderer and inline-HTML policy, accepted for code continuation after regenerated visual proof and unsafe-image fallback fix.
 - MME-0033: Find/replace and outline APIs, accepted for code continuation after source/rich find and replace proof, outline API tests, visual checks, and reviewer fixes.
 - MME-0039: Interim demo visual refresh (human-directed, out of phase order). CSS-only restyle of the demo chrome and editing surfaces; the values are the draft defaults for the MME-0025 token set.
+- MME-0034: Theia adapter alpha, accepted for code continuation after adapter package, Theia demo shell, OpenHandler/source/find proof, and reviewer fixes.
+- MME-0035: Host adapter external-change strategy, accepted for code continuation after web focus-refresh watcher, clean external apply, dirty conflict/no-overwrite actions, autosave status fix, visual proof, and reviewer fixes.
 
 Current slice:
 
-- MME-0034: Theia adapter alpha.
+- MME-0036: Release engineering and security pass.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

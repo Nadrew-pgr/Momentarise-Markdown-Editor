@@ -97,6 +97,11 @@ export interface MmeStrings {
     readonly label: string;
   };
   readonly status: {
+    readonly conflictDescription: string;
+    readonly conflictDownloadLocal: string;
+    readonly conflictReloadExternal: string;
+    readonly conflictRetrySave: string;
+    readonly conflictTitle: string;
     readonly dirtyClean: string;
     readonly htmlTarget: string;
     readonly importedTarget: string;
@@ -207,6 +212,8 @@ export interface SurfaceFindReplaceState {
   readonly replacement: string;
 }
 
+export type SurfaceConflictResolutionAction = "download-local-copy" | "reload-external" | "retry-save";
+
 export interface CreateFindReplaceSurfaceOptions extends SurfaceComponentContext {
   readonly onClose?: () => void;
   readonly onFind: (query: string) => void;
@@ -220,6 +227,7 @@ export interface CreateFindReplaceSurfaceOptions extends SurfaceComponentContext
 export interface CreateDocumentStatusOptions extends SurfaceComponentContext {
   readonly document: SurfaceDocumentState;
   readonly onPrimaryAction: () => void | Promise<void>;
+  readonly onResolveConflict?: (action: SurfaceConflictResolutionAction) => void | Promise<void>;
   readonly saveState: SaveState;
 }
 
@@ -419,6 +427,11 @@ export const defaultMmeStrings: MmeStrings = {
     label: "Slash commands"
   },
   status: {
+    conflictDescription: "External file changed. Local edits were not overwritten.",
+    conflictDownloadLocal: "Download local copy",
+    conflictReloadExternal: "Reload external",
+    conflictRetrySave: "Retry save",
+    conflictTitle: "Resolve conflict",
     dirtyClean: "clean",
     htmlTarget: "HTML artifact, sandbox preview, download/export required",
     importedTarget: "imported copy, download/export required",
@@ -1047,6 +1060,9 @@ export function createDocumentStatus(options: CreateDocumentStatusOptions): Surf
       statusLine(options, options.strings.status.target, "persistence-target", documentTargetLabel(saveState, documentState, options.strings)),
       statusLine(options, options.strings.status.save, "save-state", saveState.status)
     );
+    if (saveState.status === "conflict" && options.onResolveConflict) {
+      menu.append(conflictResolution(options));
+    }
     details.append(summary, menu);
     root.replaceChildren(details, primary);
     details.addEventListener("toggle", () => {
@@ -1057,7 +1073,10 @@ export function createDocumentStatus(options: CreateDocumentStatusOptions): Surf
     });
   };
 
-  cleanups.push(options.session.on("save-state", () => render()));
+  cleanups.push(options.session.on("save-state", (nextSaveState) => {
+    saveState = nextSaveState;
+    render();
+  }));
   cleanups.push(options.session.on("destroy", () => destroy()));
   render();
 
@@ -1817,6 +1836,39 @@ function statusLine(options: SurfaceComponentContext, label: string, testId: str
   valueElement.textContent = value;
   row.append(labelElement, valueElement);
   return row;
+}
+
+function conflictResolution(options: CreateDocumentStatusOptions): HTMLDivElement {
+  const group = createElement(options.host, "div", "document-conflict-resolution");
+  const title = createElement(options.host, "strong");
+  const description = createElement(options.host, "p");
+  const actions = createElement(options.host, "div", "document-conflict-actions");
+  title.dataset.testid = "conflict-resolution-title";
+  title.textContent = options.strings.status.conflictTitle;
+  description.textContent = options.strings.status.conflictDescription;
+  actions.append(
+    conflictActionButton(options, "reload-external", options.strings.status.conflictReloadExternal),
+    conflictActionButton(options, "download-local-copy", options.strings.status.conflictDownloadLocal),
+    conflictActionButton(options, "retry-save", options.strings.status.conflictRetrySave)
+  );
+  group.append(title, description, actions);
+  return group;
+}
+
+function conflictActionButton(
+  options: CreateDocumentStatusOptions,
+  action: SurfaceConflictResolutionAction,
+  label: string
+): HTMLButtonElement {
+  const button = createElement(options.host, "button", "button secondary document-conflict-action");
+  button.type = "button";
+  button.dataset.conflictAction = action;
+  button.dataset.testid = `conflict-action-${action}`;
+  button.textContent = label;
+  button.addEventListener("click", () => {
+    void options.onResolveConflict?.(action);
+  });
+  return button;
 }
 
 function applyInlineAnchor(root: HTMLElement, anchor: SurfaceInlineAiAnchor | null): void {

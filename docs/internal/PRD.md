@@ -337,6 +337,8 @@ Each host adapter must document its external-change strategy:
 
 The core Save Engine owns dirty/conflict/error state and hash comparison. It must not depend on a specific watcher, database, IDE, browser extension, or OS API.
 
+When an adapter can read the changed external content and the local session is clean, the editor may apply that external content automatically and remain `saved`. When local content is dirty, external content must not overwrite the local buffer; the session enters `conflict`, preserves the user's local edits, and the UI must offer explicit resolution actions such as reload external, keep/export local copy, or retry after resolving. When an adapter can only observe an external hash, it may surface conflict early, but save-time hash verification remains the hard no-overwrite guarantee.
+
 Host adapters may also register Momentarise Markdown Editor as the default Markdown reader/editor when the host allows it.
 This is adapter-owned:
 

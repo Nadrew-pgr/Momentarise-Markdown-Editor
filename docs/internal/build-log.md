@@ -4341,3 +4341,60 @@
   - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
 - Next issue:
   - `MME-0035 — Host adapter external-change strategy`.
+
+## MME-0035 — Host adapter external-change strategy
+
+- Timestamp: 2026-07-03T15:17:39+02:00
+- Status:
+  - Completed and accepted for code continuation after the human-approved external-change behavior direction and reviewer fixes. No code HITL was required by the current execution instruction.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short --branch`, and target issue files.
+  - MME-0034 was issue-committed as `10a1f6d`.
+- RED proof before implementation:
+  - Added `tests/web-external-change.test.mjs` first. It initially failed because `@momentarise/md-adapter-web` did not export `createFocusRefreshWatcher`.
+- Change:
+  - Added DOM-free `createFocusRefreshWatcher()` in `@momentarise/md-adapter-web` with injected listeners, duplicate suppression, stale in-flight callback cancellation across document swaps, and `onError` propagation.
+  - Added optional `readExternalContent()` to `SaveTarget`s and implemented it for memory, download-required, and web writable-file targets.
+  - Added headless session/save APIs for external changes: clean sessions can apply external content and remain `saved`; dirty sessions enter `conflict` without overwriting local or external content.
+  - Wired the demo to focus/visibility refresh so external changes are detected before the next save when possible.
+  - Fixed the status surface stale-listener bug that made source-mode autosave appear dirty until a mode switch forced `renderSaveState()`.
+  - Added conflict resolution actions to the shared status surface, rendered only when the host supplies a resolver. The demo wires `Reload external`, `Download local copy`, and `Retry save`.
+  - Compacted the status pill and moved/styled the conflict menu/actions after visual review.
+  - Documented adapter-owned external-change behavior in `docs/internal/PRD.md`, `packages/md-adapter-web/README.md`, and `packages/md-adapter-theia/README.md`.
+- Visual impact:
+  - Editing surface: source edits now visibly return to `clean` through autosave without a source/rich mode bounce.
+  - General UI: status pill is smaller; conflicts show an actionable resolution menu instead of only `CONFLICT`.
+  - Screenshots captured under `docs/internal/visual-checks/MME-0035/`:
+    - `source-autosave-clean.png`
+    - `external-clean-auto-applied.png`
+    - `external-dirty-conflict-actions.png`
+    - `external-conflict-reloaded.png`
+- Checks run:
+  - `node tests/web-external-change.test.mjs` — RED before implementation.
+  - `npm run test:web-external-change` — green.
+  - `npm run test:web-file-access` — green.
+  - `npm run test:surface` — green.
+  - `npm run test:save-engine` — green.
+  - `npm run test:editor-session` — green.
+  - `npm run test:contracts` — green.
+  - `npm run test:architecture` — green.
+  - `npm run test:publishability` — green.
+  - `npm run visual:mme-0035` — green with system Chrome permission after sandbox Chrome aborted before CDP.
+  - `npm test` — green; existing Vite chunk-size warning only.
+- Manual/visual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174 --force`.
+  - Local URL: `http://127.0.0.1:5174/`.
+  - Visual script verified source autosave clean without mode switch, clean external auto-apply, dirty external conflict with actions, and reload-external clean state.
+- Reviewer result:
+  - Code reviewer subagent `Euclid` used `gpt-5.3-codex-spark` with `xhigh` reasoning as requested. Initial review found stale in-flight watcher callbacks, unisolated refresh errors, and inert conflict actions when no resolver exists; builder fixed all findings and added regression tests. Follow-up review reported no remaining P0/P1/P2 findings.
+  - Visual reviewer subagent `Wegener` found conflict menu/action presentation issues and a clean-state clarity risk. Builder moved the menu below the Save button area, strengthened conflict action button styling, and regenerated visual artifacts. Follow-up visual self-review accepted the refreshed screenshots.
+- Residual risks:
+  - Conflict resolution remains V0: no merge/diff view yet.
+  - Theia/VS Code/Chrome/database hosts are documented contract paths only; only web focus-refresh is implemented in this slice.
+  - The clean `Save` button still remains visible for consistency with existing chrome; final save/status UX can be revisited in a later full UX pass.
+- Commit status:
+  - Issue-scoped MME-0035 commit to be created next; hash will be recorded in follow-up commit evidence.
+- Push status:
+  - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
+- Next issue:
+  - `MME-0036 — Release engineering and security pass`.

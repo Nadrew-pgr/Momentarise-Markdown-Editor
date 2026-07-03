@@ -197,6 +197,9 @@ const directTarget = createWritableFileSaveTarget({
 if (directTarget.persistenceTarget !== "disk") {
   throw new Error("Direct writable target must expose disk persistence.");
 }
+if ((await directTarget.readExternalContent?.()) !== initialContent) {
+  throw new Error("Direct writable target must expose normalized external content for clean reloads.");
+}
 
 const permissionDeniedHost = createMockPickerHost({
   content: initialContent,

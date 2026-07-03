@@ -380,6 +380,7 @@ h1 {
 
 .document-status-menu {
   gap: 8px;
+  top: calc(100% + 28px);
   padding: 10px;
 }
 
@@ -465,18 +466,18 @@ h1 {
 
 .editor-status-button {
   display: grid;
-  grid-template-columns: minmax(96px, 1fr) auto;
+  grid-template-columns: minmax(68px, 1fr) auto;
   align-items: center;
-  gap: 6px;
-  min-height: 27px;
-  max-width: 238px;
-  padding: 0 9px;
+  gap: 5px;
+  min-height: 24px;
+  max-width: 178px;
+  padding: 0 8px;
   border: 1px solid var(--mme-color-border);
   border-radius: 999px;
   background: var(--mme-color-surface);
   color: var(--mme-color-text);
   cursor: pointer;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
   transition: border-color 120ms ease, background 120ms ease;
 }
@@ -495,10 +496,46 @@ h1 {
 
 .editor-status-button span:last-child {
   color: var(--mme-color-text-muted);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+
+.document-conflict-resolution {
+  display: grid;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--mme-color-border);
+}
+
+.document-conflict-resolution > strong {
+  font-size: 12px;
+}
+
+.document-conflict-resolution > p {
+  color: var(--mme-color-text-muted);
+  font-size: 12px;
+}
+
+.document-conflict-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.document-conflict-action {
+  min-height: 26px;
+  padding: 0 8px;
+  border-color: var(--mme-color-border-strong);
+  background: var(--mme-color-surface-raised);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.document-conflict-action[data-conflict-action="reload-external"] {
+  border-color: var(--mme-color-danger);
+  color: var(--mme-color-danger);
 }
 
 .target-label {
@@ -2018,7 +2055,7 @@ h1 {
   }
 
   .editor-status-button {
-    max-width: min(100%, 360px);
+    max-width: min(100%, 210px);
   }
 
   .debug-inspector-body {

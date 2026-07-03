@@ -37,6 +37,7 @@ export type SaveTargetWriteResult =
 export interface SaveTarget {
   readonly persistenceTarget: PersistenceTarget;
   readonly targetLabel: string;
+  readonly readExternalContent?: () => string | null | Promise<string | null>;
   readonly readExternalHash?: () => DocumentHash | null | Promise<DocumentHash | null>;
   readonly write?: (request: SaveTargetWriteRequest) => Promise<SaveTargetWriteResult>;
 }
@@ -56,6 +57,22 @@ export interface SaveFlushOptions {
   readonly now?: Date;
   readonly reason: SaveFlushReason;
 }
+
+export type SaveExternalChangeResult =
+  | {
+      readonly status: "applied";
+      readonly content: string;
+      readonly state: SaveState;
+    }
+  | {
+      readonly status: "noop";
+      readonly state: SaveState;
+    }
+  | {
+      readonly status: "conflict";
+      readonly state: SaveState;
+      readonly message: string;
+    };
 
 export type SaveFlushResult =
   | {
@@ -86,9 +103,11 @@ export type SaveFlushResult =
 export interface SaveEngine {
   readonly autosaveDelayMs: number;
   readonly target: SaveTarget;
+  applyExternalContent(content: string, options?: SaveUpdateOptions): SaveExternalChangeResult;
   flush(options: SaveFlushOptions): Promise<SaveFlushResult>;
   getContent(): string;
   getState(): SaveState;
+  noteExternalChange(externalHash: DocumentHash, options?: SaveUpdateOptions): SaveExternalChangeResult;
   shouldAutosave(now?: Date): boolean;
   shouldBlockClose(): boolean;
   updateContent(content: string, options?: SaveUpdateOptions): SaveState;
@@ -134,6 +153,9 @@ export function createMemorySaveTarget(options: MemorySaveTargetOptions): Memory
     persistenceTarget: "memory-only",
     targetLabel: options.targetLabel ?? "memory://markdown",
     readContent() {
+      return content;
+    },
+    readExternalContent() {
       return content;
     },
     readExternalHash() {
@@ -182,6 +204,9 @@ export function createDownloadRequiredSaveTarget(
   return {
     persistenceTarget: "download-required",
     targetLabel: options.targetLabel ?? "download://markdown",
+    readExternalContent() {
+      return options.initialContent;
+    },
     readExternalHash() {
       return hashMarkdownContent(options.initialContent);
     }
@@ -245,6 +270,37 @@ class DefaultSaveEngine implements SaveEngine {
     this.targetState = options.target.persistenceTarget;
   }
 
+  applyExternalContent(content: string, options: SaveUpdateOptions = {}): SaveExternalChangeResult {
+    const now = options.now ?? new Date();
+    const externalHash = hashMarkdownContent(content);
+    this.externalHash = externalHash;
+
+    if (this.status === "saved" && this.currentHash === externalHash && this.lastSavedHash === externalHash) {
+      return {
+        state: this.toState(),
+        status: "noop"
+      };
+    }
+
+    if (this.status === "saved" && this.currentHash === this.lastSavedHash) {
+      this.content = content;
+      this.currentHash = externalHash;
+      this.lastSavedHash = externalHash;
+      this.lastSavedAt = now;
+      this.dirtySince = undefined;
+      this.errorMessage = undefined;
+      this.status = "saved";
+      this.targetState = this.target.persistenceTarget;
+      return {
+        content,
+        state: this.toState(),
+        status: "applied"
+      };
+    }
+
+    return this.markExternalConflict(externalHash, "External content changed while local content has unsaved edits.");
+  }
+
   flush(options: SaveFlushOptions): Promise<SaveFlushResult> {
     this.pendingFlush = options;
     this.activeFlush ??= this.runFlushLoop();
@@ -257,6 +313,17 @@ class DefaultSaveEngine implements SaveEngine {
 
   getState(): SaveState {
     return this.toState();
+  }
+
+  noteExternalChange(externalHash: DocumentHash, _options: SaveUpdateOptions = {}): SaveExternalChangeResult {
+    this.externalHash = externalHash;
+    if (this.lastSavedHash && externalHash === this.lastSavedHash) {
+      return {
+        state: this.toState(),
+        status: "noop"
+      };
+    }
+    return this.markExternalConflict(externalHash, "External content changed and must be reviewed before saving.");
   }
 
   shouldAutosave(now: Date = new Date()): boolean {
@@ -446,15 +513,29 @@ class DefaultSaveEngine implements SaveEngine {
   }
 
   private markConflict(externalHash: DocumentHash, message: string): SaveFlushResult {
+    const state = this.setConflict(externalHash, message);
+    return {
+      message,
+      state,
+      status: "conflict"
+    };
+  }
+
+  private markExternalConflict(externalHash: DocumentHash, message: string): SaveExternalChangeResult {
+    const state = this.setConflict(externalHash, message);
+    return {
+      message,
+      state,
+      status: "conflict"
+    };
+  }
+
+  private setConflict(externalHash: DocumentHash, message: string): SaveState {
     this.externalHash = externalHash;
     this.status = "conflict";
     this.targetState = "conflict";
     this.errorMessage = message;
-    return {
-      message,
-      state: this.toState(),
-      status: "conflict"
-    };
+    return this.toState();
   }
 
   private toState(): SaveState {

@@ -17,11 +17,14 @@ import {
 import type { FoldState } from "@momentarise/md-core";
 import {
   canUseFileSystemAccess,
+  createFocusRefreshWatcher,
   createImportedCopyDocument,
   createWritableFileSaveTarget,
   detectMarkdownLineEnding,
   normalizeMarkdownLineEndings,
   openWritableMarkdownFile,
+  type ExternalChangeListener,
+  type ExternalChangeWatcher,
   type WebFileHandleLike,
   type WebOpenedMarkdownFile,
   type WebOpenedMarkdownMode
@@ -604,6 +607,7 @@ let demoAiProviderTransport: OpenAiCompatibleTransport | null = null;
 let demoAiProviderTransportCallCount = 0;
 let session: MarkdownEditorSession;
 let activeSaveTarget: SaveTarget = fixtureSaveTarget;
+let externalChangeWatcher: ExternalChangeWatcher | null = null;
 let activeDocument: ActiveDemoDocument = {
   fileName: "source-mode-fixture.md",
   kind: "markdown",
@@ -852,11 +856,15 @@ if (initialAiProviderConfig) {
 }
 
 session = createDemoSession(fixtureMarkdown, fixtureSaveTarget, "fixture://source-mode-fixture.md");
+restartExternalChangeWatcher();
 
 function replaceDemoSession(content: string, target: SaveTarget, path: string | null): void {
   activeSaveTarget = target;
+  externalChangeWatcher?.stop();
+  externalChangeWatcher = null;
   session.destroy();
   session = createDemoSession(content, target, path);
+  restartExternalChangeWatcher();
   aiSessionStarted = false;
   inlineAiProviderOverride = null;
   inlineAiPromptState = {
@@ -868,6 +876,103 @@ function replaceDemoSession(content: string, target: SaveTarget, path: string | 
     statusText: defaultMmeStrings.ai.noSession
   };
   mountReferenceSurfaceComponents();
+}
+
+function restartExternalChangeWatcher(): void {
+  externalChangeWatcher?.stop();
+  externalChangeWatcher = null;
+  if (!activeSaveTarget.readExternalHash) {
+    return;
+  }
+  externalChangeWatcher = createFocusRefreshWatcher({
+    getLastSavedHash() {
+      return session.getSaveState().lastSavedHash;
+    },
+    listen: listenForExternalRefresh,
+    onError(error) {
+      lastSaveAction = `external refresh failed: ${errorMessage(error)}`;
+      setEditorNotice(`External refresh failed: ${errorMessage(error)}`);
+      logEvent(`External refresh failed: ${errorMessage(error)}`);
+      renderSaveState();
+    },
+    onExternalChange(externalHash) {
+      return handleExternalChange(externalHash);
+    },
+    readExternalHash: activeSaveTarget.readExternalHash
+  });
+  externalChangeWatcher.start();
+}
+
+function listenForExternalRefresh(handler: ExternalChangeListener): () => void {
+  const run = (): void => {
+    void handler();
+  };
+  const runWhenVisible = (): void => {
+    if (document.visibilityState === "visible") {
+      void handler();
+    }
+  };
+  window.addEventListener("focus", run);
+  document.addEventListener("visibilitychange", runWhenVisible);
+  return () => {
+    window.removeEventListener("focus", run);
+    document.removeEventListener("visibilitychange", runWhenVisible);
+  };
+}
+
+async function handleExternalChange(externalHash: SaveState["externalHash"]): Promise<void> {
+  if (!externalHash) {
+    return;
+  }
+  try {
+    if (activeSaveTarget.readExternalContent) {
+      const externalContent = await activeSaveTarget.readExternalContent();
+      if (externalContent !== null) {
+        const result = session.applyExternalContent(externalContent, "host");
+        if (result.status === "applied") {
+          applyExternalContentToEditors(externalContent);
+          lastSaveAction = "external change applied cleanly";
+          setEditorNotice("External file change applied.");
+          logEvent("External file changed while local buffer was clean; applied latest external content.");
+        } else if (result.status === "conflict") {
+          lastSaveAction = "external conflict detected; local edits kept";
+          setEditorNotice("External file changed. Local edits were kept; choose a conflict action from the status menu.");
+          logEvent("External file changed while local buffer was dirty; conflict shown before overwrite.");
+        }
+        renderSaveState();
+        updateRoundTripStatus();
+        persistRestorableDocument();
+        return;
+      }
+    }
+
+    const result = session.noteExternalChange(externalHash);
+    if (result.status === "conflict") {
+      lastSaveAction = `external conflict detected; external ${shortHash(externalHash)} preserved`;
+      setEditorNotice("External file changed. Local edits were kept; choose a conflict action from the status menu.");
+      logEvent("External file hash changed; conflict shown before overwrite.");
+      renderSaveState();
+    }
+  } catch (error) {
+    lastSaveAction = `external refresh failed: ${errorMessage(error)}`;
+    setEditorNotice(`External refresh failed: ${errorMessage(error)}`);
+    logEvent(`External refresh failed: ${errorMessage(error)}`);
+    renderSaveState();
+  }
+}
+
+function applyExternalContentToEditors(content: string): void {
+  replaceEditorDocument(content);
+  if (activeDocument.kind === "html-artifact") {
+    renderHtmlPreview();
+  }
+  if (editorMode === "rich") {
+    mountRichEditor(content);
+  }
+  if (editorMode === "preview" && activeDocument.kind === "markdown") {
+    renderMarkdownReadView();
+  }
+  refreshFindMatches();
 }
 
 function mountReferenceSurfaceComponents(): void {
@@ -1017,6 +1122,9 @@ function mountReferenceSurfaceComponents(): void {
     strings: defaultMmeStrings,
     onPrimaryAction() {
       memorySave("button");
+    },
+    onResolveConflict(action) {
+      void resolveExternalConflict(action);
     }
   });
   documentStatusPopover = queryRequired<HTMLDetailsElement>('[data-testid="document-status-popover"]');
@@ -1442,7 +1550,7 @@ downloadButton.addEventListener("click", () => {
 });
 
 simulateConflictButton.addEventListener("click", () => {
-  simulateExternalConflict();
+  void simulateExternalConflict();
 });
 
 propertiesModeVisibleButton.addEventListener("click", () => {
@@ -4116,6 +4224,45 @@ function downloadMarkdown(): void {
   renderSaveState();
 }
 
+async function resolveExternalConflict(action: "download-local-copy" | "reload-external" | "retry-save"): Promise<void> {
+  if (action === "download-local-copy") {
+    downloadMarkdown();
+    setEditorNotice("Local conflict copy exported. External file was not overwritten.");
+    return;
+  }
+
+  if (action === "retry-save") {
+    await flushSave("manual", "button");
+    return;
+  }
+
+  if (!activeSaveTarget.readExternalContent) {
+    lastSaveAction = "external reload unavailable; target cannot provide content";
+    setEditorNotice("External reload unavailable for this target. Export the local copy before reopening.");
+    logEvent("External reload unavailable: active save target cannot provide external content.");
+    renderSaveState();
+    return;
+  }
+
+  const externalContent = await activeSaveTarget.readExternalContent();
+  if (externalContent === null) {
+    lastSaveAction = "external reload failed; target returned no content";
+    setEditorNotice("External reload failed. Export the local copy before reopening.");
+    logEvent("External reload failed: active save target returned no content.");
+    renderSaveState();
+    return;
+  }
+
+  replaceDemoSession(externalContent, activeSaveTarget, activeDocument.pathLabel);
+  applyExternalContentToEditors(externalContent);
+  lastSaveAction = "external version reloaded; local conflict discarded";
+  clearEditorNotice();
+  logEvent("Reloaded external version and cleared the conflict.");
+  renderSaveState();
+  updateRoundTripStatus();
+  persistRestorableDocument();
+}
+
 function memorySave(source: "button" | "keyboard shortcut"): void {
   const state = session.getSaveState();
   if (state.target === "download-required" || activeDocument.mode === "imported-copy") {
@@ -4172,7 +4319,7 @@ function sessionShouldBlockClose(): boolean {
   return state.status === "error" && state.currentHash !== state.lastSavedHash;
 }
 
-function simulateExternalConflict(): void {
+async function simulateExternalConflict(): Promise<void> {
   if (!activeDocument.simulateExternalChange) {
     lastSaveAction = `external conflict simulation unavailable for ${documentModeLabel(activeDocument.mode)}`;
     logEvent(`External conflict simulation is unavailable for ${documentModeLabel(activeDocument.mode)}.`);
@@ -4182,6 +4329,11 @@ function simulateExternalConflict(): void {
 
   const externalBase = activeDocument.readDiskContent?.() ?? getMarkdown();
   activeDocument.simulateExternalChange(`${externalBase}\n<!-- simulated external edit -->\n`);
+  const externalHash = await activeSaveTarget.readExternalHash?.();
+  if (externalHash) {
+    await handleExternalChange(externalHash);
+    return;
+  }
   lastSaveAction = "external target changed; next save must detect conflict";
   logEvent("Simulated external target change; the next dirty save must report conflict.");
   renderSaveState();
@@ -4997,7 +5149,7 @@ declare global {
       selectRichTextForTest: (text: string) => void;
       showRealFileOpenUnavailableForTest: () => void;
       showUnsupportedLocalFileStateForTest: () => void;
-      simulateExternalConflict: () => void;
+      simulateExternalConflict: () => Promise<void>;
       setCursorAfterText: (text: string) => void;
       setCursorToEnd: () => void;
       setReferenceSurfacePreferencesForTest: (preferences: ReferenceEditorPreferenceInput) => void;

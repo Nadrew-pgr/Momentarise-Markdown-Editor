@@ -1,4 +1,4 @@
-import type { DocumentDialect, DocumentPath, EditorMode, MomentariseNode, ParseResult, SaveState, SourceRange } from "@momentarise/md-core";
+import type { DocumentDialect, DocumentHash, DocumentPath, EditorMode, MomentariseNode, ParseResult, SaveState, SourceRange } from "@momentarise/md-core";
 import { createHeadingSlugSegment } from "@momentarise/md-core";
 import { createMarkdownAstParser } from "@momentarise/md-format";
 import {
@@ -17,6 +17,7 @@ import { createDefaultPolicyResolver, type PolicyResolver } from "@momentarise/m
 import {
   createSaveEngine,
   type SaveEngine,
+  type SaveExternalChangeResult,
   type SaveFlushReason,
   type SaveFlushResult,
   type SaveTarget
@@ -365,6 +366,7 @@ export type SessionEventPayloadMap = {
 export interface MarkdownEditorSession {
   readonly extensions: ExtensionRegistry;
   acceptPendingSuggestion(): string | null;
+  applyExternalContent(content: string, origin?: SessionContentOrigin): SaveExternalChangeResult;
   destroy(): void;
   find(query: string, options?: FindOptions): readonly FindMatch[];
   flush(reason: SaveFlushReason): Promise<SaveFlushResult>;
@@ -374,6 +376,7 @@ export interface MarkdownEditorSession {
   getParseResult(): ParseResult;
   getPendingSuggestion(): AiWritingSuggestion | null;
   getSaveState(): SaveState;
+  noteExternalChange(externalHash: DocumentHash): SaveExternalChangeResult;
   on<Event extends SessionEvent>(event: Event, handler: (payload: SessionEventPayloadMap[Event]) => void): () => void;
   rejectPendingSuggestion(): void;
   replace(range: TextRange, replacement: string, origin?: SessionContentOrigin): ReplaceResult;
@@ -600,6 +603,27 @@ class DefaultMarkdownEditorSession implements MarkdownEditorSession {
     return result.content;
   }
 
+  applyExternalContent(content: string, origin: SessionContentOrigin = "host"): SaveExternalChangeResult {
+    this.assertAlive();
+    const result = this.saveEngine.applyExternalContent(content);
+    this.parseCache = null;
+    if (result.status === "applied") {
+      this.emit("change", {
+        content,
+        origin
+      });
+      this.emit("save-state", result.state);
+      this.emit("diagnostics", {
+        diagnostics: this.getParseResult().diagnostics,
+        parseResult: this.getParseResult()
+      });
+      this.cancelScheduledAutosave();
+      return result;
+    }
+    this.emit("save-state", result.state);
+    return result;
+  }
+
   destroy(): void {
     if (this.destroyed) {
       return;
@@ -647,6 +671,13 @@ class DefaultMarkdownEditorSession implements MarkdownEditorSession {
 
   getSaveState(): SaveState {
     return this.saveEngine.getState();
+  }
+
+  noteExternalChange(externalHash: DocumentHash): SaveExternalChangeResult {
+    this.assertAlive();
+    const result = this.saveEngine.noteExternalChange(externalHash);
+    this.emit("save-state", result.state);
+    return result;
   }
 
   on<Event extends SessionEvent>(

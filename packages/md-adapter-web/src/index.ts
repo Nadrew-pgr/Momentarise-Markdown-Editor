@@ -1,4 +1,4 @@
-import type { DocumentSnapshot, EditorMode, SaveState, SidecarState } from "@momentarise/md-core";
+import type { DocumentHash, DocumentSnapshot, EditorMode, SaveState, SidecarState } from "@momentarise/md-core";
 import {
   createDownloadRequiredSaveTarget,
   hashMarkdownContent,
@@ -76,6 +76,21 @@ export interface CreateImportedCopyDocumentOptions {
   readonly fileName: string;
 }
 
+export type ExternalChangeListener = () => void | Promise<void>;
+
+export interface ExternalChangeWatcher {
+  start(): void;
+  stop(): void;
+}
+
+export interface CreateFocusRefreshWatcherOptions {
+  readonly getLastSavedHash: () => DocumentHash | undefined;
+  readonly listen: (handler: ExternalChangeListener) => () => void;
+  readonly onError?: (error: unknown) => void;
+  readonly onExternalChange: (externalHash: DocumentHash) => void | Promise<void>;
+  readonly readExternalHash: () => DocumentHash | null | Promise<DocumentHash | null>;
+}
+
 export type MarkdownLineEnding = "crlf" | "lf";
 
 export function canUseFileSystemAccess(host: WebFileAccessHostLike = defaultWebFileAccessHost()): boolean {
@@ -106,6 +121,10 @@ export function createWritableFileSaveTarget(
   return {
     persistenceTarget: "disk",
     targetLabel,
+    async readExternalContent() {
+      const file = await options.handle.getFile();
+      return normalizeMarkdownLineEndings(await file.text());
+    },
     async readExternalHash() {
       const file = await options.handle.getFile();
       return hashMarkdownContent(normalizeMarkdownLineEndings(await file.text()));
@@ -158,6 +177,50 @@ export function createWritableFileSaveTarget(
         externalHash: request.contentHash,
         status: "saved"
       };
+    }
+  };
+}
+
+export function createFocusRefreshWatcher(options: CreateFocusRefreshWatcherOptions): ExternalChangeWatcher {
+  let cleanup: (() => void) | null = null;
+  let generation = 0;
+  let lastNotifiedHash: DocumentHash | null = null;
+
+  const checkExternalHash = async (runGeneration: number): Promise<void> => {
+    try {
+      const externalHash = await options.readExternalHash();
+      if (runGeneration !== generation || !cleanup) {
+        return;
+      }
+      const lastSavedHash = options.getLastSavedHash();
+      if (!externalHash || !lastSavedHash || externalHash === lastSavedHash) {
+        lastNotifiedHash = null;
+        return;
+      }
+      if (lastNotifiedHash === externalHash) {
+        return;
+      }
+      lastNotifiedHash = externalHash;
+      await options.onExternalChange(externalHash);
+    } catch (error) {
+      options.onError?.(error);
+    }
+  };
+
+  return {
+    start() {
+      if (cleanup) {
+        return;
+      }
+      generation += 1;
+      const runGeneration = generation;
+      cleanup = options.listen(() => checkExternalHash(runGeneration));
+    },
+    stop() {
+      generation += 1;
+      cleanup?.();
+      cleanup = null;
+      lastNotifiedHash = null;
     }
   };
 }

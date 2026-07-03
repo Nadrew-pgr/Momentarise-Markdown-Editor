@@ -2039,6 +2039,8 @@ RED test: `tests/web-external-change.test.mjs` — fake `listen` capture, simula
 
 Architecture Reviewer.
 
+Completed 2026-07-03; accepted for code continuation after the human-approved external-change behavior direction and reviewer fixes. Added a DOM-free `createFocusRefreshWatcher()` in `@momentarise/md-adapter-web`, optional `readExternalContent()` on `SaveTarget`s, headless session APIs for clean external apply vs dirty conflict, web/demo focus-refresh wiring, actionable conflict status actions, compact status chrome, and a stale save-state listener fix so source autosave returns the badge to clean without mode switching. Fixed reviewer findings by cancelling stale in-flight watcher callbacks across document swaps, routing watcher/read errors through `onError` and demo notices, and hiding conflict action buttons when a host provides no resolver. Proven by `npm run test:web-external-change`, `npm run test:web-file-access`, `npm run test:surface`, full `npm test`, and `npm run visual:mme-0035`.
+
 ## MME-0036 — Release engineering and security pass
 
 ### Goal

@@ -216,6 +216,13 @@ query(slashHost, '[data-testid="slash-command-menu"]').dispatchEvent(
 assert(slashRuns[0] === "host:callout-card", "Slash Enter must run the selected slash command.");
 
 const statusHost = document.createElement("div");
+const statusSession = createMarkdownEditorSession({
+  content: "# Status\n",
+  scheduler: createManualScheduler(),
+  target: createMemorySaveTarget({
+    initialContent: "# Status\n"
+  })
+});
 const status = createDocumentStatus({
   ...baseContext,
   document: {
@@ -228,12 +235,74 @@ const status = createDocumentStatus({
   onPrimaryAction() {
     toolbarActions.push("save");
   },
-  saveState: session.getSaveState()
+  saveState: statusSession.getSaveState(),
+  session: statusSession
 });
 status.update();
 assert(query(statusHost, "[data-testid='document-name']").textContent === "note.md", "Status popover must render the current document name.");
 assert(query(statusHost, "[data-testid='memory-save-button']").textContent === defaultMmeStrings.status.primarySave, "Primary status action must use strings.");
 assert(query(statusHost, "[data-testid='document-status-popover'] summary").getAttribute("aria-expanded") === "false", "Status popover must expose disclosure aria state.");
+statusSession.setContent("# Status\n\nDirty edit.\n", "source-view");
+assert(query(statusHost, "[data-testid='dirty-state']").textContent === "dirty", "Status popover must update from save-state event payload.");
+
+const conflictTarget = createMemorySaveTarget({
+  initialContent: "# Conflict\n",
+  targetLabel: "disk://conflict.md"
+});
+const conflictSession = createMarkdownEditorSession({
+  content: "# Conflict\n",
+  scheduler: createManualScheduler(),
+  target: conflictTarget
+});
+conflictSession.setContent("# Conflict\n\nLocal edit.\n", "source-view");
+conflictTarget.simulateExternalChange("# Conflict\n\nExternal edit.\n");
+await conflictSession.flush("manual");
+const conflictActions = [];
+const conflictNoResolverHost = document.createElement("div");
+createDocumentStatus({
+  ...baseContext,
+  document: {
+    fileName: "conflict.md",
+    kind: "markdown",
+    mode: "writable-file",
+    pathLabel: "disk://conflict.md"
+  },
+  host: conflictNoResolverHost,
+  onPrimaryAction() {
+    conflictActions.push("primary");
+  },
+  saveState: conflictSession.getSaveState(),
+  session: conflictSession
+});
+assert(
+  !conflictNoResolverHost.querySelector("[data-testid='conflict-action-reload-external']"),
+  "Conflict actions must not render when the host does not provide a resolver."
+);
+const conflictHost = document.createElement("div");
+createDocumentStatus({
+  ...baseContext,
+  document: {
+    fileName: "conflict.md",
+    kind: "markdown",
+    mode: "writable-file",
+    pathLabel: "disk://conflict.md"
+  },
+  host: conflictHost,
+  onPrimaryAction() {
+    conflictActions.push("primary");
+  },
+  onResolveConflict(action) {
+    conflictActions.push(action);
+  },
+  saveState: conflictSession.getSaveState(),
+  session: conflictSession
+});
+assert(
+  query(conflictHost, "[data-testid='conflict-resolution-title']").textContent === defaultMmeStrings.status.conflictTitle,
+  "Conflict status menu must render a resolution section."
+);
+query(conflictHost, "[data-testid='conflict-action-reload-external']").click();
+assert(conflictActions[0] === "reload-external", "Conflict reload action must dispatch through the status surface.");
 
 const aiHost = document.createElement("div");
 const aiEvents = [];
