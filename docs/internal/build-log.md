@@ -4398,3 +4398,15 @@
   - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
 - Next issue:
   - `MME-0036 — Release engineering and security pass`.
+
+#### MME-0035 commit evidence
+
+- Timestamp: 2026-07-03T15:17:39+02:00
+- Status:
+  - Follow-up docs/process note recording the issue commit hash.
+- Commit status:
+  - Issue-scoped MME-0035 commit created: `33ca1bf` (`feat: add external change strategy`).
+- Push status:
+  - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
+- Next issue:
+  - `MME-0036 — Release engineering and security pass`.
