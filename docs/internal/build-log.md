@@ -4471,3 +4471,15 @@
   - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
 - Next issue:
   - `MME-0037 — Public docs content baseline`.
+
+#### MME-0036 commit evidence
+
+- Timestamp: 2026-07-03T16:26:34+02:00
+- Status:
+  - Follow-up docs/process note recording the issue commit hash.
+- Commit status:
+  - Issue-scoped MME-0036 commit created: `785c166` (`chore: add release engineering security pass`).
+- Push status:
+  - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
+- Next issue:
+  - `MME-0037 — Public docs content baseline`.
