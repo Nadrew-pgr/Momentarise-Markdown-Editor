@@ -1,6 +1,6 @@
 {
   "name": "momentarise-consumer-smoke",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,5 +8,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {},
-  "devDependencies": {}
+  "devDependencies": {},
+  "license": "Apache-2.0",
+  "momentarise": {
+    "releaseStatus": "experimental",
+    "versionPolicy": "0.x semver: public APIs are versioned, and breaking changes may ship in minor releases until 1.0. See docs/public/compatibility-promise.md."
+  }
 }

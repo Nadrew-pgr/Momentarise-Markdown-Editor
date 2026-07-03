@@ -24,3 +24,10 @@ npm run start -w @momentarise/theia-demo
 ```
 
 The demo uses the same package APIs a real Theia host would use; it is not a fork of `apps/md-demo`.
+
+## Release metadata
+
+- Release status: experimental
+- Version policy: 0.x semver: public APIs are versioned, and breaking changes may ship in minor releases until 1.0. See docs/public/compatibility-promise.md.
+- License: MPL-2.0
+- Public API: root package exports are audited by `npm run test:public-api`.

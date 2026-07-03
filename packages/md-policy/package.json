@@ -1,9 +1,9 @@
 {
   "name": "@momentarise/md-policy",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "description": "Document Access Policy baseline for Momentarise Markdown Editor.",
-  "license": "UNLICENSED",
+  "license": "MPL-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor.git",
@@ -34,6 +34,10 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@momentarise/md-core": "0.0.0"
+    "@momentarise/md-core": "^0.1.0"
+  },
+  "momentarise": {
+    "releaseStatus": "experimental",
+    "versionPolicy": "0.x semver: public APIs are versioned, and breaking changes may ship in minor releases until 1.0. See docs/public/compatibility-promise.md."
   }
 }

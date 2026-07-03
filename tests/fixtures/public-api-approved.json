@@ -1,0 +1,168 @@
+{
+  "@momentarise/md-adapter-theia": [
+    "THEIA_MARKDOWN_COMMANDS",
+    "THEIA_MARKDOWN_OPEN_PRIORITY",
+    "TheiaMarkdownOpenHandler",
+    "createTheiaFileSaveTarget",
+    "createTheiaMarkdownEditorMount",
+    "createTheiaMarkdownEditorWidgetClass",
+    "createTheiaPreferenceInput",
+    "readTheiaMarkdownDocument",
+    "registerTheiaMarkdownKeybindings",
+    "theiaMarkdownAdapterPackage"
+  ],
+  "@momentarise/md-adapter-web": [
+    "canUseFileSystemAccess",
+    "createFocusRefreshWatcher",
+    "createImportedCopyDocument",
+    "createWritableFileSaveTarget",
+    "detectMarkdownLineEnding",
+    "normalizeMarkdownLineEndings",
+    "openWritableMarkdownFile",
+    "restoreMarkdownLineEndings"
+  ],
+  "@momentarise/md-ai": [
+    "acceptAiSuggestion",
+    "aiWritingPackage",
+    "createAiWritingSession",
+    "createMockAiProvider",
+    "createOpenAiCompatibleProvider",
+    "createOpenAiCompatibleRequestBody",
+    "rejectAiSuggestion",
+    "requestAiSuggestion"
+  ],
+  "@momentarise/md-cli": [
+    "cliCommands",
+    "runCli"
+  ],
+  "@momentarise/md-core": [
+    "MomentariseError",
+    "createHeadingNodeId",
+    "createHeadingSlugSegment",
+    "hashMarkdownContent",
+    "headingSegmentFromNodeId",
+    "isMomentariseError",
+    "nodeId",
+    "slugHeadingText"
+  ],
+  "@momentarise/md-editor": [
+    "DEFAULT_EDITOR_BEHAVIOR_PREFERENCES",
+    "DEFAULT_HOST_CAPABILITIES",
+    "DEFAULT_PREFERENCE_SCHEMA",
+    "DOCUMENT_PREFERENCE_ALLOWLIST",
+    "createExtensionRegistry",
+    "createMarkdownEditorSession",
+    "extractDocumentPreferences",
+    "markdownEditorPackage",
+    "resolvePreferences"
+  ],
+  "@momentarise/md-format": [
+    "createIdentityMarkdownFormatter",
+    "createMarkdownAstFormatter",
+    "createMarkdownAstParser",
+    "roundTripMarkdown",
+    "runFixtureRoundTrip",
+    "serializeMarkdownEdits",
+    "serializeMomentariseDocument"
+  ],
+  "@momentarise/md-policy": [
+    "createDefaultPolicyResolver",
+    "createPolicyResolver",
+    "defaultFrameworkPolicyRules",
+    "defaultHardDenyRules",
+    "policyPackage",
+    "resolveDocumentPolicy"
+  ],
+  "@momentarise/md-preview-html": [
+    "createSandboxedHtmlPreview",
+    "htmlPreviewPackage",
+    "isHtmlFileName",
+    "sandboxAllowsScripts"
+  ],
+  "@momentarise/md-react": [
+    "MarkdownEditor",
+    "markdownReactBindingPackage",
+    "useMarkdownEditor"
+  ],
+  "@momentarise/md-render-html": [
+    "markdownHtmlRendererPackage",
+    "mmeSanitizeSchema",
+    "renderMarkdownToHtml"
+  ],
+  "@momentarise/md-rich-prosemirror": [
+    "applyRichMarkdownCommand",
+    "canInsertParagraphAfterCurrentBlock",
+    "createMomentariseRichPlugins",
+    "createMomentariseRichSchema",
+    "createRichBlockAffordancePlugin",
+    "createRichMarkdownState",
+    "filterRichMarkdownCommands",
+    "getCurrentCodeBlockInfo",
+    "getRichFoldVisibility",
+    "getRichHeadingFoldItems",
+    "insertParagraphAfterCurrentBlock",
+    "markdownDocumentToProseMirror",
+    "momentariseRichProseMirrorPackage",
+    "proseMirrorDocToMomentariseNodes",
+    "reconfigureRichPlugins",
+    "reorderRichTopLevelBlock",
+    "reorderRichTopLevelBlockTransaction",
+    "replaceFirstRichText",
+    "richCommandRegistry",
+    "richPositionForSourceOffset",
+    "richRangeForSourceRange",
+    "richTopLevelBlockRanges",
+    "runRichMarkdownCommand",
+    "selectFirstRichText",
+    "serializeRichMarkdownState",
+    "setCurrentCodeBlockInfo",
+    "toggleCurrentTodoItem",
+    "toggleRichHeadingFold"
+  ],
+  "@momentarise/md-save": [
+    "createDownloadRequiredSaveTarget",
+    "createMemorySaveTarget",
+    "createSaveEngine",
+    "hashMarkdownContent",
+    "persistenceTargetLabel"
+  ],
+  "@momentarise/md-source-codemirror": [
+    "createMomentariseSourceCompartments",
+    "createMomentariseSourceExtensions",
+    "createMomentariseSourceFindHighlightExtension",
+    "createMomentariseSourcePreferenceExtensions",
+    "createMomentariseSourceReconfigureEffects",
+    "createMomentariseSourceView",
+    "momentariseSourceKeymap",
+    "momentariseSourcePackage"
+  ],
+  "@momentarise/md-surface": [
+    "applyMmeThemeToElement",
+    "createAiAssistantPanel",
+    "createCommandPalette",
+    "createDiagnosticsSurface",
+    "createDocumentStatus",
+    "createFindReplaceSurface",
+    "createInlineAiPrompt",
+    "createModeControl",
+    "createSlashMenu",
+    "createSurfaceDocumentState",
+    "createToolbar",
+    "defaultMmeStrings",
+    "dirtyStateLabel",
+    "documentTargetLabel",
+    "primaryActionLabel",
+    "surfaceContract",
+    "surfaceDocumentModeFromSaveTarget",
+    "surfaceFileNameFromPath"
+  ],
+  "@momentarise/md-theme": [
+    "DEFAULT_MME_SCHEME",
+    "DEFAULT_MME_THEME",
+    "MME_TOKEN_VARIABLES",
+    "defaultIconSet",
+    "resolveTheme",
+    "resolveThemeToCssVariables",
+    "themeContract"
+  ]
+}

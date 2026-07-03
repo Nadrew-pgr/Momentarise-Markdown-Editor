@@ -13,6 +13,9 @@
       "path": "../md-format"
     },
     {
+      "path": "../md-policy"
+    },
+    {
       "path": "../md-render-html"
     }
   ],

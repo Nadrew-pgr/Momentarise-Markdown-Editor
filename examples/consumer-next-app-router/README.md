@@ -20,3 +20,11 @@ MME_CONSUMER_MATRIX_OFFLINE=1 npm run test:consumer-matrix
 ```
 
 Offline mode still builds and packs workspace packages, then loudly reports skipped external-consumer legs.
+
+## Release metadata
+
+- Package: momentarise-next-app-router-consumer
+- Release status: experimental
+- Version policy: 0.x semver: public APIs are versioned, and breaking changes may ship in minor releases until 1.0. See docs/public/compatibility-promise.md.
+- License: Apache-2.0
+- Public API: root package exports are audited by `npm run test:public-api`.

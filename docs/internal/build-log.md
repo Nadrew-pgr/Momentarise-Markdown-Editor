@@ -4410,3 +4410,64 @@
   - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
 - Next issue:
   - `MME-0036 — Release engineering and security pass`.
+
+## MME-0036 — Release engineering and security pass
+
+- Timestamp: 2026-07-03T16:22:56+02:00
+- Status:
+  - Completed and accepted for code continuation after the human license decision and DX/security reviewer fixes. Licensing HITL was resolved before implementation: framework/core packages use `MPL-2.0`; demos/examples use `Apache-2.0`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short --branch`, package manifests, package README state, rich schema/CLI/security target files, consumer matrix script, and hygiene files.
+  - MME-0035 was issue-committed as `33ca1bf`; branch was clean and ahead of `origin/main`.
+- RED proof before implementation:
+  - Added `tests/release-engineering.test.mjs` first; it failed on missing root `LICENSE`.
+  - Added `tests/public-api-report.test.mjs` first; it failed on missing approved public API fixture.
+  - Added `tests/rich-security.test.mjs` first; it failed because live rich DOM preserved `javascript:` link/image URLs.
+  - Extended `tests/cli-v0.test.mjs` first; it failed because `mme inspect .env --json` succeeded and exposed a policy-denied file hash.
+- Change:
+  - Added root `LICENSE` with MPL-2.0, Apache-2.0 LICENSE files for demos/examples, `license` fields everywhere, real `0.1.0` package versions, release-status/version-policy metadata, per-package READMEs, and internal dependency ranges moved off `0.0.0`.
+  - Added Changesets config/scripts and a `CHANGELOG.md` seed documenting no removed exports; `replaceFirstRichText` and `selectFirstRichText` remain intentional experimental automation helpers covered by the public export audit.
+  - Added `.github/workflows/ci.yml` running `npm ci`, `npm test`, and `npm run test:consumer-matrix` with npm cache setup.
+  - Added `docs/public/compatibility-promise.md`, `SECURITY.md`, and `CONTRIBUTING.md`.
+  - Added `MomentariseError`/`MomentariseErrorCode` in `@momentarise/md-core` and hardened `@momentarise/md-cli` path handling: read/render/format now check the default policy before reading, realpath the invoked root and target, deny symlink escapes, and policy-check real symlink targets.
+  - Hardened `@momentarise/md-rich-prosemirror` link/image URL handling for Markdown bridge, `parseDOM`, `toDOM`, and paste. Unsafe `javascript:`, `vbscript:`, and non-image `data:` URLs become inert live attributes while text/Markdown source preservation remains intact; `data:image/` remains allowed for image `src`.
+  - Added DOM-less paste fallback handling for quoted, unquoted, and HTML-entity-encoded unsafe URL attributes.
+  - Added public API approved export fixture under `tests/fixtures/public-api-approved.json`.
+  - Fixed the consumer matrix package pack list to include `@momentarise/md-render-html` so `@momentarise/md-cli` installs from packed artifacts instead of the unpublished npm registry.
+  - Ran `npm audit fix` for non-breaking dependency security updates; this lifted the demo Vite install to the patched `8.1.3` resolution.
+- Visual impact:
+  - No visible editing or general UI changes.
+- Checks run:
+  - `node tests/release-engineering.test.mjs` — RED before implementation.
+  - `node tests/public-api-report.test.mjs` — RED before implementation.
+  - `node tests/rich-security.test.mjs` — RED before implementation.
+  - `node tests/cli-v0.test.mjs` — RED before implementation.
+  - `npm run test:release-engineering` — green.
+  - `npm run test:public-api` — green.
+  - `npm run test:rich-security` — green.
+  - `npm run test:cli` — green.
+  - `npm run test:contracts` — green.
+  - `npm run test:architecture` — green.
+  - `npm run test:publishability` — green.
+  - `npm run test:policy` — green.
+  - `npm run test:html-preview` — green.
+  - `npm run test:rich-prosemirror` — green.
+  - `npm test` — green; existing Vite chunk-size warning only.
+  - `npm run test:consumer-matrix` — initially failed without network due registry DNS, then exposed a real missing `md-render-html` packed tarball; after fix, final network-enabled run was green across Vite npm, Vite pnpm strict, Next npm, Next pnpm strict, type-resolution, duplicate-instance, and tree-shake checks.
+  - `git diff --check` — green.
+  - `npm audit --audit-level=high` — found existing Theia toolchain vulnerabilities; `npm audit fix` removed the non-breaking Vite high advisory, leaving one high advisory chain that requires breaking Theia dependency changes.
+- Manual/visual verification:
+  - Not run. This issue has no intended UI change and no visual artifact requirement.
+- Reviewer result:
+  - DX/release reviewer subagent `Tesla` used `gpt-5.3-codex-spark` with `xhigh` reasoning as requested and reported no P0/P1/P2 findings.
+  - Security reviewer subagent `Lagrange` used `gpt-5.3-codex-spark` with `xhigh` reasoning as requested. Initial review found a symlink escape in CLI path policy and incomplete DOM-less paste fallback for unquoted URL attributes; follow-up found encoded URL-scheme bypass in the fallback. Builder fixed all findings with regression tests. Final follow-up reported no remaining P0/P1/P2 findings.
+- Residual risks:
+  - `npm audit` still reports a high advisory through the Theia demo/toolchain path (`serialize-javascript` via Theia/webpack/mocha chain). The available audit fix requires breaking Theia dependency changes, so it is documented as a residual adapter/toolchain risk rather than force-applied in this release-engineering slice.
+  - Next consumer installs report two moderate audit warnings in external Next dependency graph; the matrix builds and type-checks, and remediation belongs to dependency policy/version follow-up if needed.
+  - All current packages remain `experimental` under the compatibility promise; no package is marked stable.
+- Commit status:
+  - Issue-scoped MME-0036 commit to be created next; hash will be recorded in follow-up commit evidence.
+- Push status:
+  - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
+- Next issue:
+  - `MME-0037 — Public docs content baseline`.

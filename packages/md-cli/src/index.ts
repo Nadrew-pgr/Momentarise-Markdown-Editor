@@ -5,18 +5,21 @@ import type {
   DocumentPath,
   MomentariseNode,
   OpaqueNode,
-  ParseResult
+  ParseResult,
+  PolicyCapability
 } from "@momentarise/md-core";
+import { MomentariseError, isMomentariseError } from "@momentarise/md-core";
 import {
   createMarkdownAstFormatter,
   runFixtureRoundTrip,
   type RoundTripFixture,
   type RoundTripHarnessResult
 } from "@momentarise/md-format";
+import { createDefaultPolicyResolver } from "@momentarise/md-policy";
 import { renderMarkdownToHtml, type RenderHtmlDiagnostic } from "@momentarise/md-render-html";
 import { constants as fsConstants } from "node:fs";
-import { access, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
-import { basename, join, relative, resolve } from "node:path";
+import { access, mkdir, readdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export interface CliContract {
@@ -138,7 +141,7 @@ export async function runCli(args: readonly string[], options: CliRunOptions = {
 
     return fail(`Unhandled command: ${parsed.command}`);
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "Unknown CLI error.");
+    return fail(formatCliError(error, parsed.json));
   }
 }
 
@@ -249,7 +252,7 @@ async function inspectFile(
   }[];
 }> {
   const file = requiredPositional(parsed, 0, "mme inspect <file>");
-  const path = resolve(cwd, file);
+  const path = await resolveCliDocumentPath(cwd, file, ["read", "metadata"]);
   const source = await readFile(path, "utf8");
   const formatter = createMarkdownAstFormatter();
   const result = formatter.parse(source, {
@@ -278,7 +281,7 @@ async function renderFile(
   readonly html: string;
 }> {
   const file = requiredPositional(parsed, 0, "mme render <file>");
-  const path = resolve(cwd, file);
+  const path = await resolveCliDocumentPath(cwd, file, ["read", "export"]);
   const source = await readFile(path, "utf8");
   const result = renderMarkdownToHtml(source, {
     fileName: displayPath(cwd, path)
@@ -302,7 +305,7 @@ async function formatFile(
   readonly wrote: boolean;
 }> {
   const file = requiredPositional(parsed, 0, "mme format <file> [--write]");
-  const path = resolve(cwd, file);
+  const path = await resolveCliDocumentPath(cwd, file, parsed.write ? ["read", "write"] : ["read"]);
   const source = await readFile(path, "utf8");
   const formatter = createMarkdownAstFormatter();
   const parseResult = formatter.parse(source, {
@@ -440,6 +443,74 @@ function requiredPositional(parsed: ParsedArgs, index: number, usage: string): s
   return value;
 }
 
+async function resolveCliDocumentPath(
+  cwd: string,
+  file: string,
+  capabilities: readonly PolicyCapability[]
+): Promise<string> {
+  const path = resolve(cwd, file);
+  const root = resolve(cwd);
+  const display = displayPath(cwd, path);
+  if (!isPathInsideRoot(root, path)) {
+    throw new MomentariseError(
+      "mme_path_outside_root",
+      `Refusing to access a path outside the invoked tree: ${file}`,
+      {
+        details: {
+          capabilities,
+          cwd,
+          path
+        }
+      }
+    );
+  }
+
+  const realRoot = await realpath(root);
+  const realTarget = await realpath(path);
+  if (!isPathInsideRoot(realRoot, realTarget)) {
+    throw new MomentariseError(
+      "mme_path_outside_root",
+      `Refusing to access a path outside the invoked tree after resolving symlinks: ${file}`,
+      {
+        details: {
+          capabilities,
+          cwd: realRoot,
+          path: realTarget
+        }
+      }
+    );
+  }
+
+  const policyDocumentPaths = [...new Set([display, displayPath(realRoot, realTarget)])];
+  const resolver = createDefaultPolicyResolver();
+  for (const capability of capabilities) {
+    for (const documentPath of policyDocumentPaths) {
+      const decision = resolver.resolve({
+        capability,
+        subject: {
+          documentPath
+        }
+      });
+      if (!decision.allowed) {
+        throw new MomentariseError("mme_policy_denied", decision.reason ?? `policy denied ${capability}`, {
+          details: {
+            capability,
+            documentPath,
+            policySource: decision.source,
+            severity: decision.severity
+          }
+        });
+      }
+    }
+  }
+  return path;
+}
+
+function isPathInsideRoot(root: string, path: string): boolean {
+  const candidate = relative(root, path);
+  return candidate === "" || (!candidate.startsWith("..") && !isAbsolute(candidate));
+}
+
 function collectOpaqueNodes(node: MomentariseNode): readonly OpaqueNode[] {
   if (node.kind === "opaque") {
     return [node];
@@ -502,6 +573,25 @@ function formatPayload(payload: unknown, json: boolean): string {
     return payload.html.endsWith("\n") ? payload.html : `${payload.html}\n`;
   }
   return `${JSON.stringify(payload, null, 2)}\n`;
+}
+
+function formatCliError(error: unknown, json: boolean): string {
+  if (json && isMomentariseError(error)) {
+    return `${JSON.stringify(
+      {
+        code: error.code,
+        details: error.details ?? {},
+        message: error.message,
+        status: "error"
+      },
+      null,
+      2
+    )}\n`;
+  }
+  if (isMomentariseError(error)) {
+    return `${error.code}: ${error.message}`;
+  }
+  return error instanceof Error ? error.message : "Unknown CLI error.";
 }
 
 function ok(stdout: string): CliRunResult {

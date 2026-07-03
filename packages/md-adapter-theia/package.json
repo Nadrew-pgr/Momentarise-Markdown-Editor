@@ -1,9 +1,9 @@
 {
   "name": "@momentarise/md-adapter-theia",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "description": "Theia adapter alpha for Momentarise Markdown Editor.",
-  "license": "UNLICENSED",
+  "license": "MPL-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor.git",
@@ -43,11 +43,11 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@momentarise/md-editor": "0.0.0",
-    "@momentarise/md-save": "0.0.0",
-    "@momentarise/md-source-codemirror": "0.0.0",
-    "@momentarise/md-surface": "0.0.0",
-    "@momentarise/md-theme": "0.0.0"
+    "@momentarise/md-editor": "^0.1.0",
+    "@momentarise/md-save": "^0.1.0",
+    "@momentarise/md-source-codemirror": "^0.1.0",
+    "@momentarise/md-surface": "^0.1.0",
+    "@momentarise/md-theme": "^0.1.0"
   },
   "peerDependencies": {
     "@theia/core": "^1.73.0",
@@ -56,5 +56,9 @@
   "devDependencies": {
     "@theia/core": "1.73.0",
     "@theia/filesystem": "1.73.0"
+  },
+  "momentarise": {
+    "releaseStatus": "experimental",
+    "versionPolicy": "0.x semver: public APIs are versioned, and breaking changes may ship in minor releases until 1.0. See docs/public/compatibility-promise.md."
   }
 }

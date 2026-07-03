@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -72,7 +72,7 @@ try {
   const unformatted = "# CLI Format\n\nBody without final newline";
   await writeFile(formatFile, unformatted, "utf8");
   const beforeDryRun = await readFile(formatFile, "utf8");
-  const dryRun = parseJson(runCli(["format", formatFile, "--json"]).stdout, "format dry-run");
+  const dryRun = parseJson(runCli(["format", "format-me.md", "--json"], { cwd: tempRoot }).stdout, "format dry-run");
   const afterDryRun = await readFile(formatFile, "utf8");
   if (afterDryRun !== beforeDryRun) {
     throw new Error("mme format dry-run must not write to disk.");
@@ -81,7 +81,7 @@ try {
     throw new Error(`Dry-run format must report pending change without writing: ${JSON.stringify(dryRun)}`);
   }
 
-  const writeResult = parseJson(runCli(["format", formatFile, "--write", "--json"]).stdout, "format write");
+  const writeResult = parseJson(runCli(["format", "format-me.md", "--write", "--json"], { cwd: tempRoot }).stdout, "format write");
   const afterWrite = await readFile(formatFile, "utf8");
   if (writeResult.wrote !== true || afterWrite !== `${unformatted}\n`) {
     throw new Error("mme format --write must explicitly write formatted content.");
@@ -93,13 +93,47 @@ try {
     "# Unsafe\n\n<div onclick=\"alert(1)\">Visible text</div>\n<script>alert(1)</script>\n",
     "utf8"
   );
-  const unsafeRender = parseJson(runCli(["render", unsafeRenderFile, "--json"]).stdout, "unsafe render");
+  const unsafeRender = parseJson(runCli(["render", "unsafe-render.md", "--json"], { cwd: tempRoot }).stdout, "unsafe render");
   if (unsafeRender.html.includes("<script") || unsafeRender.html.includes("onclick=")) {
     throw new Error(`mme render must strip unsafe HTML from render artifacts: ${unsafeRender.html}`);
   }
   if (!unsafeRender.diagnostics.some((diagnostic) => diagnostic.code === "render_html_stripped")) {
     throw new Error("mme render must report render_html_stripped diagnostics for unsafe Markdown HTML.");
   }
+
+  const envFile = join(tempRoot, ".env");
+  const secretValue = "MME_SUPER_SECRET=do-not-print";
+  await writeFile(envFile, `${secretValue}\n`, "utf8");
+  const deniedInspect = runCliFailure(["inspect", ".env", "--json"], { cwd: tempRoot });
+  assertDeniedWithoutLeak(deniedInspect, secretValue, "mme inspect must deny hard-denied env files without leaking contents.");
+  const deniedRender = runCliFailure(["render", ".env", "--json"], { cwd: tempRoot });
+  assertDeniedWithoutLeak(deniedRender, secretValue, "mme render must deny hard-denied env files without leaking contents.");
+
+  const outsideRoot = await mkdtemp(join(tmpdir(), "mme-cli-outside-"));
+  const outsideSecret = "outside tree content";
+  await writeFile(join(outsideRoot, "outside.md"), outsideSecret, "utf8");
+  const deniedTraversal = runCliFailure(["inspect", "../outside.md", "--json"], { cwd: tempRoot });
+  if (deniedTraversal.stdout.includes(outsideSecret) || deniedTraversal.stderr.includes(outsideSecret)) {
+    throw new Error("mme inspect must not leak files outside the invoked tree.");
+  }
+  if (!/outside/i.test(deniedTraversal.stderr)) {
+    throw new Error(`mme inspect traversal denial should explain the outside-tree policy:\n${deniedTraversal.stderr}`);
+  }
+  await symlink(join(outsideRoot, "outside.md"), join(tempRoot, "inside-link.md"));
+  const deniedSymlinkEscape = runCliFailure(["inspect", "inside-link.md", "--json"], { cwd: tempRoot });
+  if (deniedSymlinkEscape.stdout.includes(outsideSecret) || deniedSymlinkEscape.stderr.includes(outsideSecret)) {
+    throw new Error("mme inspect must not leak files through in-tree symlinks to outside paths.");
+  }
+  if (!/outside/i.test(deniedSymlinkEscape.stderr)) {
+    throw new Error(`mme inspect symlink denial should explain the outside-tree policy:\n${deniedSymlinkEscape.stderr}`);
+  }
+  await symlink(envFile, join(tempRoot, "safe-name.md"));
+  const deniedRealPolicy = runCliFailure(["inspect", "safe-name.md", "--json"], { cwd: tempRoot });
+  assertDeniedWithoutLeak(deniedRealPolicy, secretValue, "mme inspect must policy-check the real symlink target path.");
+  await rm(outsideRoot, {
+    force: true,
+    recursive: true
+  });
 
   const initResult = parseJson(runCli(["init", "--json"], { cwd: tempRoot }).stdout, "init");
   if (initResult.status !== "created" || !existsSync(join(tempRoot, ".momentarise-markdown-editor.json"))) {
@@ -171,6 +205,26 @@ function runCli(args, options = {}) {
     );
   }
   return result;
+}
+
+function runCliFailure(args, options = {}) {
+  const result = spawnSync(process.execPath, [cliPath, ...args], {
+    cwd: options.cwd ?? root,
+    encoding: "utf8"
+  });
+  if (result.status === 0) {
+    throw new Error(`CLI command unexpectedly succeeded: mme ${args.join(" ")}\nstdout:\n${result.stdout}`);
+  }
+  return result;
+}
+
+function assertDeniedWithoutLeak(result, secretValue, message) {
+  if (result.stdout.includes(secretValue) || result.stderr.includes(secretValue)) {
+    throw new Error(`${message}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  }
+  if (!/hard deny|denied|policy/i.test(result.stderr)) {
+    throw new Error(`${message}\nExpected policy denial, got:\n${result.stderr}`);
+  }
 }
 
 function parseJson(text, label) {

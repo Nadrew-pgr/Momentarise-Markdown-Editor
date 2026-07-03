@@ -63,6 +63,37 @@ export function hashMarkdownContent(content: string): DocumentHash {
   return `fnv1a64:${hash.toString(16).padStart(16, "0")}` as DocumentHash;
 }
 
+export type MomentariseErrorCode =
+  | "mme_invalid_argument"
+  | "mme_path_outside_root"
+  | "mme_policy_denied"
+  | "mme_provider_error"
+  | "mme_save_conflict"
+  | "mme_unexpected_error";
+
+export interface MomentariseErrorOptions {
+  readonly cause?: unknown;
+  readonly details?: Readonly<Record<string, unknown>>;
+}
+
+export class MomentariseError extends Error {
+  readonly code: MomentariseErrorCode;
+  readonly details?: Readonly<Record<string, unknown>>;
+
+  constructor(code: MomentariseErrorCode, message: string, options: MomentariseErrorOptions = {}) {
+    super(message, options.cause === undefined ? undefined : { cause: options.cause });
+    this.name = "MomentariseError";
+    this.code = code;
+    if (options.details) {
+      this.details = options.details;
+    }
+  }
+}
+
+export function isMomentariseError(error: unknown): error is MomentariseError {
+  return error instanceof MomentariseError;
+}
+
 export type DocumentDialect =
   | "commonmark"
   | "gfm"

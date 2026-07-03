@@ -2088,6 +2088,10 @@ Order of operations: license decision (HUMAN — stop and ask before generating 
 
 DX Reviewer and Security Reviewer.
 
+### Status
+
+Completed 2026-07-03; code continuation accepted after the human license decision (`MPL-2.0` for framework packages, `Apache-2.0` for demos/examples), DX/security reviewer fixes, and final package proof. Added root/per-demo LICENSE files, package license/version/release metadata, per-package READMEs, Changesets config, CI, changelog seed, compatibility promise, public API export audit, typed error taxonomy, rich URL and paste sanitization, CLI realpath/policy hardening, `SECURITY.md`, `CONTRIBUTING.md`, and repo hygiene checks. Proven by RED release/API/security tests, `npm test`, `npm run test:consumer-matrix`, `git diff --check`, and reviewer acceptance. `MME-0037` is the next candidate after issue-scoped commit.
+
 ## MME-0037 — Public docs content baseline
 
 ### Goal

@@ -1,9 +1,9 @@
 {
   "name": "@momentarise/md-format",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "description": "Parser and serializer contracts for Momentarise Markdown Editor.",
-  "license": "UNLICENSED",
+  "license": "MPL-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor.git",
@@ -35,12 +35,16 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@momentarise/md-core": "0.0.0",
+    "@momentarise/md-core": "^0.1.0",
     "remark-frontmatter": "^5.0.0",
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
     "unified": "^11.0.5",
     "vfile": "^6.0.3",
     "vfile-matter": "^5.0.1"
+  },
+  "momentarise": {
+    "releaseStatus": "experimental",
+    "versionPolicy": "0.x semver: public APIs are versioned, and breaking changes may ship in minor releases until 1.0. See docs/public/compatibility-promise.md."
   }
 }

@@ -14,6 +14,7 @@ const packageNames = [
   "@momentarise/md-theme",
   "@momentarise/md-surface",
   "@momentarise/md-react",
+  "@momentarise/md-render-html",
   "@momentarise/md-preview-html",
   "@momentarise/md-rich-prosemirror",
   "@momentarise/md-source-codemirror",

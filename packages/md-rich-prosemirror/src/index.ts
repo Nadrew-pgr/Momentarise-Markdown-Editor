@@ -366,6 +366,7 @@ export function createMomentariseRichSchema(): MomentariseRichSchema {
 export function createMomentariseRichPlugins(preferences: MomentariseRichPreferences = {}): Plugin[] {
   const normalized = normalizeRichPreferences(preferences);
   const plugins: Plugin[] = [
+    createRichPasteSanitizerPlugin(),
     createRichInputRulesPlugin(),
     createTodoTogglePlugin()
   ];
@@ -463,6 +464,40 @@ function normalizeRichPreferences(preferences: MomentariseRichPreferences = {}):
     keymapDelegateToHost: preferences.keymapDelegateToHost ?? false,
     keymapProfile: preferences.keymapProfile ?? "default"
   };
+}
+
+function isSafeUrl(value: string | null | undefined, options: { readonly allowDataImage?: boolean } = {}): boolean {
+  const normalized = normalizeUrlForSafetyCheck(value);
+  if (!normalized) {
+    return true;
+  }
+  const schemeMatch = normalized.match(/^([a-z][a-z0-9+.-]*):/i);
+  if (!schemeMatch) {
+    return true;
+  }
+  const scheme = schemeMatch[1]!.toLowerCase();
+  if (scheme === "http" || scheme === "https" || scheme === "mailto") {
+    return true;
+  }
+  if (options.allowDataImage && scheme === "data") {
+    return /^data:image\//i.test(normalized);
+  }
+  return false;
+}
+
+function safeUrlAttribute(
+  value: string | null | undefined,
+  options: { readonly allowDataImage?: boolean } = {}
+): string | null {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  if (!trimmed || !isSafeUrl(trimmed, options)) {
+    return null;
+  }
+  return trimmed;
+}
+
+function normalizeUrlForSafetyCheck(value: string | null | undefined): string {
+  return typeof value === "string" ? value.trim().replace(/[\u0000-\u001F\u007F\s]+/g, "") : "";
 }
 
 export function applyRichMarkdownCommand(
@@ -1711,6 +1746,84 @@ type RichMarkdownInputRule =
   | { readonly kind: "ordered_list"; readonly prefixLength: number }
   | { readonly checked: boolean; readonly kind: "todo_item"; readonly prefixLength: number };
 
+function createRichPasteSanitizerPlugin(): Plugin {
+  return new Plugin({
+    props: {
+      transformPastedHTML(html) {
+        return sanitizePastedHtml(html);
+      }
+    }
+  });
+}
+
+function sanitizePastedHtml(html: string): string {
+  if (typeof DOMParser !== "undefined") {
+    const document = new DOMParser().parseFromString(html, "text/html");
+    for (const element of [...document.body.querySelectorAll("script")]) {
+      element.remove();
+    }
+    for (const element of [...document.body.querySelectorAll("*")]) {
+      sanitizeElementAttributes(element);
+    }
+    return document.body.innerHTML;
+  }
+  return html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/\s+(href|src)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, (match, name: string, rawValue: string) => {
+      const attributeName = name.toLowerCase();
+      const value = decodeHtmlCharacterReferences(stripAttributeQuotes(rawValue));
+      return isSafeUrl(value, { allowDataImage: attributeName === "src" }) ? match : "";
+    });
+}
+
+function stripAttributeQuotes(value: string): string {
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+
+function decodeHtmlCharacterReferences(value: string): string {
+  const named: Record<string, string> = {
+    amp: "&",
+    apos: "'",
+    colon: ":",
+    gt: ">",
+    lt: "<",
+    quot: '"'
+  };
+  return value.replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]+);?/gi, (match, entity: string) => {
+    const normalized = entity.toLowerCase();
+    if (normalized.startsWith("#x")) {
+      const codePoint = Number.parseInt(normalized.slice(2), 16);
+      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+    }
+    if (normalized.startsWith("#")) {
+      const codePoint = Number.parseInt(normalized.slice(1), 10);
+      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+    }
+    return named[normalized] ?? match;
+  });
+}
+
+function sanitizeElementAttributes(element: Element): void {
+  for (const attribute of [...element.attributes]) {
+    const name = attribute.name.toLowerCase();
+    if (name.startsWith("on")) {
+      element.removeAttribute(attribute.name);
+      continue;
+    }
+    if (name === "href" && !isSafeUrl(attribute.value)) {
+      element.removeAttribute(attribute.name);
+      continue;
+    }
+    if (name === "src" && !isSafeUrl(attribute.value, { allowDataImage: element.tagName.toLowerCase() === "img" })) {
+      element.removeAttribute(attribute.name);
+    }
+  }
+}
+
 function createRichInputRulesPlugin(): Plugin {
   return new Plugin<RichInputRulesPluginState | null>({
     appendTransaction(transactions, _oldState, state) {
@@ -2856,7 +2969,7 @@ const richNodes: Record<string, NodeSpec> = {
   image: {
     attrs: {
       alt: { default: "" },
-      src: {},
+      src: { default: null },
       title: { default: null }
     },
     draggable: true,
@@ -2869,20 +2982,30 @@ const richNodes: Record<string, NodeSpec> = {
           element instanceof HTMLImageElement
             ? {
                 alt: element.alt,
-                src: element.getAttribute("src"),
+                src: safeUrlAttribute(element.getAttribute("src"), {
+                  allowDataImage: true
+                }),
                 title: element.getAttribute("title")
               }
             : false
       }
     ],
-    toDOM: (node) => [
-      "img",
-      {
-        alt: node.attrs.alt,
-        src: node.attrs.src,
-        title: node.attrs.title
+    toDOM: (node) => {
+      const attrs: Record<string, string> = {
+        alt: stringAttribute(node.attrs.alt) ?? ""
+      };
+      const src = safeUrlAttribute(stringAttribute(node.attrs.src), {
+        allowDataImage: true
+      });
+      const title = stringAttribute(node.attrs.title);
+      if (src) {
+        attrs.src = src;
       }
-    ]
+      if (title) {
+        attrs.title = title;
+      }
+      return ["img", attrs];
+    }
   },
   hard_break: {
     group: "inline",
@@ -2926,7 +3049,7 @@ const richMarks: Record<string, MarkSpec> = {
   },
   link: {
     attrs: {
-      href: {},
+      href: { default: null },
       title: { default: null }
     },
     inclusive: false,
@@ -2936,13 +3059,24 @@ const richMarks: Record<string, MarkSpec> = {
         getAttrs: (element) =>
           element instanceof HTMLAnchorElement
             ? {
-                href: element.getAttribute("href"),
+                href: safeUrlAttribute(element.getAttribute("href")),
                 title: element.getAttribute("title")
               }
             : false
       }
     ],
-    toDOM: (mark) => ["a", { href: mark.attrs.href, title: mark.attrs.title }, 0]
+    toDOM: (mark) => {
+      const attrs: Record<string, string> = {};
+      const href = safeUrlAttribute(stringAttribute(mark.attrs.href));
+      const title = stringAttribute(mark.attrs.title);
+      if (href) {
+        attrs.href = href;
+      }
+      if (title) {
+        attrs.title = title;
+      }
+      return ["a", attrs, 0];
+    }
   }
 };
 
@@ -3068,7 +3202,7 @@ function inlineNodeToProseMirror(
     return inlineChildrenToProseMirror(node.children ?? [], schema, source, [
       ...marks,
       schema.marks.link.create({
-        href: stringAttribute(node.attributes?.url) ?? "",
+        href: safeUrlAttribute(stringAttribute(node.attributes?.url)),
         title: stringAttribute(node.attributes?.title)
       })
     ]);
@@ -3077,7 +3211,9 @@ function inlineNodeToProseMirror(
     return [
       schema.nodes.image.create({
         alt: stringAttribute(node.attributes?.alt) ?? "",
-        src: stringAttribute(node.attributes?.url) ?? "",
+        src: safeUrlAttribute(stringAttribute(node.attributes?.url), {
+          allowDataImage: true
+        }),
         title: stringAttribute(node.attributes?.title)
       })
     ];

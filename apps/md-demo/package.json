@@ -1,6 +1,6 @@
 {
   "name": "@momentarise/md-demo",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "Mini web demo for Momentarise Markdown Editor source mode.",
@@ -16,18 +16,18 @@
     "@codemirror/language": "^6.0.0",
     "@codemirror/state": "^6.0.0",
     "@codemirror/view": "^6.0.0",
-    "@momentarise/md-adapter-web": "0.0.0",
-    "@momentarise/md-ai": "0.0.0",
-    "@momentarise/md-editor": "0.0.0",
-    "@momentarise/md-format": "0.0.0",
-    "@momentarise/md-policy": "0.0.0",
-    "@momentarise/md-preview-html": "0.0.0",
-    "@momentarise/md-render-html": "0.0.0",
-    "@momentarise/md-rich-prosemirror": "0.0.0",
-    "@momentarise/md-save": "0.0.0",
-    "@momentarise/md-source-codemirror": "0.0.0",
-    "@momentarise/md-surface": "0.0.0",
-    "@momentarise/md-theme": "0.0.0",
+    "@momentarise/md-adapter-web": "^0.1.0",
+    "@momentarise/md-ai": "^0.1.0",
+    "@momentarise/md-editor": "^0.1.0",
+    "@momentarise/md-format": "^0.1.0",
+    "@momentarise/md-policy": "^0.1.0",
+    "@momentarise/md-preview-html": "^0.1.0",
+    "@momentarise/md-render-html": "^0.1.0",
+    "@momentarise/md-rich-prosemirror": "^0.1.0",
+    "@momentarise/md-save": "^0.1.0",
+    "@momentarise/md-source-codemirror": "^0.1.0",
+    "@momentarise/md-surface": "^0.1.0",
+    "@momentarise/md-theme": "^0.1.0",
     "codemirror": "^6.0.0",
     "prosemirror-state": "^1.4.4",
     "prosemirror-view": "^1.41.4"
@@ -35,5 +35,10 @@
   "devDependencies": {
     "typescript": "^5.0.0",
     "vite": "^8.0.14"
+  },
+  "license": "Apache-2.0",
+  "momentarise": {
+    "releaseStatus": "experimental",
+    "versionPolicy": "0.x semver: public APIs are versioned, and breaking changes may ship in minor releases until 1.0. See docs/public/compatibility-promise.md."
   }
 }

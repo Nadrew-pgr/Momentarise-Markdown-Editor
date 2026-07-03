@@ -1,6 +1,6 @@
 {
   "name": "@momentarise/theia-demo",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Theia browser app shell for Momentarise Markdown Editor adapter verification.",
   "scripts": {
@@ -8,7 +8,7 @@
     "start": "theia start --hostname 127.0.0.1 --port 5176"
   },
   "dependencies": {
-    "@momentarise/md-adapter-theia": "0.0.0",
+    "@momentarise/md-adapter-theia": "^0.1.0",
     "@theia/core": "1.73.0",
     "@theia/editor": "1.73.0",
     "@theia/filesystem": "1.73.0",
@@ -31,5 +31,10 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "license": "Apache-2.0",
+  "momentarise": {
+    "releaseStatus": "experimental",
+    "versionPolicy": "0.x semver: public APIs are versioned, and breaking changes may ship in minor releases until 1.0. See docs/public/compatibility-promise.md."
   }
 }

@@ -1,9 +1,9 @@
 {
   "name": "@momentarise/md-editor",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "description": "Host-independent headless Markdown editor session for Momentarise Markdown Editor.",
-  "license": "UNLICENSED",
+  "license": "MPL-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor.git",
@@ -34,10 +34,14 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@momentarise/md-ai": "0.0.0",
-    "@momentarise/md-core": "0.0.0",
-    "@momentarise/md-format": "0.0.0",
-    "@momentarise/md-policy": "0.0.0",
-    "@momentarise/md-save": "0.0.0"
+    "@momentarise/md-ai": "^0.1.0",
+    "@momentarise/md-core": "^0.1.0",
+    "@momentarise/md-format": "^0.1.0",
+    "@momentarise/md-policy": "^0.1.0",
+    "@momentarise/md-save": "^0.1.0"
+  },
+  "momentarise": {
+    "releaseStatus": "experimental",
+    "versionPolicy": "0.x semver: public APIs are versioned, and breaking changes may ship in minor releases until 1.0. See docs/public/compatibility-promise.md."
   }
 }
