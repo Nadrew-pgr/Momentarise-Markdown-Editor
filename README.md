@@ -52,10 +52,11 @@ Completed slices:
 - MME-0034: Theia adapter alpha, accepted for code continuation after adapter package, Theia demo shell, OpenHandler/source/find proof, and reviewer fixes.
 - MME-0035: Host adapter external-change strategy, accepted for code continuation after web focus-refresh watcher, clean external apply, dirty conflict/no-overwrite actions, autosave status fix, visual proof, and reviewer fixes.
 - MME-0036: Release engineering and security pass, accepted for code continuation after license decision, package/readme/version metadata, Changesets/CI, public API audit, rich URL/paste hardening, CLI policy hardening, security docs, consumer matrix proof, and reviewer fixes.
+- MME-0037: Public docs content baseline, accepted for continuation after relative-link convention approval, public `.md` docs set, package docs, docs lint, formatter identity proof, full test pass, and DX reviewer acceptance.
 
 Current slice:
 
-- MME-0037: Public docs content baseline.
+- MME-0038: Public docs site and AX docs surface.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

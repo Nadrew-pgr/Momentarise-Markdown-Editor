@@ -2148,6 +2148,10 @@ Tooling: `scripts/docs-lint.mjs` wired as `test:docs` — checks heading hierarc
 
 DX Reviewer.
 
+### Status
+
+Completed 2026-07-08; human approved the internal linking convention as relative Markdown links. Added the public `.md` docs baseline under `docs/public/` with overview, quickstarts, concepts, per-package pages, FAQ, and roadmap; kept existing glossary, compatibility promise, and AI provider docs as public-safe Markdown. Added `scripts/docs-lint.mjs` and `npm run test:docs` to enforce required pages, relative links, no public/internal leaks, no MDX/JSX in prose, heading hierarchy, fenced language tags, optional frontmatter schema shape, no-frontmatter coverage, and MME formatter identity. Proven by RED `npm run test:docs`, green `npm run test:docs`, `npm run test:render-html`, full `npm test`, and DX reviewer acceptance after frontmatter validation follow-up. `MME-0038` is the next candidate after issue-scoped commit.
+
 ## MME-0038 — Public docs site and AX docs surface
 
 ### Goal

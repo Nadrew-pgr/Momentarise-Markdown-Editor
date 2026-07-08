@@ -4483,3 +4483,46 @@
   - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
 - Next issue:
   - `MME-0037 — Public docs content baseline`.
+
+## MME-0037 — Public docs content baseline
+
+- Timestamp: 2026-07-08T11:03:29+02:00
+- Status:
+  - Completed and accepted for continuation after the human approved the internal docs link convention: relative Markdown links. The previous issue was accepted as reviewed/validated by the human before continuation.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short --branch`, existing `docs/public/` files, package manifests, and relevant parser/formatter test surfaces.
+  - MME-0036 was issue-committed as `785c166` with evidence commit `bf212d9`; branch was clean and ahead of `origin/main`.
+- RED proof before implementation:
+  - Added `scripts/docs-lint.mjs` and wired `npm run test:docs` into `package.json`; first `npm run test:docs` failed on the missing required public docs set and package pages.
+- Change:
+  - Added public Markdown docs under `docs/public/`: overview, vanilla/React/Next/headless quickstarts, concepts for document model, preservation, save truthfulness, policy, AI/privacy, theming, preferences, extensions, FAQ, roadmap, and one package page for every current package under `packages/*`.
+  - Preserved existing public docs: `AI_PROVIDER_ADAPTER.md`, `GLOSSARY.md`, and `compatibility-promise.md`.
+  - Chose relative Markdown links as the public docs convention and kept MDX/React execution out of the docs source. React appears only inside fenced `tsx` examples.
+  - Added `scripts/docs-lint.mjs` checks for required docs, package-page coverage, one H1 per page, non-skipped heading hierarchy, relative `.md` links, missing link targets, no public references to `docs/internal`, no wikilinks as the docs convention, no MDX/JSX in prose, language tags on fenced examples, optional frontmatter schema keys and scalar/list shapes, at least one page without frontmatter, and MME formatter identity.
+  - Wired `test:docs` into the root `npm test` sequence.
+  - Updated `README.md` current slice and `docs/internal/ISSUES.md` status.
+- Visual impact:
+  - No visible editing or general UI changes.
+- Checks run:
+  - `npm run test:docs` — RED before docs existed; failed on missing required public docs.
+  - `npm run test:docs` — initially exposed YAML frontmatter quoting and lint false-positive issues; fixed.
+  - `npm run test:docs` — green after docs and lint fixes.
+  - `npm run test:render-html` — green.
+  - `git diff --check` — green.
+  - `npm test` — green; existing Vite chunk-size warning only.
+- Manual/LLM spot-check:
+  - `docs/public/quickstart/react.md` is self-contained enough to answer how to install and mount the React binding, and states what React owns versus what MME owns.
+  - `docs/public/concepts/save-truthfulness.md` is self-contained enough to answer why `saved` must name the actual persistence target and how clean external apply differs from dirty conflict.
+  - `docs/public/packages/md-ai.md` plus `docs/public/concepts/ai-privacy.md` are self-contained enough to answer provider-path and staged-suggestion questions without reading internal repo docs.
+  - Public/internal boundary check is covered by `test:docs`; public docs do not reference `docs/internal`.
+- Reviewer result:
+  - DX reviewer subagent `Ampere` inspected the MME-0037 docs and lint surface using `gpt-5.3-codex-spark` with `xhigh` reasoning. Initial pass reported no P0/P1/P2 findings and two P3 issues: frontmatter value-shape validation was incomplete, and the LLM spot-check artifact was not yet recorded. Builder strengthened frontmatter validation in `scripts/docs-lint.mjs` and recorded the spot-check in this build log. Follow-up reviewer pass reported no P0/P1/P2 findings and confirmed the frontmatter P3 resolved.
+- Residual risks:
+  - The docs are a baseline, not exhaustive API docs; deeper recipes, migration guides, `llms.txt`, and docs-site copy/open-in-chat affordances belong to MME-0038 or later public-docs follow-ups.
+  - Fenced examples are linted for language tags and intended copy-paste shape, but not compiled as standalone external consumer projects in this slice.
+- Commit status:
+  - Issue-scoped MME-0037 commit to be created next; hash will be recorded in follow-up commit evidence.
+- Push status:
+  - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
+- Next issue:
+  - `MME-0038 — Public docs site and AX docs surface`.
