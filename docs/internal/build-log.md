@@ -4526,3 +4526,15 @@
   - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
 - Next issue:
   - `MME-0038 — Public docs site and AX docs surface`.
+
+#### MME-0037 commit evidence
+
+- Timestamp: 2026-07-08T11:06:03+02:00
+- Status:
+  - Follow-up docs/process note recording the issue commit hash.
+- Commit status:
+  - Issue-scoped MME-0037 commit created: `864de67` (`docs: add public docs baseline`).
+- Push status:
+  - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
+- Next issue:
+  - `MME-0038 — Public docs site and AX docs surface`.
