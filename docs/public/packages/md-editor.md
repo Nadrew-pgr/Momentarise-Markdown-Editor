@@ -1,7 +1,7 @@
 ---
-title: "Package: md-editor"
-description: Headless editor session and extension registry.
-nav_section: Packages
+title: Headless Editor Session
+description: Session state, outline, events, modes, and extension registry.
+nav_section: Reference
 nav_order: 6
 audience: developers
 tags:
@@ -13,7 +13,7 @@ llms: include
 updated: 2026-07-08
 ---
 
-# Package: md-editor
+# Headless Editor Session
 
 `@momentarise/md-editor` owns the headless editor session.
 

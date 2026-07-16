@@ -1,7 +1,7 @@
 ---
-title: "Package: md-source-codemirror"
-description: Reusable CodeMirror source-mode baseline.
-nav_section: Packages
+title: CodeMirror Source View
+description: Source-mode editor behavior, preferences, and host integration.
+nav_section: Reference
 nav_order: 10
 audience: developers
 tags:
@@ -13,7 +13,7 @@ llms: include
 updated: 2026-07-08
 ---
 
-# Package: md-source-codemirror
+# CodeMirror Source View
 
 `@momentarise/md-source-codemirror` provides the source-mode editor layer.
 

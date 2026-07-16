@@ -1,7 +1,7 @@
 ---
 title: Save Truthfulness
 description: Save state must describe the real persistence target.
-nav_section: Concepts
+nav_section: Foundations
 nav_order: 3
 audience: developers
 tags:
@@ -44,6 +44,6 @@ If local content is clean and the adapter can read external content, the host ma
 
 ## Related Docs
 
-- [Package Reference: md-save](../packages/md-save.md)
-- [Package Reference: md-adapter-web](../packages/md-adapter-web.md)
-- [Package Reference: md-adapter-theia](../packages/md-adapter-theia.md)
+- [Save Engine](../packages/md-save.md)
+- [Web File Access](../packages/md-adapter-web.md)
+- [Theia Adapter](../packages/md-adapter-theia.md)

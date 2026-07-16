@@ -1,7 +1,7 @@
 ---
-title: "Package: md-core"
-description: Host-independent core contracts for MME.
-nav_section: Packages
+title: Core Contracts
+description: Stable host-independent primitives shared by every MME package.
+nav_section: Reference
 nav_order: 1
 audience: developers
 tags:
@@ -12,7 +12,7 @@ llms: include
 updated: 2026-07-08
 ---
 
-# Package: md-core
+# Core Contracts
 
 `@momentarise/md-core` contains host-independent types and helpers shared across MME packages.
 

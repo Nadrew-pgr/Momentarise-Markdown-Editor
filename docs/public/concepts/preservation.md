@@ -1,7 +1,7 @@
 ---
 title: Preservation
 description: How MME protects Markdown bytes and unknown syntax.
-nav_section: Concepts
+nav_section: Foundations
 nav_order: 2
 audience: developers
 tags:
@@ -45,5 +45,5 @@ A full-document rewrite may look clean in a demo but can corrupt real files. MME
 ## Related Docs
 
 - [Document Model](document-model.md)
-- [Package Reference: md-format](../packages/md-format.md)
+- [Markdown Parser And Serializer](../packages/md-format.md)
 - [Glossary](../GLOSSARY.md)

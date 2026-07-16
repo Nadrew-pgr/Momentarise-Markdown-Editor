@@ -1,7 +1,7 @@
 ---
 title: Vanilla Quickstart
 description: Mount Momentarise Markdown Editor without a framework.
-nav_section: Quickstart
+nav_section: Getting Started
 nav_order: 1
 audience: developers
 tags:

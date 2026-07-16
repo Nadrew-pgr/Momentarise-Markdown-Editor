@@ -1,7 +1,7 @@
 ---
-title: "Package: md-rich-prosemirror"
-description: ProseMirror rich-mode bridge for MME.
-nav_section: Packages
+title: ProseMirror Rich View
+description: Rich-mode bridge that keeps Markdown serialization honest.
+nav_section: Reference
 nav_order: 11
 audience: developers
 tags:
@@ -13,7 +13,7 @@ llms: include
 updated: 2026-07-08
 ---
 
-# Package: md-rich-prosemirror
+# ProseMirror Rich View
 
 `@momentarise/md-rich-prosemirror` is the first rich-mode bridge for MME.
 

@@ -1,7 +1,7 @@
 ---
-title: "Package: md-adapter-web"
-description: Web host capability helpers.
-nav_section: Packages
+title: Web File Access
+description: Browser file-open and save-target helpers.
+nav_section: Reference
 nav_order: 14
 audience: developers
 tags:
@@ -13,7 +13,7 @@ llms: include
 updated: 2026-07-08
 ---
 
-# Package: md-adapter-web
+# Web File Access
 
 `@momentarise/md-adapter-web` keeps browser file capabilities at the host boundary.
 

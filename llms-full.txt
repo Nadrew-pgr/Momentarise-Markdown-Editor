@@ -1,0 +1,1983 @@
+---
+path: docs/public/index.md
+url: https://momentarise.dev/docs
+title: Momentarise Markdown Editor
+---
+
+---
+title: Momentarise Markdown Editor
+description: Build portable Markdown editors with rich UX, AI assistance, truthful saves, and host-independent contracts.
+nav_section: Start
+nav_order: 1
+audience: developers
+tags:
+  - overview
+  - markdown
+llms: include
+updated: 2026-07-08
+---
+
+# Momentarise Markdown Editor
+
+Momentarise Markdown Editor is a framework for building modern document editors where real Markdown files stay the durable source of truth.
+
+Use it when you want source editing, rich editing, HTML rendering, AI writing assistance, theming, and host adapters without turning user documents into a hidden JSON or block database.
+
+## Why MME
+
+Most rich-text frameworks make their own block model the durable document. MME takes the opposite route: Markdown remains portable, inspectable, diffable, and editable outside the app.
+
+That changes the integration model:
+
+- source mode is first-class, not a fallback textarea;
+- rich and rendered views are derived from Markdown;
+- unknown syntax is preserved instead of flattened;
+- save state names the real persistence target;
+- AI suggestions stay staged, hash-aware, and policy-gated.
+
+## Start Building
+
+- [Vanilla Quickstart](quickstart/vanilla.md): mount MME without a framework.
+- [React Quickstart](quickstart/react.md): use the thin React lifecycle binding.
+- [Next.js Quickstart](quickstart/next.md): isolate the editor behind a client boundary.
+- [Headless Quickstart](quickstart/headless.md): run sessions, save logic, outline, and AI without UI.
+
+## Core Guides
+
+- [Document Model](concepts/document-model.md): what is persisted and what is derived.
+- [Preservation](concepts/preservation.md): how Markdown bytes and unknown syntax survive.
+- [Save Truthfulness](concepts/save-truthfulness.md): how saved, dirty, conflict, and memory-only states work.
+- [AI And Privacy](concepts/ai-privacy.md): staged writing assistance without bypassing policy.
+- [Extensions](concepts/extensions.md): register commands, slash items, toolbar entries, AI actions, and custom blocks.
+
+## Why Not MDX As The Source
+
+MDX is useful for React documentation sites, but it makes page source a mix of Markdown and executable JSX.
+
+MME docs use plain `.md` because the framework must prove its own contract: portable Markdown can be read by humans, coding agents, GitHub, the MME parser, and the future docs site without a React build pipeline.
+
+The public docs site is a Next.js shell, but its content source remains plain Markdown rendered through MME.
+
+## Reference
+
+Use [Core Contracts](packages/md-core.md), [Markdown Parser And Serializer](packages/md-format.md), [Headless Editor Session](packages/md-editor.md), [Surface Components](packages/md-surface.md), and [HTML Renderer](packages/md-render-html.md) when you need the package-level API map.
+
+## Current Status
+
+All packages are experimental under the [Compatibility Promise](compatibility-promise.md). Public APIs are audited, but `0.x` releases may still ship breaking changes in minor versions.
+
+---
+path: docs/public/quickstart/vanilla.md
+url: https://momentarise.dev/docs/quickstart/vanilla
+title: Vanilla Quickstart
+---
+
+---
+title: Vanilla Quickstart
+description: Mount Momentarise Markdown Editor without a framework.
+nav_section: Getting Started
+nav_order: 1
+audience: developers
+tags:
+  - vanilla
+  - quickstart
+packages:
+  - "@momentarise/md-editor"
+  - "@momentarise/md-source-codemirror"
+  - "@momentarise/md-surface"
+llms: include
+updated: 2026-07-08
+---
+
+# Vanilla Quickstart
+
+Use the vanilla path when your host is a browser app, Vite app, web component, IDE webview, or custom shell that does not want a React dependency.
+
+## Install
+
+```bash
+npm install @momentarise/md-editor @momentarise/md-save @momentarise/md-source-codemirror @momentarise/md-surface
+```
+
+## Create A Session
+
+```ts
+import { createMarkdownEditorSession } from "@momentarise/md-editor";
+import { createMemorySaveTarget } from "@momentarise/md-save";
+
+const initialContent = "# Hello MME\n\nEdit real Markdown.\n";
+
+const session = createMarkdownEditorSession({
+  content: initialContent,
+  scheduler: {
+    schedule(callback, delayMs) {
+      const id = window.setTimeout(() => void callback(), delayMs);
+      return () => window.clearTimeout(id);
+    }
+  },
+  target: createMemorySaveTarget({
+    initialContent
+  })
+});
+```
+
+## Mount Views
+
+Use `@momentarise/md-source-codemirror` for source editing and `@momentarise/md-surface` for framework-free toolbar, command, status, and assistant UI.
+
+The session owns canonical Markdown. Views attach to it; hosts do not reimplement save state, policy, or extension orchestration.
+
+## Save Behavior
+
+A memory save target is useful for tests and demos. Real hosts should inject a target that writes to disk, browser File System Access, Theia file services, a backend, or another storage layer.
+
+See [Save Truthfulness](../concepts/save-truthfulness.md) before wiring production persistence.
+
+## Next Steps
+
+- Use [Document Model](../concepts/document-model.md) to understand durable source.
+- Use [Theming](../concepts/theming.md) to customize tokens and icons.
+- Use [Extensions](../concepts/extensions.md) to register host commands.
+
+---
+path: docs/public/quickstart/react.md
+url: https://momentarise.dev/docs/quickstart/react
+title: React Quickstart
+---
+
+---
+title: React Quickstart
+description: Mount the thin React binding for Momentarise Markdown Editor.
+nav_section: Getting Started
+nav_order: 2
+audience: developers
+tags:
+  - react
+  - quickstart
+packages:
+  - "@momentarise/md-react"
+  - "@momentarise/md-save"
+llms: include
+updated: 2026-07-08
+---
+
+# React Quickstart
+
+The React binding is lifecycle glue. It does not make MME React-only, and it does not move Markdown state into React.
+
+## Install
+
+```bash
+npm install @momentarise/md-react @momentarise/md-save react react-dom
+```
+
+## Mount The Editor
+
+```tsx
+import { MarkdownEditor } from "@momentarise/md-react";
+import { createMemorySaveTarget } from "@momentarise/md-save";
+
+const content = "# React host\n\nMarkdown remains source.\n";
+
+export function EditorPanel() {
+  return (
+    <MarkdownEditor
+      options={{
+        content,
+        scheduler: {
+          schedule(callback, delayMs) {
+            const id = window.setTimeout(() => void callback(), delayMs);
+            return () => window.clearTimeout(id);
+          }
+        },
+        target: createMemorySaveTarget({ initialContent: content })
+      }}
+    />
+  );
+}
+```
+
+## What React Owns
+
+React owns component lifecycle and container mounting.
+
+MME owns:
+
+- canonical Markdown content;
+- parsing and serialization;
+- save state;
+- policy decisions;
+- extension registry;
+- source and rich view coordination.
+
+## Related Docs
+
+- [Next.js Quickstart](next.md)
+- [Document Model](../concepts/document-model.md)
+- [React Binding API](../packages/md-react.md)
+
+---
+path: docs/public/quickstart/next.md
+url: https://momentarise.dev/docs/quickstart/next
+title: Next.js Quickstart
+---
+
+---
+title: Next.js Quickstart
+description: Use the React binding from a client-only Next.js boundary.
+nav_section: Getting Started
+nav_order: 3
+audience: developers
+tags:
+  - nextjs
+  - quickstart
+packages:
+  - "@momentarise/md-react"
+llms: include
+updated: 2026-07-08
+---
+
+# Next.js Quickstart
+
+MME packages avoid DOM globals at module import where required, but the editor itself is an interactive client surface. In Next.js App Router, mount it from a client component.
+
+## Client Component
+
+```tsx
+"use client";
+
+import { MarkdownEditor } from "@momentarise/md-react";
+import { createMemorySaveTarget } from "@momentarise/md-save";
+
+const content = "# Next.js host\n\nRender MME in a client boundary.\n";
+
+export default function MarkdownEditorClient() {
+  return (
+    <MarkdownEditor
+      options={{
+        content,
+        scheduler: {
+          schedule(callback, delayMs) {
+            const id = window.setTimeout(() => void callback(), delayMs);
+            return () => window.clearTimeout(id);
+          }
+        },
+        target: createMemorySaveTarget({ initialContent: content })
+      }}
+    />
+  );
+}
+```
+
+## Server Component Wrapper
+
+```tsx
+import dynamic from "next/dynamic";
+
+const MarkdownEditorClient = dynamic(() => import("./MarkdownEditorClient"), {
+  ssr: false
+});
+
+export default function Page() {
+  return <MarkdownEditorClient />;
+}
+```
+
+## Production Notes
+
+Use a host-managed save target for production storage. Use a host backend or sidecar for production AI provider credentials.
+
+See [AI And Privacy](../concepts/ai-privacy.md) and [Policy](../concepts/policy.md).
+
+---
+path: docs/public/quickstart/headless.md
+url: https://momentarise.dev/docs/quickstart/headless
+title: Headless Quickstart
+---
+
+---
+title: Headless Quickstart
+description: Use the headless editor session without rendering UI.
+nav_section: Getting Started
+nav_order: 4
+audience: developers
+tags:
+  - headless
+  - node
+packages:
+  - "@momentarise/md-editor"
+  - "@momentarise/md-save"
+llms: include
+updated: 2026-07-08
+---
+
+# Headless Quickstart
+
+Use the headless session when you need Markdown orchestration without UI: tests, server-side inspection, CLI tools, adapters, or agent workflows.
+
+## Create A Session
+
+```ts
+import { createMarkdownEditorSession } from "@momentarise/md-editor";
+import { createMemorySaveTarget } from "@momentarise/md-save";
+
+const content = "# Headless\n\nFind and save without mounting UI.\n";
+
+const session = createMarkdownEditorSession({
+  content,
+  scheduler: {
+    schedule() {
+      return () => {};
+    }
+  },
+  target: createMemorySaveTarget({ initialContent: content })
+});
+
+const matches = session.find("save", { caseSensitive: false });
+const outline = session.getOutline();
+
+console.log({ matches, outline });
+session.destroy();
+```
+
+## What This Proves
+
+The editor model does not require React, Theia, VS Code, CodeMirror, or ProseMirror to manage canonical content.
+
+Views are attached layers. The session is the integration contract.
+
+## Related Docs
+
+- [Document Model](../concepts/document-model.md)
+- [Extensions](../concepts/extensions.md)
+- [Headless Editor Session](../packages/md-editor.md)
+
+---
+path: docs/public/concepts/document-model.md
+url: https://momentarise.dev/docs/concepts/document-model
+title: Document Model
+---
+
+---
+title: Document Model
+description: Markdown is the durable source; views and artifacts are derived.
+nav_section: Foundations
+nav_order: 1
+audience: developers
+tags:
+  - model
+  - markdown
+llms: include
+updated: 2026-07-08
+---
+
+# Document Model
+
+MME treats Markdown plus optional YAML frontmatter as the canonical persisted document.
+
+Everything else is derived:
+
+- CodeMirror source mode edits Markdown directly.
+- ProseMirror rich mode is a structured view over Markdown.
+- HTML rendering is an artifact for reading, printing, export, or docs.
+- AI suggestions are staged changes against the current Markdown hash.
+- Host adapters provide persistence and capabilities.
+
+## Durable Source
+
+Durable source means the user can keep, diff, back up, inspect, and edit the real `.md` file outside MME.
+
+The framework can keep parsed ASTs, source maps, rich editor state, diagnostics, and sidecar UI state in memory. Those structures are valid only if they serialize safely back to Markdown.
+
+## View Boundaries
+
+Rich mode may represent supported Markdown as blocks and inline marks. Unsupported syntax must remain safe as raw or opaque content.
+
+HTML is never the durable source for Markdown documents. A standalone `.html` file uses the HTML artifact preview path.
+
+## Source Fallback
+
+Source mode is mandatory. If a construct cannot be represented safely in rich mode, the user must still be able to inspect and edit the Markdown source.
+
+## Related Docs
+
+- [Preservation](preservation.md)
+- [Save Truthfulness](save-truthfulness.md)
+- [Core Contracts](../packages/md-core.md)
+
+---
+path: docs/public/concepts/preservation.md
+url: https://momentarise.dev/docs/concepts/preservation
+title: Preservation
+---
+
+---
+title: Preservation
+description: How MME protects Markdown bytes and unknown syntax.
+nav_section: Foundations
+nav_order: 2
+audience: developers
+tags:
+  - preservation
+  - roundtrip
+llms: include
+updated: 2026-07-08
+---
+
+# Preservation
+
+Preservation is the rule that MME must not silently destroy source bytes it does not own.
+
+## Round Trip
+
+An untouched Markdown document should parse and serialize without content loss. Unsupported syntax is preserved as raw or opaque content.
+
+Examples of content that must be protected:
+
+- YAML frontmatter;
+- GFM tables;
+- task lists;
+- code fences;
+- raw inline or block HTML;
+- Mermaid fences;
+- LaTeX;
+- Obsidian-style callouts;
+- wikilinks;
+- unknown custom syntax.
+
+## Targeted Edits
+
+When a rich or headless operation changes one block, unrelated source should stay byte-for-byte stable where the framework has source ranges.
+
+This protects author formatting, blank lines, list markers, fence styles, and syntax the current view cannot model.
+
+## Unsafe Shortcut
+
+A full-document rewrite may look clean in a demo but can corrupt real files. MME prefers narrower edits with source-range proof.
+
+## Related Docs
+
+- [Document Model](document-model.md)
+- [Markdown Parser And Serializer](../packages/md-format.md)
+- [Glossary](../GLOSSARY.md)
+
+---
+path: docs/public/concepts/save-truthfulness.md
+url: https://momentarise.dev/docs/concepts/save-truthfulness
+title: Save Truthfulness
+---
+
+---
+title: Save Truthfulness
+description: Save state must describe the real persistence target.
+nav_section: Foundations
+nav_order: 3
+audience: developers
+tags:
+  - save
+  - persistence
+packages:
+  - "@momentarise/md-save"
+llms: include
+updated: 2026-07-08
+---
+
+# Save Truthfulness
+
+MME save state must tell users what actually happened to their document.
+
+The UI must not say only `saved` when the user cannot tell where content went.
+
+## Persistence Targets
+
+Supported target labels include:
+
+- disk;
+- memory only;
+- download required;
+- unsupported;
+- conflict;
+- error.
+
+## Real File Saves
+
+When a host opens a writable local file, save and autosave should write to that original file and verify external changes before overwrite.
+
+When a host imports a copy through fallback upload, MME cannot overwrite the original file. The UI must say export or download is required.
+
+## External Changes
+
+External-change detection is adapter-owned. The Save Engine owns hash comparison and no-overwrite state.
+
+If local content is clean and the adapter can read external content, the host may apply the external change. If local content is dirty, MME must preserve local edits and enter conflict state.
+
+## Related Docs
+
+- [Save Engine](../packages/md-save.md)
+- [Web File Access](../packages/md-adapter-web.md)
+- [Theia Adapter](../packages/md-adapter-theia.md)
+
+---
+path: docs/public/concepts/policy.md
+url: https://momentarise.dev/docs/concepts/policy
+title: Document Access Policy
+---
+
+---
+title: Document Access Policy
+description: Policy decisions gate read, write, share, export, and AI access.
+nav_section: Foundations
+nav_order: 4
+audience: developers
+tags:
+  - policy
+  - security
+packages:
+  - "@momentarise/md-policy"
+llms: include
+updated: 2026-07-08
+---
+
+# Document Access Policy
+
+Document Access Policy is the framework boundary for deciding whether content can be read, written, indexed, shared, exported, or sent to AI.
+
+## Capabilities
+
+Common capabilities include:
+
+- `exists`;
+- `metadata`;
+- `read`;
+- `index`;
+- `write`;
+- `execute`;
+- `share`;
+- `export`.
+
+## Decisions
+
+Policy returns structured decisions:
+
+- allow;
+- warn;
+- deny.
+
+The decision can include reason, source, severity, override status, and confirmation requirements. Hosts decide the final presentation.
+
+## Hard Deny
+
+Secrets, tokens, `.env` files, keys, identity documents, banking documents, and private folders can be hard-denied by default policy or host policy.
+
+## Related Docs
+
+- [AI And Privacy](ai-privacy.md)
+- [Document Access Policy API](../packages/md-policy.md)
+- [CLI For Agents And Developers](../packages/md-cli.md)
+
+---
+path: docs/public/concepts/editor-ui.md
+url: https://momentarise.dev/docs/concepts/editor-ui
+title: Editor UI
+---
+
+---
+title: Editor UI
+description: Source mode, rich view, toolbar, slash menu, outline, and status surfaces.
+nav_section: Features
+nav_order: 1
+audience: developers
+tags:
+  - ui
+  - editor
+llms: include
+updated: 2026-07-08
+---
+
+# Editor UI
+
+MME is built for apps that need modern editor ergonomics without surrendering Markdown as the saved document.
+
+## Editing Surfaces
+
+- Source mode uses CodeMirror 6 and edits Markdown directly.
+- Rich mode is a ProseMirror-derived view over supported Markdown.
+- Rendered HTML is a read surface for docs, previews, print, and export flows.
+- Outline and find/replace come from the headless editor session, not page-specific UI state.
+
+Unsupported syntax must remain reachable through source mode. A polished view is useful only if it does not hide the real document from the user.
+
+## Command Surfaces
+
+MME exposes commands through the extension registry so hosts can assemble the UI they need:
+
+- slash commands for block insertion and AI entry points;
+- toolbar and bubble toolbar actions;
+- command palette entries;
+- host-provided commands;
+- custom block registrations.
+
+The default surface is framework-free. React and Next.js consume it through bindings or client boundaries; they do not own the editor model.
+
+## Status Surfaces
+
+Save state is part of the UI contract. A host should show whether the current document is saved to disk, memory-only, downloadable, conflicted, or errored.
+
+## Related Docs
+
+- [Extensions](extensions.md)
+- [Save Truthfulness](save-truthfulness.md)
+- [Surface Components](../packages/md-surface.md)
+- [CodeMirror Source View](../packages/md-source-codemirror.md)
+- [ProseMirror Rich View](../packages/md-rich-prosemirror.md)
+
+---
+path: docs/public/concepts/ai-privacy.md
+url: https://momentarise.dev/docs/concepts/ai-privacy
+title: AI And Privacy
+---
+
+---
+title: AI And Privacy
+description: AI writing is assistive, staged, and policy-gated.
+nav_section: Features
+nav_order: 5
+audience: developers
+tags:
+  - ai
+  - privacy
+packages:
+  - "@momentarise/md-ai"
+llms: include
+updated: 2026-07-08
+---
+
+# AI And Privacy
+
+MME AI is writing assistance. It is not an autonomous workspace agent, RAG system, or tool-execution runtime.
+
+## Suggestion Flow
+
+AI output is staged:
+
+1. The host or user asks for help.
+2. Document Access Policy checks whether content can be shared.
+3. The provider returns a suggestion.
+4. The user explicitly accepts or rejects.
+5. Stale suggestions cannot apply after the source hash changes.
+
+## Provider Paths
+
+Supported patterns:
+
+- mock provider for tests and demos;
+- host-managed backend provider for production;
+- local sidecar or gateway;
+- memory-only personal BYOK for local use.
+
+Production apps should avoid direct browser-to-provider keys unless the user explicitly configures a personal local workflow.
+
+## Related Docs
+
+- [AI Provider Adapter](../AI_PROVIDER_ADAPTER.md)
+- [Document Access Policy](policy.md)
+- [AI Writing API](../packages/md-ai.md)
+
+---
+path: docs/public/concepts/import-export.md
+url: https://momentarise.dev/docs/concepts/import-export
+title: Import, Export, And Rendering
+---
+
+---
+title: Import, Export, And Rendering
+description: Markdown stays source; HTML and external formats are explicit artifacts or adapters.
+nav_section: Features
+nav_order: 7
+audience: developers
+tags:
+  - import
+  - export
+  - html
+llms: include
+updated: 2026-07-08
+---
+
+# Import, Export, And Rendering
+
+MME separates durable source from artifacts.
+
+Markdown files are the source. HTML, previews, print output, docs pages, and future office-format conversions are derived unless a host adapter explicitly proves round-trip persistence.
+
+## Markdown In And Out
+
+MME can open Markdown, parse it into framework nodes, preserve unsupported syntax as raw or opaque content, and serialize safely back to Markdown.
+
+That is the default import/export path: a real `.md` file remains a real `.md` file.
+
+## HTML Rendering
+
+`@momentarise/md-render-html` renders Markdown into sanitized HTML for read-only surfaces such as docs, previews, and static output.
+
+Raw HTML inside Markdown can render where policy allows, but HTML is not silently promoted to the durable document format.
+
+## Standalone HTML Preview
+
+Standalone `.html` files use the sandbox preview path. They are treated as HTML artifacts, not Markdown documents.
+
+Scripts are disabled by default and sandbox permissions must stay explicit.
+
+## Future Format Adapters
+
+DOCX, PDF, Google Docs, and similar formats need explicit adapter semantics before MME can claim support. Each adapter must say whether it is preview-only, import-to-Markdown, export-from-Markdown, or true round-trip editing.
+
+## Related Docs
+
+- [Preservation](preservation.md)
+- [HTML Renderer](../packages/md-render-html.md)
+- [HTML Artifact Preview](../packages/md-preview-html.md)
+- [Roadmap](../roadmap.md)
+
+---
+path: docs/public/concepts/preferences.md
+url: https://momentarise.dev/docs/concepts/preferences
+title: Preferences And Locks
+---
+
+---
+title: Preferences And Locks
+description: Hosts resolve user, workspace, document, and locked editor preferences.
+nav_section: Features
+nav_order: 7
+audience: developers
+tags:
+  - preferences
+  - settings
+packages:
+  - "@momentarise/md-editor"
+  - "@momentarise/md-theme"
+llms: include
+updated: 2026-07-08
+---
+
+# Preferences And Locks
+
+Preferences describe editor behavior and surface options without forcing a settings UI.
+
+## Resolution
+
+Preference resolution can combine:
+
+- framework defaults;
+- host defaults;
+- workspace settings;
+- safe document settings;
+- user settings.
+
+Any layer can lock a value with a reason. Hosts decide what is visible to users.
+
+## Examples
+
+Useful preferences include toolbar density, AI entry points, mode control style, keybinding delegation, readable line width, font scale, and autosave interval.
+
+## Related Docs
+
+- [Theming](theming.md)
+- [Extensions](extensions.md)
+- [Headless Editor Session](../packages/md-editor.md)
+
+---
+path: docs/public/concepts/extensions.md
+url: https://momentarise.dev/docs/concepts/extensions
+title: Extensions
+---
+
+---
+title: Extensions
+description: Register commands, toolbar items, slash items, AI actions, and custom blocks.
+nav_section: Features
+nav_order: 8
+audience: developers
+tags:
+  - extensions
+  - commands
+packages:
+  - "@momentarise/md-editor"
+llms: include
+updated: 2026-07-08
+---
+
+# Extensions
+
+MME uses registries instead of closed unions for host-visible commands.
+
+## Extension Points
+
+Hosts can register:
+
+- slash menu items;
+- toolbar items;
+- keybindings;
+- AI actions;
+- custom block serializers;
+- input rules where supported.
+
+## Namespacing
+
+Host extensions should use namespaced IDs such as `host:insert-decision-card`. Built-in commands use the same registry path as host commands.
+
+## Source Safety
+
+Custom blocks need an explicit Markdown serialization contract. If the rich view cannot model a block safely, it must preserve source bytes.
+
+## Related Docs
+
+- [Document Model](document-model.md)
+- [Preservation](preservation.md)
+- [Headless Editor Session](../packages/md-editor.md)
+
+---
+path: docs/public/packages/md-surface.md
+url: https://momentarise.dev/docs/packages/md-surface
+title: Surface Components
+---
+
+---
+title: Surface Components
+description: Framework-free toolbar, slash menu, command, status, and AI controls.
+nav_section: Features
+nav_order: 8
+audience: developers
+tags:
+  - package
+  - surface
+packages:
+  - "@momentarise/md-surface"
+llms: include
+updated: 2026-07-08
+---
+
+# Surface Components
+
+`@momentarise/md-surface` provides framework-free DOM components for shared editor controls.
+
+## Use It For
+
+- toolbar;
+- slash menu;
+- command palette;
+- document status;
+- AI assistant surfaces;
+- diagnostics and mode controls.
+
+## Host Boundary
+
+Surface components consume tokens, preferences, icons, and injected strings. They do not own application routing or persistence.
+
+## Related Docs
+
+- [Theming](../concepts/theming.md)
+- [Extensions](../concepts/extensions.md)
+
+---
+path: docs/public/packages/md-render-html.md
+url: https://momentarise.dev/docs/packages/md-render-html
+title: HTML Renderer
+---
+
+---
+title: HTML Renderer
+description: Sanitized Markdown-to-HTML rendering for read-only surfaces.
+nav_section: Features
+nav_order: 12
+audience: developers
+tags:
+  - package
+  - html
+packages:
+  - "@momentarise/md-render-html"
+llms: include
+updated: 2026-07-08
+---
+
+# HTML Renderer
+
+`@momentarise/md-render-html` renders Markdown to sanitized HTML for read-only surfaces.
+
+## Use It For
+
+- docs site content rendering;
+- read-only preview;
+- print and export artifacts;
+- server or static rendering.
+
+## Import
+
+```ts
+import { renderMarkdownToHtml } from "@momentarise/md-render-html";
+
+const result = renderMarkdownToHtml("# Hello\n");
+console.log(result.html);
+```
+
+## Related Docs
+
+- [HTML Artifact Preview](md-preview-html.md)
+- [Document Model](../concepts/document-model.md)
+
+---
+path: docs/public/packages/md-preview-html.md
+url: https://momentarise.dev/docs/packages/md-preview-html
+title: HTML Artifact Preview
+---
+
+---
+title: HTML Artifact Preview
+description: Sandboxed preview descriptors for standalone HTML files.
+nav_section: Features
+nav_order: 13
+audience: developers
+tags:
+  - package
+  - html
+packages:
+  - "@momentarise/md-preview-html"
+llms: include
+updated: 2026-07-08
+---
+
+# HTML Artifact Preview
+
+`@momentarise/md-preview-html` handles standalone HTML artifact preview descriptors.
+
+## Use It For
+
+- sandboxed iframe preview defaults;
+- script-disabled HTML artifact reading;
+- host policy around HTML compatibility tokens.
+
+## Boundary
+
+Standalone `.html` artifacts are not Markdown documents. Markdown inline or block HTML is rendered by [md-render-html](md-render-html.md).
+
+## Related Docs
+
+- [Document Model](../concepts/document-model.md)
+- [HTML Renderer](md-render-html.md)
+
+---
+path: docs/public/concepts/agentic-experience.md
+url: https://momentarise.dev/docs/concepts/agentic-experience
+title: Agentic Experience
+---
+
+---
+title: Agentic Experience
+description: How MME docs expose Markdown context to coding agents without hiding the source.
+nav_section: Features
+nav_order: 35
+audience: developers
+tags:
+  - ax
+  - agents
+  - docs
+llms: include
+updated: 2026-07-09
+---
+
+# Agentic Experience
+
+Momentarise Markdown Editor treats agent support as a documentation surface, not a hidden product claim.
+
+The public docs site is built from the same Markdown files that humans read. Agent actions copy or open that Markdown with explicit instructions, so an assistant can reason from the durable source instead of a lossy web scrape.
+
+## What Ships Now
+
+- raw Markdown for every page at `/docs/<page>.md`;
+- copy page as Markdown;
+- copy current section from the page outline;
+- copy page as an LLM prompt;
+- Open-in-chat entries for common assistant tools, with copy fallback when a deep link is unreliable;
+- generated `llms.txt` and `llms-full.txt`;
+- `@momentarise/md-cli` checks for local and agent-driven workflows.
+
+## Prompt Contract
+
+Every copied prompt includes the page content plus rules for safe use:
+
+- use web search if available;
+- prefer official docs;
+- cite sources when browsing;
+- respect MME's Markdown-as-source constraint;
+- do not assume JSON or block database persistence;
+- separate framework-neutral guidance from host-specific integration.
+
+Markdown remains the source. The prompt is a transport format.
+
+## Files For Agents
+
+`llms.txt` is the short index. It lists important pages and stable URLs.
+
+`llms-full.txt` is the larger context bundle. It concatenates public Markdown pages in navigation order and keeps page boundaries visible.
+
+Both files are generated by `scripts/generate-llms.mjs` and checked by `npm run test:llms-sync`.
+
+## CLI Workflow
+
+Use `@momentarise/md-cli` when an agent needs machine-readable local proof:
+
+```bash
+node packages/md-cli/dist/index.js inspect README.md --json
+node packages/md-cli/dist/index.js check --json
+node packages/md-cli/dist/index.js format README.md
+```
+
+The CLI resolves Document Access Policy before it reads, formats, exports, or writes. It is meant to make local automation safer, not to bypass host rules.
+
+## Not Shipped Yet
+
+Generated Codex skills, reusable agent action descriptors, hosted Ask AI, semantic docs search, and edit-on-GitHub style actions are future public-release work.
+
+Do not describe those as current MME capabilities until they are promoted into an implementation issue and proven.
+
+## Related Docs
+
+- [CLI For Agents And Developers](../packages/md-cli.md)
+- [Document Access Policy](policy.md)
+- [AI And Privacy](ai-privacy.md)
+- [Compatibility Promise](../compatibility-promise.md)
+
+---
+path: docs/public/concepts/theming.md
+url: https://momentarise.dev/docs/concepts/theming
+title: Theming
+---
+
+---
+title: Theming
+description: Theme MME through tokens, host theme objects, icons, and class maps.
+nav_section: Styling
+nav_order: 6
+audience: developers
+tags:
+  - theming
+  - customization
+packages:
+  - "@momentarise/md-theme"
+llms: include
+updated: 2026-07-08
+---
+
+# Theming
+
+MME separates framework tokens from host styling.
+
+## Token Layers
+
+The default theme exposes `--mme-*` custom properties for color roles, typography, spacing, radius, shadows, and layers.
+
+Hosts can customize through:
+
+- framework tokens;
+- typed theme objects;
+- icon set contract;
+- component class map overrides;
+- plain CSS as last resort.
+
+## Host Control
+
+The host decides whether settings are global, workspace-level, document-level, user-level, or locked.
+
+MME does not require a built-in settings screen.
+
+## Related Docs
+
+- [Preferences](preferences.md)
+- [Theme System](../packages/md-theme.md)
+- [Surface Components](../packages/md-surface.md)
+
+---
+path: docs/public/packages/md-theme.md
+url: https://momentarise.dev/docs/packages/md-theme
+title: Theme System
+---
+
+---
+title: Theme System
+description: Tokens, host theme objects, icons, and class maps.
+nav_section: Styling
+nav_order: 7
+audience: developers
+tags:
+  - package
+  - theme
+packages:
+  - "@momentarise/md-theme"
+llms: include
+updated: 2026-07-08
+---
+
+# Theme System
+
+`@momentarise/md-theme` defines visual tokens and host theme contracts without tying MME to one app.
+
+## Use It For
+
+- default light and dark tokens;
+- host theme overrides;
+- icon set contracts;
+- class map contracts;
+- preference-aware theme resolution.
+
+## Import
+
+```ts
+import { resolveTheme, resolveThemeToCssVariables } from "@momentarise/md-theme";
+
+const theme = resolveTheme({}, "dark");
+const cssVariables = resolveThemeToCssVariables({}, "dark");
+
+console.log(theme.colors.bg, cssVariables["--mme-color-bg"]);
+```
+
+## Related Docs
+
+- [Theming](../concepts/theming.md)
+- [Preferences](../concepts/preferences.md)
+
+---
+path: docs/public/packages/md-core.md
+url: https://momentarise.dev/docs/packages/md-core
+title: Core Contracts
+---
+
+---
+title: Core Contracts
+description: Stable host-independent primitives shared by every MME package.
+nav_section: Reference
+nav_order: 1
+audience: developers
+tags:
+  - package
+packages:
+  - "@momentarise/md-core"
+llms: include
+updated: 2026-07-08
+---
+
+# Core Contracts
+
+`@momentarise/md-core` contains host-independent types and helpers shared across MME packages.
+
+## Use It For
+
+- document path and hash contracts;
+- source ranges and positions;
+- diagnostics;
+- document and node model types;
+- typed framework errors.
+
+## Import
+
+```ts
+import { hashMarkdownContent, MomentariseError } from "@momentarise/md-core";
+
+const hash = hashMarkdownContent("# Hello\n");
+console.log(hash);
+```
+
+## Boundaries
+
+This package must not depend on React, Theia, VS Code, CodeMirror, ProseMirror, Electron, or browser-only APIs.
+
+## Related Docs
+
+- [Document Model](../concepts/document-model.md)
+- [Compatibility Promise](../compatibility-promise.md)
+
+---
+path: docs/public/packages/md-format.md
+url: https://momentarise.dev/docs/packages/md-format
+title: Markdown Parser And Serializer
+---
+
+---
+title: Markdown Parser And Serializer
+description: Parse Markdown into MME nodes and serialize edited ranges safely.
+nav_section: Reference
+nav_order: 2
+audience: developers
+tags:
+  - package
+packages:
+  - "@momentarise/md-format"
+llms: include
+updated: 2026-07-08
+---
+
+# Markdown Parser And Serializer
+
+`@momentarise/md-format` parses Markdown into the public MME model and serializes safely back to Markdown.
+
+## Use It For
+
+- AST parsing;
+- source-range preservation;
+- fixture round-trip checks;
+- targeted Markdown edits;
+- opaque syntax diagnostics.
+
+## Import
+
+```ts
+import { createMarkdownAstFormatter } from "@momentarise/md-format";
+
+const formatter = createMarkdownAstFormatter();
+const parsed = formatter.parse("# Hello\n", { dialect: "momentarise-enhanced" });
+const serialized = formatter.serialize(parsed, { preserveUnchangedRanges: true });
+
+console.log(serialized.content);
+```
+
+## Related Docs
+
+- [Preservation](../concepts/preservation.md)
+- [Document Model](../concepts/document-model.md)
+
+---
+path: docs/public/packages/md-save.md
+url: https://momentarise.dev/docs/packages/md-save
+title: Save Engine
+---
+
+---
+title: Save Engine
+description: Dirty, saved, conflict, and persistence-target contracts.
+nav_section: Reference
+nav_order: 3
+audience: developers
+tags:
+  - package
+  - save
+packages:
+  - "@momentarise/md-save"
+llms: include
+updated: 2026-07-08
+---
+
+# Save Engine
+
+`@momentarise/md-save` tracks document save state independently from any host.
+
+## Use It For
+
+- dirty, saving, saved, conflict, and error states;
+- memory save targets;
+- hash-based overwrite protection;
+- adapter-owned persistence targets.
+
+## Import
+
+```ts
+import { createMemorySaveTarget } from "@momentarise/md-save";
+
+const target = createMemorySaveTarget({
+  initialContent: "# Draft\n"
+});
+```
+
+## Related Docs
+
+- [Save Truthfulness](../concepts/save-truthfulness.md)
+- [Web File Access](md-adapter-web.md)
+
+---
+path: docs/public/packages/md-policy.md
+url: https://momentarise.dev/docs/packages/md-policy
+title: Document Access Policy API
+---
+
+---
+title: Document Access Policy API
+description: Gate read, write, share, export, and AI access before work happens.
+nav_section: Reference
+nav_order: 4
+audience: developers
+tags:
+  - package
+  - policy
+packages:
+  - "@momentarise/md-policy"
+llms: include
+updated: 2026-07-08
+---
+
+# Document Access Policy API
+
+`@momentarise/md-policy` resolves document access decisions before sensitive operations.
+
+## Use It For
+
+- read, write, share, export, and index decisions;
+- hard-deny defaults for secrets and private files;
+- warning and override metadata;
+- host policy composition.
+
+## Import
+
+```ts
+import { createDefaultPolicyResolver } from "@momentarise/md-policy";
+
+const resolver = createDefaultPolicyResolver();
+const decision = resolver.resolve({
+  capability: "read",
+  subject: {
+    documentPath: "file://notes/README.md"
+  }
+});
+
+console.log(decision.allowed);
+```
+
+## Related Docs
+
+- [Document Access Policy](../concepts/policy.md)
+- [AI And Privacy](../concepts/ai-privacy.md)
+
+---
+path: docs/public/packages/md-ai.md
+url: https://momentarise.dev/docs/packages/md-ai
+title: AI Writing API
+---
+
+---
+title: AI Writing API
+description: Provider-neutral, policy-gated writing suggestions.
+nav_section: Reference
+nav_order: 5
+audience: developers
+tags:
+  - package
+  - ai
+packages:
+  - "@momentarise/md-ai"
+llms: include
+updated: 2026-07-08
+---
+
+# AI Writing API
+
+`@momentarise/md-ai` defines AI writing provider contracts and OpenAI-compatible adapter helpers.
+
+## Use It For
+
+- staged AI writing suggestions;
+- mock providers for tests;
+- host-injected transport;
+- OpenAI-compatible local gateway or host backend paths.
+
+## Import
+
+```ts
+import { createMockAiProvider } from "@momentarise/md-ai";
+
+const provider = createMockAiProvider();
+```
+
+## Related Docs
+
+- [AI And Privacy](../concepts/ai-privacy.md)
+- [AI Provider Adapter](../AI_PROVIDER_ADAPTER.md)
+
+---
+path: docs/public/packages/md-editor.md
+url: https://momentarise.dev/docs/packages/md-editor
+title: Headless Editor Session
+---
+
+---
+title: Headless Editor Session
+description: Session state, outline, events, modes, and extension registry.
+nav_section: Reference
+nav_order: 6
+audience: developers
+tags:
+  - package
+  - session
+packages:
+  - "@momentarise/md-editor"
+llms: include
+updated: 2026-07-08
+---
+
+# Headless Editor Session
+
+`@momentarise/md-editor` owns the headless editor session.
+
+## Use It For
+
+- canonical Markdown content;
+- event subscriptions;
+- save orchestration;
+- mode state;
+- AI suggestion state;
+- find, replace, and outline APIs;
+- extension registry.
+
+## Import
+
+```ts
+import { createMarkdownEditorSession } from "@momentarise/md-editor";
+import { createMemorySaveTarget } from "@momentarise/md-save";
+
+const content = "# Session\n";
+const session = createMarkdownEditorSession({
+  content,
+  scheduler: { schedule: () => () => {} },
+  target: createMemorySaveTarget({ initialContent: content })
+});
+
+console.log(session.getOutline());
+session.destroy();
+```
+
+## Related Docs
+
+- [Headless Quickstart](../quickstart/headless.md)
+- [Extensions](../concepts/extensions.md)
+
+---
+path: docs/public/packages/md-react.md
+url: https://momentarise.dev/docs/packages/md-react
+title: React Binding API
+---
+
+---
+title: React Binding API
+description: Thin React lifecycle wrapper around MME sessions and DOM surfaces.
+nav_section: Reference
+nav_order: 9
+audience: developers
+tags:
+  - package
+  - react
+packages:
+  - "@momentarise/md-react"
+llms: include
+updated: 2026-07-08
+---
+
+# React Binding API
+
+`@momentarise/md-react` is a thin React binding around framework-neutral MME packages.
+
+## Use It For
+
+- React lifecycle mounting;
+- App Router client-boundary integrations;
+- passing session options into the shared editor surface.
+
+## Import
+
+```tsx
+import { MarkdownEditor } from "@momentarise/md-react";
+
+export function Editor({ options }) {
+  return <MarkdownEditor options={options} />;
+}
+```
+
+## Related Docs
+
+- [React Quickstart](../quickstart/react.md)
+- [Next.js Quickstart](../quickstart/next.md)
+
+---
+path: docs/public/packages/md-source-codemirror.md
+url: https://momentarise.dev/docs/packages/md-source-codemirror
+title: CodeMirror Source View
+---
+
+---
+title: CodeMirror Source View
+description: Source-mode editor behavior, preferences, and host integration.
+nav_section: Reference
+nav_order: 10
+audience: developers
+tags:
+  - package
+  - codemirror
+packages:
+  - "@momentarise/md-source-codemirror"
+llms: include
+updated: 2026-07-08
+---
+
+# CodeMirror Source View
+
+`@momentarise/md-source-codemirror` provides the source-mode editor layer.
+
+## Use It For
+
+- Markdown source editing;
+- keymap composition;
+- read-only state;
+- editor-grade baseline behavior;
+- attaching CodeMirror to a headless session.
+
+## Boundary
+
+CodeMirror stays in this view package. Core packages stay independent from editor UI libraries.
+
+## Related Docs
+
+- [Vanilla Quickstart](../quickstart/vanilla.md)
+- [Document Model](../concepts/document-model.md)
+
+---
+path: docs/public/packages/md-rich-prosemirror.md
+url: https://momentarise.dev/docs/packages/md-rich-prosemirror
+title: ProseMirror Rich View
+---
+
+---
+title: ProseMirror Rich View
+description: Rich-mode bridge that keeps Markdown serialization honest.
+nav_section: Reference
+nav_order: 11
+audience: developers
+tags:
+  - package
+  - prosemirror
+packages:
+  - "@momentarise/md-rich-prosemirror"
+llms: include
+updated: 2026-07-08
+---
+
+# ProseMirror Rich View
+
+`@momentarise/md-rich-prosemirror` is the first rich-mode bridge for MME.
+
+## Use It For
+
+- Markdown-to-rich state creation;
+- rich serialization back to Markdown;
+- input rules;
+- list and todo editing;
+- folding;
+- block affordance helpers.
+
+## Boundary
+
+Rich mode is a derived view. It must not make ProseMirror JSON the durable source.
+
+## Related Docs
+
+- [Preservation](../concepts/preservation.md)
+- [Document Model](../concepts/document-model.md)
+
+---
+path: docs/public/packages/md-adapter-web.md
+url: https://momentarise.dev/docs/packages/md-adapter-web
+title: Web File Access
+---
+
+---
+title: Web File Access
+description: Browser file-open and save-target helpers.
+nav_section: Reference
+nav_order: 14
+audience: developers
+tags:
+  - package
+  - web
+packages:
+  - "@momentarise/md-adapter-web"
+llms: include
+updated: 2026-07-08
+---
+
+# Web File Access
+
+`@momentarise/md-adapter-web` keeps browser file capabilities at the host boundary.
+
+## Use It For
+
+- File System Access save targets;
+- imported-copy and download-required targets;
+- external content reads;
+- focus and visibility refresh watchers.
+
+## External Change Strategy
+
+The web adapter should combine focus or visibility refresh with save-time hash verification. Clean sessions may apply external content. Dirty sessions must enter conflict instead of overwriting local edits.
+
+## Related Docs
+
+- [Save Truthfulness](../concepts/save-truthfulness.md)
+- [Vanilla Quickstart](../quickstart/vanilla.md)
+
+---
+path: docs/public/packages/md-adapter-theia.md
+url: https://momentarise.dev/docs/packages/md-adapter-theia
+title: Theia Adapter
+---
+
+---
+title: Theia Adapter
+description: Alpha IDE-shell adapter proving host capability boundaries.
+nav_section: Reference
+nav_order: 15
+audience: developers
+tags:
+  - package
+  - theia
+packages:
+  - "@momentarise/md-adapter-theia"
+llms: include
+updated: 2026-07-08
+---
+
+# Theia Adapter
+
+`@momentarise/md-adapter-theia` proves MME can run inside an IDE-like host without moving core logic into the adapter.
+
+## Use It For
+
+- Theia widget registration;
+- Markdown OpenHandler integration;
+- FileService-backed save targets;
+- host keybinding delegation;
+- preference bridging;
+- find command routing.
+
+## Boundary
+
+Theia owns shell services. MME owns parsing, session state, save truth, source editing, and surface composition.
+
+## Related Docs
+
+- [Save Truthfulness](../concepts/save-truthfulness.md)
+- [Headless Editor Session](md-editor.md)
+
+---
+path: docs/public/packages/md-cli.md
+url: https://momentarise.dev/docs/packages/md-cli
+title: CLI For Agents And Developers
+---
+
+---
+title: CLI For Agents And Developers
+description: Inspect, validate, format, and scaffold Markdown safely.
+nav_section: Reference
+nav_order: 16
+audience: developers
+tags:
+  - package
+  - cli
+packages:
+  - "@momentarise/md-cli"
+llms: include
+updated: 2026-07-08
+---
+
+# CLI For Agents And Developers
+
+`@momentarise/md-cli` gives developers and agents a command-line surface for MME checks.
+
+Use it when the proof should come from local files, fixtures, policy checks, or machine-readable output instead of a browser screenshot.
+
+## Use It For
+
+- initializing integration scaffolds;
+- checking fixture and parser health;
+- inspecting Markdown files;
+- formatting dry runs and explicit writes;
+- machine-readable `--json` output.
+
+## Commands
+
+### init
+
+Create a starter workspace shape for integrating MME.
+
+```bash
+node packages/md-cli/dist/index.js init
+```
+
+### check
+
+Run repository and fixture checks that are useful before publishing or handing work to another agent.
+
+```bash
+node packages/md-cli/dist/index.js check
+node packages/md-cli/dist/index.js check --json
+```
+
+### inspect
+
+Inspect a Markdown file and return parser, frontmatter, outline, and preservation diagnostics.
+
+```bash
+node packages/md-cli/dist/index.js inspect README.md --json
+```
+
+### format
+
+Format is dry-run by default. It writes only when `--write` is explicit.
+
+```bash
+node packages/md-cli/dist/index.js format README.md
+node packages/md-cli/dist/index.js format README.md --write
+```
+
+### test:fixtures
+
+Run the fixture corpus so parser and preservation behavior stay repeatable.
+
+```bash
+node packages/md-cli/dist/index.js test:fixtures
+```
+
+## Security
+
+The CLI resolves Document Access Policy before reading, exporting, or writing files. It denies symlink escapes and policy-denied paths.
+
+Agents should treat a denied file as a real boundary. They should not retry by reading through another path unless the host or user grants access.
+
+## JSON Output
+
+Use `--json` for automation. Human-readable output may change; JSON keys are the safer integration surface for scripts and coding agents.
+
+```bash
+node packages/md-cli/dist/index.js inspect docs/public/index.md --json
+```
+
+## Related Docs
+
+- [Agentic Experience](../concepts/agentic-experience.md)
+- [Document Access Policy](../concepts/policy.md)
+- [Compatibility Promise](../compatibility-promise.md)
+
+---
+path: docs/public/faq.md
+url: https://momentarise.dev/docs/faq
+title: FAQ
+---
+
+---
+title: FAQ
+description: Answers to common integration and product questions.
+nav_section: Reference
+nav_order: 90
+audience: developers
+tags:
+  - faq
+llms: include
+updated: 2026-07-08
+---
+
+# FAQ
+
+## Is MME A React Editor
+
+No. React is one binding through `@momentarise/md-react`. The core session, parser, policy, save engine, theme contracts, and DOM surface are framework-agnostic.
+
+## Why Not Store JSON Blocks
+
+MME exists so Markdown remains the durable source. JSON state may exist in memory only if it serializes safely back to Markdown.
+
+## Can The Docs Use MDX
+
+No for the public source docs. MDX mixes Markdown with JSX and needs a build pipeline. Public docs stay plain `.md` so MME can parse, preserve, render, and expose them as raw Markdown.
+
+## Can Hosts Render React Components
+
+Yes, a host can render custom UI around MME or map a preserved custom block to a component. That does not make React executable source inside public docs.
+
+## Is AI Built In
+
+MME defines AI contracts and a provider adapter path. Production hosts should own credentials, network transport, billing, and logs.
+
+## Related Docs
+
+- [Document Model](concepts/document-model.md)
+- [AI And Privacy](concepts/ai-privacy.md)
+- [Compatibility Promise](compatibility-promise.md)
+
+---
+path: docs/public/roadmap.md
+url: https://momentarise.dev/docs/roadmap
+title: Roadmap
+---
+
+---
+title: Roadmap
+description: Public framework direction for MME.
+nav_section: Reference
+nav_order: 100
+audience: developers
+tags:
+  - roadmap
+llms: include
+updated: 2026-07-08
+---
+
+# Roadmap
+
+MME V0 focuses on framework credibility: preservation, source/rich editing, truthful save behavior, host-independent packages, adapters, and public docs.
+
+## Current Foundation
+
+- Source mode uses CodeMirror.
+- Rich mode uses ProseMirror as first spike.
+- Headless editor session owns canonical content.
+- Save Engine tracks dirty, saved, conflict, and error states.
+- Policy gates AI and sensitive file access.
+- React and Theia paths prove host integration.
+
+## Near-Term Public Readiness
+
+- Public docs content baseline.
+- Public docs site rendered from real Markdown.
+- Generated `llms.txt` and `llms-full.txt`.
+- More docs recipes and migration guides.
+
+## Future Work
+
+- VS Code and desktop adapter paths.
+- Mobile and tablet input pass.
+- Table and footnote editing.
+- Live preview parity.
+- Asset upload provider contract.
+- CMS and publishing integrations.
+
+## Related Docs
+
+- [Overview](index.md)
+- [Preservation](concepts/preservation.md)
+- [Extensions](concepts/extensions.md)
+
+---
+path: docs/public/AI_PROVIDER_ADAPTER.md
+url: https://momentarise.dev/docs/AI_PROVIDER_ADAPTER
+title: AI Provider Adapter
+---
+
+# AI Provider Adapter
+
+Momentarise Markdown Editor keeps AI writing assistive, staged, and policy-gated.
+
+The core packages do not import OpenAI, Gemini, Mistral, Anthropic, LiteLLM, Vercel AI SDK, browser `fetch`, or provider SDKs. `@momentarise/md-ai` exposes provider contracts plus an OpenAI-compatible adapter factory that receives an injected transport from the host.
+
+## Supported Host Paths
+
+- `mock`: default demo/test provider. No external calls.
+- `host-managed`: recommended production path. The host backend owns provider credentials, quotas, billing, audit, and secure storage.
+- `sidecar-local`: local gateway path for desktop or developer setups, including LiteLLM or another OpenAI-compatible endpoint running on the user's machine.
+- `personal BYOK`: local/personal demo path. The key is memory-only in the browser session and is never logged or persisted by MME.
+
+Production apps should prefer a host backend, sidecar, secure storage, or user-controlled gateway. Direct browser-to-provider personal BYOK is a local/personal mode, not the default production recommendation.
+
+## Policy Boundary
+
+Document Access Policy runs before provider transport. If policy denies `share`, no document content, selected text, prompt, or metadata is sent to the provider transport.
+
+All provider results return the same staged `AiWritingSuggestion` shape used by the editor:
+
+- pending suggestion;
+- explicit accept/reject;
+- source hash anchoring;
+- stale accept refusal when the document changed.
+
+## Key Handling
+
+MME does not persist provider keys. In personal BYOK mode, the browser key is held only in memory long enough to configure the provider transport/session. It is not written to local storage, session storage, logs, visual-check state, or provider request payload metadata.
+
+`@momentarise/md-ai` can construct a bearer `Authorization` header for explicit personal BYOK configuration, but the injected host transport owns network delivery and logging behavior. Hosts must avoid logging raw request headers when those headers include bearer tokens.
+
+---
+path: docs/public/compatibility-promise.md
+url: https://momentarise.dev/docs/compatibility-promise
+title: Compatibility Promise
+---
+
+# Compatibility Promise
+
+Momentarise Markdown Editor packages start at `0.1.0` and are experimental until a package is explicitly marked stable.
+
+## Semver
+
+Packages follow semver with a `0.x` pre-1.0 policy:
+
+- patch releases fix bugs without intentional public API breaks;
+- minor releases may add APIs and may include breaking API changes while the package is experimental;
+- breaking changes must be documented in the changelog or a Changeset before release;
+- public exports are the root package exports audited by `npm run test:public-api`.
+
+## Experimental
+
+All current `@momentarise/*` framework packages are experimental. Hosts can build against them, but should pin compatible ranges and read the changelog before upgrading.
+
+Experimental packages still keep the core preservation contract: Markdown remains durable source, unknown syntax is preserved where supported, and save status must stay truthful.
+
+## Stable
+
+A package becomes stable only when its package metadata says `momentarise.releaseStatus: "stable"` and its README states the same. Stable packages must not ship breaking API changes outside a major release.
+
+## License
+
+Framework packages under `packages/*` use `MPL-2.0`.
+
+Demos and consumer examples under `apps/*` and `examples/*` use `Apache-2.0`.
+
+---
+path: docs/public/GLOSSARY.md
+url: https://momentarise.dev/docs/GLOSSARY
+title: Glossary
+---
+
+# Glossary
+
+## Fixture
+
+A fixture is a representative test file used to prove the framework does not corrupt Markdown.
+
+Examples: a note with frontmatter, a GFM table, a code fence, a callout, a wikilink, inline HTML, Mermaid, LaTeX, unknown syntax, or a sanitized real vault sample.
+
+Fixtures are the safety net. Without them, a rich UI can silently destroy user documents.
+
+## Round-trip
+
+Round-trip means parsing a Markdown document into the framework model and serializing it back to Markdown.
+
+The framework must prove that known syntax is handled and unknown syntax is preserved.
+
+## Opaque node
+
+An opaque node is source text the framework does not understand yet but must preserve.
+
+It prevents unsupported syntax from being deleted or normalized silently.
+
+## Source range
+
+A source range points to the location of a node in the original Markdown text.
+
+It is required for preserving untouched regions and for editing only the intended part of the file.
+
+## Folding UI
+
+Folding UI is an interface state, like collapsing a heading or code block in an editor. It must not change the Markdown source.
+
+## Toggle block
+
+A toggle block is real document content. It is only created when the user explicitly inserts a collapsible block. Recommended portable output is `<details><summary>...</summary>...</details>`.
+
+## Real file persistence
+
+A save operation writes to an actual persistence target: disk, download, memory, backend, or host storage. The UI must say which target was used.
+
+## BYOK
+
+Bring Your Own Key. The user provides their own AI provider key for writing assistance. Keys must not be logged.

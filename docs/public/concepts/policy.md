@@ -1,7 +1,7 @@
 ---
 title: Document Access Policy
 description: Policy decisions gate read, write, share, export, and AI access.
-nav_section: Concepts
+nav_section: Foundations
 nav_order: 4
 audience: developers
 tags:
@@ -47,5 +47,5 @@ Secrets, tokens, `.env` files, keys, identity documents, banking documents, and 
 ## Related Docs
 
 - [AI And Privacy](ai-privacy.md)
-- [Package Reference: md-policy](../packages/md-policy.md)
-- [Package Reference: md-cli](../packages/md-cli.md)
+- [Document Access Policy API](../packages/md-policy.md)
+- [CLI For Agents And Developers](../packages/md-cli.md)

@@ -1,7 +1,7 @@
 ---
-title: "Package: md-save"
-description: Host-independent Save Engine for MME.
-nav_section: Packages
+title: Save Engine
+description: Dirty, saved, conflict, and persistence-target contracts.
+nav_section: Reference
 nav_order: 3
 audience: developers
 tags:
@@ -13,7 +13,7 @@ llms: include
 updated: 2026-07-08
 ---
 
-# Package: md-save
+# Save Engine
 
 `@momentarise/md-save` tracks document save state independently from any host.
 
@@ -37,4 +37,4 @@ const target = createMemorySaveTarget({
 ## Related Docs
 
 - [Save Truthfulness](../concepts/save-truthfulness.md)
-- [Package Reference: md-adapter-web](md-adapter-web.md)
+- [Web File Access](md-adapter-web.md)

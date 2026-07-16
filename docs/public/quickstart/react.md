@@ -1,7 +1,7 @@
 ---
 title: React Quickstart
 description: Mount the thin React binding for Momentarise Markdown Editor.
-nav_section: Quickstart
+nav_section: Getting Started
 nav_order: 2
 audience: developers
 tags:
@@ -67,4 +67,4 @@ MME owns:
 
 - [Next.js Quickstart](next.md)
 - [Document Model](../concepts/document-model.md)
-- [Package Reference: md-react](../packages/md-react.md)
+- [React Binding API](../packages/md-react.md)

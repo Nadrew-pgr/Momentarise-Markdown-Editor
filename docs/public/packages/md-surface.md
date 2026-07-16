@@ -1,7 +1,7 @@
 ---
-title: "Package: md-surface"
-description: Framework-free DOM components for MME controls.
-nav_section: Packages
+title: Surface Components
+description: Framework-free toolbar, slash menu, command, status, and AI controls.
+nav_section: Features
 nav_order: 8
 audience: developers
 tags:
@@ -13,7 +13,7 @@ llms: include
 updated: 2026-07-08
 ---
 
-# Package: md-surface
+# Surface Components
 
 `@momentarise/md-surface` provides framework-free DOM components for shared editor controls.
 

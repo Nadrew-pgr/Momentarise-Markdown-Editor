@@ -1,0 +1,47 @@
+# Momentarise Markdown Editor
+
+Markdown-native framework for portable, preservation-first document editors.
+
+## Public Docs
+
+- [Momentarise Markdown Editor](https://momentarise.dev/docs): Build portable Markdown editors with rich UX, AI assistance, truthful saves, and host-independent contracts.
+- [Vanilla Quickstart](https://momentarise.dev/docs/quickstart/vanilla): Mount Momentarise Markdown Editor without a framework.
+- [React Quickstart](https://momentarise.dev/docs/quickstart/react): Mount the thin React binding for Momentarise Markdown Editor.
+- [Next.js Quickstart](https://momentarise.dev/docs/quickstart/next): Use the React binding from a client-only Next.js boundary.
+- [Headless Quickstart](https://momentarise.dev/docs/quickstart/headless): Use the headless editor session without rendering UI.
+- [Document Model](https://momentarise.dev/docs/concepts/document-model): Markdown is the durable source; views and artifacts are derived.
+- [Preservation](https://momentarise.dev/docs/concepts/preservation): How MME protects Markdown bytes and unknown syntax.
+- [Save Truthfulness](https://momentarise.dev/docs/concepts/save-truthfulness): Save state must describe the real persistence target.
+- [Document Access Policy](https://momentarise.dev/docs/concepts/policy): Policy decisions gate read, write, share, export, and AI access.
+- [Editor UI](https://momentarise.dev/docs/concepts/editor-ui): Source mode, rich view, toolbar, slash menu, outline, and status surfaces.
+- [AI And Privacy](https://momentarise.dev/docs/concepts/ai-privacy): AI writing is assistive, staged, and policy-gated.
+- [Import, Export, And Rendering](https://momentarise.dev/docs/concepts/import-export): Markdown stays source; HTML and external formats are explicit artifacts or adapters.
+- [Preferences And Locks](https://momentarise.dev/docs/concepts/preferences): Hosts resolve user, workspace, document, and locked editor preferences.
+- [Extensions](https://momentarise.dev/docs/concepts/extensions): Register commands, toolbar items, slash items, AI actions, and custom blocks.
+- [Surface Components](https://momentarise.dev/docs/packages/md-surface): Framework-free toolbar, slash menu, command, status, and AI controls.
+- [HTML Renderer](https://momentarise.dev/docs/packages/md-render-html): Sanitized Markdown-to-HTML rendering for read-only surfaces.
+- [HTML Artifact Preview](https://momentarise.dev/docs/packages/md-preview-html): Sandboxed preview descriptors for standalone HTML files.
+- [Agentic Experience](https://momentarise.dev/docs/concepts/agentic-experience): How MME docs expose Markdown context to coding agents without hiding the source.
+- [Theming](https://momentarise.dev/docs/concepts/theming): Theme MME through tokens, host theme objects, icons, and class maps.
+- [Theme System](https://momentarise.dev/docs/packages/md-theme): Tokens, host theme objects, icons, and class maps.
+- [Core Contracts](https://momentarise.dev/docs/packages/md-core): Stable host-independent primitives shared by every MME package.
+- [Markdown Parser And Serializer](https://momentarise.dev/docs/packages/md-format): Parse Markdown into MME nodes and serialize edited ranges safely.
+- [Save Engine](https://momentarise.dev/docs/packages/md-save): Dirty, saved, conflict, and persistence-target contracts.
+- [Document Access Policy API](https://momentarise.dev/docs/packages/md-policy): Gate read, write, share, export, and AI access before work happens.
+- [AI Writing API](https://momentarise.dev/docs/packages/md-ai): Provider-neutral, policy-gated writing suggestions.
+- [Headless Editor Session](https://momentarise.dev/docs/packages/md-editor): Session state, outline, events, modes, and extension registry.
+- [React Binding API](https://momentarise.dev/docs/packages/md-react): Thin React lifecycle wrapper around MME sessions and DOM surfaces.
+- [CodeMirror Source View](https://momentarise.dev/docs/packages/md-source-codemirror): Source-mode editor behavior, preferences, and host integration.
+- [ProseMirror Rich View](https://momentarise.dev/docs/packages/md-rich-prosemirror): Rich-mode bridge that keeps Markdown serialization honest.
+- [Web File Access](https://momentarise.dev/docs/packages/md-adapter-web): Browser file-open and save-target helpers.
+- [Theia Adapter](https://momentarise.dev/docs/packages/md-adapter-theia): Alpha IDE-shell adapter proving host capability boundaries.
+- [CLI For Agents And Developers](https://momentarise.dev/docs/packages/md-cli): Inspect, validate, format, and scaffold Markdown safely.
+- [FAQ](https://momentarise.dev/docs/faq): Answers to common integration and product questions.
+- [Roadmap](https://momentarise.dev/docs/roadmap): Public framework direction for MME.
+- [AI Provider Adapter](https://momentarise.dev/docs/AI_PROVIDER_ADAPTER)
+- [Compatibility Promise](https://momentarise.dev/docs/compatibility-promise)
+- [Glossary](https://momentarise.dev/docs/GLOSSARY)
+
+## Full Context
+
+- [llms-full.txt](https://momentarise.dev/docs/llms-full.txt)

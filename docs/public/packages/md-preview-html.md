@@ -1,7 +1,7 @@
 ---
-title: "Package: md-preview-html"
-description: Sandbox descriptor helpers for standalone HTML artifact previews.
-nav_section: Packages
+title: HTML Artifact Preview
+description: Sandboxed preview descriptors for standalone HTML files.
+nav_section: Features
 nav_order: 13
 audience: developers
 tags:
@@ -13,7 +13,7 @@ llms: include
 updated: 2026-07-08
 ---
 
-# Package: md-preview-html
+# HTML Artifact Preview
 
 `@momentarise/md-preview-html` handles standalone HTML artifact preview descriptors.
 
@@ -30,4 +30,4 @@ Standalone `.html` artifacts are not Markdown documents. Markdown inline or bloc
 ## Related Docs
 
 - [Document Model](../concepts/document-model.md)
-- [Package Reference: md-render-html](md-render-html.md)
+- [HTML Renderer](md-render-html.md)

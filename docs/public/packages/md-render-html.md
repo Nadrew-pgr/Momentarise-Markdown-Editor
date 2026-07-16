@@ -1,7 +1,7 @@
 ---
-title: "Package: md-render-html"
-description: Safe sanitized Markdown-to-HTML renderer.
-nav_section: Packages
+title: HTML Renderer
+description: Sanitized Markdown-to-HTML rendering for read-only surfaces.
+nav_section: Features
 nav_order: 12
 audience: developers
 tags:
@@ -13,7 +13,7 @@ llms: include
 updated: 2026-07-08
 ---
 
-# Package: md-render-html
+# HTML Renderer
 
 `@momentarise/md-render-html` renders Markdown to sanitized HTML for read-only surfaces.
 
@@ -35,5 +35,5 @@ console.log(result.html);
 
 ## Related Docs
 
-- [Package Reference: md-preview-html](md-preview-html.md)
+- [HTML Artifact Preview](md-preview-html.md)
 - [Document Model](../concepts/document-model.md)

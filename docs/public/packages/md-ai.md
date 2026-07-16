@@ -1,7 +1,7 @@
 ---
-title: "Package: md-ai"
-description: Document-local AI writing contracts for MME.
-nav_section: Packages
+title: AI Writing API
+description: Provider-neutral, policy-gated writing suggestions.
+nav_section: Reference
 nav_order: 5
 audience: developers
 tags:
@@ -13,7 +13,7 @@ llms: include
 updated: 2026-07-08
 ---
 
-# Package: md-ai
+# AI Writing API
 
 `@momentarise/md-ai` defines AI writing provider contracts and OpenAI-compatible adapter helpers.
 
@@ -29,9 +29,7 @@ updated: 2026-07-08
 ```ts
 import { createMockAiProvider } from "@momentarise/md-ai";
 
-const provider = createMockAiProvider({
-  response: "Suggested Markdown"
-});
+const provider = createMockAiProvider();
 ```
 
 ## Related Docs

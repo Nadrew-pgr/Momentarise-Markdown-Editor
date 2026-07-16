@@ -4538,3 +4538,168 @@
   - Not pushed. Branch is local-only and ahead of `origin/main`; push remains pending explicit safe push approval.
 - Next issue:
   - `MME-0038 — Public docs site and AX docs surface`.
+
+## MME-0038 — Public docs site and AX docs surface
+
+- Timestamp: 2026-07-08T11:52:06+02:00
+- Status:
+  - Code-complete and reviewer-checked, human review pending. The issue explicitly requires human review because this is the public face and an external-link surface, so it is not accepted/finished and no issue-scoped commit has been created yet.
+  - Revision pass completed 2026-07-08T12:27:04+02:00 after human clarified that the public site/docs should be Next.js, not Vite.
+  - Follow-up visual/docs-code pass completed 2026-07-08T15:00:38+02:00 after human feedback that the docs looked too cheap versus Vercel docs and must prove framework-backed Markdown files.
+  - Follow-up UI/AX pass completed 2026-07-08T16:40:19+02:00 after human rejected the docs-site UI as still below Next.js/BlockNote/AI Elements quality and asked for light/dark plus AX skills backlog.
+  - Follow-up UI/content pass completed 2026-07-08T19:34:53+02:00 after human feedback that the logo/favicon, action placement, live example, and package-heavy content/nav still weakened the public docs face.
+  - Follow-up route/footer pass completed 2026-07-08T20:10:00+02:00 after human feedback that the footer was weak and the public site should use `/` for landing plus `/docs` for docs.
+  - Follow-up route/footer reviewer fix pass completed 2026-07-08T20:28:00+02:00 after Spark reviewer `Jason` reported no P0/P1/P2 findings and three P3 route-proof issues.
+  - Follow-up styled HTML/slash preview pass completed 2026-07-08T21:28:00+02:00 after human feedback that the raw HTML demo was too plain and should show styled HTML plus the slash editor.
+  - Follow-up landing/editor-source pass completed 2026-07-09T10:30:47+02:00 after human feedback that the landing needed real storytelling, the docs footer looked wrong, the demo should feel like the editor, and native Markdown constructs must not be serialized as blanket HTML.
+  - Follow-up AX/CLI/layout pass completed 2026-07-09T15:07:09+02:00 after human asked why push waits for validation and why the docs layout was not more directly inspired by Vercel/BlockNote. This pass improves docs IA/proof without starting a new issue or claiming human acceptance.
+  - Pending-status continuation authorized 2026-07-16T16:55:22+02:00 by explicit human instruction: commit MME-0038, record that it was not explicitly validated, and continue to the next issue. This does not mark the public docs face as accepted.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short --branch`, package APIs for `@momentarise/md-render-html`, `@momentarise/md-editor`, `@momentarise/md-theme`, `@momentarise/md-source-codemirror`, existing visual scripts, release-engineering tests, and the MME-0038 issue notes.
+  - MME-0037 was issue-committed as `864de67`; branch was clean and ahead of `origin/main` before starting.
+- RED proof before implementation:
+  - Added `tests/docs-site-ax.test.mjs`, root `test:docs-site`, root `test:llms-sync`, root `build:docs-site`, and `visual:mme-0038` before implementation.
+  - Initial RED failures:
+    - `npm run test:docs-site` failed because `@momentarise/docs-site` workspace did not exist.
+    - `npm run test:llms-sync` failed because `scripts/generate-llms.mjs` did not exist.
+- Change:
+  - Added `apps/docs-site` as a static-export Next.js App Router app licensed under Apache-2.0 with release metadata, after human feedback that the public site and docs should use Next.js.
+  - Added a build/dev raw Markdown sync pipeline that reads real `docs/public/**/*.md`, serves raw Markdown under `/docs/<page>.md`, emits matching `.md` assets into the production build without content forks, watches raw Markdown during `dev`, and provides a Node static preview server for `out/`.
+  - Rendered page content through `@momentarise/md-render-html` and derives the right outline through `createMarkdownEditorSession().getOutline()`, not frontmatter.
+  - Added left nav from file path plus optional frontmatter metadata and kept no-frontmatter docs working through fallback title/section derivation.
+  - Added page actions: copy Markdown, copy LLM prompt, copy current section from outline `sourceRange`s, copy page link, and Open-in-chat menu.
+  - Added Open-in-chat targets for ChatGPT, Claude, Gemini, Mistral, T3 Chat, Scira, v0, Claude Code, Codex, Cursor, OpenClaw, and Copilot-like agents. Query-link targets are URL-encoded/truncated; unreliable or popup-blocked targets copy the prompt and show a paste hint.
+  - Added shared prompt template instructions: use web search if available, prefer official docs, cite sources when browsing, respect Markdown-as-source, do not assume JSON/block DB persistence, and separate framework-neutral from host-specific guidance.
+  - Added `scripts/generate-llms.mjs`, committed `llms.txt` and `llms-full.txt`, and wired `test:llms-sync`.
+  - Added a shared docs metadata module used by both the site and `llms` generator to avoid frontmatter/nav drift.
+  - Added security/DX hardening after reviewer findings: base-aware raw links, guarded malformed route/hash decode, escaped external-link rewriting with `rel`/`target` hardening, realpath/symlink-guarded raw sync, local-loopback visual target validation, URL-encoded `llms` routes, popup/copy fallback truthfulness, static preview clarity, watched dev raw sync, and sanitized frontmatter-derived `llms` fields.
+  - Corrected public package docs after specialized docs/code review: `md-theme` now documents `resolveTheme`/`resolveThemeToCssVariables`, `md-policy` now uses `subject.documentPath` plus `decision.allowed`, and `md-ai` now calls `createMockAiProvider()` with the real parameterless signature.
+  - Polished the docs shell after visual review: added a product-style top bar, collapsed mobile navigation, removed duplicate rendered H1s from article bodies, moved home quickstart/concept cards before long prose, demoted action feedback into a toast, and reduced page-action/debug visual weight while keeping all AX actions testable.
+  - Added a static `/favicon.ico` route so the static-export catch-all no longer logs a dev-server 500 for browser favicon probes.
+  - Added backlog follow-ups for native MME docs primitives: rendered Markdown post-processors, agent/docs action helpers, callouts/steps/tabs/card grids, and docs navigation/search primitives.
+  - Upgraded the docs-site shell toward BlockNote/AI Elements benchmarks without touching core: light scheme is now the default with a persisted dark-mode toggle; topbar includes real local docs search with `Cmd/Ctrl+K`, `Ask AI`, and theme controls; page headers include breadcrumbs; the home page now reads as documentation content first, then examples/demo; footer navigation was added; the live demo source editor no longer wraps at 82px.
+  - Replaced the placeholder triangle logo/favicon with a simple MME mark, changed the theme switch to sun/moon icons, removed the visible `.md source` / `MME rendered` / `AX ready` / `0.x` badges, moved raw source/copy/open-in-chat actions into a right-rail Page actions menu, and kept the rendered-by-MME proof as a quieter right-rail note.
+  - Made the live demo a more useful framework proof: the source now includes raw HTML inside Markdown, the rendered preview is editable, edits in the rendered preview sync back to the source pane, and the demo source pane suppresses the heavy active-line highlight.
+  - Reorganized docs content/navigation using the attached BlockNote taxonomy as a benchmark, without copying its block-database assumptions: public docs now group around Start, Getting Started, Foundations, Features, Styling, and Reference; package pages were renamed from `Package: ...` labels to task/API names; new public guides cover Editor UI and Import, Export, And Rendering.
+  - Split the public site routes: `/` is now a product landing with a live MME demo and no catch-all docs route, `/docs` is the docs home, `/docs/[...slug]` holds docs pages, and raw Markdown is synced to `apps/docs-site/public/docs/**` so source URLs live under `/docs/*.md`.
+  - Reworked landing and docs footers into grouped navigation, removed the decorative landing background gradient, and renamed copy-failure fallback text from `Raw .md` to `View source`.
+  - Fixed post-route reviewer P3s: the static preview strips trailing slashes before resolving exported pages, rendered docs link rewriting now handles absolute `/docs/...` and `/docs/*.md` targets, and the visual script asserts footer link presence plus fetches critical footer route targets.
+  - Replaced the minimal raw-HTML callout proof with a styled `mme-*` HTML component rendered from Markdown source: release-note panel, source/render/save status tiles, and a slash-editor preview with `/ai`, heading, and callout options. The landing demo now orders the rendered preview before the source pane so the first viewport shows the polished output; the source remains visible below.
+  - Kept the slash-editor claim honest: this docs-site preview is rendered HTML proof, while the actual interactive slash command implementation remains in the existing editor surface (`@momentarise/md-surface` / MME demo). No docs-site command runner was introduced in this follow-up.
+  - Expanded the landing page with product storytelling and a source/rich/preview/AI workflow section, reduced the hero scale so it no longer clips at 1280x900, and wrapped the live demo in an editor-like frame with file name, save state, source/render controls, and slash affordance.
+  - Moved the docs footer into the docs content column instead of a full-width band under the sticky sidebars, making the footer read as page-local navigation rather than a layout overlay.
+  - Reworked the rendered-preview-to-source demo serializer so native Markdown nodes remain Markdown (`#` headings, paragraphs, lists, `**strong**`, `_emphasis_`, `` `code` ``, `~~strike~~`, safe links/images), MME custom HTML blocks are preserved by generalized `mme-*` class detection, and arbitrary unsupported `outerHTML` is not passed back into the source.
+  - Strengthened visual proof for the live demo by injecting inline formatting and an arbitrary `div.mme-proof-block`, then asserting that the source pane contains native Markdown plus preserved MME custom HTML blocks after rendered-preview edits.
+  - Expanded backlog for the larger AX scope: Codex/agent skills generated from public docs, reusable agent action registry descriptors, BlockNote-class content taxonomy coverage, and full light/dark public-release hardening.
+  - Added `docs/public/concepts/agentic-experience.md` to document current AX affordances truthfully: raw Markdown routes, copy Markdown, copy current section, copy prompt, Open-in-chat fallback, generated `llms.txt`/`llms-full.txt`, and CLI-based local proof. The doc explicitly marks generated Codex skills, hosted Ask AI, semantic docs search, and reusable agent descriptors as not shipped yet.
+  - Expanded `docs/public/packages/md-cli.md` from a minimal example into command-oriented CLI documentation covering `init`, `check`, `inspect`, `format`, `test:fixtures`, `--json`, and Document Access Policy boundaries.
+  - Updated the docs shell layout with AX top-nav/home/footer links, an Agentic Experience home section, previous/next docs pagination, and stronger footer route proof for AX/CLI pages.
+  - Fixed a docs-site CSS token bug: `styles.css` referenced undefined `--mme-space-7`, `--mme-space-8`, and `--mme-space-9` tokens even though `@momentarise/md-theme` only defines `--mme-space-1` through `--mme-space-6`. These references now use `calc(var(--mme-space-6) * n)`, and `tests/docs-site-ax.test.mjs` prevents reintroducing undefined spacing tokens.
+- Visual impact:
+  - New public docs site with Vercel-docs-like layout: left navigation, center MME-rendered Markdown, right outline, right-rail Page actions menu, examples gallery, and a live CodeMirror source/editable-render demo on the home page.
+  - Follow-up visual artifacts now show product-style navigation, quieter action/proof placement, no duplicate article H1 below the page header, sun/moon theme toggle, updated logo/favicon, and an HTML-containing editable preview demo.
+  - Latest landing screenshot shows a more complete product story plus an editor-like live demo. Latest demo screenshot shows post-edit source with native Markdown headings/lists/inline marks and preserved `mme-*` HTML blocks instead of blanket rendered HTML.
+  - Latest AX/CLI/layout screenshots show AX in the top nav, AX/CLI footer links, previous/next docs pagination, and restored landing spacing after replacing invalid CSS spacing tokens.
+  - No existing editor/demo surface changes.
+  - Screenshots captured:
+    - `docs/internal/visual-checks/MME-0038/docs-home.png`
+    - `docs/internal/visual-checks/MME-0038/site-landing.png`
+    - `docs/internal/visual-checks/MME-0038/site-footer.png`
+    - `docs/internal/visual-checks/MME-0038/docs-footer.png`
+    - `docs/internal/visual-checks/MME-0038/docs-page-actions.png`
+    - `docs/internal/visual-checks/MME-0038/docs-mobile.png`
+- Checks run:
+  - `npm run test:docs-site` — RED before implementation; later green.
+  - `npm run test:llms-sync` — RED before implementation; later green.
+  - `npm run build:docs-site` — green with Next.js static export to `apps/docs-site/out`.
+  - `npm run test:release-engineering` — green.
+  - `npm run test:docs` — green.
+  - `npm run test:render-html` — green.
+  - `npm run test:find-outline` — green.
+  - `npm run visual:mme-0038` — green with system Chrome permission after sandbox Chrome aborted before CDP.
+  - Follow-up `npm run test:docs-site` — green after visual/docs-code revisions.
+  - Follow-up `curl -I http://127.0.0.1:5178/favicon.ico` — 200 after adding the favicon route.
+  - Follow-up `npm run test:docs` — green.
+  - Follow-up `npm run test:llms-sync` — initially failed after snippet edits, then green after `node scripts/generate-llms.mjs`.
+  - Follow-up `npm run visual:mme-0038` — green with system Chrome permission after shell polish.
+  - Follow-up `git diff --check` — green.
+  - Follow-up `npm test` — green after docs-code/UI/favicon revisions; existing demo Vite chunk-size warning only.
+  - Follow-up `npm run test:docs-site` — green after UI/AX/light-dark revisions.
+  - Follow-up `npm run test:docs` — green after backlog/docs-source updates.
+  - Follow-up `npm run test:llms-sync` — green.
+  - Follow-up `npm run visual:mme-0038` — green with system Chrome permission after search/theme/live-demo revisions.
+  - Follow-up `npm test` — green after UI/AX/light-dark revisions; existing demo Vite chunk-size warning only.
+  - Earlier pre-route-split `curl -I` route checks were green for root docs routes; the current route/footer pass supersedes that proof with `/`, `/docs`, `/docs/quickstart/react`, and raw `/docs/quickstart/react.md` checks in `npm run visual:mme-0038`.
+  - Earlier pre-route-split `npm run preview -w @momentarise/docs-site` was green with local-server permission; after the route/footer pass, static `/docs` routing is covered by `npm run test:docs-site` and `npm run visual:mme-0038`.
+  - `git diff --check` — green.
+  - `npm test` — green; existing demo Vite chunk-size warning only.
+  - Follow-up `npm run test:docs-site` — green after logo/action-placement/live-demo/content taxonomy revisions.
+  - Follow-up `npm run test:docs` — green after public docs renaming and new feature guides.
+  - Follow-up `npm run test:llms-sync` — green after regenerating `llms.txt` and `llms-full.txt`.
+  - Follow-up `npm run visual:mme-0038` — green with system Chrome permission after the sandbox Chrome abort; visual script now verifies the right-rail actions menu and editable rendered preview syncing back to source.
+  - Follow-up `git diff --check` — green.
+  - Follow-up `npm test` — green after the latest UI/content revision; existing demo Vite chunk-size warning only.
+  - Follow-up `node scripts/sync-docs-site-raw.mjs` — green after `/docs` raw-source route split.
+  - Follow-up `node scripts/generate-llms.mjs` — green after route/footer pass.
+  - Follow-up `npm run test:docs-site` — green after landing/docs route split and footer visual proof additions.
+  - Follow-up `npm run test:docs` — green after route/footer pass.
+  - Follow-up `npm run test:llms-sync` — green after route/footer pass.
+  - Follow-up `npm run visual:mme-0038` — sandbox Chrome aborted before CDP; rerun green with system Chrome permission. Visual now captures `site-landing.png`, `site-footer.png`, `docs-home.png`, `docs-dark.png`, `docs-home-demo.png`, `docs-footer.png`, `docs-page-actions.png`, and `docs-mobile.png`.
+  - Follow-up `git diff --check` — green after route/footer pass.
+  - Follow-up `npm test` — green after route/footer pass; existing demo Vite chunk-size warning only.
+  - Follow-up `npm run test:docs-site` — green after route/footer reviewer P3 fixes.
+  - Follow-up `npm run test:docs` — green after route/footer reviewer P3 fixes.
+  - Follow-up `npm run visual:mme-0038` — green with system Chrome permission after route/footer reviewer P3 fixes; visual now asserts landing/docs footer critical links and fetches `/docs`, `/docs/quickstart/react`, `/docs/packages/md-core`, and `/docs/roadmap`.
+  - Follow-up `git diff --check` — green after route/footer reviewer P3 fixes.
+  - Follow-up `npm test` — green after route/footer reviewer P3 fixes; existing demo Vite chunk-size warning only.
+  - Follow-up `npm run visual:mme-0038` — green after styled HTML/slash preview pass; screenshots now verify `Styled HTML Block`, `slash editor`, rendered preview first on landing, and editable preview-to-source sync with the styled HTML text.
+  - Follow-up `npm run test:docs-site` — green after styled HTML/slash preview pass.
+  - Follow-up `git diff --check` — green after styled HTML/slash preview pass.
+  - Follow-up `npm run test:docs-site` — green after landing/storytelling/footer/editor-frame/source-serializer revisions.
+  - Follow-up `npm run visual:mme-0038` — sandbox Chrome requires system permission; rerun green after landing/storytelling/footer/editor-frame/source-serializer revisions.
+  - Follow-up `git diff --check` — green after landing/storytelling/footer/editor-frame/source-serializer revisions.
+  - Follow-up `npm test` — green after landing/storytelling/footer/editor-frame/source-serializer revisions; existing demo Vite chunk-size warning only.
+  - Follow-up `npm run test:docs-site` — RED after adding AX/CLI/layout assertions because `docs/public/concepts/agentic-experience.md` did not exist yet.
+  - Follow-up `node scripts/generate-llms.mjs` — green after adding the AX guide and expanding CLI docs.
+  - Follow-up `node scripts/sync-docs-site-raw.mjs` — green after adding the AX guide.
+  - Follow-up `npm run test:docs-site` — green after AX/CLI/layout and CSS-token revisions.
+  - Follow-up `npm run test:docs` — green after AX/CLI docs revisions.
+  - Follow-up `npm run test:llms-sync` — green after regenerating `llms.txt` and `llms-full.txt`.
+  - Follow-up `npm run visual:mme-0038` — sandbox Chrome aborted before CDP; rerun green with system Chrome permission after AX/CLI/layout and spacing-token revisions.
+  - Follow-up `git diff --check` — green after AX/CLI/layout and spacing-token revisions.
+  - Follow-up `npm test` — green after AX/CLI/layout and spacing-token revisions; existing demo Vite chunk-size warning only.
+- Manual/visual verification:
+  - Dev server command: `npm run dev -w @momentarise/docs-site -- --hostname 127.0.0.1 --port 5178`.
+  - Local URL: `http://127.0.0.1:5178/`.
+  - Fresh dev server restarted through `scripts/dev-docs-site.mjs`, which watches `docs/public/**/*.md` and re-syncs raw Markdown into `apps/docs-site/public`.
+  - Framework/source proof: `docs/public/**/*.md` and `apps/docs-site/public/docs/**/*.md` count matched; `docs/public/quickstart/react.md` and `apps/docs-site/public/docs/quickstart/react.md` matched byte-for-byte; raw Markdown now resolves at `/docs/quickstart/react.md`; the Next shell imports `@momentarise/md-render-html`, `@momentarise/md-editor`, `@momentarise/md-source-codemirror`, and `@momentarise/md-theme`.
+  - Visual script verified landing at `/`, docs home at `/docs`, visible rendered-by-MME proof in the right rail, all five page actions from the Page actions menu, Open-in-chat copy fallback, route navigation to React quickstart at `/docs/quickstart/react`, raw `/docs/quickstart/react.md` retrieval, and mobile layout.
+  - Footer route proof now covers the landing footer and docs footer hrefs, plus static fetch checks for `/docs`, `/docs/quickstart/react`, `/docs/packages/md-core`, and `/docs/roadmap`.
+  - Follow-up visual script also verified search opens and returns React Quickstart, theme toggles light/dark, dark mode screenshot capture, and live demo screenshot capture proving the source editor no longer wraps letters one per line.
+  - Latest visual script also verified that editing the rendered preview updates the source pane, and screenshots show the raw HTML example rendered as editable content.
+  - Latest visual script additionally verifies that rendered-preview edits preserve native Markdown headings/lists/inline strong/code/strike syntax, retain `mme-html-panel`, `mme-slash-editor`, and an arbitrary `mme-proof-block` as custom HTML blocks, and do not serialize the Markdown heading back as `<h1>`.
+  - Latest visual script verifies the Agentic Experience and CLI pages are linked from the docs home/footer, that critical AX/CLI routes resolve, that the docs pager renders, and that landing sections fit the viewport. Manual screenshot inspection confirmed no blank render, no obvious text overlap, quieter header, right-rail actions visible, menu usable, mobile readable, and restored landing/footer spacing after the CSS token fix.
+- Reviewer result:
+  - DX/code reviewer subagent used `gpt-5.3-codex-spark` with `xhigh` reasoning. It reported no P0/P1/P2 findings and four P3 items after the Next rework: stale Vite docs wording, incomplete visual action coverage, unclear static preview script, and dev-only raw Markdown sync drift. Builder fixed all four and reran proofs.
+  - Security reviewer subagent used `gpt-5.3-codex-spark` with `xhigh` reasoning. It reported no P0/P1/P2 findings and four P3 hardening items after the Next rework: external-link rewrite escaping, URL-encoded `llms` routes, symlink/canonicalization guards for raw sync, and local-loopback validation for visual targets. Builder fixed all four and reran proofs.
+  - Follow-up DX/security reviewer checks reported no remaining P0/P1/P2 findings and no blocking P3 findings.
+  - Specialized docs/code reviewer `Boyle` used `gpt-5.3-codex-spark` with `xhigh` reasoning and found three factual API drifts in public docs (`md-theme`, `md-policy`, `md-ai`). Builder fixed all three in `docs/public/`, resynced raw docs, regenerated `llms`, and reran targeted proofs.
+  - Architecture/native-capability reviewer `Arendt` used `gpt-5.3-codex-spark` with `xhigh` reasoning and found no blocking architecture gaps; it recommended parking reusable docs post-processing and AX action helpers as future native MME capabilities.
+  - Visual reviewer `Noether` used a classic visual model and found the cheap look came from the docs-site shell, not from MME rendering: duplicated H1s, over-prominent internal proof/actions, mobile nav weight, and missing product-doc hierarchy. Builder fixed the actionable shell issues and logged native docs primitives in the backlog.
+  - Route/footer reviewer `Jason` used `gpt-5.3-codex-spark` with `xhigh` reasoning and reported no P0/P1/P2 findings. It raised three P3s: trailing-slash static preview route misses, absolute `/docs/...` link rewriting, and light footer route coverage. Builder fixed all three and reran targeted proof plus visual.
+  - Follow-up code reviewer `Nietzsche` used `gpt-5.3-codex-spark` with `xhigh` reasoning. Initial review flagged P1/P2 source-serializer risks in the rendered-preview demo; builder fixed inline Markdown preservation, generalized `mme-*` block preservation, removed arbitrary `outerHTML` fallback, added safe href filtering, strengthened visual proof, and reran tests. Final re-check reported P0/P1/P2 none.
+  - Follow-up AX/CLI/layout reviewer `Nash` used `gpt-5.3-codex-spark` with `xhigh` reasoning and reported no P0/P1/P2 findings. It checked route handling, AX/CLI claim truthfulness, docs-source integrity, accessibility/layout coverage, sync/test coverage, and commit/push protocol.
+- Residual risks:
+  - Site copy/open-in-chat URLs are best-effort because third-party chat URL parameters can change; unreliable targets copy the prompt.
+  - `llms.txt` default public base URL is `https://momentarise.dev/docs` unless `MME_DOCS_SITE_URL` is provided.
+  - Home live demo increases the docs-site bundle size through CodeMirror; the app builds as static Next output and remains a docs host shell, not a requirement for framework consumers.
+  - The site is closer to the Vercel docs benchmark but still lacks product-grade global search, Ask AI topbar integration, and native Markdown-authored docs primitives such as callouts/tabs/steps; these are backlog items, not hidden claims.
+  - Search is local title/description/path search, not a full semantic index. `Ask AI` still routes to the existing page-action prompt/Open-in-chat affordances rather than a hosted chat backend.
+  - AX skills are explicitly backlogged; no generated Codex skill bundle ships in MME-0038.
+  - The editable rendered preview is a docs-site demonstration of source/render synchronization, not a claim that the public docs site itself is a full rich authoring environment.
+- Commit status:
+  - Pending-status issue-scoped commit requested by the human on 2026-07-16. The commit records code-complete/reviewer-checked work plus explicit non-validation status; hash to be recorded immediately after commit.
+- Push status:
+  - Not pushed. This is not an accepted public-face validation, so do not push it as accepted release-ready work without a separate safe-push instruction.
+- Next issue:
+  - Continue after the pending-status commit by explicit human instruction. `MME-0039` already exists as a completed out-of-order slice; select the next executable issue only after a fresh context rebuild.

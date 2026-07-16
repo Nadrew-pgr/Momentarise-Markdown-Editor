@@ -1,7 +1,7 @@
 ---
-title: "Package: md-policy"
-description: Document Access Policy baseline for MME.
-nav_section: Packages
+title: Document Access Policy API
+description: Gate read, write, share, export, and AI access before work happens.
+nav_section: Reference
 nav_order: 4
 audience: developers
 tags:
@@ -13,7 +13,7 @@ llms: include
 updated: 2026-07-08
 ---
 
-# Package: md-policy
+# Document Access Policy API
 
 `@momentarise/md-policy` resolves document access decisions before sensitive operations.
 
@@ -31,11 +31,13 @@ import { createDefaultPolicyResolver } from "@momentarise/md-policy";
 
 const resolver = createDefaultPolicyResolver();
 const decision = resolver.resolve({
-  path: "file://notes/README.md",
-  capability: "read"
+  capability: "read",
+  subject: {
+    documentPath: "file://notes/README.md"
+  }
 });
 
-console.log(decision.status);
+console.log(decision.allowed);
 ```
 
 ## Related Docs

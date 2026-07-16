@@ -1,7 +1,7 @@
 ---
-title: "Package: md-react"
-description: Thin React binding for MME sessions and DOM surface.
-nav_section: Packages
+title: React Binding API
+description: Thin React lifecycle wrapper around MME sessions and DOM surfaces.
+nav_section: Reference
 nav_order: 9
 audience: developers
 tags:
@@ -13,7 +13,7 @@ llms: include
 updated: 2026-07-08
 ---
 
-# Package: md-react
+# React Binding API
 
 `@momentarise/md-react` is a thin React binding around framework-neutral MME packages.
 

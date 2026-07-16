@@ -1,7 +1,7 @@
 ---
 title: AI And Privacy
 description: AI writing is assistive, staged, and policy-gated.
-nav_section: Concepts
+nav_section: Features
 nav_order: 5
 audience: developers
 tags:
@@ -42,4 +42,4 @@ Production apps should avoid direct browser-to-provider keys unless the user exp
 
 - [AI Provider Adapter](../AI_PROVIDER_ADAPTER.md)
 - [Document Access Policy](policy.md)
-- [Package Reference: md-ai](../packages/md-ai.md)
+- [AI Writing API](../packages/md-ai.md)

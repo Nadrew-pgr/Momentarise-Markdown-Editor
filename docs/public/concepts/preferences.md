@@ -1,7 +1,7 @@
 ---
 title: Preferences And Locks
 description: Hosts resolve user, workspace, document, and locked editor preferences.
-nav_section: Concepts
+nav_section: Features
 nav_order: 7
 audience: developers
 tags:
@@ -38,4 +38,4 @@ Useful preferences include toolbar density, AI entry points, mode control style,
 
 - [Theming](theming.md)
 - [Extensions](extensions.md)
-- [Package Reference: md-editor](../packages/md-editor.md)
+- [Headless Editor Session](../packages/md-editor.md)

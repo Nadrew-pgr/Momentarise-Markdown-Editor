@@ -1,7 +1,7 @@
 ---
 title: Next.js Quickstart
 description: Use the React binding from a client-only Next.js boundary.
-nav_section: Quickstart
+nav_section: Getting Started
 nav_order: 3
 audience: developers
 tags:

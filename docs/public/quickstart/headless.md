@@ -1,7 +1,7 @@
 ---
 title: Headless Quickstart
 description: Use the headless editor session without rendering UI.
-nav_section: Quickstart
+nav_section: Getting Started
 nav_order: 4
 audience: developers
 tags:
@@ -53,4 +53,4 @@ Views are attached layers. The session is the integration contract.
 
 - [Document Model](../concepts/document-model.md)
 - [Extensions](../concepts/extensions.md)
-- [Package Reference: md-editor](../packages/md-editor.md)
+- [Headless Editor Session](../packages/md-editor.md)

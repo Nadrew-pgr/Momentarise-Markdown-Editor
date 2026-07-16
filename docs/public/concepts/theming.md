@@ -1,7 +1,7 @@
 ---
 title: Theming
 description: Theme MME through tokens, host theme objects, icons, and class maps.
-nav_section: Concepts
+nav_section: Styling
 nav_order: 6
 audience: developers
 tags:
@@ -38,5 +38,5 @@ MME does not require a built-in settings screen.
 ## Related Docs
 
 - [Preferences](preferences.md)
-- [Package Reference: md-theme](../packages/md-theme.md)
-- [Package Reference: md-surface](../packages/md-surface.md)
+- [Theme System](../packages/md-theme.md)
+- [Surface Components](../packages/md-surface.md)

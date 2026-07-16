@@ -1,7 +1,7 @@
 ---
-title: "Package: md-adapter-theia"
-description: Alpha Theia shell adapter.
-nav_section: Packages
+title: Theia Adapter
+description: Alpha IDE-shell adapter proving host capability boundaries.
+nav_section: Reference
 nav_order: 15
 audience: developers
 tags:
@@ -13,7 +13,7 @@ llms: include
 updated: 2026-07-08
 ---
 
-# Package: md-adapter-theia
+# Theia Adapter
 
 `@momentarise/md-adapter-theia` proves MME can run inside an IDE-like host without moving core logic into the adapter.
 
@@ -33,4 +33,4 @@ Theia owns shell services. MME owns parsing, session state, save truth, source e
 ## Related Docs
 
 - [Save Truthfulness](../concepts/save-truthfulness.md)
-- [Package Reference: md-editor](md-editor.md)
+- [Headless Editor Session](md-editor.md)

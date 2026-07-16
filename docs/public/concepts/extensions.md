@@ -1,7 +1,7 @@
 ---
 title: Extensions
 description: Register commands, toolbar items, slash items, AI actions, and custom blocks.
-nav_section: Concepts
+nav_section: Features
 nav_order: 8
 audience: developers
 tags:
@@ -40,4 +40,4 @@ Custom blocks need an explicit Markdown serialization contract. If the rich view
 
 - [Document Model](document-model.md)
 - [Preservation](preservation.md)
-- [Package Reference: md-editor](../packages/md-editor.md)
+- [Headless Editor Session](../packages/md-editor.md)

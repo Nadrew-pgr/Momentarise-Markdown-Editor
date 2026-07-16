@@ -1,7 +1,7 @@
 ---
 title: Document Model
 description: Markdown is the durable source; views and artifacts are derived.
-nav_section: Concepts
+nav_section: Foundations
 nav_order: 1
 audience: developers
 tags:
@@ -43,4 +43,4 @@ Source mode is mandatory. If a construct cannot be represented safely in rich mo
 
 - [Preservation](preservation.md)
 - [Save Truthfulness](save-truthfulness.md)
-- [Package Reference: md-core](../packages/md-core.md)
+- [Core Contracts](../packages/md-core.md)

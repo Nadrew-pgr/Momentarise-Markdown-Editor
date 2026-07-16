@@ -1,7 +1,7 @@
 ---
-title: "Package: md-theme"
-description: Tokens, host theme contract, and icon set contract.
-nav_section: Packages
+title: Theme System
+description: Tokens, host theme objects, icons, and class maps.
+nav_section: Styling
 nav_order: 7
 audience: developers
 tags:
@@ -13,7 +13,7 @@ llms: include
 updated: 2026-07-08
 ---
 
-# Package: md-theme
+# Theme System
 
 `@momentarise/md-theme` defines visual tokens and host theme contracts without tying MME to one app.
 
@@ -28,10 +28,12 @@ updated: 2026-07-08
 ## Import
 
 ```ts
-import { createDefaultTheme } from "@momentarise/md-theme";
+import { resolveTheme, resolveThemeToCssVariables } from "@momentarise/md-theme";
 
-const theme = createDefaultTheme({ colorScheme: "dark" });
-console.log(theme.tokens);
+const theme = resolveTheme({}, "dark");
+const cssVariables = resolveThemeToCssVariables({}, "dark");
+
+console.log(theme.colors.bg, cssVariables["--mme-color-bg"]);
 ```
 
 ## Related Docs

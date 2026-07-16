@@ -1,0 +1,41 @@
+{
+  "name": "@momentarise/docs-site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Static public documentation site for Momentarise Markdown Editor.",
+  "scripts": {
+    "build": "npm run sync:raw && NEXT_IGNORE_INCORRECT_LOCKFILE=1 next build",
+    "dev": "node ../../scripts/dev-docs-site.mjs",
+    "preview": "npm run build && node ../../scripts/preview-docs-site.mjs",
+    "sync:raw": "node ../../scripts/sync-docs-site-raw.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.0.0",
+    "@codemirror/commands": "^6.0.0",
+    "@codemirror/lang-markdown": "^6.0.0",
+    "@codemirror/language": "^6.0.0",
+    "@codemirror/search": "^6.0.0",
+    "@codemirror/state": "^6.0.0",
+    "@codemirror/view": "^6.0.0",
+    "@lezer/highlight": "^1.2.3",
+    "@momentarise/md-editor": "^0.1.0",
+    "@momentarise/md-render-html": "^0.1.0",
+    "@momentarise/md-save": "^0.1.0",
+    "@momentarise/md-source-codemirror": "^0.1.0",
+    "@momentarise/md-theme": "^0.1.0",
+    "codemirror": "^6.0.0",
+    "next": "^16.2.10",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "license": "Apache-2.0",
+  "momentarise": {
+    "releaseStatus": "experimental",
+    "versionPolicy": "0.x semver: public APIs are versioned, and breaking changes may ship in minor releases until 1.0. See docs/public/compatibility-promise.md."
+  }
+}

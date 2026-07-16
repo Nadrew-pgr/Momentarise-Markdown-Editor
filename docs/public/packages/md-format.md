@@ -1,7 +1,7 @@
 ---
-title: "Package: md-format"
-description: Parser and serializer contracts for MME.
-nav_section: Packages
+title: Markdown Parser And Serializer
+description: Parse Markdown into MME nodes and serialize edited ranges safely.
+nav_section: Reference
 nav_order: 2
 audience: developers
 tags:
@@ -12,7 +12,7 @@ llms: include
 updated: 2026-07-08
 ---
 
-# Package: md-format
+# Markdown Parser And Serializer
 
 `@momentarise/md-format` parses Markdown into the public MME model and serializes safely back to Markdown.
 

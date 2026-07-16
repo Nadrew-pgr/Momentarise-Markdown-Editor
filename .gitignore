@@ -1,6 +1,8 @@
 node_modules/
 dist/
 dist-types/
+.next/
+out/
 *.tsbuildinfo
 .DS_Store
 .learnings/
