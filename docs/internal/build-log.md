@@ -4698,7 +4698,7 @@
   - AX skills are explicitly backlogged; no generated Codex skill bundle ships in MME-0038.
   - The editable rendered preview is a docs-site demonstration of source/render synchronization, not a claim that the public docs site itself is a full rich authoring environment.
 - Commit status:
-  - Pending-status issue-scoped commit requested by the human on 2026-07-16. The commit records code-complete/reviewer-checked work plus explicit non-validation status; hash to be recorded immediately after commit.
+  - Pending-status issue-scoped MME-0038 commit created: `5af5591` (`docs: add public docs site ax surface`). The commit records code-complete/reviewer-checked work plus explicit non-validation status; it is not an accepted public-face validation.
 - Push status:
   - Not pushed. This is not an accepted public-face validation, so do not push it as accepted release-ready work without a separate safe-push instruction.
 - Next issue:
