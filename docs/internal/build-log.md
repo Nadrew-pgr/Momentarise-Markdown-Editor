@@ -4703,3 +4703,28 @@
   - Not pushed. This is not an accepted public-face validation, so do not push it as accepted release-ready work without a separate safe-push instruction.
 - Next issue:
   - Continue after the pending-status commit by explicit human instruction. `MME-0039` already exists as a completed out-of-order slice; select the next executable issue only after a fresh context rebuild.
+
+## Backlog promotion checkpoint — MME-0040..MME-0050
+
+- Date: 2026-07-19.
+- Trigger: human approved promoting the analyzed backlog queue into normal issues and asked for a final checkpoint commit before writing the docs and starting construction from the must-have items.
+- Checkpoint:
+  - Created empty checkpoint commit before backlog promotion: `125fafc` (`chore: checkpoint before backlog promotion`).
+  - Worktree was clean before the checkpoint; branch was `main` ahead of `origin/main`.
+- Summary:
+  - Promoted the must-have/public-readiness backlog queue into normal issue entries in `docs/internal/ISSUES.md`, keeping `MME-BACKLOG` as a non-executable parking lot after the normal issue queue.
+  - Added `MME-0040` through `MME-0050` with normal issue structure: goal, scope, acceptance criteria, test-first plan, implementation notes, execution model, and reviewer plan.
+  - Updated `docs/internal/BACKLOG.md` to record the promoted issue IDs without turning the backlog into a second active tracker.
+  - Updated `README.md` so the current construction slice is `MME-0040` while preserving the truthful MME-0038 pending-validation status.
+- Visual impact:
+  - No visible editing or general UI changes.
+- Checks:
+  - Documentation-only promotion; targeted checks to run after edit: `git diff --check` plus heading/status inspection.
+- Reviewer/fallback:
+  - Documentation promotion self-review required after edit; implementation reviewer pass starts with `MME-0040`.
+- Commit status:
+  - Promotion docs commit to be created before coding `MME-0040`.
+- Push status:
+  - Not pushed yet; existing branch already has unpushed commits and MME-0038 remains pending public-face validation.
+- Next issue:
+  - `MME-0040 — Tables preservation and rendering`.

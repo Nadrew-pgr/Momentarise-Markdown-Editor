@@ -2252,6 +2252,549 @@ Visual recapture deferred for cost: the change is a CSS-only token swap and the 
 
 UX Reviewer (human).
 
+## MME-0040 — Tables preservation and rendering
+
+### Goal
+
+Make Markdown table support credible for a public Markdown editor without pretending rich table editing is complete before it is safe.
+
+### Scope
+
+- Preserve GFM pipe tables byte-for-byte when untouched.
+- Preserve unsupported or non-standard table syntax as raw/opaque Markdown instead of flattening it into lossy paragraphs.
+- Render supported GFM tables in read mode and live-preview-capable rendered output.
+- Keep source mode as the fallback for every table form.
+- Ensure rich mode can mount and serialize documents containing tables without corrupting them.
+- Add table fixtures and tests covering identity round-trip, edited-neighbor preservation, and renderer output.
+- Document the boundary: this issue ships preserve/render/rich-safe fallback first; full spreadsheet-like rich cell editing is a future slice.
+
+### Acceptance criteria
+
+- Untouched supported GFM table fixtures round-trip byte-for-byte through parser, serializer, and rich mount/serialize.
+- Editing content adjacent to a table changes only the edited block/range and leaves the table bytes intact.
+- Unsupported or malformed table-like syntax is carried as raw/opaque Markdown and is not silently converted to paragraphs.
+- `@momentarise/md-render-html` renders supported GFM tables as semantic table HTML with safe output.
+- Rich mode displays a clear preserved-table fallback when direct cell editing is not supported.
+- Tests prove table preservation, edited-neighbor behavior, renderer output, and rich-mode no-loss behavior.
+- Visual impact: table content may render as semantic tables in read/docs/live rendered views; rich mode may show a preserved-table fallback instead of lossy editable paragraphs.
+
+### Test-first plan
+
+- RED: add table fixtures covering a normal GFM table, alignment markers, escaped pipes, blank lines around tables, and malformed/non-standard table syntax.
+- RED: add parser/serializer identity and edited-neighbor tests proving tables survive untouched.
+- RED: add `md-render-html` tests proving semantic table rendering and sanitizer-safe output.
+- RED: add rich mount/serialize proof showing table blocks are preserved when not directly edited.
+
+### Implementation notes
+
+Read first: `packages/md-format`, `packages/md-core`, `packages/md-rich-prosemirror`, `packages/md-render-html`, `fixtures/`, existing round-trip tests, rich targeted serialization tests, and renderer tests.
+
+Use the existing Markdown AST foundation and GFM-capable parsing path where available. Do not introduce a handwritten table parser unless it is only a narrow fallback around source-range preservation and is documented as such.
+
+The rich-mode behavior for this issue is intentionally preservation-first. If ProseMirror schema support for editable table cells becomes too broad, stop and split full rich table editing into a later issue. The current issue must still make documents with tables safe to open, view, switch modes, and save without table corruption.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no, unless table-rich-editing scope expands beyond preserve/render/fallback.
+
+### Reviewer
+
+Architecture Reviewer and Test Reviewer.
+
+## MME-0041 — Footnotes and endnotes
+
+### Goal
+
+Support GFM-style footnote references and definitions as serious Markdown content: preserved in source, rendered in read/live views, and navigable through backlinks.
+
+### Scope
+
+- Preserve `[^ref]` references and `[^ref]: definition` blocks through parser, serializer, source/rich switching, and no-op saves.
+- Render footnotes/endnotes in read mode and live-preview-capable output.
+- Support safe backlink navigation in rendered views.
+- Keep source mode fallback for unusual footnote syntax.
+- Add fixtures and tests for references, definitions, multi-line definitions, duplicate/missing references, and unusual syntax.
+- Document the boundary: this issue ships preserve/render/navigation first; advanced rich insertion/edit UI is a future slice.
+
+### Acceptance criteria
+
+- Untouched footnote fixtures round-trip byte-for-byte through parser, serializer, and rich mount/serialize.
+- Editing unrelated content does not rewrite footnote references or definitions.
+- Rendered output includes stable footnote anchors and backlink links without unsafe HTML.
+- Missing or unusual footnote syntax is preserved and diagnosed rather than silently dropped.
+- Source mode remains the authoritative editing fallback for complex footnote definitions.
+- Visual impact: read/docs/live rendered views gain footnote/endnote rendering and backlink navigation; rich mode may show preserved-footnote fallback for unsupported editing cases.
+
+### Test-first plan
+
+- RED: add fixtures for single footnote, repeated references, multi-line definition, missing definition, duplicate definition, and malformed syntax.
+- RED: add round-trip and edited-neighbor preservation tests.
+- RED: add renderer tests for footnote section output, anchor ids, backlinks, and sanitizer-safe links.
+- RED: add rich mount/serialize identity proof for footnote documents.
+
+### Implementation notes
+
+Read first: `packages/md-format`, `packages/md-core`, `packages/md-rich-prosemirror`, `packages/md-render-html`, fixture harnesses, and renderer tests.
+
+Prefer remark/unified-compatible footnote support if already present or available through the current parser stack. Public MME types must remain independent of third-party AST types. Preserve source ranges where feasible so section copy, prompt copy, and edited-neighbor behavior stay accurate.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Test Reviewer, DX Reviewer, and Architecture Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no, unless rendered backlink UX requires a product decision.
+
+### Reviewer
+
+Test Reviewer and DX Reviewer.
+
+## MME-0042 — Core editor interaction hardening
+
+### Goal
+
+Make everyday source/rich editing behavior reliable enough that users do not feel like they are switching between unrelated or fragile editors.
+
+### Scope
+
+- Harden Enter, Backspace, paste, selection, undo/redo, Tab, and Shift+Tab behavior in source and rich modes where framework-owned.
+- Cover nested unordered lists, ordered lists, and task lists.
+- Ensure lists and todos continue, indent, outdent, split, and exit predictably.
+- Ensure document-end insertion works after code fences, callouts, opaque blocks, preserved tables, HTML blocks, inserted media, and other framed blocks.
+- Add explicit block insertion affordances before/after framed or opaque blocks when direct text insertion would trap the user.
+- Keep source mode as fallback and preserve Markdown bytes for unaffected ranges.
+- Defer full mobile/tablet virtual-keyboard work to a later issue unless a desktop fix would obviously break touch layouts.
+
+### Acceptance criteria
+
+- Source-mode list/todo continuation, indentation, outdent, and exit behavior remain covered by automated or browser-driven tests.
+- Rich-mode nested list/todo Enter, Backspace, Tab, Shift+Tab, paste, and undo/redo behavior are covered by automated tests where practical.
+- Clicking or keyboard-moving after the final block creates/focuses a paragraph after that block.
+- Editing around opaque, table, code, callout, media, and raw HTML blocks does not rewrite unrelated source bytes.
+- Visual proof covers the core interaction scenario in the reference demo.
+- Visual impact: editing surfaces gain more predictable insertion and navigation behavior around complex blocks; no unrelated general UI redesign.
+
+### Test-first plan
+
+- RED: add rich/source behavior tests for nested lists, nested todos, Tab/Shift+Tab, Enter split/exit, Backspace merge/exit, paste, and undo/redo.
+- RED: add document-end insertion tests around code fences, opaque blocks, callouts, table fallback blocks, raw HTML, and inserted media placeholders.
+- RED: add visual script scenario proving keyboard and mouse insertion after final framed blocks.
+
+### Implementation notes
+
+Read first: `packages/md-source-codemirror`, `packages/md-rich-prosemirror`, `packages/md-editor`, `packages/md-surface`, existing source keymap tests, rich input-rule tests, rich UX baseline tests, and visual scripts for MME-0021/MME-0029.
+
+Treat this as framework interaction hardening, not demo-only event patching. Prefer shared command/helpers in the rich/source packages over special cases in `apps/md-demo`.
+
+Do not loosen Gate 4.5 to make an interaction appear to work. If an interaction cannot preserve unaffected Markdown ranges, keep the source fallback and document the limitation.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: UX Reviewer and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation, but visual artifacts are mandatory.
+
+### Reviewer
+
+UX Reviewer and Test Reviewer.
+
+## MME-0043 — Live Preview parity foundation
+
+### Goal
+
+Introduce the foundation for Obsidian-class Live Preview behavior while preserving the central product truth: Markdown remains the durable source and derived views must not rewrite untouched content.
+
+### Scope
+
+- Define the `Live Preview` mode boundary in the headless editor/session model and surface controls.
+- Render common Markdown constructs typed in rich/live contexts without requiring a source/rich mode bounce.
+- Cover headings, paragraphs, thematic breaks, blockquotes, links, inline code, code fences, unordered lists, ordered lists, task lists, and safe raw inline/block HTML where policy allows.
+- Keep unsupported constructs as raw/opaque content, never flattened approximations.
+- Ensure mode switches between Source, Rich, and Live Preview do not alter untouched documents.
+- Update docs and user-facing labels only where needed to avoid overclaiming feature completeness.
+
+### Acceptance criteria
+
+- `Live Preview` is a distinct, documented mode or mode behavior, not just a renamed rich mode.
+- Common typed Markdown constructs render in place where safe and predictable.
+- Raw inline/block HTML inside Markdown renders only through the existing policy/sanitization boundary and preserves source bytes.
+- Full fixture corpus identity still passes through mount/mode-switch/save paths.
+- Edited-block preservation tests prove unrelated ranges survive byte-for-byte.
+- Mode controls expose Live Preview only for Markdown documents, not standalone HTML artifacts.
+- Visual impact: editor mode controls and editing surface gain Live Preview behavior for common Markdown constructs.
+
+### Test-first plan
+
+- RED: add mode/session tests for Live Preview registration, transitions, and document-kind availability.
+- RED: add typed-construct tests for headings, lists, todos, quotes, links, code fences, and HTML policy cases.
+- RED: add corpus-wide identity test covering Source -> Live Preview -> Source and save/copy/download paths.
+- RED: add visual proof showing live typed constructs without a mode bounce.
+
+### Implementation notes
+
+Read first: `packages/md-editor`, `packages/md-rich-prosemirror`, `packages/md-source-codemirror`, `packages/md-render-html`, `packages/md-policy`, `packages/md-surface`, MME-0033 outline APIs, and Gate 4.5 tests.
+
+This is a foundation issue. It should not attempt perfect Obsidian parity for every extension in one slice. It must establish the contracts and prove the common path without creating a corrupting derived view.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, UX Reviewer, Test Reviewer, and Security Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes if the visible mode model or naming differs from `Source`, `Rich`, and `Live Preview`.
+
+### Reviewer
+
+Architecture Reviewer and UX Reviewer.
+
+## MME-0044 — Unified Open, New File, Save As, and status chrome
+
+### Goal
+
+Make file opening, creation, saving, conflict handling, and document status feel like an editor-grade workflow while preserving Save Engine truthfulness.
+
+### Scope
+
+- Unify `Open .md` and `Open .html` into one Open action with type detection or a clear secondary type/filter menu.
+- Add `New file` and `Save As` flows for Markdown documents.
+- When File System Access can create or write a file, make the created/saved target a real writable target for later Save and autosave.
+- When the host cannot create writable files, fall back to export/download without implying disk persistence.
+- Replace permanent demo/debug status chrome with an editor-grade status pattern that exposes file name, URI/path, adapter kind, writability, persistence target, dirty/saving/saved/conflict/error, last saved timestamp, and save details.
+- Provide explicit conflict resolution actions: reload external, keep/export local copy, retry after resolving, and dismiss only when safe.
+- Ensure standalone HTML documents expose Source/Preview controls without disabled or confusing Rich/Live Preview modes.
+
+### Acceptance criteria
+
+- A single Open entry point can load supported Markdown and HTML artifacts and route them to the correct document-kind UI.
+- New Markdown document creation works in supported browsers and falls back truthfully elsewhere.
+- Save As creates a writable `.md` target when the host supports it; later Save/autosave writes to that target.
+- Fallback import/export/download states never claim the original disk file was overwritten.
+- Conflict UI offers explicit resolution actions and never overwrites dirty local edits with external content.
+- Status chrome is compact and editor-grade while preserving discoverable details.
+- Automated tests cover status derivation, target transitions, fallback labels, and conflict actions; visual proof covers the main user flows.
+- Visual impact: major file/status UI change in the reference demo and reusable surface components.
+
+### Test-first plan
+
+- RED: add SaveTarget/state transition tests for New file, Save As, writable target, fallback export, and conflict resolution.
+- RED: add surface DOM tests for compact status menu/popover and action availability.
+- RED: add browser/manual visual script for Open, New file, Save As fallback, and conflict actions.
+
+### Implementation notes
+
+Read first: `packages/md-save`, `packages/md-editor`, `packages/md-surface`, `apps/md-demo/src/main.ts`, web file adapter helpers, MME-0008/MME-0009/MME-0035 tests, and existing visual scripts for save/open/conflict behavior.
+
+Keep Save Engine semantics central. UI labels may improve, but they must not hide target truth. Host adapters own file creation mechanisms; the browser demo proves the File System Access and fallback paths only.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: UX Reviewer, Test Reviewer, Architecture Reviewer, and Security Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes because this changes the core visible file/status workflow.
+
+### Reviewer
+
+UX Reviewer and Test Reviewer.
+
+## MME-0045 — Toolbar, slash, and mode controls final UX
+
+### Goal
+
+Make the reusable command and mode-control surfaces feel premium, keyboard-first, and host-configurable without moving logic back into the demo.
+
+### Scope
+
+- Finalize slash menu placement, empty states, labels, grouping, fuzzy matching, keyboard navigation, and constrained/mobile layout behavior.
+- Ensure slash commands cover block insertion, formatting commands, document actions, AI entry points, and host-provided commands.
+- Harden toolbar and bubble-toolbar visibility, active/disabled states, grouping, keyboard access, iconography, density, and host preference integration.
+- Replace demo-style segmented controls with an editor-grade mode picker/toggle pattern driven by preferences.
+- Make mode controls document-kind aware: Markdown exposes Source/Rich/Live Preview; standalone HTML exposes Source/Preview.
+- Keep all surfaces using `@momentarise/md-theme` tokens, `IconSet`, preferences, and injected strings.
+
+### Acceptance criteria
+
+- Slash menu supports fuzzy search, grouping, aliases, empty state, keyboard navigation, and stable host command registration.
+- Toolbar and bubble toolbar expose clear active/disabled states and remain keyboard-accessible.
+- Mode controls are compact, document-kind aware, and host-configurable through preferences.
+- No surface component introduces hardcoded colors, font values, spacing values, shortcuts, or user-facing strings outside token/string contracts.
+- Tests cover command filtering, keyboard behavior, disabled states, preference-driven variants, and document-kind availability.
+- Visual impact: major command/mode surface polish across desktop and constrained/mobile layouts; screenshots under `docs/internal/visual-checks/MME-0045/`.
+
+### Test-first plan
+
+- RED: add `md-surface` DOM tests for fuzzy slash filtering, empty states, keyboard navigation, toolbar states, and mode-control document-kind behavior.
+- RED: add preference tests for host-configured command/mode surface variants.
+- RED: add visual script for desktop, constrained IDE pane, and mobile-width command/mode workflows.
+
+### Implementation notes
+
+Read first: `packages/md-surface`, `packages/md-editor`, `packages/md-theme`, `packages/md-rich-prosemirror`, MME-0027 extension registry tests, MME-0028 surface tests, MME-0029 block affordance tests, and MME-0030 theme visual artifacts.
+
+This issue owns reusable capability. Do not solve command UX by hardcoding demo-specific DOM. If UX details remain subjective, make them configurable through existing preference contracts rather than adding one-off UI state.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: UX Reviewer, Architecture Reviewer, and DX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes because this is a major product-surface polish pass.
+
+### Reviewer
+
+UX Reviewer and Architecture Reviewer.
+
+## MME-0046 — HTML preview reading polish
+
+### Goal
+
+Make standalone HTML artifact preview useful for normal reading while keeping sandbox and persistence truth discoverable.
+
+### Scope
+
+- Remove permanent technical HTML status strips/banners from the normal preview reading surface.
+- Move sandbox/script/save truth into a discreet status affordance, inspector, hover/detail menu, toast, or debug surface.
+- Reduce nested/conflicting scroll regions and large blank preview gutters.
+- Let preview use the available app viewport naturally instead of device/debug controls.
+- Keep standalone HTML artifact preview separate from inline/block HTML inside Markdown.
+- Preserve scripts-disabled-by-default sandbox behavior and explicit host opt-in semantics.
+
+### Acceptance criteria
+
+- Normal HTML preview has no permanent debug banner or technical strip.
+- Sandbox tokens, script state, document target, and save truth remain discoverable.
+- Preview layout has one obvious reading surface and avoids nested scroll traps.
+- Scripts remain disabled by default and tests prove the sandbox boundary.
+- Visual impact: standalone HTML reading surface becomes cleaner and more document-like.
+
+### Test-first plan
+
+- RED: add/update HTML preview tests proving default sandbox tokens remain strict and status details stay available.
+- RED: add surface/demo DOM tests for the discreet status affordance.
+- RED: add visual proof for normal HTML reading at desktop and constrained widths.
+
+### Implementation notes
+
+Read first: `packages/md-preview-html`, `packages/md-surface`, `apps/md-demo`, MME-0015 HTML visual checks, and MME-0032 sandbox default changes.
+
+This is reading polish, not an advanced HTML template system. If a richer artifact template/editor is needed, split it later.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: UX Reviewer and Security Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation, but screenshots and reviewer pass are mandatory.
+
+### Reviewer
+
+UX Reviewer and Security Reviewer.
+
+## MME-0047 — Folding and document structure polish
+
+### Goal
+
+Make folding feel like a subtle editor feature, preserve source truth, and keep heading hierarchy behavior predictable.
+
+### Scope
+
+- Polish folding affordances against Obsidian and CodeMirror-style editor gutters without copying assets or CSS.
+- Move fold controls into a subtle gutter/margin that appears on hover/focus and supports keyboard access.
+- Use a minimal collapsed marker such as `...`.
+- Ensure H1-H6 folding is hierarchical: folding a heading hides child section content until the next same-or-higher heading.
+- Keep nested parent/child fold state predictable when parents collapse and expand.
+- Cover code-block and callout folding where supported and source-safe.
+- Keep folding state as interface state; never mutate Markdown.
+
+### Acceptance criteria
+
+- Folding a heading hides only the correct hierarchical section.
+- Parent/child fold state remains predictable through collapse/expand cycles.
+- Fold controls are accessible by keyboard and screen-reader labels.
+- Folding code blocks/callouts does not mutate Markdown source.
+- Tests cover fold ranges, hierarchy, nested state, and no-source-mutation.
+- Visual impact: folding controls become quieter and more editor-grade.
+
+### Test-first plan
+
+- RED: add fold hierarchy tests for H1-H6 nested documents.
+- RED: add no-source-mutation tests for headings, code blocks, callouts, and opaque blocks.
+- RED: add visual proof for hover/focus fold affordances and collapsed markers.
+
+### Implementation notes
+
+Read first: folding implementation from MME-0014, `packages/md-editor`, `packages/md-rich-prosemirror`, `packages/md-surface`, outline APIs from MME-0033, and existing folding visual checks.
+
+Do not convert toggle blocks into folding state. Toggle blocks are document content inserted only explicitly; folding remains interface state.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: UX Reviewer and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation, but visual proof is mandatory.
+
+### Reviewer
+
+UX Reviewer and Test Reviewer.
+
+## MME-0048 — Public docs launch hardening and MME-0038 validation debt
+
+### Goal
+
+Resolve the explicit MME-0038 public-face validation debt and harden the docs site before any public launch or release-ready claim.
+
+### Scope
+
+- Audit docs IA, navigation, page structure, copy, package guidance, CLI guidance, examples, and external-link behavior.
+- Compare public docs claims against current package APIs and test/visual evidence.
+- Verify AX claims truthfully distinguish shipped raw Markdown, copy prompt, Open-in-chat fallback, `llms` artifacts, CLI behavior, and not-yet-shipped skills/hosted Ask AI/semantic search.
+- Audit light and dark schemes across docs components, code blocks, live editor demo, footer, page actions, mobile layout, and framework token usage.
+- Resolve or explicitly document the MME-0038 non-validation status through human review.
+- Keep docs content in `docs/public/` as plain Markdown; no MDX/JSX as source.
+
+### Acceptance criteria
+
+- MME-0038 explicit public-face validation debt is resolved or remains blocked with concrete human findings.
+- Public docs content matches current package APIs and does not overclaim AI, AX, persistence, adapter, or rich/live-preview capabilities.
+- Docs light/dark screenshots cover landing, docs home, package page, AX page, CLI page, mobile layout, code blocks, and live demo.
+- External links and Open-in-chat fallback behavior are verified or bounded with truthful copy.
+- `npm run test:docs`, `npm run test:docs-site`, `npm run test:llms-sync`, and visual docs proof pass.
+- Human review required and recorded before marking complete.
+- Visual impact: public docs/site visual and copy hardening; no core editor behavior change unless a docs proof exposes a blocker.
+
+### Test-first plan
+
+- RED: add or update docs-site assertions for every launch-critical route, light/dark page type, AX/CLI claim, and API snippet.
+- RED: add docs lint checks for stale or misleading public claims where practical.
+- RED: add visual proof matrix for launch-critical pages.
+
+### Implementation notes
+
+Read first: `apps/docs-site`, `docs/public`, `scripts/docs-lint.mjs`, `tests/docs-site-ax.test.mjs`, `scripts/visual-check-mme0038.mjs`, `llms.txt`, `llms-full.txt`, package READMEs, MME-0038 build-log entry, and `docs/internal/BACKLOG.md` public framework follow-ups.
+
+This issue is validation and hardening, not a rewrite from zero. If the audit proves a deeper docs architecture issue, stop and split that work.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: DX Reviewer, UX Reviewer, and Security Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes, mandatory public-face validation.
+
+### Reviewer
+
+DX Reviewer and UX Reviewer.
+
+## MME-0049 — AX skills, manifests, and reusable agent actions
+
+### Goal
+
+Make MME's Agentic Experience durable and generated from public docs instead of maintaining separate stale agent prose.
+
+### Scope
+
+- Create durable Codex/agent skills for MME docs usage, migration help, package selection, AI/privacy boundary checks, and docs-to-implementation prompts.
+- Generate or sync those skills from `docs/public/`, `llms.txt`, `llms-full.txt`, and package metadata where practical.
+- Add reusable agent action descriptors for copy Markdown, copy section, copy prompt, Open-in-chat fallback, edit-on-GitHub, issue filing, and future ask-this-page behavior.
+- Keep host-owned UI chrome separate from reusable AX descriptors.
+- Ensure generated artifacts do not expose internal-only docs unless explicitly intended.
+- Document how agents should cite source docs and avoid claiming JSON/block DB persistence.
+
+### Acceptance criteria
+
+- Agent skill/manifests exist in the chosen repository-owned location or generation output path and are documented.
+- Generated or synced artifacts fail tests when public docs or `llms` sources change without regeneration.
+- Skills reference public Markdown docs and package APIs, not stale duplicate prose.
+- Action descriptors are reusable by the docs site and future hosts without hardcoding one UI.
+- Security/DX review confirms no private internal docs, secrets, or misleading AI/provider claims are exposed.
+- Visual impact: docs site may expose clearer agent action affordances; no editing-surface behavior change unless action UI is reused there.
+
+### Test-first plan
+
+- RED: add generator/sync tests proving skills/manifests derive from current public docs or fail on drift.
+- RED: add privacy/public-boundary test proving internal docs are excluded.
+- RED: add action-descriptor contract tests for copy/open/edit/issue action payloads.
+
+### Implementation notes
+
+Read first: `docs/public`, `apps/docs-site`, `scripts/generate-llms.mjs`, `llms.txt`, `llms-full.txt`, MME-0038 AX docs, `docs/internal/BACKLOG.md` public AX follow-ups, and available Codex skill conventions in the local environment.
+
+This issue may require a product decision about the exact committed skill location. If writing outside the repository is required, stop and ask. Prefer repository-owned generated artifacts first.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: DX Reviewer and Security Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: yes if generated skills become public distribution artifacts.
+
+### Reviewer
+
+DX Reviewer and Security Reviewer.
+
+## MME-0050 — Performance budgets and large-document benchmarks
+
+### Goal
+
+Define and enforce a public performance floor before making stronger public framework-readiness claims.
+
+### Scope
+
+- Define performance budgets for parse, serialize, rich mount, render HTML, outline generation, find/replace indexing, save-state hashing, and docs-site render paths where applicable.
+- Add large-document fixtures, including at least one 10k-line Markdown document with headings, lists, code fences, links, tables, footnotes, HTML, callouts, and opaque/custom syntax.
+- Add CI-runnable benchmark scripts with thresholds and clear machine-readable output.
+- Prove small edits in large documents do not force avoidable full-document rewrites where targeted preservation is expected.
+- Debounce expensive status checks without making save truth stale.
+- Document residual performance risks and when virtualization or deeper incremental parsing would become necessary.
+
+### Acceptance criteria
+
+- Benchmarks are runnable by one documented command and produce stable, machine-readable output.
+- 10k-line fixture coverage exists and is not a tiny repeated mock that misses real Markdown structures.
+- Thresholds are committed and fail when performance regresses beyond the documented budget.
+- Tests prove targeted edit behavior remains source-preserving on large documents.
+- Save/status work stays truthful even when expensive checks are debounced.
+- Visual impact: no visible editing or general UI changes unless performance work exposes a necessary loading/progress affordance.
+
+### Test-first plan
+
+- RED: add performance budget fixture and benchmark command that fails before thresholds/coverage exist.
+- RED: add large-document targeted edit preservation test.
+- RED: add save/status debounce truthfulness test if debounce behavior changes.
+
+### Implementation notes
+
+Read first: `packages/md-format`, `packages/md-editor`, `packages/md-save`, `packages/md-render-html`, `packages/md-rich-prosemirror`, existing fixture generation tools, consumer/publishability scripts, and CI workflow.
+
+Use benchmarks as guardrails, not vanity metrics. If current architecture cannot meet a necessary budget without large refactor, stop with evidence and split the refactor.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, and DX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no, unless benchmark thresholds imply public product promises.
+
+### Reviewer
+
+Architecture Reviewer and Test Reviewer.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

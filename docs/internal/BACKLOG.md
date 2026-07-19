@@ -223,6 +223,20 @@ Tags: `baseline/hygiene`, `performance`, `public-release`
 
 These are names for future split candidates, not accepted issue IDs.
 
+Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
+
+- `MME-0040 — Tables preservation and rendering`.
+- `MME-0041 — Footnotes and endnotes`.
+- `MME-0042 — Core editor interaction hardening`.
+- `MME-0043 — Live Preview parity foundation`.
+- `MME-0044 — Unified Open, New File, Save As, and status chrome`.
+- `MME-0045 — Toolbar, slash, and mode controls final UX`.
+- `MME-0046 — HTML preview reading polish`.
+- `MME-0047 — Folding and document structure polish`.
+- `MME-0048 — Public docs launch hardening and MME-0038 validation debt`.
+- `MME-0049 — AX skills, manifests, and reusable agent actions`.
+- `MME-0050 — Performance budgets and large-document benchmarks`.
+
 - Editor live preview parity.
 - Toolbar/slash/menu final UX.
 - Unified Open flow and file-type routing.
