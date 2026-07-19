@@ -4927,3 +4927,84 @@
   - Not pushed yet; branch contains existing unpushed commits and `MME-0038` remains pending public-face validation, so pushing as accepted release-ready work is blocked without a separate safe-push instruction.
 - Next issue:
   - `MME-0043 — Live Preview parity foundation`.
+
+## MME-0043 — Live Preview parity foundation
+
+- Date: 2026-07-19.
+- Previous issue status:
+  - `MME-0042` completed and committed (`a0534b2` plus follow-up evidence commit `65c8748`).
+  - `MME-0038` remains code-complete with explicit public-face validation debt and is committed as pending-status, not accepted as final public validation.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short --branch`, and target files in `md-core`, `md-editor`, `md-surface`, `md-rich-prosemirror`, `md-source-codemirror`, `md-render-html`, `md-policy`, and the demo/visual scripts.
+- RED proof before implementation:
+  - Added `tests/live-preview-mode.test.mjs` before implementation.
+  - Initial `npm run test:live-preview` failed because `@momentarise/md-editor` did not export Live Preview mode availability helpers.
+  - Added `scripts/visual-check-mme0043.mjs` and visual artifact README before browser proof.
+- Change:
+  - Added `live-preview` to the core `EditorMode` union.
+  - Added `EditorDocumentKind`, `EditorModeDefinition`, `DEFAULT_EDITOR_MODE_DEFINITIONS`, `editorModesForDocumentKind`, and `isEditorModeAvailableForDocumentKind` to `@momentarise/md-editor`.
+  - Updated the reference surface mode control so Markdown exposes labeled Source/Rich/Live Preview controls, while standalone HTML artifacts expose Source/Preview only.
+  - Changed Source from a stale binary Rich switch into a normal mode button with `aria-label="Source"` for the three-mode Markdown contract.
+  - Extended rich input rules for Live Preview common typing: thematic breaks, inline code, safe links with optional quoted titles, unsafe-link rejection, and image-like Markdown preservation without partial link conversion.
+  - Wired the demo so Live Preview reuses preservation-safe rich rendering and immediate Markdown source sync, but stays behaviorally distinct from Rich: Live Preview shows its own banner, hides rich toolbar/block handles, and keeps Rich-specific chrome for Rich mode.
+  - Added end-to-end Live Preview proof for mount/unmount identity, copy/export content stability, edited save flush, Save Engine write reason, clean external apply, dirty external conflict, raw HTML render-only sanitization, full fixture identity, and edited-range preservation.
+  - Updated package README/API fixtures, legacy mode-control baselines, visual proof, README, and executable issue status.
+- Visual impact:
+  - Markdown mode controls now show Source, Rich, and Live Preview as visible labels.
+  - Live Preview now has a distinct editing banner and no rich command toolbar/block handles.
+  - Rich mode still shows the rich toolbar/block handles on the same document.
+  - Dirty Live Preview buffers surface conflict state without overwriting local edits.
+  - HTML artifacts still expose Source/Preview only.
+  - Screenshots:
+    - `docs/internal/visual-checks/MME-0043/live-preview-typed-constructs.png`
+    - `docs/internal/visual-checks/MME-0043/rich-mode-same-document.png`
+    - `docs/internal/visual-checks/MME-0043/live-preview-external-conflict.png`
+    - `docs/internal/visual-checks/MME-0043/html-artifact-no-live-preview.png`
+- Checks run:
+  - `npm run test:live-preview` — RED before implementation, then green after fixes.
+  - `npm run test:surface` — green after mode-control baseline update.
+  - `npm run test:rich-input-rules` — green.
+  - `npm run test:rich-security` — green.
+  - `npm run test:demo-rich` — green after baseline boundary update.
+  - `npm run test:demo-rich-ux` — green.
+  - `npm run test:contracts` — green.
+  - `npm run test:public-api` — green after export fixture update.
+  - `npm run test:rich-fidelity` — green.
+  - `npm run test:rich-targeted-serialization` — green.
+  - `npm run test:demo-html-preview` — green after baseline boundary update.
+  - `npm run test:demo-render-html` — green.
+  - `npm run test:render-html` — green.
+  - `npm run test:source-ux` — green.
+  - `npm run test:source-codemirror` — green.
+  - `npm run test:fixtures` — green.
+  - `npm run test:roundtrip` — green.
+  - `npm run test:serializer` — green.
+  - `npm run test:rich-prosemirror` — green.
+  - `npm run test:architecture` — green.
+  - `npm run test:docs` — green.
+  - `git diff --check` — green.
+  - `npm run build:demo` — green; existing Vite chunk-size warning only.
+  - `npm run visual:mme-0043` — sandbox Chrome aborted before CDP on first run; rerun green with system Chrome permission after reviewer fixes.
+  - `npm test` — green; existing demo Vite chunk-size warning only.
+- Manual/visual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`; port `5174` was occupied, Vite served current code at `http://127.0.0.1:5175/`.
+  - Visual script loaded an empty Markdown file, switched to Live Preview, typed a heading and task item, asserted the mode stayed `live-preview`, source Markdown updated, Source/Rich/Live Preview labels were visible, rich toolbar was hidden, and block handles were hidden.
+  - Visual script switched the same document to Rich mode, asserted the rich toolbar/block handles were visible and no Live Preview banner was present.
+  - Visual script loaded a writable Markdown file, switched to Live Preview, made a local edit, simulated an external change, asserted Save Engine conflict state, and verified local text was still visible.
+  - Visual script loaded an HTML artifact and asserted only Source/Preview controls existed.
+  - Manual screenshot inspection confirmed nonblank rendering, visible mode labels, no obvious overlap/clipping, distinct Live Preview/Rich chrome, and honest conflict state.
+- Reviewer result:
+  - Architecture/package reviewer subagent `Meitner` used `gpt-5.3-codex-spark` with `xhigh` reasoning. Initial review found P2 gaps in end-to-end Live Preview save/copy proof, Rich vs Live Preview distinction, and image-like Markdown link handling, plus one P3 on `preservesSource` flexibility. Builder fixed the P2s and made `preservesSource` a boolean public field; recheck reported no remaining P0/P1/P2, with only a P3 note that all default modes still intentionally preserve source.
+  - Security/test reviewer subagent `Erdos` used `gpt-5.3-codex-spark` with `xhigh` reasoning. Initial review found a P2 external-change coverage gap and P3 link/security proof gaps; first recheck left one P2 for typed links with titles. Builder added live-preview clean/dirty external-change tests, unsafe typed-link proof, image-like Markdown proof, structured link title parsing, and invalid-title tests. Final recheck reported no remaining P0/P1/P2.
+  - Visual/accessibility reviewer subagent `Parfit` reviewed the screenshots. Initial review found P2 issues for missing visible Source labels, insufficient Rich/Live Preview visual distinction, and misleading Source switch ARIA. Builder fixed labels, ARIA, Live Preview/Rich visual split, and refreshed artifacts. Recheck reported no remaining P0/P1/P2.
+- Residual risks:
+  - This is a Live Preview foundation, not full Obsidian parity; complex extension syntax still falls back to source/opaque preservation.
+  - Rich mode remains the explicit toolbar/block-affordance mode; Live Preview currently prioritizes direct typed Markdown rendering and source sync.
+  - Link title parsing covers common quoted-title shapes but does not claim a full CommonMark link parser.
+  - Visual proof requires system Chrome permission in this sandbox, same as prior visual scripts.
+- Commit status:
+  - Issue-scoped implementation commit created: `fcf493a` (`feat: add live preview mode foundation`).
+- Push status:
+  - Not pushed yet; branch contains existing unpushed commits and `MME-0038` remains pending public-face validation, so pushing as accepted release-ready work is blocked without a separate safe-push instruction.
+- Next issue:
+  - `MME-0044 — Unified Open, New File, Save As, and status chrome`.

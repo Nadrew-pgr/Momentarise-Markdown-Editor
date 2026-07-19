@@ -2467,6 +2467,10 @@ This is a foundation issue. It should not attempt perfect Obsidian parity for ev
 
 Architecture Reviewer and UX Reviewer.
 
+### Status
+
+Completed 2026-07-19; code HITL remained waived for TypeScript/package work. Added the `live-preview` editor mode contract, Markdown/HTML artifact mode availability APIs, labeled Source/Rich/Live Preview controls, and a demo Live Preview surface that reuses safe rich rendering while staying distinct from Rich mode through its banner, no rich toolbar, and hidden rich block affordances. Added live typed Markdown proof for headings, lists, tasks, blockquotes, thematic breaks, code fences, inline code, links with titles, unsafe links, image-like Markdown, raw HTML render policy, full fixture identity, edited-range preservation, copy/export content stability, save flush behavior, and clean/dirty external-change handling. Visual proof covers Live Preview typed constructs, the same document in Rich mode, dirty Live Preview conflict handling, and HTML artifact Source/Preview-only controls. Proven by RED `npm run test:live-preview`, green targeted checks, `npm run visual:mme-0043`, `git diff --check`, and full `npm test`. Reviewers found P2 gaps in visual distinction, ARIA/source labeling, save/external-change coverage, Live Preview/Rich behavior separation, and link parsing; builder fixed them and rechecks reported no remaining P0/P1/P2. `MME-0044` is the next candidate after issue-scoped commit.
+
 ## MME-0044 — Unified Open, New File, Save As, and status chrome
 
 ### Goal

@@ -56,11 +56,12 @@ Completed slices:
 - MME-0040: Tables preservation and rendering, accepted for code continuation after GFM table variant fixtures, malformed table-like opaque detection, semantic safe table rendering, rich preserved-table fallback, visual proof, and reviewer fixes.
 - MME-0041: Footnotes and endnotes, accepted for code continuation after GFM footnote fixtures, parser diagnostics for missing/duplicate/malformed syntax, same-paragraph rich reference preservation, stable safe render anchors/backlinks, preserved-definition fallback, visual proof, and reviewer fixes.
 - MME-0042: Core editor interaction hardening, accepted for code continuation after source/rich interaction coverage, rich final-block insertion helpers, keyboard/mouse document-end proof after framed blocks, and reviewer fixes.
+- MME-0043: Live Preview parity foundation, accepted for code continuation after Source/Rich/Live Preview mode contracts, live typed Markdown construct proof, save/external-change preservation proof, HTML artifact mode isolation, visual comparison, and reviewer fixes.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- MME-0043: Live Preview parity foundation.
+- MME-0044: Unified Open, New File, Save As, and status chrome.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 
