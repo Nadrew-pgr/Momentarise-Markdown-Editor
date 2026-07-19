@@ -12,14 +12,17 @@
     "theiaMarkdownAdapterPackage"
   ],
   "@momentarise/md-adapter-web": [
+    "canCreateWritableFile",
     "canUseFileSystemAccess",
     "createFocusRefreshWatcher",
     "createImportedCopyDocument",
+    "createNewMarkdownFile",
     "createWritableFileSaveTarget",
     "detectMarkdownLineEnding",
     "normalizeMarkdownLineEndings",
     "openWritableMarkdownFile",
-    "restoreMarkdownLineEndings"
+    "restoreMarkdownLineEndings",
+    "saveMarkdownAsFile"
   ],
   "@momentarise/md-ai": [
     "acceptAiSuggestion",

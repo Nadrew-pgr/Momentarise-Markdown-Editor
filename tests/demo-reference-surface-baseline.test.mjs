@@ -147,22 +147,22 @@ const openFileHandler = extractBlock(main, 'openFileButton.addEventListener("cli
 if (!openFileHandler.includes("void openLocalFile();")) {
   throw new Error("Primary Open file action must route through the real local-file opener.");
 }
-if (openFileHandler.includes("openFileInput.click")) {
-  throw new Error("Primary Open file action must not silently fall back to imported-copy file input.");
+if (!openFileHandler.includes("openFileInput.click")) {
+  throw new Error("Primary Open file action must fall back to the unified Markdown/HTML file input when File System Access is unavailable.");
 }
 
 const openLocalFileFunction = extractFunction(main, "async function openLocalFile");
-if (openLocalFileFunction.includes("openFileInput.click")) {
-  throw new Error("Real local-file opener must not silently fall back to imported-copy file input.");
+if (!openLocalFileFunction.includes("openFileInput.click")) {
+  throw new Error("Real local-file opener must fall back to the unified file input when File System Access is unavailable.");
 }
-if (!openLocalFileFunction.includes("showRealFileOpenUnavailable")) {
-  throw new Error("Real local-file opener must show explicit user feedback when File System Access is unavailable.");
+if (!main.includes("function importSupportedFile")) {
+  throw new Error("Unified Open fallback must route selected files through type detection.");
 }
-if (openLocalFileFunction.includes("loadHtmlArtifact")) {
-  throw new Error("Primary Open file action must not route HTML artifacts into imported-copy/export mode.");
+if (!openLocalFileFunction.includes("loadHtmlArtifact")) {
+  throw new Error("Primary Open file action must route HTML artifacts into Source/Preview mode.");
 }
-if (openLocalFileFunction.includes('"text/html"')) {
-  throw new Error("Primary Open file picker must not offer HTML artifacts; use the separate HTML reader.");
+if (!openLocalFileFunction.includes('"text/html"')) {
+  throw new Error("Primary Open file picker must offer supported HTML artifacts through the unified Open action.");
 }
 if (!main.includes("restored browser draft; reopen the original file for writable autosave")) {
   throw new Error("Reload-restored Markdown must explicitly explain that writable disk autosave requires reopening the original file.");

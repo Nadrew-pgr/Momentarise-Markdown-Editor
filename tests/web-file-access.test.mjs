@@ -1,8 +1,11 @@
 import {
+  canCreateWritableFile,
   canUseFileSystemAccess,
+  createNewMarkdownFile,
   createImportedCopyDocument,
   createWritableFileSaveTarget,
-  openWritableMarkdownFile
+  openWritableMarkdownFile,
+  saveMarkdownAsFile
 } from "../packages/md-adapter-web/dist/index.js";
 import { createSaveEngine, hashMarkdownContent, persistenceTargetLabel } from "../packages/md-save/dist/index.js";
 
@@ -17,6 +20,9 @@ const editedCrlfDiskContent = "# CRLF File\r\n\r\nEdited body.\r\n";
 if (canUseFileSystemAccess({}) !== false) {
   throw new Error("Host without showOpenFilePicker must not report File System Access support.");
 }
+if (canCreateWritableFile({}) !== false) {
+  throw new Error("Host without showSaveFilePicker must not report writable file creation support.");
+}
 
 const writableHost = createMockPickerHost({
   content: initialContent,
@@ -24,6 +30,88 @@ const writableHost = createMockPickerHost({
 });
 if (canUseFileSystemAccess(writableHost) !== true) {
   throw new Error("Host with showOpenFilePicker must report File System Access support.");
+}
+if (canCreateWritableFile(writableHost) !== false) {
+  throw new Error("Host with only showOpenFilePicker must not report writable file creation support.");
+}
+
+const newFileHost = createMockSavePickerHost({
+  name: "created-note.md"
+});
+if (canCreateWritableFile(newFileHost) !== true) {
+  throw new Error("Host with showSaveFilePicker must report writable file creation support.");
+}
+const created = await createNewMarkdownFile({
+  content: "# Created\n\nInitial created body.\n",
+  fileName: "draft.md",
+  host: newFileHost,
+  now: date("2026-05-30T00:59:00.000Z")
+});
+if (created.mode !== "writable-file") {
+  throw new Error(`Expected created file mode to become writable-file, got ${created.mode}.`);
+}
+if (created.fileName !== "created-note.md") {
+  throw new Error(`Created file must use the selected handle name, got ${created.fileName}.`);
+}
+if (created.target.persistenceTarget !== "disk") {
+  throw new Error(`Created file target must become disk, got ${created.target.persistenceTarget}.`);
+}
+if (newFileHost.readDiskContent() !== "# Created\n\nInitial created body.\n") {
+  throw new Error("New file creation must write the initial Markdown content to the selected writable handle.");
+}
+if (newFileHost.showSaveFilePickerOptions[0]?.suggestedName !== "draft.md") {
+  throw new Error("New file creation must pass the suggested Markdown filename to the save picker.");
+}
+
+const saveAsHost = createMockSavePickerHost({
+  name: "saved-as.md"
+});
+const savedAs = await saveMarkdownAsFile({
+  content: editedContent,
+  fileName: "source-note.md",
+  host: saveAsHost,
+  now: date("2026-05-30T00:59:10.000Z")
+});
+if (savedAs.mode !== "writable-file" || savedAs.target.persistenceTarget !== "disk") {
+  throw new Error("Save As must return a writable disk document.");
+}
+if (saveAsHost.readDiskContent() !== editedContent) {
+  throw new Error("Save As must write current Markdown to the newly selected file.");
+}
+const saveAsEngine = createSaveEngine({
+  content: savedAs.content,
+  now: date("2026-05-30T00:59:11.000Z"),
+  target: savedAs.target
+});
+saveAsEngine.updateContent("# Saved As\n\nLater autosave body.\n", {
+  now: date("2026-05-30T00:59:12.000Z")
+});
+const saveAsFlush = await saveAsEngine.flush({
+  now: date("2026-05-30T00:59:13.000Z"),
+  reason: "autosave"
+});
+if (saveAsFlush.status !== "saved") {
+  throw new Error(`Expected later Save As target flush to save, got ${saveAsFlush.status}.`);
+}
+if (saveAsHost.readDiskContent() !== "# Saved As\n\nLater autosave body.\n") {
+  throw new Error("Later saves must write to the Save As writable target.");
+}
+
+const newFileFallback = await createNewMarkdownFile({
+  content: "# Fallback new file\n",
+  fileName: "fallback-new.md",
+  host: {}
+});
+if (newFileFallback.mode !== "imported-copy" || newFileFallback.target.persistenceTarget !== "download-required") {
+  throw new Error("New file without save picker must fall back to a download-required draft.");
+}
+const saveAsFallback = await saveMarkdownAsFile({
+  content: editedContent,
+  fileName: "fallback-save-as.md",
+  host: {}
+});
+if (saveAsFallback.mode !== "imported-copy" || saveAsFallback.target.persistenceTarget !== "download-required") {
+  throw new Error("Save As without save picker must fall back to a download-required exported copy.");
 }
 
 const opened = await openWritableMarkdownFile(writableHost);
@@ -317,6 +405,46 @@ function createMockPickerHost({ content, failCreateWritable = false, mutateOnCre
     },
     simulateExternalChange(nextContent) {
       diskContent = nextContent;
+    }
+  };
+}
+
+function createMockSavePickerHost({ failCreateWritable = false, name }) {
+  let diskContent = "";
+  const handle = {
+    kind: "file",
+    name,
+    async createWritable() {
+      if (failCreateWritable) {
+        throw new Error("Permission denied while creating writable stream.");
+      }
+      let nextContent = "";
+      return {
+        async close() {
+          diskContent = nextContent;
+        },
+        async write(value) {
+          nextContent = String(value);
+        }
+      };
+    },
+    async getFile() {
+      return {
+        name,
+        async text() {
+          return diskContent;
+        }
+      };
+    }
+  };
+  return {
+    readDiskContent() {
+      return diskContent;
+    },
+    showSaveFilePickerOptions: [],
+    async showSaveFilePicker(options) {
+      this.showSaveFilePickerOptions.push(options);
+      return handle;
     }
   };
 }

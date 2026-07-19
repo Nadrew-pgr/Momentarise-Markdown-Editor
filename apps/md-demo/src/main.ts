@@ -10,19 +10,23 @@ import {
 import {
   createDownloadRequiredSaveTarget,
   createMemorySaveTarget,
+  hashMarkdownContent,
   type SaveFlushReason,
   type SaveState,
   type SaveTarget
 } from "@momentarise/md-save";
 import type { FoldState } from "@momentarise/md-core";
 import {
+  canCreateWritableFile,
   canUseFileSystemAccess,
   createFocusRefreshWatcher,
   createImportedCopyDocument,
+  createNewMarkdownFile,
   createWritableFileSaveTarget,
   detectMarkdownLineEnding,
   normalizeMarkdownLineEndings,
   openWritableMarkdownFile,
+  saveMarkdownAsFile,
   type ExternalChangeListener,
   type ExternalChangeWatcher,
   type WebFileHandleLike,
@@ -168,14 +172,16 @@ app.innerHTML = `
       </div>
       <div class="topbar-actions editor-command-surface" data-testid="editor-command-surface" aria-label="Editor commands">
         <div class="command-group open-action-group" data-testid="open-action-group" aria-label="Open and export">
+          <button class="button secondary new-file-button" type="button" data-testid="new-file-button">New</button>
           <button class="button secondary open-file-button" type="button" data-testid="open-file-button">Open file</button>
+          <button class="button secondary save-as-button" type="button" data-testid="save-as-button">Save As</button>
           <button class="button secondary legacy-action" type="button" data-testid="open-local-file-button" tabindex="-1">Open .md</button>
           <button class="button secondary legacy-action" type="button" data-testid="open-html-file-button" tabindex="-1">Open .html</button>
           <button class="button secondary legacy-action" type="button" data-testid="import-copy-button" tabindex="-1">Import copy</button>
           <button class="button secondary utility-action compact-action" type="button" data-testid="copy-button" tabindex="-1">Copy</button>
           <button class="button secondary utility-action compact-action" type="button" data-testid="download-button" tabindex="-1">Download</button>
         </div>
-        <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain" data-testid="open-file-input" />
+        <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,.html,.htm,text/markdown,text/plain,text/html" data-testid="open-file-input" />
         <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain" data-testid="import-copy-input" />
         <input class="file-input" type="file" accept=".html,.htm,text/html" data-testid="html-file-input" />
         <div data-testid="mode-control-host"></div>
@@ -435,9 +441,11 @@ const codeBlockControls = queryRequired<HTMLDivElement>('[data-testid="code-bloc
 const codeLanguageInput = queryRequired<HTMLInputElement>('[data-testid="code-language-input"]');
 const codeMetaInput = queryRequired<HTMLInputElement>('[data-testid="code-meta-input"]');
 const insertAfterBlockButton = queryRequired<HTMLButtonElement>('[data-testid="insert-after-block-button"]');
+const newFileButton = queryRequired<HTMLButtonElement>('[data-testid="new-file-button"]');
 const slashCommandMenuHost = queryRequired<HTMLDivElement>('[data-testid="slash-command-menu-host"]');
 const openFileButton = queryRequired<HTMLButtonElement>('[data-testid="open-file-button"]');
 const openFileInput = queryRequired<HTMLInputElement>('[data-testid="open-file-input"]');
+const saveAsButton = queryRequired<HTMLButtonElement>('[data-testid="save-as-button"]');
 const openLocalFileButton = queryRequired<HTMLButtonElement>('[data-testid="open-local-file-button"]');
 const openHtmlFileButton = queryRequired<HTMLButtonElement>('[data-testid="open-html-file-button"]');
 const importCopyButton = queryRequired<HTMLButtonElement>('[data-testid="import-copy-button"]');
@@ -1161,11 +1169,33 @@ function surfacePreferences(): {
 
 function surfaceDocumentState(): SurfaceDocumentState {
   return {
+    adapterKind: activeDocumentAdapterKind(),
     fileName: activeDocument.fileName,
     kind: activeDocument.kind,
     mode: activeDocument.mode,
-    pathLabel: activeDocument.pathLabel
+    pathLabel: activeDocument.pathLabel,
+    writable: activeDocumentWritable()
   };
+}
+
+function activeDocumentAdapterKind(): string {
+  if (activeDocument.kind === "html-artifact") {
+    return "html-artifact";
+  }
+  if (activeDocument.mode === "writable-file") {
+    return "browser-file-system";
+  }
+  if (activeDocument.mode === "imported-copy") {
+    return "download-export";
+  }
+  if (activeDocument.mode === "unsupported") {
+    return "unsupported";
+  }
+  return "memory";
+}
+
+function activeDocumentWritable(): boolean {
+  return activeDocument.kind === "markdown" && activeDocument.mode === "writable-file";
 }
 
 function surfaceModeState(): {
@@ -1488,8 +1518,16 @@ insertAfterBlockButton.addEventListener("click", () => {
   insertParagraphAfterCurrentRichBlock();
 });
 
+newFileButton.addEventListener("click", () => {
+  void createNewMarkdownDocument();
+});
+
 openFileButton.addEventListener("click", () => {
-  void openLocalFile();
+  if (canUseFileSystemAccess()) {
+    void openLocalFile();
+    return;
+  }
+  openFileInput.click();
 });
 
 openFileInput.addEventListener("change", () => {
@@ -1498,16 +1536,15 @@ openFileInput.addEventListener("change", () => {
   if (!file) {
     return;
   }
-  if (isHtmlFileName(file.name)) {
-    setEditorNotice("HTML artifacts use the separate HTML reader; primary Open file is for writable Markdown files.");
-    logEvent("HTML artifact was not opened through primary Open file; use the HTML reader instead.");
-    return;
-  }
-  void importMarkdownCopy(file);
+  void importSupportedFile(file, "unified Open fallback");
+});
+
+saveAsButton.addEventListener("click", () => {
+  void saveCurrentMarkdownAs();
 });
 
 openLocalFileButton.addEventListener("click", () => {
-  void openLocalMarkdownFile();
+  void openLocalFile();
 });
 
 openHtmlFileButton.addEventListener("click", () => {
@@ -1889,6 +1926,22 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
       sourceLabel: "test imported copy"
     });
   },
+  createNewWritableMarkdownFileForTest(fileName = "visual-new.md", content = "# Untitled\n\n") {
+    return loadSavedTestWritableMarkdownFile(
+      fileName,
+      content,
+      "test new writable Markdown file",
+      `created writable Markdown file ${fileName}`
+    );
+  },
+  saveAsWritableMarkdownFileForTest(fileName = "visual-save-as.md") {
+    return loadSavedTestWritableMarkdownFile(
+      fileName,
+      getMarkdown(),
+      "test Save As writable Markdown file",
+      `saved as writable Markdown file ${fileName}`
+    );
+  },
   loadHtmlArtifactForTest(fileName: string, content: string) {
     loadHtmlArtifact(fileName, content, "test HTML artifact");
   },
@@ -2036,7 +2089,7 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
 
 async function openLocalFile(): Promise<void> {
   if (!canUseFileSystemAccess()) {
-    showRealFileOpenUnavailable();
+    openFileInput.click();
     return;
   }
 
@@ -2060,9 +2113,10 @@ async function openLocalFile(): Promise<void> {
           {
             accept: {
               "text/markdown": [".md", ".markdown", ".mdown"],
-              "text/plain": [".md", ".markdown", ".mdown", ".txt"]
+              "text/plain": [".md", ".markdown", ".mdown", ".txt"],
+              "text/html": [".html", ".htm"]
             },
-            description: "Writable Markdown or text files"
+            description: "Markdown or HTML files"
           }
         ]
       })) ?? [];
@@ -2074,10 +2128,7 @@ async function openLocalFile(): Promise<void> {
     const fileName = file.name || handle.name;
     const rawContent = await file.text();
     if (isHtmlFileName(fileName)) {
-      lastSaveAction = "HTML artifacts use the separate HTML reader";
-      setEditorNotice("HTML artifacts use the separate HTML reader; primary Open file is for writable Markdown files.");
-      logEvent("HTML artifact was not opened through primary Open file; use the HTML reader instead.");
-      renderSaveState();
+      loadHtmlArtifact(fileName, rawContent, "unified local file picker");
       return;
     }
 
@@ -2111,6 +2162,93 @@ async function openLocalFile(): Promise<void> {
     }
     renderSaveState();
   }
+}
+
+async function createNewMarkdownDocument(): Promise<void> {
+  const content = "# Untitled\n\n";
+  if (!canCreateWritableFile()) {
+    loadOpenedMarkdownFile(createImportedCopyDocument({ content, fileName: "Untitled.md" }), {
+      sourceLabel: "new Markdown fallback draft"
+    });
+    lastSaveAction = "new Markdown draft created; Save As/export required";
+    setEditorNotice("New Markdown draft is not persisted. Use Save As in a supported browser or export a copy.");
+    logEvent("Created a new Markdown draft without a writable file handle; export/download is required.");
+    renderSaveState();
+    return;
+  }
+
+  try {
+    const opened = await createNewMarkdownFile({
+      content,
+      fileName: "Untitled.md"
+    });
+    loadOpenedMarkdownFile(opened, {
+      sourceLabel: "new Markdown save picker"
+    });
+    lastSaveAction = `created writable Markdown file ${opened.fileName}`;
+    clearEditorNotice();
+    logEvent(`Created ${opened.fileName} as a writable Markdown file. Future Save/autosave writes to that target.`);
+    renderSaveState();
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      lastSaveAction = "new file cancelled";
+      clearEditorNotice();
+      logEvent("New Markdown file creation cancelled.");
+    } else {
+      lastSaveAction = `new file failed: ${errorMessage(error)}`;
+      setEditorNotice(`New file failed: ${errorMessage(error)}`);
+      logEvent(`New Markdown file creation failed: ${errorMessage(error)}`);
+    }
+    renderSaveState();
+  }
+}
+
+async function saveCurrentMarkdownAs(): Promise<void> {
+  if (activeDocument.kind === "html-artifact") {
+    downloadMarkdown();
+    setEditorNotice("HTML artifacts are export-only in this demo. The original HTML file was not overwritten.");
+    return;
+  }
+
+  if (!canCreateWritableFile()) {
+    downloadMarkdown();
+    setEditorNotice("Save As is unavailable in this browser. Generated an export copy; the original target was unchanged.");
+    return;
+  }
+
+  try {
+    const opened = await saveMarkdownAsFile({
+      content: getMarkdown(),
+      fileName: markdownFileNameForSaveAs(activeDocument.fileName)
+    });
+    loadOpenedMarkdownFile(opened, {
+      sourceLabel: "Save As file picker"
+    });
+    lastSaveAction = `saved as writable Markdown file ${opened.fileName}`;
+    clearEditorNotice();
+    logEvent(`Saved current Markdown as ${opened.fileName}. Future Save/autosave writes to the new writable target.`);
+    renderSaveState();
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      lastSaveAction = "save as cancelled";
+      clearEditorNotice();
+      logEvent("Save As cancelled.");
+    } else {
+      lastSaveAction = `save as failed: ${errorMessage(error)}`;
+      setEditorNotice(`Save As failed: ${errorMessage(error)}`);
+      logEvent(`Save As failed: ${errorMessage(error)}`);
+    }
+    renderSaveState();
+  }
+}
+
+async function importSupportedFile(file: File, sourceLabel: string): Promise<void> {
+  if (isHtmlFileName(file.name)) {
+    await importHtmlArtifact(file);
+    return;
+  }
+  await importMarkdownCopy(file);
+  logEvent(`Opened ${file.name} through ${sourceLabel}.`);
 }
 
 async function openLocalMarkdownFile(): Promise<void> {
@@ -4737,6 +4875,53 @@ function documentModeLabel(mode: DemoDocumentMode): string {
   return "unsupported local file";
 }
 
+function markdownFileNameForSaveAs(fileName: string): string {
+  const trimmed = fileName.trim() || "Untitled.md";
+  return /\.(?:md|markdown|mdown|txt)$/i.test(trimmed) ? trimmed : `${trimmed}.md`;
+}
+
+async function loadSavedTestWritableMarkdownFile(
+  fileName: string,
+  content: string,
+  sourceLabel: string,
+  lastAction: string
+): Promise<void> {
+  const testHandle = createTestWritableFileHandle(fileName, "");
+  const lineEnding = detectMarkdownLineEnding(content);
+  const normalizedContent = normalizeMarkdownLineEndings(content);
+  const target = createWritableFileSaveTarget({
+    handle: testHandle.handle,
+    lineEnding,
+    targetLabel: `disk://${fileName}`
+  });
+  const result = await target.write?.({
+    content: normalizedContent,
+    contentHash: hashMarkdownContent(normalizedContent),
+    now: new Date(),
+    reason: "manual"
+  });
+  if (!result || result.status !== "saved") {
+    throw new Error(result?.message ?? "Failed to prepare test writable file.");
+  }
+  loadOpenedMarkdownFile(
+    {
+      content: normalizedContent,
+      fileName,
+      mode: "writable-file",
+      pathLabel: `disk://${fileName}`,
+      target
+    },
+    {
+      readDiskContent: testHandle.readDiskContent,
+      simulateExternalChange: testHandle.simulateExternalChange,
+      sourceLabel
+    }
+  );
+  lastSaveAction = lastAction;
+  clearEditorNotice();
+  renderSaveState();
+}
+
 function createTestWritableFileHandle(
   fileName: string,
   content: string
@@ -5151,6 +5336,7 @@ declare global {
       configurePersonalByokProviderForTest: () => void;
       configureRelativeSecretEndpointForTest: () => void;
       generateAiSuggestionForTest: (action?: AiWritingAction, prompt?: string) => Promise<void>;
+      createNewWritableMarkdownFileForTest: (fileName?: string, content?: string) => Promise<void>;
       loadAiPolicyDeniedDocumentForTest: () => void;
       loadEmptyMarkdownForTest: () => void;
       loadHtmlArtifactForTest: (fileName: string, content: string) => void;
@@ -5169,6 +5355,7 @@ declare global {
       reorderRichBlocksForTest: (fromIndex: number, toIndex: number, placement?: "after" | "before") => string | null;
       selectFinalRichBlockForTest: () => void;
       selectRichTextForTest: (text: string) => void;
+      saveAsWritableMarkdownFileForTest: (fileName?: string) => Promise<void>;
       showRealFileOpenUnavailableForTest: () => void;
       showUnsupportedLocalFileStateForTest: () => void;
       simulateExternalConflict: () => Promise<void>;

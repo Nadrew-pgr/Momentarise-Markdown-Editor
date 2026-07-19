@@ -2522,6 +2522,10 @@ Keep Save Engine semantics central. UI labels may improve, but they must not hid
 
 UX Reviewer and Test Reviewer.
 
+### Status
+
+Accepted for code continuation 2026-07-19 after human instruction to defer visible workflow reviews into a final end-of-run review queue. Added browser save-picker creation APIs, New file and Save As flows, unified visible Open routing for Markdown/HTML, compact status details for adapter/writability/last-saved/save hashes, and explicit conflict actions without unsafe dismiss. Fallback Markdown imports and unsupported save-picker hosts stay `download-required`/export-only and never claim original disk overwrite. Visual proof covers initial status chrome, Markdown imported copy, HTML Source/Preview-only routing, New writable file, Save As writable target, and dirty external conflict actions. Proven by RED `npm run test:web-file-access` and `npm run test:surface`, green targeted checks, `npm run visual:mme-0044`, `git diff --check`, and full `npm test`. Reviewer subagents found P2s in legacy debug opener routing and new status string API strictness; builder fixed both and rechecks reported no remaining P0/P1/P2. This is not final public workflow acceptance; the Open/New/Save As/status workflow is queued for final human review before public launch. `MME-0045` remains the next candidate after issue-scoped commit.
+
 ## MME-0045 — Toolbar, slash, and mode controls final UX
 
 ### Goal

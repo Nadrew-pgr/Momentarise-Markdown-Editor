@@ -100,6 +100,7 @@
     "visual:mme-0041": "node scripts/visual-check-mme0041.mjs",
     "visual:mme-0042": "node scripts/visual-check-mme0042.mjs",
     "visual:mme-0043": "node scripts/visual-check-mme0043.mjs",
+    "visual:mme-0044": "node scripts/visual-check-mme0044.mjs",
     "ai:review:claude": "node scripts/claude-framework-review.mjs",
     "ai:review:dry-run": "node scripts/claude-framework-review.mjs --dry-run",
     "test:release-engineering": "node tests/release-engineering.test.mjs",

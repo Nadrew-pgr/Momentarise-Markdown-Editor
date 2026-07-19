@@ -178,6 +178,14 @@ Tags: `future-adapter`, `product-differentiator`, `research`, `conversion`, `mon
 
 Tags: `public-release`, `dx`, `ax`, `research`
 
+### End-Of-Run Human Review Queue
+
+Tags: `public-release`, `human-review`, `ui`, `ax`
+
+- MME-0038 explicit public-face validation debt: review docs IA, visual quality, copy, external-link behavior, AX claims, CLI guidance, and light/dark screenshots before public launch.
+- MME-0044 visible file/status workflow review: review unified Open, New File, Save As, imported-copy/export fallback wording, dirty/conflict actions, status popover density, and browser prompt ergonomics before public launch.
+- Future visible/UI/HITL slices in this autonomous run should be added here instead of blocking code continuation, per the 2026-07-19 human instruction to review visible work in one final block.
+
 - Asset/upload provider contract for image paste and drag-drop, similar in spirit to BlockNote `uploadFile`, but adapted to MME's host-capability and SaveTarget contracts.
 - LiteLLM / OpenAI-compatible AI provider adapter: provide an optional host-side adapter path for developers who want to let users choose among OpenAI, Gemini, Mistral, Anthropic, local models, or any LiteLLM-routed provider. This must stay outside MME core; production use should go through a host backend, sidecar, secure storage, or user-controlled gateway rather than exposing raw provider keys by default.
 - CMS publishing bridge research: Decap CMS and TinaCMS can be considered as lightweight interim Git-backed content/admin bridges for agency/demo templates before MME is ready for that use case. Longer-term direction is MME-authored Markdown/blog/content flows publishing through Payload CMS, without weakening Markdown/YAML frontmatter as the source of truth or implying CMS persistence unless the adapter actually provides it.
@@ -196,7 +204,7 @@ Tags: `public-release`, `dx`, `ax`, `research`
 - Agent action registry for docs: model copy prompt, open in chat, section context, edit-on-GitHub, issue filing, and future "ask this page" as reusable AX descriptors that docs hosts can render in their own UI.
 - BlockNote-class docs content map: use the 2026-07-08 BlockNote docs scrape as a benchmark taxonomy for future pages around AI, built-in blocks, schemas, UI components, import/export, collaboration, and editor setup. MME should cover analogous concepts honestly from Markdown-source-first principles, not copy BlockNote's block-database assumptions.
 - Docs light/dark hardening: docs site now supports light and dark, but final public-release polish should audit every docs component, code block, live editor, screenshot, and framework token in both schemes before launch.
-- MME-0038 explicit public-face validation debt: the docs site/AX surface may be committed and followed by later work per the 2026-07-16 human instruction, but it was not explicitly validated as final. Before public launch, run a final human review for docs IA, visual quality, copy, external-link behavior, AX claims, CLI guidance, and light/dark screenshots.
+- MME-0038 explicit public-face validation debt: the docs site/AX surface may be committed and followed by later work per the 2026-07-16 human instruction, but it was not explicitly validated as final. The active final-review item is tracked in the end-of-run human review queue above.
 - MME-0025 unreviewed detail: audit whether CSS-only compatibility tokens carried from MME-0039 (`border-strong`, accent hover/soft variants, warning/code/preview/topbar/overlay/content-measure) should remain CSS-only, become typed `MmeTheme` keys, or collapse into the strict public token set during MME-0030/public-release hardening. The human accepted the MME-0025 direction but did not explicitly review each compatibility token.
 - MME-0025 unreviewed detail: audit every default icon glyph, icon-only label, toolbar density, and light/dark accessibility state before public release. The human accepted the toolbar icon direction but did not explicitly review each icon asset as final.
 

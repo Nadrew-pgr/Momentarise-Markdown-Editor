@@ -46,15 +46,24 @@ export interface WebFileHandleLike {
 
 export interface WebFileAccessHostLike {
   showOpenFilePicker?: (options?: WebOpenFilePickerOptions) => Promise<readonly WebFileHandleLike[]>;
+  showSaveFilePicker?: (options?: WebSaveFilePickerOptions) => Promise<WebFileHandleLike>;
+}
+
+export interface WebFilePickerType {
+  readonly accept: Readonly<Record<string, readonly string[]>>;
+  readonly description: string;
 }
 
 export interface WebOpenFilePickerOptions {
   readonly excludeAcceptAllOption?: boolean;
   readonly multiple?: boolean;
-  readonly types?: readonly {
-    readonly accept: Readonly<Record<string, readonly string[]>>;
-    readonly description: string;
-  }[];
+  readonly types?: readonly WebFilePickerType[];
+}
+
+export interface WebSaveFilePickerOptions {
+  readonly excludeAcceptAllOption?: boolean;
+  readonly suggestedName?: string;
+  readonly types?: readonly WebFilePickerType[];
 }
 
 export interface WebOpenedMarkdownFile {
@@ -74,6 +83,22 @@ export interface CreateWritableFileSaveTargetOptions {
 export interface CreateImportedCopyDocumentOptions {
   readonly content: string;
   readonly fileName: string;
+}
+
+export interface CreateNewMarkdownFileOptions {
+  readonly content?: string;
+  readonly fileName?: string;
+  readonly host?: WebFileAccessHostLike;
+  readonly lineEnding?: MarkdownLineEnding;
+  readonly now?: Date;
+}
+
+export interface SaveMarkdownAsFileOptions {
+  readonly content: string;
+  readonly fileName?: string;
+  readonly host?: WebFileAccessHostLike;
+  readonly lineEnding?: MarkdownLineEnding;
+  readonly now?: Date;
 }
 
 export type ExternalChangeListener = () => void | Promise<void>;
@@ -97,6 +122,10 @@ export function canUseFileSystemAccess(host: WebFileAccessHostLike = defaultWebF
   return typeof host.showOpenFilePicker === "function";
 }
 
+export function canCreateWritableFile(host: WebFileAccessHostLike = defaultWebFileAccessHost()): boolean {
+  return typeof host.showSaveFilePicker === "function";
+}
+
 export function createImportedCopyDocument(
   options: CreateImportedCopyDocumentOptions
 ): WebOpenedMarkdownFile {
@@ -111,6 +140,44 @@ export function createImportedCopyDocument(
       targetLabel: `imported-copy://${options.fileName}`
     })
   };
+}
+
+export async function createNewMarkdownFile(options: CreateNewMarkdownFileOptions = {}): Promise<WebOpenedMarkdownFile> {
+  const request: {
+    content: string;
+    fileName: string;
+    host: WebFileAccessHostLike;
+    lineEnding: MarkdownLineEnding;
+    now?: Date;
+  } = {
+    content: options.content ?? "",
+    fileName: options.fileName ?? "Untitled.md",
+    host: options.host ?? defaultWebFileAccessHost(),
+    lineEnding: options.lineEnding ?? "lf"
+  };
+  if (options.now) {
+    request.now = options.now;
+  }
+  return createOrSaveWritableMarkdownFile(request);
+}
+
+export async function saveMarkdownAsFile(options: SaveMarkdownAsFileOptions): Promise<WebOpenedMarkdownFile> {
+  const request: {
+    content: string;
+    fileName: string;
+    host: WebFileAccessHostLike;
+    lineEnding: MarkdownLineEnding;
+    now?: Date;
+  } = {
+    content: options.content,
+    fileName: options.fileName ?? "Untitled.md",
+    host: options.host ?? defaultWebFileAccessHost(),
+    lineEnding: options.lineEnding ?? "lf"
+  };
+  if (options.now) {
+    request.now = options.now;
+  }
+  return createOrSaveWritableMarkdownFile(request);
 }
 
 export function createWritableFileSaveTarget(
@@ -181,6 +248,54 @@ export function createWritableFileSaveTarget(
   };
 }
 
+async function createOrSaveWritableMarkdownFile(options: {
+  readonly content: string;
+  readonly fileName: string;
+  readonly host: WebFileAccessHostLike;
+  readonly lineEnding: MarkdownLineEnding;
+  readonly now?: Date;
+}): Promise<WebOpenedMarkdownFile> {
+  const fileName = ensureMarkdownFileName(options.fileName);
+  const content = normalizeMarkdownLineEndings(options.content);
+  if (!canCreateWritableFile(options.host) || !options.host.showSaveFilePicker) {
+    return createImportedCopyDocument({
+      content,
+      fileName
+    });
+  }
+
+  const handle = await options.host.showSaveFilePicker({
+    excludeAcceptAllOption: false,
+    suggestedName: fileName,
+    types: markdownFilePickerTypes()
+  });
+  const selectedFileName = ensureMarkdownFileName(handle.name || fileName);
+  const targetLabel = `disk://${selectedFileName}`;
+  const target = createWritableFileSaveTarget({
+    handle,
+    lineEnding: options.lineEnding,
+    targetLabel
+  });
+  const result = await target.write?.({
+    content,
+    contentHash: hashMarkdownContent(content),
+    now: options.now ?? new Date(),
+    reason: "manual"
+  });
+  if (!result || result.status !== "saved") {
+    const message = result?.message ?? "Failed to create writable Markdown file.";
+    throw new Error(message);
+  }
+
+  return {
+    content,
+    fileName: selectedFileName,
+    mode: "writable-file",
+    pathLabel: targetLabel,
+    target
+  };
+}
+
 export function createFocusRefreshWatcher(options: CreateFocusRefreshWatcherOptions): ExternalChangeWatcher {
   let cleanup: (() => void) | null = null;
   let generation = 0;
@@ -244,15 +359,7 @@ export async function openWritableMarkdownFile(
   const [handle] = await host.showOpenFilePicker({
     excludeAcceptAllOption: false,
     multiple: false,
-    types: [
-      {
-        accept: {
-          "text/markdown": [".md", ".markdown", ".mdown"],
-          "text/plain": [".md", ".markdown", ".txt"]
-        },
-        description: "Markdown files"
-      }
-    ]
+    types: markdownFilePickerTypes()
   });
   if (!handle) {
     throw new Error("No Markdown file handle was selected.");
@@ -273,6 +380,23 @@ export async function openWritableMarkdownFile(
       targetLabel: `disk://${file.name || handle.name}`
     })
   };
+}
+
+function markdownFilePickerTypes(): readonly WebFilePickerType[] {
+  return [
+    {
+      accept: {
+        "text/markdown": [".md", ".markdown", ".mdown"],
+        "text/plain": [".md", ".markdown", ".txt"]
+      },
+      description: "Markdown files"
+    }
+  ];
+}
+
+function ensureMarkdownFileName(fileName: string): string {
+  const trimmed = fileName.trim() || "Untitled.md";
+  return /\.(?:md|markdown|mdown|txt)$/i.test(trimmed) ? trimmed : `${trimmed}.md`;
 }
 
 export function detectMarkdownLineEnding(content: string): MarkdownLineEnding {

@@ -100,14 +100,17 @@ export interface MmeStrings {
     readonly label: string;
   };
   readonly status: {
+    readonly adapter?: string;
     readonly conflictDescription: string;
     readonly conflictDownloadLocal: string;
     readonly conflictReloadExternal: string;
     readonly conflictRetrySave: string;
     readonly conflictTitle: string;
+    readonly details?: string;
     readonly dirtyClean: string;
     readonly htmlTarget: string;
     readonly importedTarget: string;
+    readonly lastSaved?: string;
     readonly memoryTarget: string;
     readonly path: string;
     readonly primaryExport: string;
@@ -118,6 +121,7 @@ export interface MmeStrings {
     readonly targetConflict: string;
     readonly targetDisk: string;
     readonly unsupportedTarget: string;
+    readonly writable?: string;
   };
   readonly toolbar: {
     readonly ai: string;
@@ -155,10 +159,12 @@ export type SurfaceDocumentMode = "fixture" | "imported-copy" | "unsupported" | 
 export type SurfaceEditorMode = "live-preview" | "preview" | "rich" | "source";
 
 export interface SurfaceDocumentState {
+  readonly adapterKind?: string;
   readonly fileName: string;
   readonly kind: SurfaceDocumentKind;
   readonly mode: SurfaceDocumentMode;
   readonly pathLabel: string;
+  readonly writable?: boolean;
 }
 
 export interface CreateSurfaceDocumentStateOptions {
@@ -431,14 +437,17 @@ export const defaultMmeStrings: MmeStrings = {
     label: "Slash commands"
   },
   status: {
+    adapter: "Adapter",
     conflictDescription: "External file changed. Local edits were not overwritten.",
     conflictDownloadLocal: "Download local copy",
     conflictReloadExternal: "Reload external",
     conflictRetrySave: "Retry save",
     conflictTitle: "Resolve conflict",
+    details: "Details",
     dirtyClean: "clean",
     htmlTarget: "HTML artifact, sandbox preview, download/export required",
     importedTarget: "imported copy, download/export required",
+    lastSaved: "Last saved",
     memoryTarget: "fixture, memory only, not persisted",
     path: "Path",
     primaryExport: "Export copy",
@@ -448,7 +457,8 @@ export const defaultMmeStrings: MmeStrings = {
     target: "Target",
     targetConflict: "conflict, not overwritten",
     targetDisk: "disk, original file writable",
-    unsupportedTarget: "unsupported, use import/download"
+    unsupportedTarget: "unsupported, use import/download",
+    writable: "Writable"
   },
   toolbar: {
     ai: "AI",
@@ -1061,8 +1071,12 @@ export function createDocumentStatus(options: CreateDocumentStatusOptions): Surf
     summary.append(name, dirty);
     menu.append(
       statusLine(options, options.strings.status.path, "document-path", documentState.pathLabel),
+      statusLine(options, statusString(options.strings, "adapter"), "document-adapter", documentAdapterLabel(saveState, documentState)),
+      statusLine(options, statusString(options.strings, "writable"), "document-writable", documentWritableLabel(saveState, documentState)),
       statusLine(options, options.strings.status.target, "persistence-target", documentTargetLabel(saveState, documentState, options.strings)),
-      statusLine(options, options.strings.status.save, "save-state", saveState.status)
+      statusLine(options, options.strings.status.save, "save-state", saveState.status),
+      statusLine(options, statusString(options.strings, "lastSaved"), "document-last-saved", lastSavedLabel(saveState)),
+      statusLine(options, statusString(options.strings, "details"), "save-details", saveDetailsLabel(saveState))
     );
     if (saveState.status === "conflict" && options.onResolveConflict) {
       menu.append(conflictResolution(options));
@@ -1564,6 +1578,59 @@ export function documentTargetLabel(
   return state.target;
 }
 
+function documentAdapterLabel(state: SaveState, document: SurfaceDocumentState): string {
+  if (document.adapterKind) {
+    return document.adapterKind;
+  }
+  if (document.kind === "html-artifact") {
+    return "html-artifact";
+  }
+  if (document.mode === "writable-file" || state.target === "disk") {
+    return "browser-file-system";
+  }
+  if (document.mode === "imported-copy" || state.target === "download-required") {
+    return "download-export";
+  }
+  if (document.mode === "unsupported" || state.target === "unsupported") {
+    return "unsupported";
+  }
+  if (state.target === "memory-only") {
+    return "memory";
+  }
+  return state.target;
+}
+
+function documentWritableLabel(state: SaveState, document: SurfaceDocumentState): string {
+  if (document.writable !== undefined) {
+    return document.writable ? "yes" : "no";
+  }
+  return document.mode === "writable-file" || state.target === "disk" ? "yes" : "no";
+}
+
+function lastSavedLabel(state: SaveState): string {
+  return state.lastSavedAt ? state.lastSavedAt.toISOString() : "never";
+}
+
+function saveDetailsLabel(state: SaveState): string {
+  const parts = state.target === "conflict" || state.status === "conflict"
+    ? [`current ${shortStatusHash(state.currentHash)}`]
+    : [`${state.target} / ${state.status}`, `current ${shortStatusHash(state.currentHash)}`];
+  if (state.lastSavedHash) {
+    parts.push(`saved ${shortStatusHash(state.lastSavedHash)}`);
+  }
+  if (state.externalHash) {
+    parts.push(`external ${shortStatusHash(state.externalHash)}`);
+  }
+  if (state.errorMessage) {
+    parts.push(state.errorMessage);
+  }
+  return parts.join(" | ");
+}
+
+function shortStatusHash(hash: string): string {
+  return hash.length > 16 ? hash.slice(0, 16) : hash;
+}
+
 function toolbarButton(options: CreateToolbarOptions, command: ToolbarCommandDefinition, roving: boolean): HTMLButtonElement {
   const button = createElement(options.host, "button", "toolbar-button");
   button.type = "button";
@@ -1844,6 +1911,10 @@ function modeButton(options: CreateModeControlOptions, state: SurfaceModeControl
 
 function surfaceModesForDocumentKind(documentKind: SurfaceDocumentKind): readonly SurfaceEditorMode[] {
   return editorModesForDocumentKind(documentKind as EditorDocumentKind).map((definition) => definition.id as SurfaceEditorMode);
+}
+
+function statusString(strings: MmeStrings, key: "adapter" | "details" | "lastSaved" | "writable"): string {
+  return strings.status[key] ?? defaultMmeStrings.status[key] ?? key;
 }
 
 function statusLine(options: SurfaceComponentContext, label: string, testId: string, value: string): HTMLParagraphElement {

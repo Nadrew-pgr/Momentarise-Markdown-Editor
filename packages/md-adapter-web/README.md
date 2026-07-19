@@ -5,6 +5,8 @@ Web host capability helpers for Momentarise Markdown Editor.
 This package keeps browser-specific file access at the adapter boundary:
 
 - File System Access handles are wrapped as Markdown `SaveTarget`s.
+- `createNewMarkdownFile()` and `saveMarkdownAsFile()` use the browser save picker when available and return a writable disk target only after the initial Markdown bytes are written.
+- Hosts can check `canCreateWritableFile()` separately from `canUseFileSystemAccess()` because some browsers may support opening files without supporting save-picker creation.
 - Writable targets expose `readExternalHash()` for save-time verification and `readExternalContent()` for safe clean reloads.
 - `createFocusRefreshWatcher()` is DOM-free: hosts inject `listen()` from `window` focus, `visibilitychange`, polling, or another web event source.
 - The Save Engine remains the hard no-overwrite guarantee. The focus watcher is an early UX signal so a host can apply clean external changes or show a conflict before the next save.

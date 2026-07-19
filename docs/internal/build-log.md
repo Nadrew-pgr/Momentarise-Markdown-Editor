@@ -5008,3 +5008,88 @@
   - Not pushed yet; branch contains existing unpushed commits and `MME-0038` remains pending public-face validation, so pushing as accepted release-ready work is blocked without a separate safe-push instruction.
 - Next issue:
   - `MME-0044 — Unified Open, New File, Save As, and status chrome`.
+
+## MME-0044 — Unified Open, New File, Save As, and status chrome
+
+- Date: 2026-07-19.
+- Previous issue status:
+  - `MME-0043` completed and committed (`fcf493a` plus evidence commit `50d8bb0`).
+  - `MME-0038` remains code-complete with explicit public-face validation debt and is committed as pending-status, not accepted as final public validation.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short --branch`, and target files in `md-save`, `md-editor`, `md-surface`, `md-adapter-web`, `apps/md-demo/src/main.ts`, MME-0008/MME-0009/MME-0035 tests, and visual scripts.
+- RED proof before implementation:
+  - Updated `tests/web-file-access.test.mjs` before implementation to require `canCreateWritableFile`, `createNewMarkdownFile`, `saveMarkdownAsFile`, save-picker target transition, fallback download-required drafts, and later saves through the Save As target.
+  - Updated `tests/surface-components.test.mjs` before implementation to require adapter, writability, last-saved, save details, stable conflict actions, and no unsafe dismiss action.
+  - Added `scripts/visual-check-mme0044.mjs` and visual artifact README before browser proof.
+  - Initial `npm run test:web-file-access` failed because `@momentarise/md-adapter-web` did not export `canCreateWritableFile`.
+  - Initial `npm run test:surface` failed because the status surface did not render `document-adapter`.
+- Change:
+  - Added browser save-picker capability contracts in `@momentarise/md-adapter-web`: `canCreateWritableFile`, `WebSaveFilePickerOptions`, `createNewMarkdownFile`, and `saveMarkdownAsFile`.
+  - `createNewMarkdownFile` and `saveMarkdownAsFile` write initial Markdown bytes before returning a writable disk target, preserving line endings through the existing writable `SaveTarget`.
+  - Added fallback behavior for hosts without `showSaveFilePicker`: New/Save As return a download-required imported copy/export path and never claim disk persistence.
+  - Unified the visible demo Open action so Markdown and HTML can route from one Open flow with type detection; retained hidden legacy debug inputs for dedicated HTML/import test hooks after reviewer feedback.
+  - Added visible New and Save As controls to the reference demo.
+  - Upgraded `createDocumentStatus` to expose compact details for path, adapter, writability, target, save status, last saved timestamp, hashes, and error/conflict details.
+  - Kept conflict actions explicit: reload external, download local copy, retry save; no vague dismiss action.
+  - Made the newly added `MmeStrings.status` keys optional with default fallbacks so consumers with full custom string maps are not forced into a compile break.
+  - Updated public API approval and `packages/md-adapter-web/README.md` for the intentional web-adapter exports.
+  - Updated `README.md` and `docs/internal/ISSUES.md` to mark `MME-0044` as code-complete with human review pending.
+- Visual impact:
+  - Reference demo topbar now exposes New, Open file, and Save As as normal file actions.
+  - Compact document status still lives in the top-right but its popover now exposes adapter kind, writable truth, persistence target, save state, last saved timestamp, and details.
+  - HTML artifacts opened through the unified route show Source/Preview only and Export copy, not Rich/Live Preview or Save.
+  - Dirty external conflicts show a visible notice plus explicit reload/export/retry actions in the status menu.
+  - Screenshots:
+    - `docs/internal/visual-checks/MME-0044/status-chrome-initial.png`
+    - `docs/internal/visual-checks/MME-0044/open-markdown-imported-copy.png`
+    - `docs/internal/visual-checks/MME-0044/open-html-source-preview-only.png`
+    - `docs/internal/visual-checks/MME-0044/new-file-writable-target.png`
+    - `docs/internal/visual-checks/MME-0044/save-as-writable-target.png`
+    - `docs/internal/visual-checks/MME-0044/conflict-actions-explicit.png`
+- Checks run:
+  - `npm run test:web-file-access` — RED before implementation, then green after implementation and reviewer fixes.
+  - `npm run test:surface` — RED before implementation, then green after implementation and reviewer fixes.
+  - `npm run test:contracts` — green.
+  - `npm run test:public-api` — green after updating approved web-adapter exports.
+  - `npm run test:demo-reference-surface` — green after updating the Open behavior baseline and reviewer fix.
+  - `npm run test:save-engine` — green.
+  - `npm run test:web-external-change` — green.
+  - `npm run test:demo-baseline` — green.
+  - `npm run test:demo-rich` — green.
+  - `npm run test:demo-rich-ux` — green.
+  - `npm run test:demo-html-preview` — green.
+  - `npm run test:demo-render-html` — green.
+  - `npm run test:live-preview` — green.
+  - `npm run test:architecture` — green.
+  - `npm run test:source-ux` — green.
+  - `npm run test:source-codemirror` — green.
+  - `npm run test:rich-fidelity` — green.
+  - `npm run test:rich-targeted-serialization` — green.
+  - `git diff --check` — green.
+  - `npm run visual:mme-0044` — sandbox Chrome aborted before CDP on first run; rerun green with system Chrome permission, rerun green after reviewer fixes.
+  - `npm test` — green; existing demo Vite chunk-size warning only.
+- Manual/visual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`; port `5174` was occupied, Vite served current code at `http://127.0.0.1:5175/`.
+  - Visual script asserted the topbar has New/Open file/Save As and compact status chrome.
+  - Visual script loaded a Markdown imported copy and asserted `download-required`/export-only status.
+  - Visual script loaded an HTML artifact and asserted Source/Preview only, no Rich/Live Preview controls, and Export copy target truth.
+  - Visual script created a writable New file and asserted disk target, writable status, and written disk content.
+  - Visual script transitioned an imported copy through Save As and asserted active filename, disk target, and future disk content.
+  - Visual script created a dirty external conflict and asserted local edits remain, external content remains, and conflict actions are reload external, download local copy, retry save, with no dismiss.
+  - Manual screenshot inspection confirmed nonblank render, compact status, no obvious overlap/clipping, truthful export/save labels, and explicit conflict actions.
+- Reviewer result:
+  - Save/adapter/security reviewer subagent `Epicurus` used `gpt-5.3-codex-spark` with `xhigh` reasoning. Initial review found one P2: hidden legacy `Open .html` and `Import copy` buttons had been rerouted through the unified file input, weakening their dedicated test/debug semantics. Builder restored those buttons to `htmlFileInput` and `importCopyInput`; recheck reported the P2 resolved and no new P0/P1/P2.
+  - Surface/API/test reviewer subagent `Euler` used `gpt-5.3-codex-spark` with `xhigh` reasoning. Initial review found the same legacy-button P2 plus one P2 API compatibility issue: new `MmeStrings.status` keys were required. Builder restored legacy routing and made the new status keys optional with default fallbacks; recheck reported both P2s resolved and no new P0/P1/P2.
+  - Visual reviewer subagent `Beauvoir` inspected all six MME-0044 screenshots after an initial off-task content-gate response. Final visual review reported no P0/P1/P2 UI findings: New/Open/Save As cues are visible, writable/imported/HTML labels are truthful, conflict actions are discoverable, and no overlap/clipping was visible at the captured viewport.
+- Residual risks:
+  - `MME-0044` is accepted for code continuation by human instruction on 2026-07-19, but final human workflow review is queued for the end-of-run review block before public launch.
+  - File System Access creation is browser-owned; the demo proves the capability and fallback paths, not every browser prompt UX.
+  - Save As for standalone HTML artifacts remains export-only in this slice.
+  - Final command/mode UX polish remains scoped to `MME-0045`.
+  - Visual proof requires system Chrome permission in this sandbox, same as prior visual scripts.
+- Commit status:
+  - Issue-scoped commit pending immediately after this status update.
+- Push status:
+  - Not pushed. Branch is ahead of origin and contains existing unpushed commits; `MME-0038` still has public-face validation debt and `MME-0044` has final workflow review queued.
+- Next issue:
+  - `MME-0045 — Toolbar, slash, and mode controls final UX` after issue-scoped MME-0044 commit.

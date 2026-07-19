@@ -226,10 +226,12 @@ const statusSession = createMarkdownEditorSession({
 const status = createDocumentStatus({
   ...baseContext,
   document: {
+    adapterKind: "memory",
     fileName: "note.md",
     kind: "markdown",
     mode: "fixture",
-    pathLabel: "fixture://note.md"
+    pathLabel: "fixture://note.md",
+    writable: false
   },
   host: statusHost,
   onPrimaryAction() {
@@ -242,6 +244,10 @@ status.update();
 assert(query(statusHost, "[data-testid='document-name']").textContent === "note.md", "Status popover must render the current document name.");
 assert(query(statusHost, "[data-testid='memory-save-button']").textContent === defaultMmeStrings.status.primarySave, "Primary status action must use strings.");
 assert(query(statusHost, "[data-testid='document-status-popover'] summary").getAttribute("aria-expanded") === "false", "Status popover must expose disclosure aria state.");
+assert(query(statusHost, "[data-testid='document-adapter']").textContent === "memory", "Status details must expose the adapter kind.");
+assert(query(statusHost, "[data-testid='document-writable']").textContent === "no", "Status details must expose writability.");
+assert(query(statusHost, "[data-testid='document-last-saved']").textContent !== "never", "Status details must expose the last saved timestamp.");
+assert(query(statusHost, "[data-testid='save-details']").textContent.includes("memory-only"), "Status details must expose save target details.");
 statusSession.setContent("# Status\n\nDirty edit.\n", "source-view");
 assert(query(statusHost, "[data-testid='dirty-state']").textContent === "dirty", "Status popover must update from save-state event payload.");
 
@@ -262,10 +268,12 @@ const conflictNoResolverHost = document.createElement("div");
 createDocumentStatus({
   ...baseContext,
   document: {
+    adapterKind: "browser-file-system",
     fileName: "conflict.md",
     kind: "markdown",
     mode: "writable-file",
-    pathLabel: "disk://conflict.md"
+    pathLabel: "disk://conflict.md",
+    writable: true
   },
   host: conflictNoResolverHost,
   onPrimaryAction() {
@@ -282,10 +290,12 @@ const conflictHost = document.createElement("div");
 createDocumentStatus({
   ...baseContext,
   document: {
+    adapterKind: "browser-file-system",
     fileName: "conflict.md",
     kind: "markdown",
     mode: "writable-file",
-    pathLabel: "disk://conflict.md"
+    pathLabel: "disk://conflict.md",
+    writable: true
   },
   host: conflictHost,
   onPrimaryAction() {
@@ -303,6 +313,16 @@ assert(
 );
 query(conflictHost, "[data-testid='conflict-action-reload-external']").click();
 assert(conflictActions[0] === "reload-external", "Conflict reload action must dispatch through the status surface.");
+query(conflictHost, "[data-testid='conflict-action-download-local-copy']").click();
+query(conflictHost, "[data-testid='conflict-action-retry-save']").click();
+assert(
+  conflictActions.join(",") === "reload-external,download-local-copy,retry-save",
+  "All explicit conflict actions must dispatch in a stable order."
+);
+assert(
+  !conflictHost.querySelector("[data-testid='conflict-action-dismiss']"),
+  "Conflict status must not expose a vague dismiss action."
+);
 
 const aiHost = document.createElement("div");
 const aiEvents = [];
