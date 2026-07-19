@@ -71,7 +71,7 @@ Completed slices:
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- No executable normal issue remains after MME-0053; continuation requires promoting the next backlog item into normal issue form before implementation.
+- MME-0054: Visible asset upload UX and demo provider.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 
@@ -84,6 +84,7 @@ Next planned slices (public framework readiness sequence, 2026-06-09):
 - Phase G — publish and docs: MME-0036 release engineering and security; MME-0037 public docs content baseline; MME-0038 public docs site and AX docs surface.
 - Phase H — public editor readiness hardening: MME-0040 tables; MME-0041 footnotes/endnotes; MME-0042 core editor interactions; MME-0043 Live Preview foundation; MME-0044 unified open/new/save/status; MME-0045 command and mode UX; MME-0046 HTML preview reading polish; MME-0047 folding polish; MME-0048 docs launch hardening; MME-0049 AX skills/manifests/actions; MME-0050 performance budgets; MME-0051 asset upload contract.
 - Phase I — lightweight and visual source formats: MME-0052 plain text and source-like file support; MME-0053 SVG source reader and sanitized preview.
+- Phase J — media workflow UX: MME-0054 visible asset upload UX and demo provider.
 
 See `docs/internal/build-log.md` for the latest completed issue and current progress.
 

@@ -5673,3 +5673,22 @@
   - Not pushed. Branch is ahead of origin and contains queued public/product review debt; push remains deferred until final review policy is satisfied or Andrew instructs otherwise.
 - Next issue:
   - No executable normal issue remains after `MME-0053`; continuation requires promoting the next backlog item into normal issue form before implementation.
+
+## Backlog promotion checkpoint — MME-0054
+
+- Date: 2026-07-19.
+- Context:
+  - After `MME-0053`, `docs/internal/ISSUES.md` had no executable normal issue before `MME-BACKLOG`.
+  - The human instructed autonomous continuation after issue-scoped commits and asked to defer final human/UI reviews into one end-of-run block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementing directly from backlog.
+- Change:
+  - Promoted `MME-0054 — Visible asset upload UX and demo provider` from the public framework follow-up backlog into normal `docs/internal/ISSUES.md` issue form.
+  - Updated `README.md` current slice and added a Phase J media workflow UX line.
+  - Updated `docs/internal/BACKLOG.md` promoted list and marked the visible asset upload UX line as promoted.
+- Rationale:
+  - `MME-0051` proved the reusable host-owned provider contract, but the reference editor still lacks a visible, honest upload path for users.
+  - The slice is bounded to visible framework/demo integration, local demo provider behavior, paste/drop-like verification, and truthful status states; real storage services, media libraries, and image optimization stay out of scope.
+- Checks run:
+  - Pending before commit: `git diff --check`.
+- Next issue:
+  - `MME-0054 — Visible asset upload UX and demo provider`.

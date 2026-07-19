@@ -2996,6 +2996,55 @@ Security Reviewer, Architecture Reviewer, and Test Reviewer.
 
 Accepted for code continuation 2026-07-19 after adding standalone `svg-artifact` classification, Source/Preview-only surface routing, web/demo open/import/save truth for writable and imported-copy paths, a reusable sanitized SVG preview helper with a DOM allowlist sanitizer, hostile SVG regression coverage, public docs/API updates, and runtime visual proof. Proven by RED `npm run test:svg-preview`, green targeted checks, `npm run visual:mme-0053`, `git diff --check`, and full `npm test`. Architecture/API reviewer subagent `Hume` used `gpt-5.3-codex-spark` with `xhigh` reasoning and reported no findings. Security reviewer subagent `Mencius` initially found sanitizer and wording risks; builder replaced regex sanitization with a DOM allowlist sanitizer, tightened conservative wording, and re-review reported no remaining findings. Test reviewer subagent `Ampere` initially found routing, sanitizer-corpus, surface/web matrix, and docs-trace gaps; builder added regression coverage and runtime visual proof, and re-review reported no remaining findings. Final SVG preview UX/product review is queued in `docs/internal/BACKLOG.md`; no executable normal issue remains after MME-0053 until the next backlog item is promoted.
 
+## MME-0054 — Visible asset upload UX and demo provider
+
+### Goal
+
+Make the existing host-owned asset upload contract visible and usable in the reference demo through paste/drop/command flows, while keeping storage host-owned, source-preserving, and truthful about pending, denied, unavailable, failed, and inserted results.
+
+### Scope
+
+- Add a minimal reusable surface/action contract for visible asset insertion state, labels, disabled reasons, and result messaging.
+- Wire the demo to the existing `session.insertAsset` path through toolbar/slash or visible action entry points plus paste/drop scenarios where practical.
+- Add a local demo asset provider that returns safe Markdown image destinations without introducing framework-owned storage, cloud SDKs, or hidden asset databases.
+- Preserve Markdown source bytes around inserted image syntax and keep save truth unchanged after insertion.
+- Show truthful UI feedback for unavailable provider, policy denial, provider failure, pending result, unsafe URL, and successful insertion.
+- Document the host-owned storage boundary and queue final upload UX/product review instead of blocking code continuation.
+
+### Acceptance criteria
+
+- The reference demo exposes a visible image/asset insertion path instead of keeping `session.insertAsset` test-only.
+- Paste/drop-like image inputs and command-triggered insertion route through the same provider contract, policy checks, and Markdown image serializer as MME-0051.
+- Successful insertion adds normal Markdown image syntax at the intended source/rich selection without rewriting unrelated Markdown.
+- Missing provider, policy denial, provider failure, pending result, and unsafe provider URL produce truthful UI/event states and leave the document unchanged.
+- Demo provider output is local/demo-scoped and clearly not a production storage default.
+- Automated tests prove the visible/demo path calls the reusable contract and preserves save truth.
+- Visual verification captures the visible upload entry point, success state, and at least one non-inserted error/denied state.
+
+### Test-first plan
+
+- RED: add a demo/surface asset upload UX test proving a visible image action exists and routes through `session.insertAsset`.
+- RED: add paste/drop-like demo tests with fake image file inputs proving success, denied/unavailable/failed/pending results, and no mutation on non-inserted paths.
+- RED: add preservation/save-truth checks proving inserted image syntax changes only the intended range and leaves save state honest.
+
+### Implementation notes
+
+Read first: `packages/md-editor/src/index.ts`, `packages/md-surface/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-react/src/index.ts`, `apps/md-demo/src/main.ts`, `tests/asset-upload-provider.test.mjs`, `tests/demo-reference-surface-baseline.test.mjs`, `tests/rich-commands.test.mjs`, `tests/demo-commands.test.mjs`, `tests/demo-rich-ux.test.mjs`, public docs around editor UI, Document Access Policy, and import/export.
+
+Keep this as a visible framework/demo integration of the existing host-owned contract. Do not add real hosted uploads, cloud storage SDKs, production storage defaults, a media library, image optimization, drag/drop layout overhaul, or user account/storage configuration in this slice.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: UX Reviewer, Architecture Reviewer, Security Reviewer, and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; visible upload UX/product review remains queued for the end-of-run human review block unless a storage/privacy/security decision is needed.
+
+### Reviewer
+
+UX Reviewer, Architecture Reviewer, Security Reviewer, and Test Reviewer.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

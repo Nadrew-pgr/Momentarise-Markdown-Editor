@@ -195,7 +195,7 @@ Tags: `public-release`, `human-review`, `ui`, `ax`
 - MME-0053 SVG artifact preview review: review `.svg` open/import/save wording, Source/Preview mode labeling, sanitized-preview details, visible preview chrome, and whether sanitizer warnings are understandable enough before public launch.
 - Future visible/UI/HITL slices in this autonomous run should be added here instead of blocking code continuation, per the 2026-07-19 human instruction to review visible work in one final block.
 
-- Visible asset upload UX and demo provider follow-up for image paste/drop, building on the promoted MME-0051 provider contract while keeping real storage host-owned.
+- Visible asset upload UX and demo provider follow-up for image paste/drop, building on the promoted MME-0051 provider contract while keeping real storage host-owned. First visible upload UX slice promoted as `MME-0054`.
 - LiteLLM / OpenAI-compatible AI provider adapter: provide an optional host-side adapter path for developers who want to let users choose among OpenAI, Gemini, Mistral, Anthropic, local models, or any LiteLLM-routed provider. This must stay outside MME core; production use should go through a host backend, sidecar, secure storage, or user-controlled gateway rather than exposing raw provider keys by default.
 - CMS publishing bridge research: Decap CMS and TinaCMS can be considered as lightweight interim Git-backed content/admin bridges for agency/demo templates before MME is ready for that use case. Longer-term direction is MME-authored Markdown/blog/content flows publishing through Payload CMS, without weakening Markdown/YAML frontmatter as the source of truth or implying CMS persistence unless the adapter actually provides it.
 - Payload CMS plugin/integration: future adapter/plugin that lets Payload-backed apps use MME as a Markdown-native content editor while preserving Markdown/YAML frontmatter truth, save/publish boundaries, permissions, draft/published state, and media handling explicitly.
@@ -256,6 +256,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - `MME-0051 — Asset upload provider contract and image paste/drop preservation`.
 - `MME-0052 — Plain text and lightweight source file support`.
 - `MME-0053 — SVG source reader and sanitized preview`.
+- `MME-0054 — Visible asset upload UX and demo provider`.
 
 - Editor live preview parity.
 - Toolbar/slash/menu final UX.
