@@ -5451,3 +5451,22 @@
   - Not pushed. Branch is ahead of origin and contains queued public/product/budget review debt; push remains deferred until final review policy is satisfied or Andrew instructs otherwise.
 - Next issue:
   - No further executable normal issue exists after `MME-0050` in `docs/internal/ISSUES.md`; continuation requires promoting the next backlog item into the normal issue queue.
+
+## Backlog promotion checkpoint — MME-0051
+
+- Date: 2026-07-19.
+- Context:
+  - After `MME-0050`, `docs/internal/ISSUES.md` had no executable normal issue before `MME-BACKLOG`.
+  - Human instruction allows continuing by issue after committing each completed issue, while queueing final reviews for one end-of-run block.
+  - `docs/internal/QUALITY_GATES.md` forbids implementing directly from backlog; backlog items must be promoted into normal issues first.
+- Change:
+  - Promoted `MME-0051 — Asset upload provider contract and image paste/drop preservation` from baseline/public-framework backlog into `docs/internal/ISSUES.md`.
+  - Updated `README.md` current slice and Phase H list.
+  - Updated `docs/internal/BACKLOG.md` promotion list.
+- Rationale:
+  - Asset upload/image paste/drop is a serious Markdown editor gap and a reusable framework contract slice, not content-doc polish.
+  - The slice is bounded to host-owned provider contracts and source-preserving Markdown image insertion; real storage providers, product drag/drop UI, media library, and image optimization stay out of scope.
+- Checks run:
+  - Pending before commit: `git diff --check`.
+- Next issue:
+  - `MME-0051 — Asset upload provider contract and image paste/drop preservation`.

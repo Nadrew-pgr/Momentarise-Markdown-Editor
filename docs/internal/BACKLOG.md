@@ -250,6 +250,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - `MME-0048 — Public docs launch hardening and MME-0038 validation debt`.
 - `MME-0049 — AX skills, manifests, and reusable agent actions`.
 - `MME-0050 — Performance budgets and large-document benchmarks`.
+- `MME-0051 — Asset upload provider contract and image paste/drop preservation`.
 
 - Editor live preview parity.
 - Toolbar/slash/menu final UX.

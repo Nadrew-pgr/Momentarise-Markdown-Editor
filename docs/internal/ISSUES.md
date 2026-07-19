@@ -2837,7 +2837,56 @@ Architecture Reviewer and Test Reviewer.
 
 ### Status
 
-Accepted for code continuation 2026-07-19 after adding committed performance budgets, a generated 10k-line large Markdown fixture, CI-runnable JSON benchmark output, large-document parse/serialize/rich/render/outline/find/save guardrails, source-preserving targeted edit proof, and autosave hash/content truthfulness proof. Added `scripts/generate-large-performance-fixture.mjs`, `fixtures/021-large-performance/`, `docs/internal/performance-budgets.json`, `scripts/performance-benchmarks.mjs`, `tests/performance-budgets.test.mjs`, `docs/public/concepts/performance.md`, package scripts, regenerated `llms` files, and refreshed generated agent artifacts after the new public doc changed the AX manifest. Performance/DX reviewer reported no P0/P1/P2 findings; builder fixed P3s for JSON-only report wording, explicit CI guard command, bounded docs render coverage, and fixture variability. Preservation/save reviewer initially found P2s for benchmark-level save hash/content truth and session replace preservation; builder fixed both and reviewer confirmation found no remaining P0/P1/P2. Proven by RED missing-generator failure, green `npm run test:performance-budgets`, `npm run test:fixtures`, `npm run test:docs`, `npm run test:docs-site`, `npm run test:llms-sync`, `npm run test:agent-artifacts`, `git diff --check`, and full `npm test`. Final budget-threshold and fixture-representativeness review is queued in `docs/internal/BACKLOG.md`; no further executable normal issue follows until the next backlog item is promoted.
+Accepted for code continuation 2026-07-19 after adding committed performance budgets, a generated 10k-line large Markdown fixture, CI-runnable JSON benchmark output, large-document parse/serialize/rich/render/outline/find/save guardrails, source-preserving targeted edit proof, and autosave hash/content truthfulness proof. Added `scripts/generate-large-performance-fixture.mjs`, `fixtures/021-large-performance/`, `docs/internal/performance-budgets.json`, `scripts/performance-benchmarks.mjs`, `tests/performance-budgets.test.mjs`, `docs/public/concepts/performance.md`, package scripts, regenerated `llms` files, and refreshed generated agent artifacts after the new public doc changed the AX manifest. Performance/DX reviewer reported no P0/P1/P2 findings; builder fixed P3s for JSON-only report wording, explicit CI guard command, bounded docs render coverage, and fixture variability. Preservation/save reviewer initially found P2s for benchmark-level save hash/content truth and session replace preservation; builder fixed both and reviewer confirmation found no remaining P0/P1/P2. Proven by RED missing-generator failure, green `npm run test:performance-budgets`, `npm run test:fixtures`, `npm run test:docs`, `npm run test:docs-site`, `npm run test:llms-sync`, `npm run test:agent-artifacts`, `git diff --check`, and full `npm test`. Final budget-threshold and fixture-representativeness review is queued in `docs/internal/BACKLOG.md`; `MME-0051` was promoted next from backlog after the issue-scoped evidence commit.
+
+## MME-0051 — Asset upload provider contract and image paste/drop preservation
+
+### Goal
+
+Define the host-owned asset upload contract that lets MME insert image references from paste/drop/import flows without taking over storage, embedding unsafe data, or weakening Markdown source truth.
+
+### Scope
+
+- Add an optional asset upload/provider contract for image-like files and pasted assets.
+- Keep storage decisions host-owned: MME asks for an asset result and inserts Markdown only after the provider returns a safe URL/path plus metadata.
+- Support structured unavailable, denied, failed, and pending states without mutating the document.
+- Add source/rich/headless helpers for inserting Markdown image syntax from a provider result while preserving unrelated source bytes.
+- Prove paste/drop-like flows with fake file objects in tests; do not require browser-only APIs for core package tests.
+- Document the host boundary and safe defaults for demos/docs.
+
+### Acceptance criteria
+
+- Public package exports describe asset provider inputs, success results, failures, and unavailable states.
+- If no provider is configured or policy denies the upload, the document remains unchanged and callers get a truthful structured result.
+- Successful image insertion emits normal Markdown image syntax, not a hidden JSON block or framework-owned asset database.
+- Unrelated Markdown bytes survive targeted image insertion in source/rich/headless paths.
+- Providers must not be called before policy/capability checks that can deny asset egress.
+- Tests cover success, denied/unavailable/failure, alt text/title escaping, no data-URL default, source preservation, and save truth.
+- Visual impact: no visible editing/general UI change unless a minimal existing command surface needs to expose disabled/enabled asset insertion state.
+
+### Test-first plan
+
+- RED: add asset provider contract tests that fail because no contract/export exists.
+- RED: add targeted image insertion preservation tests for source/rich/headless session paths.
+- RED: add policy/capability denial tests proving no provider call and no document mutation.
+
+### Implementation notes
+
+Read first: `packages/md-core`, `packages/md-editor`, `packages/md-policy`, `packages/md-surface`, `packages/md-rich-prosemirror`, `packages/md-react`, `packages/md-save`, `apps/md-demo/src/main.ts`, existing slash/toolbar command tests, save truth tests, and public docs around document access policy and editor UI.
+
+Keep this as a reusable framework contract, not a demo-only upload button. Do not add a real hosted upload service, cloud storage SDK, drag/drop product UI overhaul, media library, or image optimization pipeline in this slice. If browser drag/drop UI needs product decisions, keep it as a follow-up and prove the reusable contract first.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Security Reviewer, and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no, unless storage defaults, privacy policy, or public upload UX decisions are needed.
+
+### Reviewer
+
+Architecture Reviewer, Security Reviewer, and Test Reviewer.
 
 ## MME-BACKLOG — Future split candidates
 
