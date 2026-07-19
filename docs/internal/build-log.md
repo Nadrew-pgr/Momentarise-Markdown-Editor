@@ -5281,3 +5281,59 @@
   - Not pushed. Branch is ahead of origin and contains existing unpushed commits; visible/product review debt is queued for final human review before public launch.
 - Next issue:
   - `MME-0048 — Public docs launch hardening and MME-0038 validation debt` after issue-scoped MME-0047 evidence commit.
+
+## MME-0048 — Public docs launch hardening and MME-0038 validation debt
+
+- Date: 2026-07-19.
+- Previous issue status:
+  - `MME-0047` completed and committed (`f9dba90` plus evidence commit `0354501`).
+  - `MME-0038`, `MME-0044`, `MME-0045`, `MME-0046`, `MME-0047`, and now `MME-0048` visible/product/public-face reviews are queued for the end-of-run human review block instead of blocking code continuation.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short`, and target files in `apps/docs-site`, `docs/public`, `scripts/docs-lint.mjs`, `tests/docs-site-ax.test.mjs`, `scripts/visual-check-mme0038.mjs`, `llms.txt`, `llms-full.txt`, package READMEs, package docs, and the MME-0038 evidence set.
+- RED proof before implementation:
+  - Added `tests/docs-launch-hardening.test.mjs` before implementation to require launch-critical package API checkpoints, 0.x release-boundary copy, AX/Ask AI truthfulness, CLI command guidance, light/dark coverage, and visual artifact coverage.
+  - Initial `npm run test:docs-launch` failed because `docs/public/packages/md-ai.md` did not include a `Public API Checkpoints` section.
+  - After package docs were hardened, `npm run test:docs-launch` failed again because the expanded MME-0038 visual proof had not yet produced `docs-package-md-cli.png`.
+- Change:
+  - Added `test:docs-launch` and wired it into the root `npm test` gate.
+  - Hardened launch-critical package docs for `md-ai`, `md-cli`, `md-editor`, `md-render-html`, `md-save`, and `md-surface` with public API checkpoints and 0.x release notes.
+  - Regenerated `llms-full.txt` from the current public Markdown source.
+  - Expanded `scripts/visual-check-mme0038.mjs` to cover the CLI package page, Agentic Experience page, dark package code page, and mobile package route in addition to the existing landing/docs/footer/page-action matrix.
+  - Updated README status, issue status, and the end-of-run human review queue without claiming final public launch acceptance.
+- Visual impact:
+  - Public docs proof now covers launch-critical package/API pages and AX truthfulness, not only the docs home/landing shell.
+  - Screenshots added:
+    - `docs/internal/visual-checks/MME-0038/docs-package-md-cli.png`
+    - `docs/internal/visual-checks/MME-0038/docs-agentic-experience.png`
+    - `docs/internal/visual-checks/MME-0038/docs-package-code-dark.png`
+    - `docs/internal/visual-checks/MME-0038/docs-mobile-package.png`
+  - Existing MME-0038 screenshots were refreshed by the same visual run:
+    - `docs/internal/visual-checks/MME-0038/site-landing.png`
+    - `docs/internal/visual-checks/MME-0038/site-footer.png`
+    - `docs/internal/visual-checks/MME-0038/docs-mobile.png`
+    - `docs/internal/visual-checks/MME-0038/docs-page-actions.png`
+- Checks run:
+  - `npm run test:docs-launch` — RED before implementation, then green.
+  - `npm run test:docs` — green.
+  - `npm run test:docs-site` — green.
+  - `npm run test:llms-sync` — failed before regenerating `llms-full.txt`, then green after `node scripts/generate-llms.mjs`.
+  - `npm run visual:mme-0038` — sandbox Chrome aborted before CDP on first run; rerun green with system Chrome permission.
+  - `git diff --check` — green.
+  - `npm test` — green; existing Vite bundle-size warning only.
+- Manual/visual verification:
+  - Docs server restarted and remains available at `http://127.0.0.1:5178/` using `npm run dev -w @momentarise/docs-site -- --hostname 127.0.0.1 --port 5178`.
+  - Manual screenshot inspection confirmed nonblank CLI package, Agentic Experience, dark package-code, and mobile package pages with no obvious layout overflow.
+- Reviewer result:
+  - DX/truth reviewer subagent `Heisenberg` used `gpt-5.3-codex-spark` with `xhigh` reasoning and reported no P0/P1/P2 findings. Review covered launch-hardening assertions, package API checkpoint truthfulness, AX/Ask AI boundaries, plain Markdown source, and the fact that final public validation is not claimed.
+  - Visual reviewer subagent `Chandrasekhar` reviewed the expanded screenshot matrix and reported no P0/P1/P2 findings. One P3 noted the mobile screenshots include a floating round `N` overlay, likely external; builder queued this for final screenshot/public-proof review instead of blocking code continuation.
+- Residual risks:
+  - Final public-face docs validation remains queued for the end-of-run human review block; this issue is accepted for code continuation, not public launch sign-off.
+  - Broader content rewrite and public docs storytelling polish remain outside this slice and may be handled by the separate content agent/future issues.
+  - Mobile screenshots should be recaptured without the floating `N` overlay before using them as final public marketing proof.
+  - Visual proof requires system Chrome permission in this sandbox.
+- Commit status:
+  - Issue-scoped implementation commit created: `0ec9fbf` (`docs: harden public docs launch`).
+- Push status:
+  - Not pushed. Branch is ahead of origin and contains existing unpushed commits; public-face review debt is queued for final human review before public launch.
+- Next issue:
+  - `MME-0049 — AX skills, manifests, and reusable agent actions` after issue-scoped MME-0048 evidence commit.
