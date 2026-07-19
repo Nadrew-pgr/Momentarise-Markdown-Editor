@@ -5157,7 +5157,7 @@
   - The demo proves representative keyboard/mobile/reachability paths, not every future host layout or custom theme.
   - Visual proof requires system Chrome permission in this sandbox.
 - Commit status:
-  - Pending issue-scoped commit after docs closeout.
+  - Issue-scoped implementation commit created: `e7a7de7` (`feat: harden command surface ux`).
 - Push status:
   - Not pushed. Branch is ahead of origin and contains existing unpushed commits; visible/product review debt is queued for final human review before public launch.
 - Next issue:
