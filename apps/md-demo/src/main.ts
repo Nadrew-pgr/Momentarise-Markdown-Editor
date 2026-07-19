@@ -1768,6 +1768,9 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
     setRichSelectionForText(text);
     renderSelectionBubbleToolbar();
   },
+  selectFinalRichBlockForTest() {
+    selectFinalRichBlockForTest();
+  },
   loadEmptyMarkdownForTest() {
     loadOpenedMarkdownFile(createImportedCopyDocument({ content: "", fileName: "empty.md" }), {
       sourceLabel: "empty Markdown visual fixture"
@@ -4141,6 +4144,18 @@ function setRichSelectionForText(text: string): void {
   richEditor.dispatch(richEditor.state.tr.setSelection(TextSelection.create(richEditor.state.doc, from, to)));
 }
 
+function selectFinalRichBlockForTest(): void {
+  if (!richEditor) {
+    throw new Error("Rich editor is not mounted.");
+  }
+  const finalRange = richTopLevelBlockRanges(richEditor.state).at(-1);
+  if (!finalRange) {
+    throw new Error("Cannot select final rich block in an empty document.");
+  }
+  richEditor.focus();
+  richEditor.dispatch(richEditor.state.tr.setSelection(NodeSelection.create(richEditor.state.doc, finalRange.from)));
+}
+
 function typeRichTextForTest(text: string): void {
   if (!richEditor) {
     throw new Error("Rich editor is not mounted.");
@@ -5146,6 +5161,7 @@ declare global {
       replaceAllFindMatchesForTest: (query: string, replacement: string) => void;
       runRichCommand: (commandId: RichCommandId, options?: ApplyRichMarkdownCommandOptions) => void;
       reorderRichBlocksForTest: (fromIndex: number, toIndex: number, placement?: "after" | "before") => string | null;
+      selectFinalRichBlockForTest: () => void;
       selectRichTextForTest: (text: string) => void;
       showRealFileOpenUnavailableForTest: () => void;
       showUnsupportedLocalFileStateForTest: () => void;

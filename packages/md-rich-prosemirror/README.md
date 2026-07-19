@@ -2,6 +2,10 @@
 
 ProseMirror rich-mode bridge for Momentarise Markdown Editor.
 
+## Interaction helpers
+
+- `insertParagraphAfterCurrentBlock` / `canInsertParagraphAfterCurrentBlock` support explicit insertion after the selected rich block.
+- `insertParagraphAfterFinalBlock` / `canInsertParagraphAfterFinalBlock` support host-owned document-end affordances after final framed blocks such as code fences, preserved raw blocks, tables, callouts, and image-only media placeholders.
 
 ## Release metadata
 

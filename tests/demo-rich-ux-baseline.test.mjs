@@ -3,8 +3,10 @@ import { existsSync, readFileSync } from "node:fs";
 const requiredFiles = [
   "scripts/visual-check-mme00135.mjs",
   "scripts/visual-check-mme0029.mjs",
+  "scripts/visual-check-mme0042.mjs",
   "docs/internal/visual-checks/MME-0013.5/README.md",
   "docs/internal/visual-checks/MME-0029/README.md",
+  "docs/internal/visual-checks/MME-0042/README.md",
   "apps/md-demo/src/main.ts",
   "apps/md-demo/src/styles.css"
 ];
@@ -21,6 +23,9 @@ if (packageJson.scripts["visual:mme-0013.5"] !== "node scripts/visual-check-mme0
 }
 if (packageJson.scripts["visual:mme-0029"] !== "node scripts/visual-check-mme0029.mjs") {
   throw new Error("Missing visual:mme-0029 script.");
+}
+if (packageJson.scripts["visual:mme-0042"] !== "node scripts/visual-check-mme0042.mjs") {
+  throw new Error("Missing visual:mme-0042 script.");
 }
 if (!packageJson.scripts.test.includes("test:rich-input-rules")) {
   throw new Error("Root npm test must include rich input rules checks.");
@@ -50,7 +55,8 @@ for (const snippet of [
   "renderSelectionBubbleToolbar",
   "positionSelectionBubbleToolbar",
   "getBlockAffordanceState",
-  "getSelectionBubbleState"
+  "getSelectionBubbleState",
+  "selectFinalRichBlockForTest"
 ]) {
   if (!main.includes(snippet)) {
     throw new Error(`Demo missing MME-0013.5 rich UX snippet: ${snippet}`);
@@ -96,5 +102,15 @@ for (const artifact of [
 ]) {
   if (!mme0029Visual.includes(artifact)) {
     throw new Error(`MME-0029 visual script missing artifact: ${artifact}`);
+  }
+}
+
+const mme0042Visual = readFileSync("scripts/visual-check-mme0042.mjs", "utf8");
+for (const artifact of [
+  "keyboard-after-final-table.png",
+  "mouse-after-final-callout.png"
+]) {
+  if (!mme0042Visual.includes(artifact)) {
+    throw new Error(`MME-0042 visual script missing artifact: ${artifact}`);
   }
 }

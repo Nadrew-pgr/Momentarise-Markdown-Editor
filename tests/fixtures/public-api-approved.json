@@ -92,6 +92,7 @@
   "@momentarise/md-rich-prosemirror": [
     "applyRichMarkdownCommand",
     "canInsertParagraphAfterCurrentBlock",
+    "canInsertParagraphAfterFinalBlock",
     "createMomentariseRichPlugins",
     "createMomentariseRichSchema",
     "createRichBlockAffordancePlugin",
@@ -101,6 +102,7 @@
     "getRichFoldVisibility",
     "getRichHeadingFoldItems",
     "insertParagraphAfterCurrentBlock",
+    "insertParagraphAfterFinalBlock",
     "markdownDocumentToProseMirror",
     "momentariseRichProseMirrorPackage",
     "proseMirrorDocToMomentariseNodes",

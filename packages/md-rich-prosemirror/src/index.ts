@@ -368,7 +368,8 @@ export function createMomentariseRichPlugins(preferences: MomentariseRichPrefere
   const plugins: Plugin[] = [
     createRichPasteSanitizerPlugin(),
     createRichInputRulesPlugin(),
-    createTodoTogglePlugin()
+    createTodoTogglePlugin(),
+    createDocumentEndInsertionPlugin()
   ];
   if (!normalized.keymapDelegateToHost && normalized.keymapProfile !== "delegate") {
     plugins.push(...createRichKeymapPlugins(normalized));
@@ -449,8 +450,8 @@ function createRichKeymapPlugins(preferences: Required<MomentariseRichPreference
       "Mod-z": chainCommands(undoRichInputRuleCommand, undo),
       "Mod-y": redo,
       "Mod-Shift-z": redo,
-      ArrowDown: exitCodeBlockAtEndCommand,
-      ArrowRight: exitCodeBlockAtEndCommand,
+      ArrowDown: chainCommands(insertParagraphAfterFinalBlockCommand, exitCodeBlockAtEndCommand),
+      ArrowRight: chainCommands(insertParagraphAfterFinalBlockCommand, exitCodeBlockAtEndCommand),
       Backspace: liftOrMergeListItemAtStartCommand,
       Enter: chainCommands(exitCodeBlockOnFinalBlankLineCommand, newlineInCode, splitListItemCommand, createParagraphNear, liftEmptyBlock, splitBlock),
       Tab: sinkListItemCommand,
@@ -647,14 +648,11 @@ export function insertParagraphAfterCurrentBlock(state: RichMarkdownState, text 
   if (!range) {
     return state;
   }
-  const paragraph = text
-    ? state.editorState.schema.nodes.paragraph!.create(null, [state.editorState.schema.text(text)])
-    : state.editorState.schema.nodes.paragraph!.create();
-  const transaction = state.editorState.tr.insert(range.to, paragraph);
-  const selectionPosition = Math.min(range.to + 1 + text.length, transaction.doc.content.size);
-  const editorState = state.editorState.apply(
-    transaction.setSelection(TextSelection.near(transaction.doc.resolve(selectionPosition)))
-  );
+  const transaction = insertParagraphAfterBlockTransaction(state.editorState, range, text);
+  if (!transaction) {
+    return state;
+  }
+  const editorState = state.editorState.apply(transaction);
   return {
     ...state,
     editorState
@@ -667,6 +665,22 @@ export function canInsertParagraphAfterCurrentBlock(state: RichMarkdownState): b
     return false;
   }
   return ["blockquote", "code_block", "horizontal_rule", "unsupported_block"].includes(range.node.type.name);
+}
+
+export function insertParagraphAfterFinalBlock(state: RichMarkdownState, text = ""): RichMarkdownState {
+  const transaction = createInsertParagraphAfterFinalBlockTransaction(state.editorState, text);
+  if (!transaction) {
+    return state;
+  }
+  return {
+    ...state,
+    editorState: state.editorState.apply(transaction)
+  };
+}
+
+export function canInsertParagraphAfterFinalBlock(state: RichMarkdownState): boolean {
+  const range = finalTopLevelBlockRange(state.editorState);
+  return Boolean(range && isFinalParagraphInsertionBlock(range.node));
 }
 
 export function getRichHeadingFoldItems(
@@ -1108,15 +1122,52 @@ function richBlockDropPlacement(
 }
 
 function insertParagraphAfterRichBlock(view: RichEditorViewLike, range: RichTopLevelBlockRange): void {
-  const paragraph = view.state.schema.nodes.paragraph?.create();
-  if (!paragraph) {
+  const transaction = insertParagraphAfterBlockTransaction(view.state, range);
+  if (!transaction) {
     return;
   }
-  let transaction = view.state.tr.insert(range.to, paragraph);
-  const selectionPosition = Math.min(range.to + 1, transaction.doc.content.size);
-  transaction = transaction.setSelection(TextSelection.create(transaction.doc, selectionPosition)).scrollIntoView();
   view.dispatch(transaction);
   view.focus();
+}
+
+function insertParagraphAfterBlockTransaction(
+  state: EditorState,
+  range: Pick<RichTopLevelBlockRange, "node" | "to">,
+  text = ""
+): Transaction | null {
+  const paragraph = text
+    ? state.schema.nodes.paragraph!.create(null, [state.schema.text(text)])
+    : state.schema.nodes.paragraph!.create();
+  let transaction = state.tr.insert(range.to, paragraph);
+  const selectionPosition = Math.min(range.to + 1 + text.length, transaction.doc.content.size);
+  transaction = transaction.setSelection(TextSelection.create(transaction.doc, selectionPosition)).scrollIntoView();
+  return transaction;
+}
+
+function createInsertParagraphAfterFinalBlockTransaction(state: EditorState, text = ""): Transaction | null {
+  const range = finalTopLevelBlockRange(state);
+  if (!range || !isFinalParagraphInsertionBlock(range.node)) {
+    return null;
+  }
+  return insertParagraphAfterBlockTransaction(state, range, text);
+}
+
+function finalTopLevelBlockRange(state: EditorState): RichTopLevelBlockRange | null {
+  return richTopLevelBlockRanges(state).at(-1) ?? null;
+}
+
+function isFinalParagraphInsertionBlock(node: ProseMirrorNode): boolean {
+  return (
+    ["blockquote", "code_block", "horizontal_rule", "unsupported_block"].includes(node.type.name) ||
+    isImageOnlyParagraph(node)
+  );
+}
+
+function isImageOnlyParagraph(node: ProseMirrorNode): boolean {
+  if (node.type.name !== "paragraph" || node.childCount !== 1) {
+    return false;
+  }
+  return node.firstChild?.type.name === "image";
 }
 
 function openRichBlockMenu(
@@ -1969,6 +2020,44 @@ function exitCodeBlockAtEndCommand(state: EditorState, dispatch?: (transaction: 
   return true;
 }
 
+function insertParagraphAfterFinalBlockCommand(state: EditorState, dispatch?: (transaction: Transaction) => void): boolean {
+  if (!selectionCanMovePastFinalBlock(state)) {
+    return false;
+  }
+  const transaction = createInsertParagraphAfterFinalBlockTransaction(state);
+  if (!transaction) {
+    return false;
+  }
+  dispatch?.(transaction);
+  return true;
+}
+
+function selectionCanMovePastFinalBlock(state: EditorState): boolean {
+  const range = finalTopLevelBlockRange(state);
+  if (!range || !isFinalParagraphInsertionBlock(range.node)) {
+    return false;
+  }
+  if (state.selection instanceof NodeSelection) {
+    if (state.selection.from === range.from && state.selection.to === range.to) {
+      return true;
+    }
+    if (range.node.type.name === "paragraph" && isImageOnlyParagraph(range.node)) {
+      return state.selection.from >= range.from && state.selection.to <= range.to;
+    }
+    return false;
+  }
+  if (!(state.selection instanceof TextSelection) || !state.selection.empty) {
+    return false;
+  }
+  const { $from } = state.selection;
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    if ($from.before(depth) === range.from && $from.after(depth) === range.to) {
+      return $from.pos === range.to - 1 || $from.parentOffset === $from.parent.content.size;
+    }
+  }
+  return false;
+}
+
 function createCodeBlockExitTransaction(
   state: EditorState,
   options: { readonly trimFinalBlankLine: boolean }
@@ -2025,6 +2114,74 @@ function createTodoTogglePlugin(): Plugin {
       }
     }
   });
+}
+
+function createDocumentEndInsertionPlugin(): Plugin {
+  return new Plugin({
+    props: {
+      handleDOMEvents: {
+        mousedown(view, event) {
+          return handleDocumentEndInsertionPointerEvent(view, event as MouseEvent);
+        },
+        click(view, event) {
+          return handleDocumentEndInsertionPointerEvent(view, event as MouseEvent);
+        }
+      }
+    }
+  });
+}
+
+function handleDocumentEndInsertionPointerEvent(
+  view: RichEditorViewLike & { readonly dom?: HTMLElement },
+  event: MouseEvent
+): boolean {
+  if (event.button !== 0) {
+    return false;
+  }
+  const transaction = createClickAfterFinalBlockTransaction(
+    view.state,
+    view.dom,
+    event,
+    (position) => view.nodeDOM(position)
+  );
+  if (!transaction) {
+    return false;
+  }
+  event.preventDefault();
+  view.dispatch(transaction);
+  view.focus();
+  return true;
+}
+
+function createClickAfterFinalBlockTransaction(
+  state: EditorState,
+  editorDom: HTMLElement | undefined,
+  event: MouseEvent,
+  nodeDOM: (position: number) => Node | null
+): Transaction | null {
+  if (typeof HTMLElement === "undefined" || !editorDom) {
+    return null;
+  }
+  if (event.target !== editorDom) {
+    return null;
+  }
+  const range = finalTopLevelBlockRange(state);
+  if (!range || !isFinalParagraphInsertionBlock(range.node)) {
+    return null;
+  }
+  const finalDom = nodeDOM(range.from);
+  if (!(finalDom instanceof HTMLElement)) {
+    return null;
+  }
+  const editorRect = editorDom.getBoundingClientRect();
+  const finalRect = finalDom.getBoundingClientRect();
+  const insideEditorX = event.clientX >= editorRect.left && event.clientX <= editorRect.right;
+  const belowFinalBlock = event.clientY > finalRect.bottom;
+  const insideEditorY = event.clientY <= editorRect.bottom;
+  if (!insideEditorX || !belowFinalBlock || !insideEditorY) {
+    return null;
+  }
+  return createInsertParagraphAfterFinalBlockTransaction(state);
 }
 
 function createTodoToggleTransactionFromTarget(

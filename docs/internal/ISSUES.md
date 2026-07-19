@@ -2413,6 +2413,10 @@ Do not loosen Gate 4.5 to make an interaction appear to work. If an interaction 
 
 UX Reviewer and Test Reviewer.
 
+### Status
+
+Completed 2026-07-19; code HITL remained waived for TypeScript/package work. Added focused rich/source interaction proof for source keymap coverage, rich nested list/todo paste plus undo/redo, and final-block insertion after code fences, preserved tables, callouts/opaque blocks, raw HTML blocks, and image-only media placeholders. `@momentarise/md-rich-prosemirror` now exposes `insertParagraphAfterFinalBlock` / `canInsertParagraphAfterFinalBlock`, reuses shared paragraph-insertion transactions, supports ArrowDown/ArrowRight from final framed blocks, and handles empty-tail mouse insertion only on true editor-root clicks below the final eligible block. The demo adds a test-only final-block selection hook and visual proof for keyboard insertion after a final preserved table and mouse insertion after a final callout fallback. Proven by RED `npm run test:rich-core-interactions`, green targeted checks, `npm run visual:mme-0042`, `git diff --check`, and full `npm test`. Test reviewer found one P2 overly-broad click-target issue; builder fixed it and recheck reported no remaining P0/P1/P2. UX visual reviewer reported no P0/P1/P2. `MME-0043` is the next candidate after issue-scoped commit.
+
 ## MME-0043 — Live Preview parity foundation
 
 ### Goal

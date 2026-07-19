@@ -4858,3 +4858,72 @@
   - Not pushed yet; branch contains existing unpushed commits and `MME-0038` remains pending public-face validation, so pushing as accepted release-ready work is blocked without a separate safe-push instruction.
 - Next issue:
   - `MME-0042 — Core editor interaction hardening`.
+
+## MME-0042 — Core editor interaction hardening
+
+- Date: 2026-07-19.
+- Previous issue status:
+  - `MME-0041` completed and committed (`e4866a2` plus follow-up evidence commit `7a42bba`).
+  - `MME-0038` remains code-complete with explicit public-face validation debt and is committed as pending-status, not accepted as final public validation.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short --branch`, and relevant source/rich/editor/surface package files plus existing source keymap, rich input-rule, rich list, rich UX, and MME-0021/MME-0029 visual scripts.
+- RED proof before implementation:
+  - Added `tests/rich-core-interactions.test.mjs` before implementation.
+  - Initial `npm run test:rich-core-interactions` failed because `@momentarise/md-rich-prosemirror` did not export `canInsertParagraphAfterFinalBlock` / `insertParagraphAfterFinalBlock`.
+  - Added `scripts/visual-check-mme0042.mjs` and `docs/internal/visual-checks/MME-0042/README.md` before the browser proof.
+- Change:
+  - Added rich final-block interaction helpers: `insertParagraphAfterFinalBlock` and `canInsertParagraphAfterFinalBlock`.
+  - Reused a shared paragraph-insertion transaction for current-block and final-block insertion, preserving selection placement and scroll behavior.
+  - Added rich ArrowDown/ArrowRight handling from final eligible blocks so keyboard movement creates and focuses a paragraph after final preserved/framed content.
+  - Added a rich document-end insertion plugin that handles empty-tail mouse insertion only when the click target is the editor root, the click is inside editor bounds, and the click is below the final eligible block.
+  - Eligible final blocks are code fences, blockquotes/callouts, horizontal rules, unsupported/preserved raw blocks, and image-only paragraph media placeholders.
+  - Added automated proof for final insertion after code fence, preserved table, callout/opaque block, raw HTML block, and image-only media placeholder, including unchanged-prefix assertions.
+  - Added rich nested todo paste plus undo/redo proof and kept existing source/rich list keymap suites as continuing coverage for list/todo continuation, indent/outdent, Backspace, Enter, and input-rule undo.
+  - Added a demo test-only final-block selection hook for visual proof and pinned the MME-0042 visual script/artifacts in the demo rich UX baseline.
+  - Updated public API approval and `packages/md-rich-prosemirror/README.md` to document the intentional new helper exports.
+  - Updated `README.md` and `docs/internal/ISSUES.md` to mark `MME-0042` complete and make `MME-0043` the next current slice.
+- Visual impact:
+  - Rich editing now lets users keyboard-move or click into a paragraph after final framed/preserved blocks instead of getting trapped at document end.
+  - No general UI chrome redesign.
+  - Screenshots:
+    - `docs/internal/visual-checks/MME-0042/keyboard-after-final-table.png`
+    - `docs/internal/visual-checks/MME-0042/mouse-after-final-callout.png`
+- Checks run:
+  - `npm run test:rich-core-interactions` — RED before implementation, then green after implementation and after reviewer fix.
+  - `npm run test:public-api` — green after updating the approved export fixture.
+  - `npm run test:contracts` — green.
+  - `npm run test:architecture` — green.
+  - `npm run test:source-ux` — green.
+  - `npm run test:source-codemirror` — green.
+  - `npm run test:rich-list-editing` — green.
+  - `npm run test:rich-input-rules` — green.
+  - `npm run test:rich-targeted-serialization` — green.
+  - `npm run test:rich-fidelity` — green.
+  - `npm run test:rich-security` — green.
+  - `npm run test:rich-prosemirror` — green.
+  - `npm run test:demo-rich-ux` — green.
+  - `npm run test:fixtures` — green.
+  - `npm run test:roundtrip` — green.
+  - `npm run test:serializer` — green.
+  - `git diff --check` — green.
+  - `npm run visual:mme-0042` — sandbox Chrome aborted before CDP; rerun green with system Chrome permission after script hardening.
+  - `npm test` — green; existing demo Vite chunk-size warning only.
+- Manual/visual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`.
+  - Local URL: `http://127.0.0.1:5174/`.
+  - Visual script loaded Markdown ending in a preserved GFM table, selected the final rich block, sent ArrowDown, inserted text, and asserted the Markdown contained the table bytes followed by the new paragraph.
+  - Visual script then loaded Markdown ending in a callout/opaque fallback, clicked the empty editor tail below the final block, inserted text, and asserted the callout bytes were followed by the new paragraph.
+  - Manual screenshot inspection confirmed nonblank render, inserted paragraph after final preserved table, inserted paragraph after final callout fallback, focused caret, no obvious overlap, and no general UI regression.
+- Reviewer result:
+  - Test/preservation reviewer subagent `Lorentz` used `gpt-5.3-codex-spark` with `xhigh` reasoning. Initial review found one P2: document-end click insertion was too geometry-only and could trigger from adjacent UI/overlays. Builder fixed it by requiring the event target to be the editor root and by removing the extra tail allowance; recheck reported the P2 resolved and no remaining P0/P1/P2.
+  - UX/visual reviewer subagent `Wegener` reviewed `keyboard-after-final-table.png` and `mouse-after-final-callout.png` and reported no P0/P1/P2 findings; screenshots honestly show inserted paragraphs after the final preserved table and final callout/opaque block with no obvious overlap or visual regression.
+- Residual risks:
+  - Full rich table cell editing, footnote rich editing, and Live Preview are out of scope.
+  - Mouse insertion is intentionally conservative: it triggers only for editor-root empty-tail clicks below the final eligible block, not arbitrary nearby coordinates or overlay surfaces.
+  - Visual proof requires system Chrome permission in this sandbox, same as prior visual scripts.
+- Commit status:
+  - Pending issue-scoped commit.
+- Push status:
+  - Pending commit first; branch already has existing unpushed commits and `MME-0038` remains pending public-face validation, so pushing as accepted release-ready work remains blocked without a separate safe-push instruction.
+- Next issue:
+  - `MME-0043 — Live Preview parity foundation`.
