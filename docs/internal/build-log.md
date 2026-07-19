@@ -5401,3 +5401,53 @@
   - Not pushed. Branch is ahead of origin and contains queued public/product review debt; push remains deferred until final review policy is satisfied or Andrew instructs otherwise.
 - Next issue:
   - `MME-0050 — Performance budgets and large-document benchmarks` after issue-scoped MME-0049 evidence commit.
+
+## MME-0050 — Performance budgets and large-document benchmarks
+
+- Date: 2026-07-19.
+- Previous issue status:
+  - `MME-0049` completed and committed for code continuation (`384924a` plus evidence commit `b6ad9b1`).
+  - `MME-0038`, `MME-0044`, `MME-0045`, `MME-0046`, `MME-0047`, `MME-0048`, `MME-0049`, and now `MME-0050` public/product/budget reviews are queued for the end-of-run human review block instead of blocking code continuation.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short`, and target files in `packages/md-format`, `packages/md-editor`, `packages/md-save`, `packages/md-render-html`, `packages/md-rich-prosemirror`, fixtures, scripts, tests, and package scripts.
+- RED proof before implementation:
+  - Added `tests/performance-budgets.test.mjs` and wired `test:performance-budgets` before the generator/fixture/budget implementation.
+  - Initial `npm run test:performance-budgets` failed because `scripts/generate-large-performance-fixture.mjs` did not exist.
+  - Follow-up RED/fix loop caught missing hardcoded fixture expectation, non-flattened outline counting, case-sensitive residual-risk doc assertion, and stale generated AX artifacts after the public performance doc was added.
+- Change:
+  - Added `scripts/generate-large-performance-fixture.mjs` and committed `fixtures/021-large-performance/input.md` plus `expectations.md`.
+  - Added `docs/internal/performance-budgets.json` with committed guardrail thresholds for parse, serialize, rich mount, rich serialize, HTML render, outline, find/replace, save hashing, autosave truth, and bounded public docs render.
+  - Added `scripts/performance-benchmarks.mjs` with JSON report mode and `--check` CI-fail mode.
+  - Added `tests/performance-budgets.test.mjs` for fixture drift, threshold coverage, JSON output, targeted large-document rich edit preservation, session replace preservation, save/autosave hash/content truthfulness, and public performance doc coverage.
+  - Added `docs/public/concepts/performance.md`, updated fixture README and package scripts, regenerated `llms.txt`/`llms-full.txt`, and refreshed generated agent artifacts after the public docs set changed.
+- Visual impact:
+  - No visible editing or general UI behavior change.
+  - Docs site gains a public Performance Budgets page; no new visual review was required for MME-0050 because the change is documentation and CI guardrails, not UI styling.
+- Checks run:
+  - `npm run test:performance-budgets` — RED before implementation, then green after benchmark and reviewer fixes.
+  - `npm run generate:large-performance-fixture` — regenerated the committed large fixture after adding structural variants.
+  - `node scripts/generate-llms.mjs` — regenerated public LLM artifacts after adding the performance page.
+  - `node scripts/generate-agent-artifacts.mjs` — refreshed generated AX artifacts after the public docs set changed.
+  - `npm run test:fixtures` — green.
+  - `npm run test:docs` — green.
+  - `npm run test:docs-site` — green.
+  - `npm run test:llms-sync` — green.
+  - `npm run test:agent-artifacts` — failed during full test before regenerating agent artifacts, then green after regeneration.
+  - `git diff --check` — green.
+  - `npm test` — green after regeneration; existing Vite bundle-size warning only.
+- Manual/dev-server verification:
+  - Restarted docs-site dev server at `http://localhost:5178` using `npm run dev -w @momentarise/docs-site -- --port 5178`.
+  - First restart attempt with `--host` failed because `scripts/dev-docs-site.mjs` only accepts `--port`; rerun with the repo wrapper succeeded.
+- Reviewer result:
+  - Performance/DX reviewer subagent reported no P0/P1/P2 findings. P3s covered `benchmark:performance` not being strict JSON because it built first, docs render being too broad, repetitive fixture shape, and intentionally broad thresholds. Builder made `benchmark:performance` JSON-only after build, documented `test:performance-budgets` as the CI guard, bounded docs render through the budget file, and added structural fixture variants. Broad thresholds remain queued as final review debt until stable CI-machine data exists.
+  - Preservation/save reviewer subagent `Newton` used `gpt-5.3-codex-spark` with `xhigh` reasoning. Initial P2 findings covered missing benchmark-level save hash/content truth and missing session replace preservation proof. Builder fixed both in `scripts/performance-benchmarks.mjs` and tightened the large edit test to use an index-based edited line. Confirmation review reported no remaining P0/P1/P2 findings.
+- Residual risks:
+  - Thresholds are broad smoke guards, not public benchmark claims; final threshold and fixture-representativeness review is queued in `docs/internal/BACKLOG.md`.
+  - Browser/mobile performance, rich-editor virtualization, and deeper incremental parse/serialize optimization remain future work.
+  - The benchmark runs in Node/local CI context and should not be marketed as end-user latency proof.
+- Commit status:
+  - Issue-scoped implementation commit created: `075a2e8` (`test: add performance budgets`).
+- Push status:
+  - Not pushed. Branch is ahead of origin and contains queued public/product/budget review debt; push remains deferred until final review policy is satisfied or Andrew instructs otherwise.
+- Next issue:
+  - No further executable normal issue exists after `MME-0050` in `docs/internal/ISSUES.md`; continuation requires promoting the next backlog item into the normal issue queue.
