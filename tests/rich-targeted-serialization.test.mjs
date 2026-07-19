@@ -63,6 +63,35 @@ assertEveryLineExcept(
   "editing a paragraph before table variants must preserve every table-like line"
 );
 
+const footnoteInput = await readFile("fixtures/020-gfm-footnotes/input.md", "utf8");
+const footnoteEdited = rich.replaceFirstRichText(
+  rich.createRichMarkdownState(footnoteInput, { dialect: "momentarise-enhanced" }),
+  "Intro paragraph",
+  "Edited intro paragraph"
+);
+const footnoteEditedOutput = rich.serializeRichMarkdownState(footnoteEdited).content;
+for (const preservedSnippet of [
+  "[^first]",
+  "[^missing]",
+  "[^first]: First footnote definition with **bold text**, `inline code`, and a [relative link](./target.md).",
+  "    Continued definition line that must keep its indentation.",
+  "[^first]: Duplicate definition should stay visible as preserved source.",
+  "[^malformed] Missing colon should stay preserved as unusual syntax."
+]) {
+  assertIncludes(footnoteEditedOutput, preservedSnippet, `footnote preserved snippet ${preservedSnippet}`);
+}
+assertEveryLineExcept(
+  footnoteInput,
+  footnoteEditedOutput,
+  (line) => line.startsWith("Intro paragraph with a first note"),
+  "editing a paragraph with footnote references must preserve definitions and unrelated lines"
+);
+assertIncludes(
+  footnoteEditedOutput,
+  "Edited intro paragraph with a first note[^first], a repeated note[^first], and a missing note[^missing].",
+  "edited paragraph must keep footnote reference Markdown"
+);
+
 const delimiterInput = [
   "Setext Heading",
   "==============",

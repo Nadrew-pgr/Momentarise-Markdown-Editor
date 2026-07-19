@@ -65,6 +65,45 @@ if (!malformedTableOpaque || !malformedTableOpaque.raw.includes("| broken table-
   throw new Error("Malformed table-like syntax must be carried as opaque raw Markdown.");
 }
 
+const footnotes = findFixture("020-gfm-footnotes");
+const footnoteReference = findNodeByType(footnotes.result.document.root, "footnoteReference");
+if (footnoteReference.kind !== "inline" || footnoteReference.attributes?.identifier !== "first") {
+  throw new Error(`Footnote references must expose inline native identifiers.\n${JSON.stringify(footnoteReference)}`);
+}
+const footnoteDefinition = findNodeByType(footnotes.result.document.root, "footnoteDefinition");
+const footnoteDefinitionSource = sourceForNode(footnotes.fixture.input, footnoteDefinition);
+if (
+  footnoteDefinition.attributes?.identifier !== "first" ||
+  !footnoteDefinitionSource.includes("Continued definition line that must keep its indentation.")
+) {
+  throw new Error(`Footnote definitions must expose identifiers and source ranges.\n${footnoteDefinitionSource}`);
+}
+const malformedFootnoteOpaque = collectOpaqueNodes(footnotes.result.document.root).find(
+  (node) => node.reason === "unsupported footnote-like syntax"
+);
+if (!malformedFootnoteOpaque || !malformedFootnoteOpaque.raw.includes("[^malformed] Missing colon")) {
+  throw new Error("Malformed footnote-like syntax must be carried as opaque raw Markdown.");
+}
+for (const code of [
+  "footnote_reference_missing_definition",
+  "footnote_definition_duplicate",
+  "footnote_definition_malformed"
+]) {
+  if (!footnotes.result.diagnostics.some((diagnostic) => diagnostic.code === code)) {
+    throw new Error(`Footnote fixture must emit diagnostic ${code}.`);
+  }
+}
+const footnoteLookalikeParse = parser.parse("Inline code `[^code]` is not a footnote reference.\n", {
+  dialect: "momentarise-enhanced"
+});
+if (
+  footnoteLookalikeParse.diagnostics.some(
+    (diagnostic) => diagnostic.code === "footnote_reference_missing_definition"
+  )
+) {
+  throw new Error("Footnote diagnostics must not treat inline-code lookalikes as missing references.");
+}
+
 const codeFence = findNodeByType(findFixture("005-code-fence-language").result.document.root, "codeFence");
 if (codeFence.attributes?.language !== "ts" || typeof codeFence.attributes?.value !== "string") {
   throw new Error("Code fence nodes must expose language and value before rich mode.");

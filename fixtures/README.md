@@ -30,6 +30,7 @@ Fixtures are intentionally synthetic and sanitized. They must not contain privat
 17. `017-long-heading-document`: many headings for folding and navigation tests.
 18. `018-nested-lists-todos`: nested lists and task lists.
 19. `019-gfm-table-variants`: supported GFM table variants plus malformed table-like syntax.
+20. `020-gfm-footnotes`: GFM footnote references, definitions, duplicate/missing references, and malformed footnote-like fallback.
 
 ## Use
 

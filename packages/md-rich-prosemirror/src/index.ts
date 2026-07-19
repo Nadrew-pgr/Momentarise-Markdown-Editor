@@ -3032,6 +3032,19 @@ const richNodes: Record<string, NodeSpec> = {
 function unsupportedBlockToDOM(node: ProseMirrorNode): DOMOutputSpec {
   const raw = String(node.attrs.raw ?? "");
   const reason = String(node.attrs.reason ?? "unsupported Markdown");
+  if (isPreservedFootnoteFallback(reason)) {
+    return [
+      "figure",
+      {
+        "aria-label": "Preserved Markdown footnote. Edit in Source mode.",
+        "contenteditable": "false",
+        "data-mme-preserved-footnote": "true",
+        "data-unsupported": "true"
+      },
+      ["figcaption", { "data-mme-preserved-footnote-label": "true" }, "Preserved Markdown footnote. Edit in Source mode."],
+      ["pre", { "data-mme-preserved-footnote-source": "true", "data-unsupported": "true" }, raw]
+    ];
+  }
   if (isPreservedTableFallback(reason)) {
     return [
       "figure",
@@ -3050,6 +3063,10 @@ function unsupportedBlockToDOM(node: ProseMirrorNode): DOMOutputSpec {
 
 function isPreservedTableFallback(reason: string): boolean {
   return /table/i.test(reason);
+}
+
+function isPreservedFootnoteFallback(reason: string): boolean {
+  return /footnote/i.test(reason);
 }
 
 const richMarks: Record<string, MarkSpec> = {
@@ -3204,6 +3221,10 @@ function inlineNodeToProseMirror(
   if (node.type === "text") {
     return [schema.text(stringAttribute(node.attributes?.value) ?? rawFromRange(node, source), marks)];
   }
+  if (node.type === "footnoteReference") {
+    const referenceText = footnoteReferenceText(node, source);
+    return referenceText ? [schema.text(referenceText, marks)] : [];
+  }
   if (node.type === "inlineCode") {
     return [
       schema.text(stringAttribute(node.attributes?.value) ?? rawFromRange(node, source), [
@@ -3245,6 +3266,15 @@ function inlineNodeToProseMirror(
     return [schema.nodes.hard_break.create()];
   }
   return inlineChildrenToProseMirror(node.children ?? [], schema, source, marks);
+}
+
+function footnoteReferenceText(node: MomentariseNode, source: string): string {
+  const raw = rawFromRange(node, source);
+  if (raw) {
+    return raw;
+  }
+  const identifier = stringAttribute(node.attributes?.identifier) ?? stringAttribute(node.attributes?.label);
+  return identifier ? `[^${identifier}]` : "";
 }
 
 function unsupportedNodeToProseMirror(

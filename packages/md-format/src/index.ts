@@ -123,6 +123,8 @@ type MdastLikeNode = {
   readonly title?: string | null;
   readonly alt?: string | null;
   readonly start?: number | null;
+  readonly identifier?: string | null;
+  readonly label?: string | null;
 };
 
 export function createMarkdownAstParser(): MarkdownParser {
@@ -171,9 +173,11 @@ export function createMarkdownAstParser(): MarkdownParser {
         mapMdastNode(child, source, `ast-${index}`)
       );
       const supportedTableRanges = collectSourceRangesByType(mappedChildren, "table");
+      const footnoteDefinitions = collectFootnoteDefinitionMarkers(source);
       const detectedOpaqueNodes = [
         ...detectOpaqueNodes(source),
-        ...detectUnsupportedTableLikeNodes(source, supportedTableRanges)
+        ...detectUnsupportedTableLikeNodes(source, supportedTableRanges),
+        ...detectUnsupportedFootnoteLikeNodes(source, footnoteDefinitions)
       ].sort((first, second) => first.sourceRange.start.offset - second.sourceRange.start.offset);
       const astOpaqueNodes = collectOpaqueNodesFromList(mappedChildren);
       const extraOpaqueNodes = detectedOpaqueNodes.filter(
@@ -197,6 +201,7 @@ export function createMarkdownAstParser(): MarkdownParser {
           sourceRange: node.sourceRange
         });
       }
+      diagnostics.push(...createFootnoteDiagnostics(source, footnoteDefinitions, children));
 
       const root: KnownNode = {
         children,
@@ -811,6 +816,14 @@ function attributesForMdastNode(node: MdastLikeNode): NodeAttributes | null {
       attributes.title = node.title;
     }
   }
+  if (node.type === "footnoteReference" || node.type === "footnoteDefinition") {
+    if (node.identifier) {
+      attributes.identifier = node.identifier;
+    }
+    if (node.label) {
+      attributes.label = node.label;
+    }
+  }
 
   return Object.keys(attributes).length > 0 ? attributes : null;
 }
@@ -873,6 +886,7 @@ function kindForMdastType(type: string): KnownNode["kind"] {
     type === "break" ||
     type === "delete" ||
     type === "emphasis" ||
+    type === "footnoteReference" ||
     type === "inlineCode" ||
     type === "link" ||
     type === "strong" ||
@@ -892,6 +906,7 @@ function typeForMdastType(type: string): string {
     delete: "strikethrough",
     emphasis: "emphasis",
     footnoteDefinition: "footnoteDefinition",
+    footnoteReference: "footnoteReference",
     heading: "heading",
     image: "image",
     inlineCode: "inlineCode",
@@ -1208,6 +1223,206 @@ function detectUnsupportedTableLikeNodes(
   }
 
   return nodes;
+}
+
+interface FootnoteDefinitionMarker {
+  readonly identifier: string;
+  readonly normalizedIdentifier: string;
+  readonly sourceRange: SourceRange;
+}
+
+interface FootnoteReferenceMarker {
+  readonly identifier: string;
+  readonly normalizedIdentifier: string;
+  readonly sourceRange: SourceRange;
+}
+
+interface MalformedFootnoteLikeLine {
+  readonly identifier: string | null;
+  readonly normalizedIdentifier: string | null;
+  readonly sourceRange: SourceRange;
+}
+
+function collectFootnoteDefinitionMarkers(source: string): readonly FootnoteDefinitionMarker[] {
+  const fencedRegions = fencedCodeRegions(source);
+  const definitions: FootnoteDefinitionMarker[] = [];
+  for (const line of sourceLines(source)) {
+    if (isInsideFencedRegion(fencedRegions, line.start)) {
+      continue;
+    }
+    const match = line.text.match(/^ {0,3}\[\^([^\]\n]+)]:/);
+    if (!match) {
+      continue;
+    }
+    const identifier = match[1]!;
+    definitions.push({
+      identifier,
+      normalizedIdentifier: normalizeFootnoteIdentifier(identifier),
+      sourceRange: rangeFor(source, line.start, line.end)
+    });
+  }
+  return definitions;
+}
+
+function detectUnsupportedFootnoteLikeNodes(
+  source: string,
+  definitions: readonly FootnoteDefinitionMarker[]
+): readonly OpaqueNode[] {
+  const definitionIds = new Set(definitions.map((definition) => definition.normalizedIdentifier));
+  return collectMalformedFootnoteLikeLines(source, definitionIds).map((line, index) =>
+    opaqueNodeFromRaw(
+      source,
+      line.sourceRange.start.offset,
+      line.sourceRange.end.offset,
+      "unsupported footnote-like syntax",
+      index
+    )
+  );
+}
+
+function createFootnoteDiagnostics(
+  source: string,
+  definitions: readonly FootnoteDefinitionMarker[],
+  nodes: readonly MomentariseNode[]
+): readonly Diagnostic[] {
+  const diagnostics: Diagnostic[] = [];
+  const definitionsById = new Map<string, FootnoteDefinitionMarker[]>();
+  for (const definition of definitions) {
+    const entries = definitionsById.get(definition.normalizedIdentifier) ?? [];
+    entries.push(definition);
+    definitionsById.set(definition.normalizedIdentifier, entries);
+  }
+
+  for (const entries of definitionsById.values()) {
+    if (entries.length < 2) {
+      continue;
+    }
+    for (const duplicate of entries.slice(1)) {
+      diagnostics.push({
+        code: "footnote_definition_duplicate",
+        message: `Duplicate footnote definition preserved as source fallback: ${duplicate.identifier}.`,
+        severity: "warning",
+        sourceRange: duplicate.sourceRange
+      });
+    }
+  }
+
+  const definitionIds = new Set(definitionsById.keys());
+  const malformedLines = collectMalformedFootnoteLikeLines(source, definitionIds);
+  for (const malformed of malformedLines) {
+    diagnostics.push({
+      code: "footnote_definition_malformed",
+      message: "Footnote-like syntax is missing a definition colon and was preserved as raw Markdown.",
+      severity: "warning",
+      sourceRange: malformed.sourceRange
+    });
+  }
+
+  const malformedRanges = malformedLines.map((line) => line.sourceRange);
+  for (const reference of collectFootnoteReferenceMarkersFromNodes(nodes, source)) {
+    if (malformedRanges.some((range) => sourceRangeOverlapsOffsets(range, reference.sourceRange.start.offset, reference.sourceRange.end.offset))) {
+      continue;
+    }
+    if (!definitionIds.has(reference.normalizedIdentifier)) {
+      diagnostics.push({
+        code: "footnote_reference_missing_definition",
+        message: `Footnote reference has no matching definition and was preserved as Markdown text: ${reference.identifier}.`,
+        severity: "warning",
+        sourceRange: reference.sourceRange
+      });
+    }
+  }
+
+  return diagnostics;
+}
+
+function collectFootnoteReferenceMarkersFromNodes(
+  nodes: readonly MomentariseNode[],
+  source: string
+): readonly FootnoteReferenceMarker[] {
+  return nodes.flatMap((node) => collectFootnoteReferenceMarkersFromNode(node, source));
+}
+
+function collectFootnoteReferenceMarkersFromNode(
+  node: MomentariseNode,
+  source: string
+): readonly FootnoteReferenceMarker[] {
+  if (node.kind === "opaque") {
+    return [];
+  }
+  const childReferences = (node.children ?? []).flatMap((child) =>
+    collectFootnoteReferenceMarkersFromNode(child, source)
+  );
+  if (node.type === "footnoteReference" && node.sourceRange) {
+    const identifier =
+      stringAttribute(node.attributes?.identifier) ??
+      stringAttribute(node.attributes?.label) ??
+      source.slice(node.sourceRange.start.offset + 2, Math.max(node.sourceRange.start.offset + 2, node.sourceRange.end.offset - 1));
+    return [
+      ...childReferences,
+      {
+        identifier,
+        normalizedIdentifier: normalizeFootnoteIdentifier(identifier),
+        sourceRange: node.sourceRange
+      }
+    ];
+  }
+  if (node.type !== "text" || !node.sourceRange) {
+    return childReferences;
+  }
+  const raw = source.slice(node.sourceRange.start.offset, node.sourceRange.end.offset);
+  const markers: FootnoteReferenceMarker[] = [];
+  for (const match of raw.matchAll(/\[\^([^\]\n]+)]/g)) {
+    const relativeOffset = match.index ?? 0;
+    const startOffset = node.sourceRange.start.offset + relativeOffset;
+    const identifier = match[1]!;
+    markers.push({
+      identifier,
+      normalizedIdentifier: normalizeFootnoteIdentifier(identifier),
+      sourceRange: rangeFor(source, startOffset, startOffset + match[0].length)
+    });
+  }
+  return [...childReferences, ...markers];
+}
+
+function collectMalformedFootnoteLikeLines(
+  source: string,
+  definitionIds: ReadonlySet<string>
+): readonly MalformedFootnoteLikeLine[] {
+  const fencedRegions = fencedCodeRegions(source);
+  const lines: MalformedFootnoteLikeLine[] = [];
+  for (const line of sourceLines(source)) {
+    if (isInsideFencedRegion(fencedRegions, line.start)) {
+      continue;
+    }
+    const closedMarker = line.text.match(/^ {0,3}\[\^([^\]\n]+)](?!:)(?=\s+\S)/);
+    if (closedMarker) {
+      const identifier = closedMarker[1]!;
+      const normalizedIdentifier = normalizeFootnoteIdentifier(identifier);
+      if (!definitionIds.has(normalizedIdentifier)) {
+        lines.push({
+          identifier,
+          normalizedIdentifier,
+          sourceRange: rangeFor(source, line.start, line.end)
+        });
+      }
+      continue;
+    }
+    const unclosedMarker = line.text.match(/^ {0,3}\[\^([^\]\n]*)$/);
+    if (unclosedMarker) {
+      const identifier = unclosedMarker[1] || null;
+      lines.push({
+        identifier,
+        normalizedIdentifier: identifier ? normalizeFootnoteIdentifier(identifier) : null,
+        sourceRange: rangeFor(source, line.start, line.end)
+      });
+    }
+  }
+  return lines;
+}
+
+function normalizeFootnoteIdentifier(identifier: string): string {
+  return identifier.trim().toLowerCase();
 }
 
 function sourceLines(source: string): ReadonlyArray<{ readonly end: number; readonly start: number; readonly text: string }> {

@@ -103,6 +103,28 @@ if (
   throw new Error(`Preserved table fallback DOM must clearly tell users it is source-only.\n${JSON.stringify(supportedTableDom)}`);
 }
 
+const footnoteInput = await readFile(`${fixturesRoot}/020-gfm-footnotes/input.md`, "utf8");
+const footnoteState = rich.createRichMarkdownState(footnoteInput, { dialect: "momentarise-enhanced" });
+const footnoteOutput = rich.serializeRichMarkdownState(footnoteState).content;
+if (footnoteOutput !== footnoteInput) {
+  throw new Error(`Footnote fixture must rich round-trip byte-for-byte:\n${firstByteDifference(footnoteInput, footnoteOutput)}`);
+}
+const footnoteFallbacks = topLevelBlocks(footnoteState).filter((node) => node.type.name === "unsupported_block");
+const firstFootnoteFallback = footnoteFallbacks.find((node) =>
+  String(node.attrs.raw ?? "").includes("[^first]: First footnote definition")
+);
+if (!firstFootnoteFallback || !/footnote/i.test(String(firstFootnoteFallback.attrs.reason ?? ""))) {
+  throw new Error("Footnote definitions must mount as explicit preserved-footnote fallbacks in rich mode.");
+}
+const footnoteDom = firstFootnoteFallback.type.spec.toDOM?.(firstFootnoteFallback);
+if (
+  !domSpecContainsAttribute(footnoteDom, "data-mme-preserved-footnote", "true") ||
+  !domSpecContainsText(footnoteDom, "Preserved Markdown footnote") ||
+  !domSpecContainsText(footnoteDom, "Edit in Source mode")
+) {
+  throw new Error(`Preserved footnote fallback DOM must clearly tell users it is source-only.\n${JSON.stringify(footnoteDom)}`);
+}
+
 // Strikethrough must survive a rich edit in the same paragraph.
 const strikeSource = "Keep ~~struck words~~ and plain text.\n";
 const strikeState = rich.createRichMarkdownState(strikeSource, { dialect: "momentarise-enhanced" });

@@ -4792,3 +4792,69 @@
   - Not pushed yet; branch contains existing unpushed commits and `MME-0038` remains pending public-face validation, so pushing as accepted release-ready work is blocked without a separate safe-push instruction.
 - Next issue:
   - `MME-0041 — Footnotes and endnotes`.
+
+## MME-0041 — Footnotes and endnotes
+
+- Date: 2026-07-19.
+- Previous issue status:
+  - `MME-0040` completed and committed (`e3f893d` plus follow-up evidence commit `9e41044`).
+  - `MME-0038` remains code-complete with explicit public-face validation debt and is committed as pending-status, not accepted as final public validation.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short --branch`, and relevant package/test files for `md-format`, `md-core`, `md-rich-prosemirror`, `md-render-html`, fixture harnesses, and renderer tests.
+- RED proof before implementation:
+  - Added `fixtures/020-gfm-footnotes/` with repeated references, missing references, multi-line definitions, unreferenced definitions, duplicate definitions, unsafe definition HTML, and malformed footnote-like syntax.
+  - Added parser, rich no-op, rich edited-neighbor, renderer, and visual checks before implementation.
+  - Initial `npm run test:parser` failed because `footnoteReference` mapped as a block and lacked identifiers/diagnostics.
+  - Initial `npm run test:rich-fidelity` failed because footnote fallbacks were generic unsupported blocks.
+  - Initial `npm run test:rich-targeted-serialization` failed because editing a paragraph dropped parsed `[^first]` references.
+  - Initial `npm run test:render-html` failed because sanitized footnote IDs and raw `href` fragments did not match, breaking stable backlink navigation.
+- Change:
+  - Extended `@momentarise/md-format` so GFM footnote references and definitions expose native identifiers/labels, references are inline nodes, and diagnostics cover missing references, duplicate definitions, and malformed footnote-like syntax.
+  - Added narrow malformed footnote-like opaque detection outside fenced code so unusual syntax remains raw and visible instead of being silently normalized.
+  - Changed parser missing-reference diagnostics to derive from parsed `footnoteReference` and text-node source ranges, avoiding false positives for inline-code lookalikes.
+  - Extended `@momentarise/md-rich-prosemirror` so `footnoteReference` serializes as the original `[^id]` text during rich edits, while definitions and malformed footnote-like lines mount as explicit preserved-footnote source-only fallbacks.
+  - Extended `@momentarise/md-render-html` so sanitized footnote anchors/backlinks use stable matching `mme-render-` fragments, duplicate/unreferenced definitions are preserved visibly in render artifacts with `render_html_footnote_preserved`, unsafe attributes/URLs are stripped from render-only preserved previews, and inline-code lookalikes do not count as live footnote references.
+  - Added `scripts/visual-check-mme0041.mjs`, root `visual:mme-0041`, visual artifacts under `docs/internal/visual-checks/MME-0041/`, and renderer README notes for the footnote boundary.
+  - Updated `README.md` and `docs/internal/ISSUES.md` to mark `MME-0041` complete and make `MME-0042` the next current slice.
+- Visual impact:
+  - Markdown read mode now renders GFM footnotes/endnotes with stable anchors and backlinks after sanitization.
+  - Read mode now shows duplicate/unreferenced footnote definitions in a preserved-source section when the GFM renderer would otherwise hide them.
+  - Rich mode now shows clear "Preserved Markdown footnote. Edit in Source mode." fallbacks for definitions and unusual syntax.
+  - No general UI chrome redesign.
+  - Screenshots:
+    - `docs/internal/visual-checks/MME-0041/footnote-read-backlinks.png`
+    - `docs/internal/visual-checks/MME-0041/rich-preserved-footnote-fallback.png`
+- Checks run:
+  - `npm run test:parser` — RED before implementation, then green after fixes.
+  - `npm run test:rich-fidelity` — RED before implementation, then green after fixes.
+  - `npm run test:rich-targeted-serialization` — RED before implementation, then green after fixes.
+  - `npm run test:render-html` — RED before implementation, then green after fixes.
+  - `npm run test:fixtures` — green.
+  - `npm run test:roundtrip` — green.
+  - `npm run test:serializer` — green.
+  - `npm run test:rich-prosemirror` — green.
+  - `npm run test:architecture` — green.
+  - `npm run test:public-api` — green.
+  - `npm run test:theme` — green.
+  - `npm run test:docs` — green.
+  - `git diff --check` — green.
+  - `npm run visual:mme-0041` — sandbox Chrome aborted before CDP; rerun green with system Chrome permission, then rerun green after reviewer fixes.
+  - `npm test` — green; existing demo Vite chunk-size warning only.
+- Manual/visual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`.
+  - Local URL: `http://127.0.0.1:5174/`.
+  - Visual script loaded the real `fixtures/020-gfm-footnotes/input.md`, switched to read mode, asserted `section[data-footnotes]`, stable MME-prefixed anchor/backref fragments, duplicate/unreferenced preserved-source fallback, malformed text visibility, switched to rich mode, asserted preserved-footnote fallbacks, and verified rich mount kept Markdown byte-identical.
+  - Manual screenshot inspection confirmed nonblank render, visible footnotes/backlinks, visible preserved-source fallback, explicit rich source-only fallback, and no obvious overlap.
+- Reviewer result:
+  - Parser/rich reviewer subagent `Dewey` used `gpt-5.3-codex-spark` with `xhigh` reasoning. Initial review reported no P0/P1/P2 and one P3: raw regex missing-reference diagnostics could warn on inline-code lookalikes. Builder fixed it by deriving missing-reference candidates from parsed node ranges and added a parser regression; re-check reported the P3 resolved and no P0/P1/P2.
+  - Renderer/security/DX reviewer subagent `Pauli` used `gpt-5.3-codex-spark` with `xhigh` reasoning. Initial review found one P1: raw regex reference detection in the renderer could treat inline-code lookalikes as live references, hiding unreferenced definitions. Builder fixed it with `remark-gfm` AST traversal and added a renderer regression; re-check reported the P1 resolved and no P0/P1/P2.
+- Residual risks:
+  - Full rich insertion/edit UI for footnotes/endnotes remains out of scope.
+  - Render-mode preserved-source fallback intentionally scrubs unsafe attribute/URL payloads in the artifact; the original Markdown bytes remain preserved by parser/rich/source flows.
+  - Visual proof requires system Chrome permission in this sandbox, same as prior visual scripts.
+- Commit status:
+  - Pending until issue-scoped commit is created; hash will be recorded in the follow-up evidence entry.
+- Push status:
+  - Not pushed yet; branch contains existing unpushed commits and `MME-0038` remains pending public-face validation, so pushing as accepted release-ready work is blocked without a separate safe-push instruction.
+- Next issue:
+  - `MME-0042 — Core editor interaction hardening`.

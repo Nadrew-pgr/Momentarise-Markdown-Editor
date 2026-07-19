@@ -30,6 +30,8 @@ The schema starts from the `rehype-sanitize` default schema, then applies MME-sp
 
 When sanitization removes elements or attributes, the renderer emits a `render_html_stripped` diagnostic. Diagnostics describe the render artifact only; the Markdown source is never rewritten.
 
+GFM footnote anchors and backlinks use stable `mme-render-` fragment IDs after sanitization. Duplicate or unreferenced definitions that GFM rendering would otherwise hide are emitted as visible preserved-source fallbacks with a `render_html_footnote_preserved` diagnostic; source Markdown remains unchanged.
+
 ## Release metadata
 
 - Release status: experimental

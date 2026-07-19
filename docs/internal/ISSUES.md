@@ -2358,6 +2358,10 @@ Prefer remark/unified-compatible footnote support if already present or availabl
 
 Test Reviewer and DX Reviewer.
 
+### Status
+
+Completed 2026-07-19; code HITL remained waived for TypeScript/package work. Added a GFM footnotes fixture covering repeated references, missing references, multi-line definitions, unreferenced definitions, duplicate definitions, unsafe definition HTML, and malformed footnote-like syntax. The parser now exposes native `footnoteReference` and `footnoteDefinition` identifiers, diagnoses missing/duplicate/malformed footnote syntax, and avoids inline-code lookalike false positives. Rich mode preserves footnote references in edited paragraphs and mounts definitions/unusual syntax as explicit preserved-footnote source-only fallbacks. `@momentarise/md-render-html` normalizes footnote anchors/backlinks to stable `mme-render-` fragments after sanitization, preserves duplicate/unreferenced definitions visibly in the render artifact, strips unsafe attributes/URLs from the artifact, and emits `render_html_footnote_preserved` diagnostics. Proven by RED `npm run test:parser`, `npm run test:rich-fidelity`, `npm run test:rich-targeted-serialization`, and `npm run test:render-html`; green targeted tests, `npm run visual:mme-0041`, `git diff --check`, and full `npm test`. Reviewer findings were fixed and rechecked with no remaining P0/P1/P2. `MME-0042` is the next candidate after issue-scoped commit.
+
 ## MME-0042 — Core editor interaction hardening
 
 ### Goal

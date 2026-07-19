@@ -25,7 +25,9 @@ const requiredFixtures = [
   "015-sanitized-vault-sample",
   "016-policy-sensitive",
   "017-long-heading-document",
-  "018-nested-lists-todos"
+  "018-nested-lists-todos",
+  "019-gfm-table-variants",
+  "020-gfm-footnotes"
 ];
 
 if (markdownHtmlRendererPackage.packageName !== "@momentarise/md-render-html") {
@@ -119,6 +121,69 @@ for (const requiredText of ["Escaped | pipe", "broken table-like block", "Final 
 assert(
   /align="(?:center|right)"/.test(tableVariantsRender.html),
   `GFM alignment markers must survive as safe semantic table alignment.\n${tableVariantsRender.html}`
+);
+
+const footnotesMarkdown = readFileSync("fixtures/020-gfm-footnotes/input.md", "utf8");
+const footnotesRender = renderMarkdownToHtml(footnotesMarkdown, {
+  fileName: "fixtures/020-gfm-footnotes/input.md"
+});
+for (const requiredHtml of [
+  "data-footnotes",
+  'id="mme-render-user-content-fn-first"',
+  'id="mme-render-user-content-fnref-first"',
+  'href="#mme-render-user-content-fn-first"',
+  'href="#mme-render-user-content-fnref-first"',
+  "data-footnote-backref"
+]) {
+  assert(
+    footnotesRender.html.includes(requiredHtml),
+    `Rendered footnotes must include stable anchor/backref markup ${requiredHtml}.\n${footnotesRender.html}`
+  );
+}
+for (const visible of [
+  "First footnote definition",
+  "Continued definition line",
+  "unsafe label",
+  "Duplicate definition should stay visible as preserved source",
+  "[^malformed] Missing colon should stay preserved as unusual syntax."
+]) {
+  assert(
+    visibleText(footnotesRender.html).includes(visible),
+    `Rendered footnotes must keep visible text ${visible}.\n${footnotesRender.html}`
+  );
+}
+for (const forbidden of ["javascript:", "onclick="]) {
+  assert(
+    !footnotesRender.html.toLowerCase().includes(forbidden),
+    `Rendered footnotes leaked forbidden token ${forbidden}.\n${footnotesRender.html}`
+  );
+}
+assert(
+  footnotesRender.diagnostics.some((diagnostic) => diagnostic.code === "render_html_footnote_preserved"),
+  "Renderer must diagnose duplicate footnote definitions that are preserved as raw source."
+);
+
+const inlineCodeFootnoteLookalike = renderMarkdownToHtml(
+  [
+    "# Footnote lookalike",
+    "",
+    "Inline code `[^code]` is not a footnote reference.",
+    "",
+    "[^code]: Definition must stay visible because the only marker is inside inline code.\n"
+  ].join("\n"),
+  {
+    fileName: "footnote-lookalike.md"
+  }
+);
+assert(
+  visibleText(inlineCodeFootnoteLookalike.html).includes("Definition must stay visible"),
+  `Footnote-like inline code must not hide an unreferenced definition.\n${inlineCodeFootnoteLookalike.html}`
+);
+assert(
+  inlineCodeFootnoteLookalike.diagnostics.some(
+    (diagnostic) => diagnostic.code === "render_html_footnote_preserved"
+  ),
+  "Inline-code footnote lookalike must preserve the unreferenced definition with a diagnostic."
 );
 
 const hostileTable = [

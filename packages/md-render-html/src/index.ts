@@ -22,7 +22,7 @@ export interface RenderMarkdownToHtmlResult {
   readonly html: string;
 }
 
-export type RenderHtmlDiagnosticCode = "render_html_stripped";
+export type RenderHtmlDiagnosticCode = "render_html_stripped" | "render_html_footnote_preserved";
 
 export interface RenderHtmlDiagnostic {
   readonly code: RenderHtmlDiagnosticCode;
@@ -31,6 +31,7 @@ export interface RenderHtmlDiagnostic {
   readonly postSanitizeElementCount?: number;
   readonly preSanitizeAttributeCount?: number;
   readonly preSanitizeElementCount?: number;
+  readonly preservedFootnoteIdentifiers?: readonly string[];
   readonly removedAttributes?: readonly string[];
   readonly removedElements?: readonly string[];
   readonly severity: "warning";
@@ -49,11 +50,22 @@ type HastLikeNode = {
   readonly value?: unknown;
 };
 
+type MarkdownAstLikeNode = {
+  readonly children?: readonly MarkdownAstLikeNode[];
+  readonly identifier?: string | null;
+  readonly type: string;
+};
+
 interface TreeInventory {
   readonly attributeCount: number;
   readonly attributes: ReadonlyMap<string, number>;
   readonly elementCount: number;
   readonly elements: ReadonlyMap<string, number>;
+}
+
+interface PreservedFootnoteSource {
+  readonly identifier: string;
+  readonly raw: string;
 }
 
 export const markdownHtmlRendererPackage: MarkdownHtmlRendererContract = {
@@ -70,6 +82,7 @@ const markdownToRawHastProcessor = unified()
   .use(remarkRehype, { allowDangerousHtml: true })
   .use(rehypeRaw);
 
+const markdownToAstProcessor = unified().use(remarkParse).use(remarkFrontmatter, ["yaml"]).use(remarkGfm);
 const sanitizeProcessor = unified().use(rehypeSanitize, mmeSanitizeSchema);
 const stringifyProcessor = unified().use(rehypeStringify);
 
@@ -88,9 +101,17 @@ export function renderMarkdownToHtml(
   sanitizeResourceAttributes(sanitizableTree);
   const sanitizedTree = sanitizeProcessor.runSync(sanitizableTree as never, file) as HastLikeNode;
   renderImagesWithoutSourceAsAltText(sanitizedTree);
+  normalizeFootnoteFragmentTargets(sanitizedTree);
   const postInventory = inventoryTree(sanitizedTree);
-  const html = String(stringifyProcessor.stringify(sanitizedTree as never));
-  const diagnostics = createStripDiagnostics(preInventory, postInventory);
+  const preservedFootnotes = collectPreservedFootnoteDefinitionSources(markdown);
+  const html = appendPreservedFootnoteSources(
+    String(stringifyProcessor.stringify(sanitizedTree as never)),
+    preservedFootnotes
+  );
+  const diagnostics = [
+    ...createStripDiagnostics(preInventory, postInventory),
+    ...createPreservedFootnoteDiagnostics(preservedFootnotes)
+  ];
   return {
     diagnostics,
     html
@@ -149,6 +170,19 @@ function renderImagesWithoutSourceAsAltText(tree: HastLikeNode): void {
       return [child];
     });
   }
+}
+
+function normalizeFootnoteFragmentTargets(tree: HastLikeNode): void {
+  visit(tree, (node) => {
+    if (node.type !== "element" || !node.properties) {
+      return;
+    }
+    const properties = node.properties as Record<string, unknown>;
+    const href = properties.href;
+    if (typeof href === "string" && href.startsWith("#user-content-fn")) {
+      properties.href = `#mme-render-${href.slice(1)}`;
+    }
+  });
 }
 
 function sanitizeUrlAttributeValue(value: unknown): string | readonly string[] | null {
@@ -377,6 +411,104 @@ function createStripDiagnostics(
   ];
 }
 
+function createPreservedFootnoteDiagnostics(
+  preservedFootnotes: readonly PreservedFootnoteSource[]
+): readonly RenderHtmlDiagnostic[] {
+  if (preservedFootnotes.length === 0) {
+    return [];
+  }
+  return [
+    {
+      code: "render_html_footnote_preserved",
+      message:
+        "Duplicate or unreferenced footnote definitions were preserved as visible raw Markdown because the render artifact normalizes GFM footnotes.",
+      preservedFootnoteIdentifiers: preservedFootnotes.map((footnote) => footnote.identifier),
+      severity: "warning"
+    }
+  ];
+}
+
+function appendPreservedFootnoteSources(
+  html: string,
+  preservedFootnotes: readonly PreservedFootnoteSource[]
+): string {
+  if (preservedFootnotes.length === 0) {
+    return html;
+  }
+  const blocks = preservedFootnotes
+    .map(
+      (footnote) =>
+        `<pre data-mme-preserved-footnote-source="true">${escapeHtml(scrubUnsafePreviewAttributes(footnote.raw.trimEnd()))}</pre>`
+    )
+    .join("");
+  return `${html}<section data-mme-preserved-footnotes="true" aria-label="Preserved footnote source"><h2>Preserved footnote source</h2>${blocks}</section>`;
+}
+
+function collectPreservedFootnoteDefinitionSources(markdown: string): readonly PreservedFootnoteSource[] {
+  const definitions = collectFootnoteDefinitionBlocks(markdown);
+  const references = new Set(collectFootnoteReferenceIdentifiers(markdown).map((identifier) => identifier.trim().toLowerCase()));
+  const seen = new Set<string>();
+  const preserved: PreservedFootnoteSource[] = [];
+  for (const definition of definitions) {
+    const normalizedIdentifier = definition.identifier.trim().toLowerCase();
+    if (seen.has(normalizedIdentifier) || !references.has(normalizedIdentifier)) {
+      preserved.push(definition);
+    } else {
+      seen.add(normalizedIdentifier);
+    }
+  }
+  return preserved;
+}
+
+function collectFootnoteDefinitionBlocks(markdown: string): readonly PreservedFootnoteSource[] {
+  const fencedRegions = fencedCodeRegions(markdown);
+  const lines = sourceLines(markdown);
+  const definitions: PreservedFootnoteSource[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]!;
+    if (isInsideFencedRegion(fencedRegions, line.start)) {
+      continue;
+    }
+    const match = line.text.match(/^ {0,3}\[\^([^\]\n]+)]:/);
+    if (!match) {
+      continue;
+    }
+    let end = line.end;
+    let cursor = index + 1;
+    while (cursor < lines.length) {
+      const next = lines[cursor]!;
+      const following = lines[cursor + 1];
+      if (next.text.trim() === "" && following && /^(?: {4,}|\t)\S/.test(following.text)) {
+        end = next.end;
+        cursor += 1;
+        continue;
+      }
+      if (/^(?: {4,}|\t)/.test(next.text)) {
+        end = next.end;
+        cursor += 1;
+        continue;
+      }
+      break;
+    }
+    definitions.push({
+      identifier: match[1]!,
+      raw: markdown.slice(line.start, end)
+    });
+  }
+  return definitions;
+}
+
+function collectFootnoteReferenceIdentifiers(markdown: string): readonly string[] {
+  const identifiers: string[] = [];
+  const ast = markdownToAstProcessor.parse(markdown) as MarkdownAstLikeNode;
+  visitMarkdownAst(ast, (node) => {
+    if (node.type === "footnoteReference" && node.identifier) {
+      identifiers.push(node.identifier);
+    }
+  });
+  return identifiers;
+}
+
 function diffInventory(before: ReadonlyMap<string, number>, after: ReadonlyMap<string, number>): readonly string[] {
   const removed: string[] = [];
   for (const [name, count] of before.entries()) {
@@ -388,6 +520,78 @@ function diffInventory(before: ReadonlyMap<string, number>, after: ReadonlyMap<s
   return removed.sort();
 }
 
+function sourceLines(source: string): ReadonlyArray<{ readonly end: number; readonly start: number; readonly text: string }> {
+  const lines: Array<{ readonly end: number; readonly start: number; readonly text: string }> = [];
+  let offset = 0;
+  const parts = source.split("\n");
+  for (let index = 0; index < parts.length; index += 1) {
+    const text = parts[index]!;
+    const hasLineEnding = index < parts.length - 1;
+    const end = offset + text.length + (hasLineEnding ? 1 : 0);
+    lines.push({
+      end,
+      start: offset,
+      text
+    });
+    offset = end;
+  }
+  return lines;
+}
+
+function fencedCodeRegions(source: string): ReadonlyArray<readonly [number, number]> {
+  const regions: Array<readonly [number, number]> = [];
+  let offset = 0;
+  let open: { readonly fenceChar: string; readonly fenceLength: number; readonly start: number } | null = null;
+  for (const line of source.split("\n")) {
+    const lineStart = offset;
+    offset += line.length + 1;
+    if (!open) {
+      const opening = line.match(/^ {0,3}(`{3,}|~{3,})/);
+      if (opening) {
+        open = {
+          fenceChar: opening[1]![0]!,
+          fenceLength: opening[1]!.length,
+          start: lineStart
+        };
+      }
+      continue;
+    }
+    const closing = line.match(/^ {0,3}(`{3,}|~{3,})\s*$/);
+    if (closing && closing[1]![0] === open.fenceChar && closing[1]!.length >= open.fenceLength) {
+      regions.push([open.start, Math.min(offset, source.length)]);
+      open = null;
+    }
+  }
+  if (open) {
+    regions.push([open.start, source.length]);
+  }
+  return regions;
+}
+
+function isInsideFencedRegion(
+  regions: ReadonlyArray<readonly [number, number]>,
+  offset: number
+): boolean {
+  return regions.some(([start, end]) => offset > start && offset < end);
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function scrubUnsafePreviewAttributes(value: string): string {
+  return value
+    .replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(
+      /\s+(href|src)\s*=\s*(?:"\s*(?:javascript:|data:|https?:\/\/|\/\/)[^"]*"|'\s*(?:javascript:|data:|https?:\/\/|\/\/)[^']*'|(?:javascript:|data:|https?:\/\/|\/\/)[^\s>]*)/gi,
+      ""
+    );
+}
+
 function increment(map: Map<string, number>, key: string): void {
   map.set(key, (map.get(key) ?? 0) + 1);
 }
@@ -396,6 +600,13 @@ function visit(node: HastLikeNode, visitor: (node: HastLikeNode) => void): void 
   visitor(node);
   for (const child of node.children ?? []) {
     visit(child, visitor);
+  }
+}
+
+function visitMarkdownAst(node: MarkdownAstLikeNode, visitor: (node: MarkdownAstLikeNode) => void): void {
+  visitor(node);
+  for (const child of node.children ?? []) {
+    visitMarkdownAst(child, visitor);
   }
 }
 
