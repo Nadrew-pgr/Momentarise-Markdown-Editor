@@ -1053,7 +1053,7 @@ h1 {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  max-width: min(340px, calc(100% - 24px));
+  max-width: min(340px, calc(100vw - 24px));
   padding: 5px;
   border: 1px solid var(--mme-color-border);
   border-radius: var(--mme-radius-lg);

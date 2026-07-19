@@ -41,8 +41,8 @@ for (const snippet of [
   "ai-command-icon",
   "toolbarIcon(options, slashIconName(item.id, item.group))",
   "toolbarIcon(options, \"ai\")",
-  'defaultIconSet.render("bold")',
-  'defaultIconSet.render("italic")'
+  'icon: "bold", id: "mme:bold"',
+  'icon: "italic", id: "mme:italic"'
 ]) {
   assert(surface.includes(snippet) || main.includes(snippet), `MME-0030 icon-first UI missing snippet: ${snippet}`);
 }

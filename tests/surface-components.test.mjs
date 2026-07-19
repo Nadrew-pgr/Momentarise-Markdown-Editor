@@ -11,6 +11,7 @@ const {
   createDocumentStatus,
   createInlineAiPrompt,
   createModeControl,
+  createSelectionBubbleToolbar,
   createSlashMenu,
   createToolbar,
   defaultMmeStrings
@@ -24,6 +25,7 @@ for (const exportName of [
   "createAiAssistantPanel",
   "createInlineAiPrompt",
   "createModeControl",
+  "createSelectionBubbleToolbar",
   "createDiagnosticsSurface",
   "defaultMmeStrings"
 ]) {
@@ -61,6 +63,15 @@ session.extensions.registerToolbarItem({
     return { handled: true };
   }
 });
+session.extensions.registerToolbarItem({
+  group: "insert",
+  icon: "more",
+  id: "vendor:diagram",
+  labelKey: "extensions.vendorDiagram",
+  run() {
+    return { handled: true };
+  }
+});
 session.extensions.registerSlashItem({
   aliases: ["card", "callout-card"],
   group: "insert",
@@ -80,7 +91,12 @@ const baseContext = {
   },
   preferences: {
     aiEntryPoints: ["slash", "toolbar", "selection", "command-palette"],
+    layoutDensity: "comfortable",
+    modeControl: "compact-tabs",
+    slashEnabled: true,
+    slashGroups: ["blocks", "lists", "insert", "ai"],
     toolbarMode: "sticky",
+    toolbarStyle: "glass",
     visibleCommandGroups: ["blocks", "marks", "lists", "insert", "ai", "status"]
   },
   session,
@@ -92,7 +108,8 @@ const baseContext = {
     },
     extensions: {
       ...defaultMmeStrings.extensions,
-      "extensions.hostCalloutCard": "Carte appel hote"
+      "extensions.hostCalloutCard": "Carte appel hote",
+      "extensions.vendorDiagram": "Diagramme fournisseur"
     }
   }
 };
@@ -109,6 +126,8 @@ const toolbar = createToolbar({
     toolbarActions.push(id);
   },
   state: {
+    activeIds: ["mme:bold"],
+    disabledIds: ["mme:link"],
     editorMode: "rich",
     hostToolbarItems: session.extensions.getToolbarItems(),
     visible: true
@@ -119,9 +138,13 @@ assert(toolbarHost.querySelector('[role="toolbar"]'), "Toolbar must render role=
 const boldButton = query(toolbarHost, '[data-testid="toolbar-command-bold"]');
 assert(boldButton.getAttribute("aria-label") === "Gras test", "Toolbar labels must come from injected strings.");
 assert(boldButton.title === "Gras test", "Toolbar title must come from injected strings.");
+assert(boldButton.getAttribute("aria-pressed") === "true", "Toolbar active ids must render active pressed state.");
+assert(query(toolbarHost, '[data-testid="toolbar-command-link"]').disabled, "Toolbar disabled ids must render disabled buttons.");
 const hostToolbarButton = query(toolbarHost, '[data-testid="toolbar-extension-host:callout-card"]');
 assert(hostToolbarButton.getAttribute("aria-label") === "Carte appel hote", "Host toolbar labels must come from injected extension strings.");
 assert(hostToolbarButton.title === "Carte appel hote", "Host toolbar titles must come from injected extension strings.");
+assert(query(toolbarHost, '[data-testid="toolbar-extension-vendor:diagram"]'), "Toolbar must render non-host namespace registry items supplied by the host state.");
+assert(toolbarHost.querySelectorAll('[data-testid="toolbar-command-heading1"]').length === 1, "Toolbar must not duplicate built-in registry items as extension buttons.");
 boldButton.click();
 assert(toolbarActions.includes("mme:bold"), "Toolbar command click must dispatch through the supplied handler.");
 const firstToolbarButton = query(toolbarHost, '[role="toolbar"] button');
@@ -130,6 +153,37 @@ assert(
   toolbarHost.querySelectorAll('[role="toolbar"] button')[1]?.getAttribute("tabindex") === "0",
   "Toolbar must support arrow-key roving tabindex."
 );
+toolbar.setState({
+  activeIds: [],
+  disabledIds: [],
+  editorMode: "rich",
+  hostToolbarItems: session.extensions.getToolbarItems(),
+  visible: true
+});
+assert(query(toolbarHost, '[data-testid="toolbar-command-bold"]').getAttribute("aria-pressed") === "false", "Toolbar active state must update.");
+
+const groupedToolbarHost = document.createElement("div");
+const groupedToolbar = createToolbar({
+  ...baseContext,
+  host: groupedToolbarHost,
+  onAiToolbar() {
+    throw new Error("Filtered toolbar AI action must not run.");
+  },
+  onRunToolbarItem() {
+    throw new Error("Filtered toolbar command must not run.");
+  },
+  preferences: {
+    ...baseContext.preferences,
+    visibleCommandGroups: ["marks"]
+  },
+  state: {
+    editorMode: "rich",
+    hostToolbarItems: session.extensions.getToolbarItems(),
+    visible: true
+  }
+});
+assert(query(groupedToolbarHost, '[data-testid="toolbar-command-bold"]'), "Toolbar group preferences must keep visible mark commands.");
+assert(!groupedToolbarHost.querySelector('[data-testid="toolbar-command-heading1"]'), "Toolbar group preferences must hide non-visible groups.");
 
 const paletteHost = document.createElement("div");
 const paletteRuns = [];
@@ -197,6 +251,10 @@ const slash = createSlashMenu({
   onRunSlashItem(id) {
     slashRuns.push(id);
   },
+  preferences: {
+    ...baseContext.preferences,
+    visibleCommandGroups: ["insert", "ai"]
+  },
   state: {
     items: session.extensions.searchSlashItems("card"),
     open: true,
@@ -206,6 +264,7 @@ const slash = createSlashMenu({
 });
 slash.update();
 assert(query(slashHost, '[role="listbox"]').getAttribute("aria-label") === defaultMmeStrings.slash.label, "Slash menu must render a labelled listbox.");
+assert(query(slashHost, "[data-testid='slash-command-menu']").getAttribute("aria-activedescendant"), "Slash menu must expose aria-activedescendant on the listbox owner.");
 assert(
   query(slashHost, '[data-testid="slash-command-item-host:callout-card"] strong').textContent === "Carte appel hote",
   "Slash host labels must come from injected extension strings."
@@ -214,6 +273,69 @@ query(slashHost, '[data-testid="slash-command-menu"]').dispatchEvent(
   new dom.window.KeyboardEvent("keydown", { bubbles: true, key: "Enter" })
 );
 assert(slashRuns[0] === "host:callout-card", "Slash Enter must run the selected slash command.");
+slash.setState({
+  items: [
+    {
+      aliases: ["heading", "h1"],
+      group: "blocks",
+      id: "mme:heading1",
+      labelKey: "commands.heading1",
+      run() {
+        return { handled: true };
+      }
+    },
+    {
+      aliases: ["card"],
+      group: "insert",
+      id: "host:callout-card",
+      labelKey: "extensions.hostCalloutCard",
+      run() {
+        return { handled: true };
+      }
+    }
+  ],
+  open: true,
+  query: "card",
+  selectedIndex: 0
+});
+assert(query(slashHost, "[data-testid='slash-section-insert']").textContent === "Insert", "Slash menu must render grouped section labels from strings.");
+assert(!slashHost.querySelector("[data-testid='slash-command-item-mme:heading1']"), "Slash menu must respect visible command group preferences.");
+query(slashHost, '[data-testid="slash-command-menu"]').dispatchEvent(
+  new dom.window.KeyboardEvent("keydown", { bubbles: true, key: "End" })
+);
+assert(slashHost.querySelector("[data-selected='true']"), "Slash End key must keep a selected command.");
+slash.setState({
+  items: [],
+  open: true,
+  query: "missing",
+  selectedIndex: 0
+});
+assert(query(slashHost, "[data-testid='slash-empty-state']").textContent.includes("No commands"), "Slash menu must render an empty state.");
+
+const disabledSlashHost = document.createElement("div");
+const disabledSlash = createSlashMenu({
+  ...baseContext,
+  aiItems: [],
+  host: disabledSlashHost,
+  onClose() {},
+  onRunAiAction() {
+    throw new Error("Disabled slash AI must not run.");
+  },
+  onRunSlashItem() {
+    throw new Error("Disabled slash command must not run.");
+  },
+  preferences: {
+    ...baseContext.preferences,
+    slashEnabled: false
+  },
+  state: {
+    items: session.extensions.getSlashItems(),
+    open: true,
+    query: "",
+    selectedIndex: 0
+  }
+});
+assert(query(disabledSlashHost, "[data-testid='slash-command-menu']").hidden, "Slash menu must respect slash.enabled preferences.");
 
 const statusHost = document.createElement("div");
 const statusSession = createMarkdownEditorSession({
@@ -456,6 +578,32 @@ query(inlineAiHost, "[data-testid='inline-ai-generate-button']").dispatchEvent(
 assert(query(inlineAiHost, "[data-testid='inline-ai-prompt']").hidden, "Escape must close inline AI prompt.");
 assert(document.activeElement === inlineReturnFocus, "Escape must return focus to the configured editor target.");
 
+const bubbleHost = document.createElement("div");
+const bubbleRuns = [];
+const bubble = createSelectionBubbleToolbar({
+  ...baseContext,
+  host: bubbleHost,
+  onAiSelection() {
+    bubbleRuns.push("ai");
+  },
+  onRunToolbarItem(id) {
+    bubbleRuns.push(id);
+  },
+  state: {
+    activeIds: ["mme:bold"],
+    aiDisabled: true,
+    aiVisible: true,
+    disabledIds: ["mme:inlineCode"],
+    visible: true
+  }
+});
+assert(query(bubbleHost, "[data-testid='selection-bubble-toolbar']").getAttribute("role") === "toolbar", "Selection bubble toolbar must be reusable surface chrome.");
+assert(query(bubbleHost, "[data-testid='selection-bubble-bold']").getAttribute("aria-pressed") === "true", "Selection bubble must show active mark state.");
+assert(query(bubbleHost, "[data-testid='selection-bubble-inline-code']").disabled, "Selection bubble must show disabled command state.");
+assert(query(bubbleHost, "[data-testid='selected-text-ai-bubble-action']").disabled, "Selection bubble AI action must respect disabled state.");
+query(bubbleHost, "[data-testid='selection-bubble-bold']").click();
+assert(bubbleRuns.includes("mme:bold"), "Selection bubble command click must dispatch through surface handler.");
+
 const modeHost = document.createElement("div");
 const modeEvents = [];
 const modeControl = createModeControl({
@@ -474,15 +622,64 @@ assert(query(modeHost, "[data-testid='source-mode-button']").textContent === "So
 assert(query(modeHost, "[data-testid='source-mode-button']").getAttribute("role") !== "switch", "Mode control must not expose binary switch semantics for three Markdown modes.");
 query(modeHost, "[data-testid='rich-mode-button']").click();
 assert(modeEvents[0] === "rich", "Mode control must emit rich-mode switch events.");
+modeControl.setState({
+  documentKind: "html-artifact",
+  editorMode: "source"
+});
+assert(query(modeHost, "[data-testid='preview-mode-button']"), "HTML mode control must expose Preview.");
+assert(!modeHost.querySelector("[data-testid='rich-mode-button']"), "HTML mode control must not expose Rich.");
+
+const singleModeHost = document.createElement("div");
+const singleModeEvents = [];
+const singleModeControl = createModeControl({
+  ...baseContext,
+  host: singleModeHost,
+  onSwitchMode(mode) {
+    singleModeEvents.push(mode);
+  },
+  preferences: {
+    ...baseContext.preferences,
+    modeControl: "single-toggle"
+  },
+  state: {
+    documentKind: "markdown",
+    editorMode: "source"
+  }
+});
+query(singleModeHost, "[data-testid='mode-cycle-button']").click();
+assert(singleModeEvents[0] === "rich", "Single-toggle mode control must cycle through document-kind modes.");
+
+const hostModeHost = document.createElement("div");
+const hostModeControl = createModeControl({
+  ...baseContext,
+  host: hostModeHost,
+  onSwitchMode() {
+    throw new Error("Host-provided mode control must not emit builtin events.");
+  },
+  preferences: {
+    ...baseContext.preferences,
+    modeControl: "host-provided"
+  },
+  state: {
+    documentKind: "markdown",
+    editorMode: "source"
+  }
+});
+assert(query(hostModeHost, "[data-testid='mode-control']").hidden, "Host-provided mode control preference must hide builtin control.");
 
 toolbar.destroy();
+groupedToolbar.destroy();
 palette.destroy();
 gatedPalette.destroy();
 slash.destroy();
+disabledSlash.destroy();
 status.destroy();
 aiPanel.destroy();
 inlineAiPrompt.destroy();
+bubble.destroy();
 modeControl.destroy();
+singleModeControl.destroy();
+hostModeControl.destroy();
 session.destroy();
 
 function query(root, selector) {

@@ -1130,11 +1130,15 @@ class DefaultExtensionRegistry implements ExtensionRegistry {
     if (!normalized) {
       return this.getSlashItems();
     }
-    return this.getSlashItems().filter((item) =>
-      [item.id, item.labelKey, item.group, ...item.aliases].some((candidate) =>
-        normalizeExtensionQuery(candidate).includes(normalized)
-      )
-    );
+    return this.getSlashItems()
+      .map((item, index) => ({
+        index,
+        item,
+        score: slashItemQueryScore(normalized, item)
+      }))
+      .filter((match): match is { readonly index: number; readonly item: SlashItemDefinition; readonly score: number } => match.score !== null)
+      .sort((left, right) => left.score - right.score || left.index - right.index)
+      .map((match) => match.item);
   }
 
   serializeCustomBlock(id: string, data: Readonly<Record<string, unknown>>): CustomBlockSerializationResult {
@@ -1253,6 +1257,61 @@ function normalizeAiActionParams(
 
 function normalizeExtensionQuery(query: string): string {
   return query.trim().replace(/^\//, "").toLowerCase();
+}
+
+function normalizeExtensionSearchText(value: string): string {
+  return normalizeExtensionQuery(value).replace(/[^a-z0-9]+/g, "");
+}
+
+function slashItemQueryScore(query: string, item: SlashItemDefinition): number | null {
+  const candidates = [item.id, item.labelKey, item.group, ...item.aliases];
+  let best: number | null = null;
+  for (const candidate of candidates) {
+    const score = extensionQueryCandidateScore(query, candidate);
+    if (score !== null && (best === null || score < best)) {
+      best = score;
+    }
+  }
+  return best;
+}
+
+function extensionQueryCandidateScore(query: string, candidate: string): number | null {
+  const normalizedQuery = normalizeExtensionSearchText(query);
+  const normalizedCandidate = normalizeExtensionSearchText(candidate);
+  if (!normalizedQuery || !normalizedCandidate) {
+    return null;
+  }
+  if (normalizedCandidate === normalizedQuery) {
+    return 0;
+  }
+  if (normalizedCandidate.startsWith(normalizedQuery)) {
+    return 10 + normalizedCandidate.length - normalizedQuery.length;
+  }
+  const includesIndex = normalizedCandidate.indexOf(normalizedQuery);
+  if (includesIndex >= 0) {
+    return 100 + includesIndex + normalizedCandidate.length - normalizedQuery.length;
+  }
+  const fuzzy = fuzzySubsequenceScore(normalizedQuery, normalizedCandidate);
+  return fuzzy === null ? null : 1000 + fuzzy;
+}
+
+function fuzzySubsequenceScore(query: string, candidate: string): number | null {
+  let candidateIndex = 0;
+  let score = candidate.length;
+  let previousMatch = -1;
+  for (const char of query) {
+    const nextIndex = candidate.indexOf(char, candidateIndex);
+    if (nextIndex < 0) {
+      return null;
+    }
+    score += nextIndex;
+    if (previousMatch >= 0) {
+      score += Math.max(0, nextIndex - previousMatch - 1);
+    }
+    previousMatch = nextIndex;
+    candidateIndex = nextIndex + 1;
+  }
+  return score;
 }
 
 function errorMessage(error: unknown): string {

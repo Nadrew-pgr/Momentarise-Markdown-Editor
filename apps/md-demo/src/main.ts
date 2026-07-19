@@ -113,6 +113,7 @@ import {
   createFindReplaceSurface,
   createInlineAiPrompt,
   createModeControl,
+  createSelectionBubbleToolbar,
   createSlashMenu,
   createToolbar,
   defaultMmeStrings,
@@ -123,6 +124,7 @@ import {
   type SurfaceDocumentState,
   type SurfaceInlineAiPromptState,
   type SurfaceInlineAiPromptSubmitEvent,
+  type SurfaceSelectionBubbleState,
   type SurfaceSlashState,
   type SurfaceToolbarState
 } from "@momentarise/md-surface";
@@ -229,20 +231,7 @@ app.innerHTML = `
           role="toolbar"
           aria-label="Selected text actions"
           hidden
-        >
-          <button class="toolbar-button" type="button" data-rich-bubble-command="bold" data-testid="selection-bubble-bold" aria-label="Bold">
-            <span class="toolbar-icon" aria-hidden="true">${defaultIconSet.render("bold")}</span>
-          </button>
-          <button class="toolbar-button" type="button" data-rich-bubble-command="italic" data-testid="selection-bubble-italic" aria-label="Italic">
-            <span class="toolbar-icon" aria-hidden="true">${defaultIconSet.render("italic")}</span>
-          </button>
-          <button class="toolbar-button" type="button" data-rich-bubble-command="inlineCode" data-testid="selection-bubble-inline-code" aria-label="Inline code">
-            <span class="toolbar-icon" aria-hidden="true">${defaultIconSet.render("code")}</span>
-          </button>
-          <button class="toolbar-button selected-text-ai-bubble-action" type="button" data-testid="selected-text-ai-bubble-action" aria-label="Rewrite selection with AI">
-            <span class="toolbar-icon" aria-hidden="true">${defaultIconSet.render("ai")}</span>
-          </button>
-        </div>
+        ></div>
         <div data-testid="inline-ai-prompt-host"></div>
         <div class="rich-block-menu" data-testid="rich-block-menu" role="menu" aria-label="Block actions" hidden>
           <button type="button" role="menuitem" data-rich-block-menu-action="insert-after" data-testid="rich-block-menu-insert">Insert below</button>
@@ -434,7 +423,7 @@ const htmlPreviewFrame = queryRequired<HTMLIFrameElement>('[data-testid="html-pr
 const modeControlHost = queryRequired<HTMLDivElement>('[data-testid="mode-control-host"]');
 const richCommandToolbarHost = queryRequired<HTMLDivElement>('[data-testid="rich-command-toolbar-host"]');
 const selectionBubbleToolbar = queryRequired<HTMLDivElement>('[data-testid="selection-bubble-toolbar"]');
-const selectedTextAiBubbleAction = queryRequired<HTMLButtonElement>('[data-testid="selected-text-ai-bubble-action"]');
+let selectedTextAiBubbleAction: HTMLButtonElement | null = null;
 const richBlockMenu = queryRequired<HTMLDivElement>('[data-testid="rich-block-menu"]');
 const richBlockControls = queryRequired<HTMLDivElement>('[data-testid="rich-block-controls"]');
 const codeBlockControls = queryRequired<HTMLDivElement>('[data-testid="code-block-controls"]');
@@ -522,6 +511,7 @@ let documentStatusSurface: ReturnType<typeof createDocumentStatus> | null = null
 let findReplaceSurface: ReturnType<typeof createFindReplaceSurface> | null = null;
 let inlineAiPromptSurface: ReturnType<typeof createInlineAiPrompt> | null = null;
 let modeControlSurface: ReturnType<typeof createModeControl> | null = null;
+let selectionBubbleSurface: ReturnType<typeof createSelectionBubbleToolbar> | null = null;
 let slashMenuSurface: ReturnType<typeof createSlashMenu> | null = null;
 let toolbarSurface: ReturnType<typeof createToolbar> | null = null;
 let editorAiSurface: ReturnType<typeof createAiAssistantPanel> | null = null;
@@ -971,6 +961,7 @@ async function handleExternalChange(externalHash: SaveState["externalHash"]): Pr
 }
 
 function applyExternalContentToEditors(content: string): void {
+  closeTransientCommandSurfaces();
   replaceEditorDocument(content);
   if (activeDocument.kind === "html-artifact") {
     renderHtmlPreview();
@@ -984,6 +975,14 @@ function applyExternalContentToEditors(content: string): void {
   refreshFindMatches();
 }
 
+function closeTransientCommandSurfaces(): void {
+  closeSlashMenu();
+  hideSelectionBubbleToolbar();
+  closeRichBlockMenu();
+  commandPaletteSurface?.close();
+  setInlineAiPromptState({ open: false });
+}
+
 function mountReferenceSurfaceComponents(): void {
   toolbarSurface?.destroy();
   slashMenuSurface?.destroy();
@@ -991,6 +990,7 @@ function mountReferenceSurfaceComponents(): void {
   findReplaceSurface?.destroy();
   documentStatusSurface?.destroy();
   modeControlSurface?.destroy();
+  selectionBubbleSurface?.destroy();
   inlineAiPromptSurface?.destroy();
   editorAiSurface?.destroy();
 
@@ -1022,6 +1022,25 @@ function mountReferenceSurfaceComponents(): void {
   richCommandToolbar = toolbarSurface.root as HTMLDivElement;
   toolbarAiButton = queryRequired<HTMLButtonElement>('[data-testid="toolbar-ai-button"]');
   toolbarMoreMenu = queryRequired<HTMLDivElement>('[data-testid="toolbar-more-menu"]');
+
+  selectionBubbleSurface = createSelectionBubbleToolbar({
+    host: selectionBubbleToolbar,
+    icons: defaultIconSet,
+    preferences: surfacePreferences(),
+    session,
+    state: surfaceSelectionBubbleState(),
+    strings: defaultMmeStrings,
+    onAiSelection() {
+      if (isSelectionAiVisible()) {
+        void runEditorNativeAiCommand("rewrite");
+      }
+    },
+    onRunToolbarItem(id) {
+      void dispatchToolbarItem(id);
+      renderSelectionBubbleToolbar();
+    }
+  });
+  selectedTextAiBubbleAction = queryRequired<HTMLButtonElement>('[data-testid="selected-text-ai-bubble-action"]');
 
   slashMenuSurface = createSlashMenu({
     aiItems: surfaceAiActionsForEntryPoint("slash"),
@@ -1157,12 +1176,22 @@ function mountReferenceSurfaceComponents(): void {
 
 function surfacePreferences(): {
   readonly aiEntryPoints: readonly string[];
+  readonly layoutDensity: string;
+  readonly modeControl: string;
+  readonly slashEnabled: boolean;
+  readonly slashGroups: readonly string[];
   readonly toolbarMode: string;
+  readonly toolbarStyle: string;
   readonly visibleCommandGroups: readonly string[];
 } {
   return {
     aiEntryPoints: referenceSurfacePreferences.aiEntryPoints,
+    layoutDensity: referenceSurfacePreferences.layoutDensity,
+    modeControl: referenceSurfacePreferences.modeControl,
+    slashEnabled: referenceSurfacePreferences.slashEnabled,
+    slashGroups: referenceSurfacePreferences.visibleCommandGroups,
     toolbarMode: referenceSurfacePreferences.toolbarMode,
+    toolbarStyle: referenceSurfacePreferences.toolbarStyle,
     visibleCommandGroups: referenceSurfacePreferences.visibleCommandGroups
   };
 }
@@ -1210,10 +1239,36 @@ function surfaceModeState(): {
 
 function surfaceToolbarState(): SurfaceToolbarState {
   return {
+    activeIds: activeRichCommandIds(),
+    disabledIds: disabledRichToolbarIds(),
     editorMode,
     hostToolbarItems: session.extensions.getToolbarItems(),
     visible: editorMode === "rich"
   };
+}
+
+function surfaceSelectionBubbleState(): SurfaceSelectionBubbleState {
+  return {
+    activeIds: activeRichCommandIds(),
+    aiDisabled: !isSelectionAiVisible() || !hasAiEligibleSelection(),
+    aiVisible: isSelectionAiVisible(),
+    disabledIds: disabledRichSelectionToolbarIds(),
+    visible: shouldShowSelectionBubbleToolbar()
+  };
+}
+
+function setSelectionBubbleSurfaceState(overrides: Partial<SurfaceSelectionBubbleState> = {}): SurfaceSelectionBubbleState {
+  const nextState: SurfaceSelectionBubbleState = {
+    ...surfaceSelectionBubbleState(),
+    ...overrides
+  };
+  selectionBubbleSurface?.setState(nextState);
+  const aiButton = selectionBubbleToolbar.querySelector<HTMLButtonElement>('[data-testid="selected-text-ai-bubble-action"]');
+  if (aiButton) {
+    selectedTextAiBubbleAction = aiButton;
+  }
+  selectionBubbleToolbar.dataset.visible = String(nextState.visible);
+  return nextState;
 }
 
 function surfaceSlashState(): SurfaceSlashState {
@@ -1470,8 +1525,6 @@ function setEditorAiSurfaceState(nextState: Partial<SurfaceAiAssistantState>): v
   editorAiSurface?.setState(editorAiSurfaceState);
 }
 
-mountReferenceSurfaceComponents();
-
 const editor = new CodeMirrorEditorView({
   parent: editorHost,
   state: EditorState.create({
@@ -1501,6 +1554,8 @@ const editor = new CodeMirrorEditorView({
     ]
   })
 });
+
+mountReferenceSurfaceComponents();
 
 if (!restoreLastDemoDocument()) {
   renderEditorMode();
@@ -1632,26 +1687,6 @@ selectedTextAiAction.addEventListener("click", () => {
   void runEditorNativeAiCommand("rewrite");
 });
 
-selectionBubbleToolbar.addEventListener("click", (event) => {
-  const target = event.target;
-  if (!(target instanceof HTMLElement)) {
-    return;
-  }
-  const commandButton = target.closest<HTMLElement>("[data-rich-bubble-command]");
-  if (commandButton?.dataset.richBubbleCommand) {
-    event.preventDefault();
-    runRichCommand(commandButton.dataset.richBubbleCommand as RichCommandId);
-    renderSelectionBubbleToolbar();
-    return;
-  }
-  if (target.closest<HTMLElement>('[data-testid="selected-text-ai-bubble-action"]')) {
-    event.preventDefault();
-    if (isSelectionAiVisible()) {
-      void runEditorNativeAiCommand("rewrite");
-    }
-  }
-});
-
 richBlockMenu.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) {
@@ -1679,6 +1714,13 @@ commandPaletteButton.addEventListener("click", () => {
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden" && sessionShouldBlockClose()) {
     void flushSave("tab-switch");
+  }
+});
+
+window.addEventListener("resize", () => {
+  renderSelectionBubbleToolbar();
+  if (!richBlockMenu.hidden) {
+    positionRichBlockMenu();
   }
 });
 
@@ -2028,6 +2070,7 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
     );
   },
   memorySave,
+  simulateCleanExternalApplyForTest,
   simulateExternalConflict,
   setCursorAfterText(text: string) {
     const offset = getMarkdown().indexOf(text);
@@ -2060,6 +2103,9 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   },
   setRichSelectionAfterText(text: string) {
     setRichSelectionAfterText(text);
+  },
+  setRichSelectionForText(text: string) {
+    setRichSelectionForText(text);
   },
   typeRichTextForTest(text: string) {
     typeRichTextForTest(text);
@@ -3176,15 +3222,74 @@ function getSelectionBubbleState(): {
   readonly selectedText: string;
 } {
   const selection = richEditor?.state.selection;
+  const aiButton = selectionBubbleToolbar.querySelector<HTMLButtonElement>('[data-testid="selected-text-ai-bubble-action"]');
   return {
-    aiDisabled: selectedTextAiBubbleAction.disabled,
-    aiVisible: !selectedTextAiBubbleAction.hidden,
+    aiDisabled: aiButton?.disabled ?? true,
+    aiVisible: Boolean(aiButton && !aiButton.hidden),
     open: !selectionBubbleToolbar.hidden,
     selectedText:
       richEditor && selection instanceof TextSelection && !selection.empty
         ? richEditor.state.doc.textBetween(selection.from, selection.to, "\n", "\n")
         : ""
   };
+}
+
+function shouldShowSelectionBubbleToolbar(): boolean {
+  if (!richEditor || !isRichEditingMode() || activeDocument.kind !== "markdown") {
+    return false;
+  }
+  const selection = richEditor.state.selection;
+  return selection instanceof TextSelection && !selection.empty;
+}
+
+function activeRichCommandIds(): readonly string[] {
+  if (!richEditor || activeDocument.kind !== "markdown") {
+    return [];
+  }
+  const active: string[] = [];
+  if (richMarkActive("strong")) {
+    active.push("mme:bold");
+  }
+  if (richMarkActive("em")) {
+    active.push("mme:italic");
+  }
+  if (richMarkActive("code")) {
+    active.push("mme:inlineCode");
+  }
+  return active;
+}
+
+function richMarkActive(markName: "code" | "em" | "strong"): boolean {
+  if (!richEditor) {
+    return false;
+  }
+  const mark = richEditor.state.schema.marks[markName];
+  if (!mark) {
+    return false;
+  }
+  const selection = richEditor.state.selection;
+  if (selection.empty) {
+    return Boolean(mark.isInSet(richEditor.state.storedMarks ?? selection.$from.marks()));
+  }
+  return richEditor.state.doc.rangeHasMark(selection.from, selection.to, mark);
+}
+
+function disabledRichToolbarIds(): readonly string[] {
+  if (!richEditor || activeDocument.kind !== "markdown") {
+    return richCommandRegistry.map((command) => richCommandExtensionId(command.id));
+  }
+  const selection = richEditor.state.selection;
+  if (!(selection instanceof TextSelection) || selection.empty) {
+    return ["mme:link", "mme:image"];
+  }
+  return [];
+}
+
+function disabledRichSelectionToolbarIds(): readonly string[] {
+  if (!shouldShowSelectionBubbleToolbar()) {
+    return ["mme:bold", "mme:italic", "mme:inlineCode"];
+  }
+  return [];
 }
 
 function renderReferenceSurfaceState(): void {
@@ -3194,7 +3299,6 @@ function renderReferenceSurfaceState(): void {
   const commandPaletteVisible = aiGroupVisible && isAiEntryPointEnabled("command-palette");
   selectedTextAiAction.disabled = true;
   selectedTextAiAction.hidden = true;
-  selectedTextAiBubbleAction.disabled = activeDocument.kind !== "markdown" || !isSelectionAiVisible() || !hasAiEligibleSelection();
   aiCommandSurface.dataset.session = aiSessionStarted ? "ready" : "missing";
   aiCommandSurface.dataset.documentKind = activeDocument.kind;
   documentStatusPopover = queryRequired<HTMLDetailsElement>('[data-testid="document-status-popover"]');
@@ -3245,25 +3349,16 @@ function renderEditorAiMenu(): void {
 }
 
 function renderSelectionBubbleToolbar(): void {
-  if (!richEditor || !isRichEditingMode() || activeDocument.kind !== "markdown") {
+  const nextState = setSelectionBubbleSurfaceState();
+  if (!nextState.visible) {
     hideSelectionBubbleToolbar();
     return;
   }
-  const selection = richEditor.state.selection;
-  if (!(selection instanceof TextSelection) || selection.empty) {
-    hideSelectionBubbleToolbar();
-    return;
-  }
-  selectionBubbleToolbar.hidden = false;
-  selectionBubbleToolbar.dataset.visible = "true";
-  selectedTextAiBubbleAction.hidden = !isSelectionAiVisible();
-  selectedTextAiBubbleAction.disabled = !isSelectionAiVisible() || !hasAiEligibleSelection();
   positionSelectionBubbleToolbar();
 }
 
 function hideSelectionBubbleToolbar(): void {
-  selectionBubbleToolbar.hidden = true;
-  selectionBubbleToolbar.dataset.visible = "false";
+  setSelectionBubbleSurfaceState({ visible: false });
   selectionBubbleToolbar.style.removeProperty("--selection-bubble-left");
   selectionBubbleToolbar.style.removeProperty("--selection-bubble-top");
 }
@@ -3273,7 +3368,13 @@ function positionSelectionBubbleToolbar(): void {
     return;
   }
   const regionRect = editorRegion.getBoundingClientRect();
-  const toolbarWidth = Math.min(340, Math.max(220, regionRect.width - 24));
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+  const visibleRegionWidth = Math.max(180, Math.min(regionRect.right, viewportWidth) - Math.max(regionRect.left, 0));
+  const toolbarWidth = Math.min(340, Math.max(180, visibleRegionWidth - 24));
+  const measuredToolbarWidth = Math.max(
+    160,
+    Math.min(toolbarWidth, selectionBubbleToolbar.getBoundingClientRect().width || selectionBubbleToolbar.offsetWidth || toolbarWidth)
+  );
   let selectionRect: { readonly left: number; readonly top: number };
   try {
     selectionRect = richEditor.coordsAtPos(richEditor.state.selection.from);
@@ -3284,7 +3385,10 @@ function positionSelectionBubbleToolbar(): void {
       top: editorRect.top + 24
     };
   }
-  const left = Math.min(Math.max(selectionRect.left - regionRect.left, 12), Math.max(12, regionRect.width - toolbarWidth - 12));
+  const left = Math.min(
+    Math.max(selectionRect.left - regionRect.left, 12),
+    Math.max(12, visibleRegionWidth - measuredToolbarWidth - 12)
+  );
   const topAboveSelection = selectionRect.top - regionRect.top - selectionBubbleToolbar.offsetHeight - 8;
   const top = topAboveSelection > 12 ? topAboveSelection : selectionRect.top - regionRect.top + 28;
   selectionBubbleToolbar.style.setProperty("--selection-bubble-left", `${Math.round(left)}px`);
@@ -4494,6 +4598,18 @@ async function simulateExternalConflict(): Promise<void> {
   renderSaveState();
 }
 
+async function simulateCleanExternalApplyForTest(content: string): Promise<void> {
+  if (!activeDocument.simulateExternalChange) {
+    throw new Error(`external apply simulation unavailable for ${documentModeLabel(activeDocument.mode)}`);
+  }
+  activeDocument.simulateExternalChange(content);
+  const externalHash = await activeSaveTarget.readExternalHash?.();
+  if (!externalHash) {
+    throw new Error("external hash unavailable for clean apply simulation");
+  }
+  await handleExternalChange(externalHash);
+}
+
 function renderSaveState(): void {
   const state = session.getSaveState();
   documentModeElement.textContent = documentModeLabel(activeDocument.mode);
@@ -4826,6 +4942,7 @@ async function submitInlineAiPrompt(event: SurfaceInlineAiPromptSubmitEvent): Pr
 function setReferenceSurfacePreferences(preferences: ReferenceEditorPreferenceInput): void {
   referenceSurfacePreferences = resolveReferenceEditorPreferences(preferences);
   applyReferenceSurfacePreferences();
+  mountReferenceSurfaceComponents();
   renderReferenceSurfaceState();
 }
 
@@ -5358,12 +5475,14 @@ declare global {
       saveAsWritableMarkdownFileForTest: (fileName?: string) => Promise<void>;
       showRealFileOpenUnavailableForTest: () => void;
       showUnsupportedLocalFileStateForTest: () => void;
+      simulateCleanExternalApplyForTest: (content: string) => Promise<void>;
       simulateExternalConflict: () => Promise<void>;
       setCursorAfterText: (text: string) => void;
       setCursorToEnd: () => void;
       setReferenceSurfacePreferencesForTest: (preferences: ReferenceEditorPreferenceInput) => void;
       showInlineAiProviderStateForTest: (kind: SurfaceAiProviderKind) => void;
       setRichSelectionAfterText: (text: string) => void;
+      setRichSelectionForText: (text: string) => void;
       setSelection: (anchor: number, head: number) => void;
       startMockAiSessionForTest: () => void;
       switchEditorMode: (mode: DemoEditorMode) => void;

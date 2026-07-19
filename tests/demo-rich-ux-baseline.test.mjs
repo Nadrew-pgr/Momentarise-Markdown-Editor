@@ -35,6 +35,13 @@ if (!packageJson.scripts.test.includes("test:demo-rich-ux")) {
 }
 
 const main = readFileSync("apps/md-demo/src/main.ts", "utf8");
+const shellTemplate = main.slice(main.indexOf("app.innerHTML = `"), main.indexOf("const editorHost"));
+for (const forbiddenStaticSnippet of ['data-rich-bubble-command=', 'data-testid="selected-text-ai-bubble-action"']) {
+  if (shellTemplate.includes(forbiddenStaticSnippet)) {
+    throw new Error(`Selection bubble controls must be rendered by md-surface, not static demo HTML: ${forbiddenStaticSnippet}`);
+  }
+}
+
 for (const snippet of [
   "rich-block-controls",
   "code-block-controls",

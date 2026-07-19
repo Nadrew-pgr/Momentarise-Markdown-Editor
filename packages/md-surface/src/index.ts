@@ -26,7 +26,12 @@ export interface SurfaceComponent {
 
 export interface SurfacePreferences {
   readonly aiEntryPoints: readonly string[];
+  readonly layoutDensity?: "compact" | "comfortable" | "spacious" | string;
+  readonly modeControl?: "compact-tabs" | "host-provided" | "single-toggle" | string;
+  readonly slashEnabled?: boolean;
+  readonly slashGroups?: readonly string[];
   readonly toolbarMode?: "floating" | "hidden" | "inline" | "sticky" | string;
+  readonly toolbarStyle?: "compact" | "glass" | "solid" | string;
   readonly visibleCommandGroups?: readonly string[];
 }
 
@@ -97,7 +102,9 @@ export interface MmeStrings {
   readonly slash: {
     readonly aiSection: string;
     readonly emptyPlaceholder: string;
+    readonly groups?: Readonly<Record<string, string>>;
     readonly label: string;
+    readonly noResults?: string;
   };
   readonly status: {
     readonly adapter?: string;
@@ -175,6 +182,9 @@ export interface CreateSurfaceDocumentStateOptions {
 }
 
 export interface SurfaceToolbarState {
+  readonly activeIds?: readonly string[];
+  readonly disabledIds?: readonly string[];
+  readonly disabledReasons?: Readonly<Record<string, string>>;
   readonly editorMode: SurfaceEditorMode;
   readonly hostToolbarItems?: readonly ToolbarItemDefinition[];
   readonly visible: boolean;
@@ -184,6 +194,21 @@ export interface CreateToolbarOptions extends SurfaceComponentContext {
   readonly onAiToolbar: () => void;
   readonly onRunToolbarItem: (id: string) => void | Promise<void>;
   readonly state: SurfaceToolbarState;
+}
+
+export interface SurfaceSelectionBubbleState {
+  readonly activeIds?: readonly string[];
+  readonly aiDisabled?: boolean;
+  readonly aiVisible?: boolean;
+  readonly disabledIds?: readonly string[];
+  readonly disabledReasons?: Readonly<Record<string, string>>;
+  readonly visible: boolean;
+}
+
+export interface CreateSelectionBubbleToolbarOptions extends SurfaceComponentContext {
+  readonly onAiSelection: () => void | Promise<void>;
+  readonly onRunToolbarItem: (id: string) => void | Promise<void>;
+  readonly state: SurfaceSelectionBubbleState;
 }
 
 export interface SurfaceSlashState {
@@ -434,7 +459,15 @@ export const defaultMmeStrings: MmeStrings = {
   slash: {
     aiSection: "AI writing",
     emptyPlaceholder: "Type / for commands",
-    label: "Slash commands"
+    groups: {
+      ai: "AI",
+      blocks: "Blocks",
+      insert: "Insert",
+      lists: "Lists",
+      marks: "Marks"
+    },
+    label: "Slash commands",
+    noResults: "No commands found"
   },
   status: {
     adapter: "Adapter",
@@ -487,29 +520,36 @@ export const defaultMmeStrings: MmeStrings = {
 type ListenerCleanup = () => void;
 
 const toolbarCommands: readonly ToolbarCommandDefinition[] = [
-  { icon: "heading", id: "mme:heading1", richCommand: "heading1", testId: "toolbar-command-heading1", title: "heading1" },
-  { icon: "heading", id: "mme:heading2", richCommand: "heading2", testId: "toolbar-command-heading2", title: "heading2" },
-  { icon: "bold", id: "mme:bold", richCommand: "bold", testId: "toolbar-command-bold", title: "bold" },
-  { icon: "italic", id: "mme:italic", richCommand: "italic", testId: "toolbar-command-italic", title: "italic" },
-  { icon: "todo", id: "mme:todo", richCommand: "todo", testId: "toolbar-command-todo", title: "todo" },
-  { icon: "list", id: "mme:bulletList", richCommand: "bulletList", testId: "toolbar-command-bulletList", title: "bulletList" },
-  { icon: "quote", id: "mme:blockquote", richCommand: "blockquote", testId: "toolbar-command-blockquote", title: "blockquote" },
-  { icon: "code", id: "mme:codeBlock", richCommand: "codeBlock", testId: "toolbar-command-codeBlock", title: "codeBlock" },
-  { icon: "link", id: "mme:link", richCommand: "link", testId: "toolbar-command-link", title: "link" },
-  { icon: "divider", id: "mme:divider", richCommand: "divider", testId: "toolbar-command-divider", title: "divider" }
+  { group: "blocks", icon: "heading", id: "mme:heading1", richCommand: "heading1", testId: "toolbar-command-heading1", title: "heading1" },
+  { group: "blocks", icon: "heading", id: "mme:heading2", richCommand: "heading2", testId: "toolbar-command-heading2", title: "heading2" },
+  { group: "marks", icon: "bold", id: "mme:bold", richCommand: "bold", testId: "toolbar-command-bold", title: "bold" },
+  { group: "marks", icon: "italic", id: "mme:italic", richCommand: "italic", testId: "toolbar-command-italic", title: "italic" },
+  { group: "lists", icon: "todo", id: "mme:todo", richCommand: "todo", testId: "toolbar-command-todo", title: "todo" },
+  { group: "lists", icon: "list", id: "mme:bulletList", richCommand: "bulletList", testId: "toolbar-command-bulletList", title: "bulletList" },
+  { group: "blocks", icon: "quote", id: "mme:blockquote", richCommand: "blockquote", testId: "toolbar-command-blockquote", title: "blockquote" },
+  { group: "blocks", icon: "code", id: "mme:codeBlock", richCommand: "codeBlock", testId: "toolbar-command-codeBlock", title: "codeBlock" },
+  { group: "insert", icon: "link", id: "mme:link", richCommand: "link", testId: "toolbar-command-link", title: "link" },
+  { group: "insert", icon: "divider", id: "mme:divider", richCommand: "divider", testId: "toolbar-command-divider", title: "divider" }
 ] as const;
 
 const toolbarMoreCommands: readonly ToolbarCommandDefinition[] = [
-  { icon: "heading", id: "mme:paragraph", richCommand: "paragraph", title: "paragraph" },
-  { icon: "heading", id: "mme:heading3", richCommand: "heading3", title: "heading3" },
-  { icon: "list", id: "mme:orderedList", richCommand: "orderedList", title: "orderedList" },
-  { icon: "quote", id: "mme:callout", richCommand: "callout", title: "callout" },
-  { icon: "chevron", id: "mme:toggleBlock", richCommand: "toggleBlock", testId: "toolbar-command-toggleBlock", title: "toggleBlock" },
-  { icon: "image", id: "mme:image", richCommand: "image", title: "image" },
-  { icon: "code", id: "mme:inlineCode", richCommand: "inlineCode", title: "inlineCode" }
+  { group: "blocks", icon: "heading", id: "mme:paragraph", richCommand: "paragraph", title: "paragraph" },
+  { group: "blocks", icon: "heading", id: "mme:heading3", richCommand: "heading3", title: "heading3" },
+  { group: "lists", icon: "list", id: "mme:orderedList", richCommand: "orderedList", title: "orderedList" },
+  { group: "insert", icon: "quote", id: "mme:callout", richCommand: "callout", title: "callout" },
+  { group: "insert", icon: "chevron", id: "mme:toggleBlock", richCommand: "toggleBlock", testId: "toolbar-command-toggleBlock", title: "toggleBlock" },
+  { group: "insert", icon: "image", id: "mme:image", richCommand: "image", title: "image" },
+  { group: "marks", icon: "code", id: "mme:inlineCode", richCommand: "inlineCode", title: "inlineCode" }
+] as const;
+
+const selectionBubbleCommands: readonly ToolbarCommandDefinition[] = [
+  { group: "marks", icon: "bold", id: "mme:bold", richCommand: "bold", testId: "selection-bubble-bold", title: "bold" },
+  { group: "marks", icon: "italic", id: "mme:italic", richCommand: "italic", testId: "selection-bubble-italic", title: "italic" },
+  { group: "marks", icon: "code", id: "mme:inlineCode", richCommand: "inlineCode", testId: "selection-bubble-inline-code", title: "inlineCode" }
 ] as const;
 
 interface ToolbarCommandDefinition {
+  readonly group: string;
   readonly icon: IconName | null;
   readonly id: string;
   readonly richCommand: string;
@@ -541,13 +581,16 @@ export function createToolbar(options: CreateToolbarOptions): SurfaceComponent &
   const update = (): void => {
     root.hidden = !state.visible || state.editorMode !== "rich" || options.preferences.toolbarMode === "hidden";
     root.dataset.testid = "rich-command-toolbar";
+    root.dataset.toolbarMode = options.preferences.toolbarMode ?? "sticky";
+    root.dataset.toolbarStyle = options.preferences.toolbarStyle ?? "glass";
+    root.dataset.layoutDensity = options.preferences.layoutDensity ?? "comfortable";
     root.setAttribute("aria-label", options.strings.toolbar.label);
     root.setAttribute("role", "toolbar");
     root.replaceChildren(
-      ...toolbarCommands.map((command, index) => toolbarButton(options, command, index === 0)),
+      ...toolbarCommands.filter((command) => toolbarCommandVisible(options.preferences, command.group)).map((command, index) => toolbarButton(options, state, command, index === 0)),
       aiToolbarButton(options),
       ...hostToolbarButtons(options, state),
-      toolbarMore(options, moreOpen)
+      toolbarMore(options, state, moreOpen)
     );
     setMoreOpen(moreOpen);
   };
@@ -639,16 +682,20 @@ export function createSlashMenu(options: CreateSlashMenuOptions): SurfaceCompone
   root.dataset.testid = "slash-command-menu";
   query.dataset.testid = "slash-command-query";
   items.dataset.slashCommandItems = "";
+  items.dataset.testid = "slash-command-items";
   root.append(query, items);
   options.host.replaceChildren(root);
 
+  const visibleSlashItems = (): readonly SlashItemDefinition[] =>
+    state.items.filter((item) => slashCommandVisible(options.preferences, item.group));
+
   const selectableItems = (): readonly (SlashItemDefinition | SurfaceAiAction)[] => [
-    ...state.items,
+    ...visibleSlashItems(),
     ...enabledAiItems(options, state, "slash")
   ];
 
   const runSelected = (): void => {
-    const slashCount = state.items.length;
+    const slashCount = visibleSlashItems().length;
     const selected = selectableItems()[selectedIndex];
     if (!selected) {
       return;
@@ -668,7 +715,7 @@ export function createSlashMenu(options: CreateSlashMenuOptions): SurfaceCompone
   };
 
   const handleKeyDown = (event: KeyboardEvent): boolean => {
-    if (!state.open) {
+    if (!state.open || options.preferences.slashEnabled === false) {
       return false;
     }
     const count = selectableItems().length;
@@ -688,6 +735,20 @@ export function createSlashMenu(options: CreateSlashMenuOptions): SurfaceCompone
       event.preventDefault();
       if (count > 0) {
         updateSelection(selectedIndex - 1);
+      }
+      return true;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      if (count > 0) {
+        updateSelection(0);
+      }
+      return true;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      if (count > 0) {
+        updateSelection(count - 1);
       }
       return true;
     }
@@ -714,21 +775,38 @@ export function createSlashMenu(options: CreateSlashMenuOptions): SurfaceCompone
 
   const render = (): void => {
     const aiItems = enabledAiItems(options, state, "slash");
-    root.hidden = !state.open;
+    const slashItems = visibleSlashItems();
+    root.hidden = !state.open || options.preferences.slashEnabled === false;
     root.setAttribute("aria-label", options.strings.slash.label);
     root.setAttribute("role", "listbox");
-    root.tabIndex = -1;
+    root.tabIndex = root.hidden ? -1 : 0;
     query.textContent = `/${state.query}`;
     const children: HTMLElement[] = [];
-    state.items.forEach((item, index) => {
-      children.push(slashButton(options, item, index, selectedIndex));
-    });
+    let itemIndex = 0;
+    for (const [group, groupItems] of groupedSlashItems(slashItems)) {
+      children.push(sectionLabel(options, slashGroupLabel(options.strings, group), group));
+      for (const item of groupItems) {
+        children.push(slashButton(options, item, itemIndex, selectedIndex));
+        itemIndex += 1;
+      }
+    }
     if (aiItems.length > 0) {
-      children.push(sectionLabel(options, options.strings.slash.aiSection));
+      children.push(sectionLabel(options, options.strings.slash.aiSection, "ai"));
     }
     aiItems.forEach((item, index) => {
-      children.push(aiSlashButton(options, item, state.items.length + index, selectedIndex));
+      children.push(aiSlashButton(options, item, slashItems.length + index, selectedIndex));
     });
+    if (children.length === 0) {
+      children.push(slashEmptyState(options));
+      root.removeAttribute("aria-activedescendant");
+    } else {
+      const active = children.find((child) => child.getAttribute("aria-selected") === "true");
+      if (active?.id) {
+        root.setAttribute("aria-activedescendant", active.id);
+      } else {
+        root.removeAttribute("aria-activedescendant");
+      }
+    }
     items.replaceChildren(...children);
   };
 
@@ -743,7 +821,8 @@ export function createSlashMenu(options: CreateSlashMenuOptions): SurfaceCompone
     for (const cleanup of cleanups.splice(0)) {
       cleanup();
     }
-    root.remove();
+    root.replaceChildren();
+    root.hidden = true;
   };
   return {
     destroy,
@@ -752,6 +831,104 @@ export function createSlashMenu(options: CreateSlashMenuOptions): SurfaceCompone
     setState(nextState: SurfaceSlashState) {
       state = nextState;
       selectedIndex = nextState.selectedIndex;
+      render();
+    },
+    update: render
+  };
+}
+
+export function createSelectionBubbleToolbar(options: CreateSelectionBubbleToolbarOptions): SurfaceComponent & {
+  readonly root: HTMLElement;
+  setState(state: SurfaceSelectionBubbleState): void;
+} {
+  const root = options.host.matches('[data-testid="selection-bubble-toolbar"]')
+    ? options.host
+    : createElement(options.host, "div", "selection-bubble-toolbar");
+  const ownsRoot = root !== options.host;
+  const cleanups: ListenerCleanup[] = [];
+  let state = options.state;
+  if (ownsRoot) {
+    options.host.replaceChildren(root);
+  }
+
+  const render = (): void => {
+    root.className = "selection-bubble-toolbar";
+    root.dataset.testid = "selection-bubble-toolbar";
+    root.dataset.layoutDensity = options.preferences.layoutDensity ?? "comfortable";
+    root.hidden = !state.visible;
+    root.setAttribute("aria-label", options.strings.toolbar.label);
+    root.setAttribute("role", "toolbar");
+    root.replaceChildren(
+      ...selectionBubbleCommands
+        .filter((command) => toolbarCommandVisible(options.preferences, command.group))
+        .map((command, index) => selectionBubbleButton(options, state, command, index === 0)),
+      selectionBubbleAiButton(options, state)
+    );
+  };
+
+  const onClick = (event: Event): void => {
+    const target = elementTarget(event);
+    if (!target) {
+      return;
+    }
+    const aiButton = target.closest<HTMLElement>("[data-reference-ai-selection]");
+    if (aiButton) {
+      void options.onAiSelection();
+      return;
+    }
+    const command = target.closest<HTMLElement>("[data-toolbar-command-id]");
+    if (command?.dataset.toolbarCommandId) {
+      void options.onRunToolbarItem(command.dataset.toolbarCommandId);
+    }
+  };
+
+  const onKeyDown = (event: KeyboardEvent): void => {
+    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft" && event.key !== "Home" && event.key !== "End") {
+      return;
+    }
+    const buttons = visibleButtons(root);
+    if (buttons.length === 0) {
+      return;
+    }
+    event.preventDefault();
+    const active = options.host.ownerDocument.activeElement;
+    const current = Math.max(0, buttons.findIndex((button) => button === active));
+    const next =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? buttons.length - 1
+          : event.key === "ArrowRight"
+            ? (current + 1) % buttons.length
+            : (current - 1 + buttons.length) % buttons.length;
+    setRovingTabIndex(buttons, next);
+    buttons[next]?.focus();
+  };
+
+  root.addEventListener("click", onClick);
+  root.addEventListener("keydown", onKeyDown);
+  cleanups.push(options.session.on("destroy", () => destroy()));
+  cleanups.push(() => root.removeEventListener("click", onClick));
+  cleanups.push(() => root.removeEventListener("keydown", onKeyDown));
+  render();
+
+  const destroy = (): void => {
+    for (const cleanup of cleanups.splice(0)) {
+      cleanup();
+    }
+    if (ownsRoot) {
+      root.remove();
+    } else {
+      root.replaceChildren();
+      root.hidden = true;
+    }
+  };
+
+  return {
+    destroy,
+    root,
+    setState(nextState: SurfaceSelectionBubbleState) {
+      state = nextState;
       render();
     },
     update: render
@@ -1469,8 +1646,20 @@ export function createModeControl(options: CreateModeControlOptions): SurfaceCom
   options.host.replaceChildren(root);
 
   const render = (): void => {
+    root.dataset.testid = "mode-control";
+    root.dataset.modeControl = options.preferences.modeControl ?? "compact-tabs";
     root.setAttribute("aria-label", options.strings.mode.label);
     root.setAttribute("role", "group");
+    if (options.preferences.modeControl === "host-provided") {
+      root.hidden = true;
+      root.replaceChildren();
+      return;
+    }
+    root.hidden = false;
+    if (options.preferences.modeControl === "single-toggle") {
+      root.replaceChildren(modeCycleButton(options, state));
+      return;
+    }
     root.replaceChildren(...surfaceModesForDocumentKind(state.documentKind).map((mode) => modeButton(options, state, mode)));
   };
 
@@ -1480,6 +1669,11 @@ export function createModeControl(options: CreateModeControlOptions): SurfaceCom
     const mode = button?.dataset.editorMode as SurfaceEditorMode | undefined;
     if (mode) {
       options.onSwitchMode(mode);
+    }
+    const cycle = target?.closest<HTMLElement>("[data-editor-mode-cycle]");
+    const nextMode = cycle?.dataset.editorModeCycle as SurfaceEditorMode | undefined;
+    if (nextMode) {
+      options.onSwitchMode(nextMode);
     }
   };
   root.addEventListener("click", onClick);
@@ -1631,17 +1825,54 @@ function shortStatusHash(hash: string): string {
   return hash.length > 16 ? hash.slice(0, 16) : hash;
 }
 
-function toolbarButton(options: CreateToolbarOptions, command: ToolbarCommandDefinition, roving: boolean): HTMLButtonElement {
+function commandActive(state: Pick<SurfaceToolbarState, "activeIds"> | Pick<SurfaceSelectionBubbleState, "activeIds">, id: string): boolean {
+  return state.activeIds?.includes(id) ?? false;
+}
+
+function commandDisabled(state: Pick<SurfaceToolbarState, "disabledIds"> | Pick<SurfaceSelectionBubbleState, "disabledIds">, id: string): boolean {
+  return state.disabledIds?.includes(id) ?? false;
+}
+
+function toolbarCommandVisible(preferences: SurfacePreferences, group: string): boolean {
+  return commandGroupVisible(preferences.visibleCommandGroups, group);
+}
+
+function slashCommandVisible(preferences: SurfacePreferences, group: string): boolean {
+  return commandGroupVisible(preferences.visibleCommandGroups, group) && commandGroupVisible(preferences.slashGroups, group);
+}
+
+function commandGroupVisible(groups: readonly string[] | undefined, group: string): boolean {
+  if (!groups) {
+    return true;
+  }
+  return groups.includes(normalizeCommandGroup(group));
+}
+
+function normalizeCommandGroup(group: string): string {
+  if (group === "block") {
+    return "blocks";
+  }
+  if (group === "inline") {
+    return "marks";
+  }
+  return group;
+}
+
+function toolbarButton(options: CreateToolbarOptions, state: SurfaceToolbarState, command: ToolbarCommandDefinition, roving: boolean): HTMLButtonElement {
   const button = createElement(options.host, "button", "toolbar-button");
+  const disabled = commandDisabled(state, command.id);
+  const label = options.strings.toolbar[command.title];
   button.type = "button";
+  button.disabled = disabled;
   button.dataset.richCommand = command.richCommand;
+  button.dataset.toolbarGroup = command.group;
   button.dataset.toolbarCommandId = command.id;
   if (command.testId) {
     button.dataset.testid = command.testId;
   }
-  const label = options.strings.toolbar[command.title];
   button.setAttribute("aria-label", label);
-  button.title = label;
+  button.setAttribute("aria-pressed", String(commandActive(state, command.id)));
+  button.title = disabled ? state.disabledReasons?.[command.id] ?? label : label;
   button.tabIndex = roving ? 0 : -1;
   if (command.icon) {
     button.innerHTML = toolbarIcon(options, command.icon);
@@ -1664,22 +1895,71 @@ function aiToolbarButton(options: CreateToolbarOptions): HTMLButtonElement {
 
 function hostToolbarButtons(options: CreateToolbarOptions, state: SurfaceToolbarState): HTMLButtonElement[] {
   return (state.hostToolbarItems ?? [])
-    .filter((item) => item.id.startsWith("host:"))
+    .filter((item) => !item.id.startsWith("mme:"))
+    .filter((item) => toolbarCommandVisible(options.preferences, item.group))
     .map((item) => {
       const button = createElement(options.host, "button", "toolbar-button toolbar-extension-button");
       const label = extensionLabel(options.strings, item.labelKey);
+      const disabled = commandDisabled(state, item.id);
       button.type = "button";
+      button.disabled = disabled;
       button.dataset.extensionToolbarItem = item.id;
+      button.dataset.toolbarGroup = item.group;
       button.dataset.testid = `toolbar-extension-${item.id}`;
       button.setAttribute("aria-label", label);
+      button.setAttribute("aria-pressed", String(commandActive(state, item.id)));
       button.title = label;
+      if (disabled) {
+        button.title = state.disabledReasons?.[item.id] ?? label;
+      }
       button.tabIndex = -1;
       button.innerHTML = toolbarIcon(options, toolbarIconName(item.icon));
       return button;
     });
 }
 
-function toolbarMore(options: CreateToolbarOptions, open: boolean): HTMLDivElement {
+function selectionBubbleButton(
+  options: CreateSelectionBubbleToolbarOptions,
+  state: SurfaceSelectionBubbleState,
+  command: ToolbarCommandDefinition,
+  roving: boolean
+): HTMLButtonElement {
+  const button = createElement(options.host, "button", "toolbar-button");
+  const label = options.strings.toolbar[command.title];
+  const disabled = commandDisabled(state, command.id);
+  button.type = "button";
+  button.disabled = disabled;
+  button.dataset.richBubbleCommand = command.richCommand;
+  button.dataset.toolbarCommandId = command.id;
+  button.dataset.toolbarGroup = command.group;
+  if (command.testId) {
+    button.dataset.testid = command.testId;
+  }
+  button.setAttribute("aria-label", label);
+  button.setAttribute("aria-pressed", String(commandActive(state, command.id)));
+  button.title = disabled ? state.disabledReasons?.[command.id] ?? label : label;
+  button.tabIndex = roving ? 0 : -1;
+  if (command.icon) {
+    button.innerHTML = toolbarIcon(options, command.icon);
+  }
+  return button;
+}
+
+function selectionBubbleAiButton(options: CreateSelectionBubbleToolbarOptions, state: SurfaceSelectionBubbleState): HTMLButtonElement {
+  const button = createElement(options.host, "button", "toolbar-button selected-text-ai-bubble-action");
+  button.type = "button";
+  button.dataset.referenceAiSelection = "";
+  button.dataset.testid = "selected-text-ai-bubble-action";
+  button.hidden = state.aiVisible === false || !entryPointEnabled(options.preferences, "selection");
+  button.disabled = state.aiDisabled ?? false;
+  button.setAttribute("aria-label", options.strings.toolbar.ai);
+  button.title = options.strings.toolbar.ai;
+  button.tabIndex = -1;
+  button.innerHTML = toolbarIcon(options, "ai");
+  return button;
+}
+
+function toolbarMore(options: CreateToolbarOptions, state: SurfaceToolbarState, open: boolean): HTMLDivElement {
   const container = createElement(options.host, "div", "toolbar-more");
   const button = createElement(options.host, "button", "toolbar-button");
   const menu = createElement(options.host, "div", "toolbar-more-menu");
@@ -1693,13 +1973,19 @@ function toolbarMore(options: CreateToolbarOptions, open: boolean): HTMLDivEleme
   menu.dataset.testid = "toolbar-more-menu";
   menu.hidden = !open;
   menu.append(
-    ...toolbarMoreCommands.map((command) => {
+    ...toolbarMoreCommands.filter((command) => toolbarCommandVisible(options.preferences, command.group)).map((command) => {
       const item = createElement(options.host, "button", "toolbar-menu-item");
+      const disabled = commandDisabled(state, command.id);
       item.type = "button";
+      item.disabled = disabled;
       item.dataset.richCommand = command.richCommand;
       item.dataset.toolbarCommandId = command.id;
+      item.setAttribute("aria-pressed", String(commandActive(state, command.id)));
       if (command.testId) {
         item.dataset.testid = command.testId;
+      }
+      if (disabled) {
+        item.title = state.disabledReasons?.[command.id] ?? options.strings.toolbar[command.title];
       }
       item.innerHTML = `${command.icon ? toolbarIcon(options, command.icon) : ""}<span>${escapeText(options.strings.toolbar[command.title])}</span>`;
       return item;
@@ -1784,11 +2070,35 @@ function aiSlashButton(
   return button;
 }
 
-function sectionLabel(options: SurfaceComponentContext, label: string): HTMLElement {
+function sectionLabel(options: SurfaceComponentContext, label: string, group: string): HTMLElement {
   const item = createElement(options.host, "p", "slash-command-section");
   item.setAttribute("role", "presentation");
+  item.dataset.testid = `slash-section-${normalizeCommandGroup(group)}`;
   item.textContent = label;
   return item;
+}
+
+function slashEmptyState(options: CreateSlashMenuOptions): HTMLElement {
+  const item = createElement(options.host, "p", "slash-command-empty");
+  item.dataset.testid = "slash-empty-state";
+  item.setAttribute("role", "presentation");
+  item.textContent = options.strings.slash.noResults ?? defaultMmeStrings.slash.noResults ?? options.strings.slash.emptyPlaceholder;
+  return item;
+}
+
+function groupedSlashItems(items: readonly SlashItemDefinition[]): readonly (readonly [string, readonly SlashItemDefinition[]])[] {
+  const groups = new Map<string, SlashItemDefinition[]>();
+  for (const item of items) {
+    const group = normalizeCommandGroup(item.group);
+    const groupItems = groups.get(group) ?? [];
+    groupItems.push(item);
+    groups.set(group, groupItems);
+  }
+  return [...groups.entries()];
+}
+
+function slashGroupLabel(strings: MmeStrings, group: string): string {
+  return strings.slash.groups?.[normalizeCommandGroup(group)] ?? defaultMmeStrings.slash.groups?.[normalizeCommandGroup(group)] ?? group;
 }
 
 function paletteButton(
@@ -1907,6 +2217,33 @@ function modeButton(options: CreateModeControlOptions, state: SurfaceModeControl
     button.hidden = false;
   }
   return button;
+}
+
+function modeCycleButton(options: CreateModeControlOptions, state: SurfaceModeControlState): HTMLButtonElement {
+  const modes = surfaceModesForDocumentKind(state.documentKind);
+  const currentIndex = Math.max(0, modes.indexOf(state.editorMode));
+  const current = modes[currentIndex] ?? modes[0] ?? "source";
+  const next = modes[(currentIndex + 1) % Math.max(1, modes.length)] ?? current;
+  const button = createElement(options.host, "button", "mode-button mode-cycle-button");
+  button.type = "button";
+  button.dataset.editorModeCycle = next;
+  button.dataset.testid = "mode-cycle-button";
+  button.setAttribute("aria-label", `${options.strings.mode.label}: ${modeLabel(options.strings, current)}`);
+  button.textContent = modeLabel(options.strings, current);
+  return button;
+}
+
+function modeLabel(strings: MmeStrings, mode: SurfaceEditorMode): string {
+  if (mode === "source") {
+    return strings.mode.source;
+  }
+  if (mode === "rich") {
+    return strings.mode.rich;
+  }
+  if (mode === "live-preview") {
+    return strings.mode.livePreview;
+  }
+  return strings.mode.preview;
 }
 
 function surfaceModesForDocumentKind(documentKind: SurfaceDocumentKind): readonly SurfaceEditorMode[] {

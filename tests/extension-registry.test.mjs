@@ -57,6 +57,18 @@ registry.registerSlashItem({
   }
 });
 
+registry.registerSlashItem({
+  aliases: ["kanban board", "project board"],
+  group: "insert",
+  id: "host:kanban-board",
+  labelKey: "extensions.kanbanBoard",
+  run() {
+    return {
+      handled: true
+    };
+  }
+});
+
 registry.registerKeybinding({
   commandId: "mme:bold",
   id: "host:bold-shortcut",
@@ -96,6 +108,8 @@ registry.registerCustomBlock({
 
 const slashMatches = registry.searchSlashItems("card");
 assert(slashMatches.map((item) => item.id).includes("host:callout-card"), "host slash item must be searchable.");
+const fuzzySlashMatches = registry.searchSlashItems("kb");
+assert(fuzzySlashMatches[0]?.id === "host:kanban-board", "slash search must support fuzzy alias matching and ranking.");
 
 const toolbarItems = registry.getToolbarItems();
 assert(toolbarItems.some((item) => item.id === "mme:bold"), "built-in toolbar item must use the public registry.");

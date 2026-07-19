@@ -153,6 +153,7 @@
     "createFindReplaceSurface",
     "createInlineAiPrompt",
     "createModeControl",
+    "createSelectionBubbleToolbar",
     "createSlashMenu",
     "createSurfaceDocumentState",
     "createToolbar",

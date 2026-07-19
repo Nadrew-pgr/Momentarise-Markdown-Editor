@@ -2574,6 +2574,10 @@ This issue owns reusable capability. Do not solve command UX by hardcoding demo-
 
 UX Reviewer and Architecture Reviewer.
 
+### Status
+
+Accepted for code continuation 2026-07-19 after reusable command-surface hardening, reviewer rechecks, strengthened visual proof, and full test pass. Added fuzzy slash search/ranking, grouped slash sections, focusable listbox active-descendant wiring, empty state, AI entry-point coverage, toolbar and selection-bubble active/disabled state, non-built-in extension toolbar rendering without `host:` namespace coupling, host-configurable mode-control variants, and clean external-apply overlay reset. The demo now uses package-owned selection-bubble controls instead of static command scaffolding. Visual proof covers fuzzy slash grouping, AI slash entries, toolbar/selection bubble state, single-toggle mode control, constrained/mobile reachability, two-axis/pointer command-surface bounds, and clean external apply closing stale overlays. Proven by RED `npm run test:surface` and `npm run test:extension-registry`, green targeted checks, `npm run visual:mme-0045`, `git diff --check`, and full `npm test`. Reviewer subagents found P2s in slash accessibility ownership, toolbar namespace filtering, static demo masking, visual proof scope, constrained/mobile reachability, overflow proof, and external-apply lifecycle; builder fixed all, and both reviewers rechecked with no remaining P0/P1/P2. Final human command-surface product review is queued in `docs/internal/BACKLOG.md`; `MME-0046` remains the next candidate after issue-scoped commit.
+
 ## MME-0046 — HTML preview reading polish
 
 ### Goal

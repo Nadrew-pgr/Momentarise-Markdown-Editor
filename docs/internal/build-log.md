@@ -5093,3 +5093,72 @@
   - Not pushed. Branch is ahead of origin and contains existing unpushed commits; `MME-0038` still has public-face validation debt and `MME-0044` has final workflow review queued.
 - Next issue:
   - `MME-0045 — Toolbar, slash, and mode controls final UX` after issue-scoped MME-0044 commit.
+
+## MME-0045 — Toolbar, slash, and mode controls final UX
+
+- Date: 2026-07-19.
+- Previous issue status:
+  - `MME-0044` completed and committed (`9353e64` plus evidence commit `494b590`).
+  - `MME-0038`, `MME-0044`, and now `MME-0045` visible/product reviews are queued for the end-of-run human review block instead of blocking code continuation.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short`, and target files in `md-surface`, `md-editor`, `md-theme`, `md-rich-prosemirror`, demo source/styles, existing surface/extension/demo tests, public API fixture, and prior visual artifacts.
+- RED proof before implementation:
+  - Updated `tests/surface-components.test.mjs` before implementation to require `createSelectionBubbleToolbar`, toolbar active/disabled states, command group filtering, slash grouping/empty state/keyboard state, disabled slash behavior, selection-bubble state, and mode-control variants.
+  - Updated `tests/extension-registry.test.mjs` before implementation to require fuzzy slash alias matching and ranking.
+  - Added `scripts/visual-check-mme0045.mjs` and `docs/internal/visual-checks/MME-0045/README.md` before visual proof.
+  - Initial `npm run test:surface` failed because `@momentarise/md-surface` did not export `createSelectionBubbleToolbar`.
+  - Initial `npm run test:extension-registry` failed because slash search did not support fuzzy alias matching.
+- Change:
+  - Added fuzzy slash search/ranking in `@momentarise/md-editor` using normalized exact, prefix, contains, and subsequence candidate scoring across id, label key, group, and aliases.
+  - Expanded `@momentarise/md-surface` preferences for layout density, toolbar style, slash enablement/groups, and mode-control style.
+  - Added slash grouping labels, empty state, focusable listbox root, root-owned `aria-activedescendant`, Home/End handling, slash-specific group filtering, and AI entry rendering.
+  - Added toolbar active/disabled state, disabled reasons, command group visibility, and extension toolbar rendering for non-built-in registry items without requiring a `host:` namespace.
+  - Added reusable `createSelectionBubbleToolbar` with package-owned buttons, active/disabled state, AI-selection gating, roving keyboard focus, and safe existing-host/package-owned mounting.
+  - Added mode-control variants: compact tabs, single-toggle, and host-provided hidden control, all document-kind aware.
+  - Updated the reference demo to mount selection bubble controls from `@momentarise/md-surface`, remove static bubble command scaffolding, remount preference-dependent surfaces after preference changes, reset transient overlays after clean external content apply, and keep the bubble inside mobile viewport bounds.
+  - Updated public API fixture and `packages/md-surface/README.md` for the intentional new surface export and command-surface host contract.
+  - Updated `README.md`, `docs/internal/ISSUES.md`, and `docs/internal/BACKLOG.md` for MME-0045 status and final human review queue.
+- Visual impact:
+  - Slash menu now shows grouped command sections, fuzzy matches, AI entry points, listbox focus/active-descendant state, and empty-state behavior.
+  - Rich toolbar and selection bubble now show active/disabled command state and are package-owned reusable surfaces.
+  - Mode control can render as compact tabs, single-toggle, or hidden host-provided control.
+  - Mobile and constrained proofs assert command surfaces and key topbar controls remain reachable horizontally, vertically, and by pointer hit testing.
+  - Clean external apply closes stale slash/selection overlays.
+  - Screenshots:
+    - `docs/internal/visual-checks/MME-0045/slash-fuzzy-grouped-desktop.png`
+    - `docs/internal/visual-checks/MME-0045/slash-ai-entrypoints-desktop.png`
+    - `docs/internal/visual-checks/MME-0045/toolbar-active-disabled-desktop.png`
+    - `docs/internal/visual-checks/MME-0045/mode-control-single-toggle.png`
+    - `docs/internal/visual-checks/MME-0045/command-surfaces-constrained.png`
+    - `docs/internal/visual-checks/MME-0045/command-surfaces-mobile.png`
+    - `docs/internal/visual-checks/MME-0045/command-surfaces-after-external-apply.png`
+- Checks run:
+  - `npm run test:surface` — RED before implementation, then green after implementation and reviewer fixes.
+  - `npm run test:extension-registry` — RED before implementation, then green after implementation and reviewer fixes.
+  - `npm run test:demo-commands` — green.
+  - `npm run test:demo-rich-ux` — green after static bubble regression check.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:preferences-demo` — green.
+  - `npm run test:public-api` — green after approved surface export update.
+  - `npm run build:demo` — green; existing Vite bundle-size warning only.
+  - `npm run test:default-theme` — green after updating the old static-icon baseline to package-rendered icon metadata.
+  - `npm run test:docs` — green.
+  - `git diff --check` — green.
+  - `npm run visual:mme-0045` — sandbox Chrome aborted before CDP on first run; rerun green with system Chrome permission, and final strengthened rerun green after reviewer fixes.
+  - `npm test` — green; existing Vite bundle-size warning only.
+- Manual/visual verification:
+  - Dev server command remains `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`; Vite is serving at `http://127.0.0.1:5174/`.
+  - Manual screenshot inspection confirmed nonblank render, grouped slash menu, AI slash entries, no duplicate built-in toolbar buttons, selection bubble visible without horizontal clipping, and mobile command surfaces within viewport.
+- Reviewer result:
+  - Surface/API reviewer subagent `Helmholtz` used `gpt-5.3-codex-spark` with `xhigh` reasoning. Initial review found two P2s: slash listbox focus/`aria-activedescendant` ownership mismatch and over-restrictive `host:` toolbar namespace filtering. Builder moved active-descendant to the focusable listbox root, allowed non-built-in vendor toolbar namespaces while skipping built-in `mme:` duplicates, and added regression tests. Recheck reported no remaining P0/P1/P2.
+  - Demo/visual reviewer subagent `Bacon` used `gpt-5.3-codex-spark` with `xhigh` reasoning. Initial review found P2 proof gaps around static demo masking, visual claim accuracy, constrained/mobile control reachability, one-dimensional overflow, and stale overlay lifecycle after remount/external apply. Builder removed static bubble buttons, added source baseline protection, strengthened visual assertions for keyboard slash movement, AI entry points, two-axis/pointer reachability, topbar/mode controls, and clean external apply overlay reset. Recheck reported no remaining P0/P1/P2.
+- Residual risks:
+  - Final command-surface product feel remains queued for the end-of-run human review block, per human instruction.
+  - The demo proves representative keyboard/mobile/reachability paths, not every future host layout or custom theme.
+  - Visual proof requires system Chrome permission in this sandbox.
+- Commit status:
+  - Pending issue-scoped commit after docs closeout.
+- Push status:
+  - Not pushed. Branch is ahead of origin and contains existing unpushed commits; visible/product review debt is queued for final human review before public launch.
+- Next issue:
+  - `MME-0046 — HTML preview reading polish` after issue-scoped MME-0045 commit.
