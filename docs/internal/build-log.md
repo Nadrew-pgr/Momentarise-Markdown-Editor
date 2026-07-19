@@ -5222,3 +5222,62 @@
   - Not pushed. Branch is ahead of origin and contains existing unpushed commits; visible/product review debt is queued for final human review before public launch.
 - Next issue:
   - `MME-0047 — Folding and document structure polish` after issue-scoped MME-0046 commit.
+
+## MME-0047 — Folding and document structure polish
+
+- Date: 2026-07-19.
+- Previous issue status:
+  - `MME-0046` completed and committed (`e5d9d78` plus evidence commit `f2a73df`).
+  - `MME-0038`, `MME-0044`, `MME-0045`, `MME-0046`, and now `MME-0047` visible/product reviews are queued for the end-of-run human review block instead of blocking code continuation.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short`, and target files in `packages/md-rich-prosemirror`, `packages/md-editor`, `packages/md-surface`, `apps/md-demo`, existing folding tests, and MME-0014 visual checks.
+- RED proof before implementation:
+  - Updated `tests/rich-folding.test.mjs` before implementation to require `getRichFoldItems`/`toggleRichFold`, H1-H6 hierarchy coverage, nested parent/child persistence, and source-safe code/callout/opaque fold items.
+  - Updated `tests/demo-folding-baseline.test.mjs` before implementation to require the generic fold APIs, block folding demo hooks/styles, `visual:mme-0047`, and MME-0047 visual artifacts.
+  - Added `scripts/visual-check-mme0047.mjs` and `docs/internal/visual-checks/MME-0047/README.md` before browser proof.
+  - Initial `npm run test:rich-folding` failed because `getRichFoldItems` was not exported.
+  - Initial `npm run test:demo-folding` failed because the demo had not adopted the generic folding path.
+- Change:
+  - Added generic rich folding APIs: `getRichFoldItems()` and `toggleRichFold()`, while keeping `getRichHeadingFoldItems()` and `toggleRichHeadingFold()` as compatibility wrappers.
+  - Extended fold metadata with `foldKind`, `foldable`, and stable source-derived IDs for headings, code blocks, callout blocks, and opaque raw/unsupported blocks.
+  - Kept heading folding hierarchical across H1-H6 sections and preserved nested child fold state when parents collapse and reopen.
+  - Made code blocks, callouts, and opaque blocks foldable as interface state only; serialization and save state remain unchanged.
+  - Updated the demo folding decorations to render quieter gutter controls for every foldable block, contextual screen-reader labels, focus-visible treatment, and visible collapsed markers for non-heading blocks.
+  - Strengthened the visual proof to assert runtime heading/block hooks, contextual ARIA labels, `...` pseudo markers, unchanged Markdown, and clean save truth after folding.
+  - Updated the public API approved fixture, README status, issue status, and end-of-run human review queue.
+- Visual impact:
+  - Folding controls are quieter by default and appear strongly on hover/focus.
+  - Heading folding still marks collapsed sections with `...`.
+  - Code, callout, and opaque raw blocks now show source-safe collapsed markers without changing Markdown.
+  - Screenshots:
+    - `docs/internal/visual-checks/MME-0047/folding-quiet-gutter-focus.png`
+    - `docs/internal/visual-checks/MME-0047/folding-code-block-collapsed.png`
+    - `docs/internal/visual-checks/MME-0047/folding-callout-collapsed.png`
+    - `docs/internal/visual-checks/MME-0047/folding-opaque-block-collapsed.png`
+    - `docs/internal/visual-checks/MME-0047/folding-parent-child-state.png`
+- Checks run:
+  - `npm run test:rich-folding` — RED before implementation, then green after implementation and reviewer fixes.
+  - `npm run test:demo-folding` — RED before implementation, then green after implementation and reviewer fixes.
+  - `npm run test:public-api` — green after approved API fixture update.
+  - `npm run build:demo` — green; existing Vite bundle-size warning only.
+  - `npm run visual:mme-0047` — sandbox Chrome aborted before CDP on first run; rerun green with system Chrome permission, and final rerun green after reviewer fixes.
+  - `npm run test:docs` — green after status docs update.
+  - `git diff --check` — green.
+  - `npm test` — green; existing Vite bundle-size warning only.
+- Manual/visual verification:
+  - Dev server restarted and remains available at `http://127.0.0.1:5174/` using `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`.
+  - Manual screenshot inspection confirmed nonblank folding surface, quiet controls, visible collapsed markers, preserved nested child state, unchanged save status, and no persistent folding debug strip.
+- Reviewer result:
+  - Test/API reviewer subagent `Peirce` used `gpt-5.3-codex-spark` with `xhigh` reasoning and reported no P0/P1/P2 findings. One P3 noted the demo baseline should prove runtime hook usage more explicitly; builder added visual-script baseline assertions for runtime heading and block hooks.
+  - UX/accessibility reviewer subagent `Hooke` reviewed screenshots and current diff. Initial review found two P2s: non-heading collapsed markers could look clipped/unclear, and non-heading fold buttons had generic screen-reader labels. Builder made non-heading labels include text context, made collapsed markers absolute/visible, and added visual assertions for contextual labels and pseudo marker content. Delta review reported no remaining P0/P1/P2.
+- Residual risks:
+  - Final folding product taste is queued for the end-of-run human review block, per human instruction.
+  - The visible `Technical diagnostics` pill is pre-existing demo product debt and remains queued with broader public-readiness polish; it was not introduced by MME-0047.
+  - The demo proves representative folding behavior and source truth, not every future host gutter layout or custom theme.
+  - Visual proof requires system Chrome permission in this sandbox.
+- Commit status:
+  - Issue-scoped implementation commit created: `f9dba90` (`feat: polish folding structure`).
+- Push status:
+  - Not pushed. Branch is ahead of origin and contains existing unpushed commits; visible/product review debt is queued for final human review before public launch.
+- Next issue:
+  - `MME-0048 — Public docs launch hardening and MME-0038 validation debt` after issue-scoped MME-0047 evidence commit.
