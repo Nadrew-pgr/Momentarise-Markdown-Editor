@@ -5337,3 +5337,67 @@
   - Not pushed. Branch is ahead of origin and contains existing unpushed commits; public-face review debt is queued for final human review before public launch.
 - Next issue:
   - `MME-0049 — AX skills, manifests, and reusable agent actions` after issue-scoped MME-0048 evidence commit.
+
+## MME-0049 — AX skills, manifests, and reusable agent actions
+
+- Date: 2026-07-19.
+- Previous issue status:
+  - `MME-0048` completed and committed for code continuation (`0ec9fbf` plus evidence commit `526c4aa`).
+  - `MME-0038`, `MME-0044`, `MME-0045`, `MME-0046`, `MME-0047`, `MME-0048`, and now `MME-0049` visible/product/public-face reviews are queued for the end-of-run human review block instead of blocking code continuation.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short`, `docs/public`, `apps/docs-site`, `scripts/generate-llms.mjs`, `llms.txt`, `llms-full.txt`, package metadata, MME-0038 AX docs, and available Codex skill conventions.
+- RED proof before implementation:
+  - Added `tests/agent-artifacts.test.mjs` before implementation and wired `test:agent-artifacts` into root `npm test`.
+  - Initial `npm run test:agent-artifacts` failed because `scripts/generate-agent-artifacts.mjs` did not exist.
+  - After the first generator pass, the test failed because generated skills did not consistently point to both `llms.txt` and `llms-full.txt`.
+  - The public-boundary test then failed because generated skill text exposed the internal docs path string while warning agents not to use it.
+  - Reviewer P3 robustness fixes briefly made Next/Turbopack fail with URL/path handling; the docs site now consumes the generated JSON through a static import instead of runtime filesystem reads.
+- Change:
+  - Added `scripts/generate-agent-artifacts.mjs` to generate repo-owned AX artifacts from `docs/public`, `llms.txt`, `llms-full.txt`, and package metadata.
+  - Generated `docs/agent/manifest.json`, `docs/agent/actions.json`, and five Codex-style skill artifacts:
+    - `docs/agent/skills/mme-docs/SKILL.md`
+    - `docs/agent/skills/mme-migration-help/SKILL.md`
+    - `docs/agent/skills/mme-package-selection/SKILL.md`
+    - `docs/agent/skills/mme-ai-privacy-boundary/SKILL.md`
+    - `docs/agent/skills/mme-docs-to-implementation/SKILL.md`
+  - Moved docs page actions to generated reusable descriptors and replaced the UI-owned Open-in-chat registry with `apps/docs-site/src/agent-actions.ts`.
+  - Docs action rendering now validates the registry schema/source boundary, renders shipped page actions from descriptors, and filters Open-in-chat targets by shipped availability.
+  - Updated the Agentic Experience public guide to document `docs/agent/manifest.json`, `docs/agent/actions.json`, `docs/agent/skills`, and the not-installed-automatically boundary.
+  - Updated README status, issue status, and the end-of-run human review queue.
+- Visual impact:
+  - No editing-surface behavior change.
+  - Docs page actions keep the same visible controls, but the action registry is now reusable/generated rather than UI-owned.
+  - MME-0038 docs screenshots refreshed by the visual proof:
+    - `docs/internal/visual-checks/MME-0038/docs-page-actions.png`
+    - `docs/internal/visual-checks/MME-0038/docs-agentic-experience.png`
+    - `docs/internal/visual-checks/MME-0038/docs-mobile.png`
+    - `docs/internal/visual-checks/MME-0038/site-footer.png`
+- Checks run:
+  - `npm run test:agent-artifacts` — RED before implementation, then green after generator/artifact fixes.
+  - `npm run generate:agent-artifacts` — generated repo-owned AX artifacts.
+  - `node scripts/generate-llms.mjs` — regenerated `llms-full.txt` after AX guide updates.
+  - `npm run test:docs-site` — green after static generated-JSON import fix.
+  - `npm run test:docs-launch` — green.
+  - `npm run test:llms-sync` — green.
+  - `npm run test:docs` — green.
+  - `npm run visual:mme-0038` — sandbox Chrome aborted before CDP on first run; rerun green with system Chrome permission.
+  - `git diff --check` — green.
+  - `npm test` — green after reviewer fixes; existing Vite bundle-size warning only.
+- Manual/visual verification:
+  - Docs server remains available at `http://127.0.0.1:5178/` using `npm run dev -w @momentarise/docs-site -- --hostname 127.0.0.1 --port 5178`.
+  - Manual screenshot inspection confirmed descriptor-driven page actions still render/copy/open correctly and the Agentic Experience page is nonblank.
+- Reviewer result:
+  - DX/source-truth reviewer subagent `Fermat` used `gpt-5.3-codex-spark` with `xhigh` reasoning and reported no P0/P1/P2 findings. P3s were stale AX metadata date, runtime registry path fragility/validation, and a note that string checks in `tests/docs-site-ax.test.mjs` are less structural than `tests/agent-artifacts.test.mjs`. Builder fixed stale metadata and registry robustness; the structural coverage remains in `tests/agent-artifacts.test.mjs`.
+  - Security/public-boundary reviewer subagent `Zeno` used `gpt-5.3-codex-spark` with `xhigh` reasoning and reported no P0/P1/P2 findings. P3s were runtime registry read robustness, `process.cwd()` path fragility, and Open-in-chat target availability filtering. Builder replaced runtime filesystem reads with a static generated JSON import, added registry validation, and filtered targets to shipped availability.
+- Residual risks:
+  - Final AX artifact distribution/product review is queued for the end-of-run human review block, per human instruction.
+  - Generated skills are repository-owned artifacts and are not installed into Andrew's global Codex skills folder automatically.
+  - Hosted Ask AI, semantic docs search, live GitHub edit/issue actions, and marketplace distribution remain future work.
+  - Mobile screenshots still show the external floating round `N` overlay inherited from prior MME-0038 visual proof; final public screenshot recapture remains queued.
+  - Visual proof requires system Chrome permission in this sandbox.
+- Commit status:
+  - Issue-scoped implementation commit created: `384924a` (`feat: generate agentic docs artifacts`).
+- Push status:
+  - Not pushed. Branch is ahead of origin and contains queued public/product review debt; push remains deferred until final review policy is satisfied or Andrew instructs otherwise.
+- Next issue:
+  - `MME-0050 — Performance budgets and large-document benchmarks` after issue-scoped MME-0049 evidence commit.
