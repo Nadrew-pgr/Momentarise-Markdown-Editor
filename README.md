@@ -70,7 +70,7 @@ Completed slices:
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- No normal executable issue remains after MME-0052 until the next backlog item is promoted into `docs/internal/ISSUES.md`.
+- MME-0053: SVG source reader and sanitized preview.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 
@@ -82,7 +82,7 @@ Next planned slices (public framework readiness sequence, 2026-06-09):
 - Phase F — adapters: MME-0034 Theia adapter alpha (previously MME-0019); MME-0035 host external-change strategy (previously MME-0020).
 - Phase G — publish and docs: MME-0036 release engineering and security; MME-0037 public docs content baseline; MME-0038 public docs site and AX docs surface.
 - Phase H — public editor readiness hardening: MME-0040 tables; MME-0041 footnotes/endnotes; MME-0042 core editor interactions; MME-0043 Live Preview foundation; MME-0044 unified open/new/save/status; MME-0045 command and mode UX; MME-0046 HTML preview reading polish; MME-0047 folding polish; MME-0048 docs launch hardening; MME-0049 AX skills/manifests/actions; MME-0050 performance budgets; MME-0051 asset upload contract.
-- Phase I — lightweight source formats: MME-0052 plain text and source-like file support.
+- Phase I — lightweight and visual source formats: MME-0052 plain text and source-like file support; MME-0053 SVG source reader and sanitized preview.
 
 See `docs/internal/build-log.md` for the latest completed issue and current progress.
 

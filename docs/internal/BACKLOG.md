@@ -254,13 +254,13 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - `MME-0050 — Performance budgets and large-document benchmarks`.
 - `MME-0051 — Asset upload provider contract and image paste/drop preservation`.
 - `MME-0052 — Plain text and lightweight source file support`.
+- `MME-0053 — SVG source reader and sanitized preview`.
 
 - Editor live preview parity.
 - Toolbar/slash/menu final UX.
 - Unified Open flow and file-type routing.
 - New file / Save As flow with truthful writable-vs-export behavior.
 - HTML preview reading polish.
-- SVG reader / sanitized preview.
 - Office/PDF/Google Docs adapter research.
 - Payload CMS plugin/integration.
 - Document status/save truth UI.

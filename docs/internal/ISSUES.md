@@ -2943,6 +2943,55 @@ Architecture Reviewer, Test Reviewer, and UX Reviewer.
 
 Accepted for code continuation 2026-07-19 after adding a reusable `@momentarise/md-core` document-kind classifier for Markdown, standalone HTML artifacts, lightweight source files, and unsupported files; re-exporting classifier helpers through `@momentarise/md-editor`; extending surface mode contracts so lightweight source documents expose Source only; and routing web/demo open, import, Save As, fallback, and unsupported paths through truthful document-kind and save-target states. Lightweight source files preserve source line endings through writable and imported-copy paths and do not run Markdown parser/serializer/status claims. Unsupported file names no longer fall back to Markdown, including generic `text/plain` on known unsupported extensions. Public package/import-export docs, `llms-full.txt`, generated AX artifacts, and public API fixtures were updated. Proven by RED `npm run test:lightweight-source-files`, green targeted checks, `git diff --check`, and full `npm test`. Architecture/API reviewer subagent `Arendt` used `gpt-5.3-codex-spark` with `xhigh` reasoning and reported no P0/P1/P2 findings; builder fixed the P3 unsupported fallback and reviewer recheck found no remaining P0-P3 findings. Save/UX reviewer subagent `Singer` used `gpt-5.3-codex-spark` with `xhigh` reasoning and reported no P0/P1/P2 findings; builder fixed the P3 properties-panel source-only regression and reviewer recheck found no remaining P0-P3 findings. Final lightweight source UX/product review is queued in `docs/internal/BACKLOG.md`; no executable normal issue remains after MME-0052 until the next backlog item is promoted.
 
+## MME-0053 — SVG source reader and sanitized preview
+
+### Goal
+
+Add truthful standalone `.svg` file handling as a visual artifact source: users can inspect/edit the SVG source and preview a sanitized rendering without allowing scripts, event handlers, external references, or Markdown/source-format confusion.
+
+### Scope
+
+- Classify `.svg` as a standalone SVG artifact/document kind, distinct from Markdown, HTML artifacts, and lightweight source text.
+- Open/import `.svg` files through web/demo routing with truthful source, preview, writable/imported-copy, and unsupported fallback states.
+- Provide a reusable sanitized SVG preview helper that removes script execution, inline event handlers, active content, and external network references before rendering.
+- Keep Source and Preview mode availability document-kind aware; do not expose Rich or Live Preview for standalone SVG artifacts.
+- Preserve SVG source bytes for source editing and save/export paths; the sanitized preview is an artifact only and must not overwrite the source.
+- Document SVG artifact boundaries in public import/export and package docs.
+- Queue final visible/product review for the preview chrome and wording instead of blocking code continuation.
+
+### Acceptance criteria
+
+- Public package exports or documented helpers classify `.svg` separately from Markdown, HTML artifact, lightweight source, and unsupported files.
+- Opening/importing `.svg` produces source editing plus a sanitized Preview path, not Markdown parsing or rich editing.
+- Sanitization tests prove scripts, `on*` handlers, `javascript:` URLs, external `href`/`src`, foreignObject, and remote CSS/image references do not execute or survive in the preview artifact.
+- Save truth remains unchanged: writable disk targets write source only; imported copies require export/download; preview sanitization never marks the source saved.
+- Tests prove source bytes and line endings survive open/edit/save/export paths.
+- Visual impact is documented. If screenshot tooling is available, capture the SVG Source/Preview path; otherwise mark final SVG preview product review in `docs/internal/BACKLOG.md`.
+
+### Test-first plan
+
+- RED: add SVG classifier/mode tests proving `.svg` routes to SVG artifact, Source/Preview only, with Markdown/Rich/Live Preview unavailable.
+- RED: add sanitizer tests with hostile SVG samples covering scripts, event handlers, external references, `javascript:` URLs, CSS/imports, images, and `foreignObject`.
+- RED: add web/demo routing tests proving SVG open/import/save truth and no Markdown parser/serializer claims.
+
+### Implementation notes
+
+Read first: `packages/md-core/src/index.ts`, `packages/md-editor/src/index.ts`, `packages/md-surface/src/index.ts`, `packages/md-preview-html/src/index.ts`, `packages/md-adapter-web/src/index.ts`, `apps/md-demo/src/main.ts`, `tests/html-preview.test.mjs`, `tests/demo-html-preview-baseline.test.mjs`, `tests/lightweight-source-files.test.mjs`, `tests/web-file-access.test.mjs`, and public docs around import/export and HTML artifact preview.
+
+Keep this as a standalone SVG artifact reader/preview. Do not implement inline SVG rendering inside Markdown, image upload/storage, SVG editing tools, raster export, external resource fetching, full SVG optimization, or document conversion in this slice.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Security Reviewer, Architecture Reviewer, and Test Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation, unless sanitizer policy, external reference behavior, or visible preview product wording needs a product/security decision.
+
+### Reviewer
+
+Security Reviewer, Architecture Reviewer, and Test Reviewer.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.
