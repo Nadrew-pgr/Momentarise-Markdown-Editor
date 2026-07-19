@@ -85,6 +85,16 @@ Use `--json` for automation. Human-readable output may change; JSON keys are the
 node packages/md-cli/dist/index.js inspect docs/public/index.md --json
 ```
 
+## Public API Checkpoints
+
+- `runCli` is the programmatic entrypoint for host-owned CLI wrappers.
+- `init`, `check`, `inspect`, `format`, and `test:fixtures` are the launch-critical commands.
+- `--json` is the safer automation surface for coding agents and scripts.
+
+## Release Notes
+
+`@momentarise/md-cli` is experimental under the `0.x` compatibility boundary. Human-readable output may change; prefer `--json` for automation contracts.
+
 ## Related Docs
 
 - [Agentic Experience](../concepts/agentic-experience.md)

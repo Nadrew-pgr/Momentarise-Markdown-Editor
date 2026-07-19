@@ -407,13 +407,56 @@ async function main() {
       throw new Error("Footer critical routes did not resolve to the expected static docs pages.");
     }
 
+    const cliLoadEvent = cdp.once("Page.loadEventFired");
+    await cdp.send("Page.navigate", { url: new URL("/docs/packages/md-cli", siteUrl).href });
+    await cliLoadEvent;
+    await waitFor(
+      cdp,
+      `document.querySelector(".docs-title")?.textContent.includes("CLI For Agents And Developers") && document.querySelector("[data-testid='docs-content-rendered']")?.textContent.includes("Public API Checkpoints") && document.querySelector("[data-testid='docs-content-rendered']")?.textContent.includes("runCli") && document.querySelector("[data-testid='docs-content-rendered']")?.textContent.includes("0.x")`,
+      "CLI package launch hardening route"
+    );
+    await screenshot(cdp, "docs-package-md-cli.png");
+
+    const axLoadEvent = cdp.once("Page.loadEventFired");
+    await cdp.send("Page.navigate", { url: new URL("/docs/concepts/agentic-experience", siteUrl).href });
+    await axLoadEvent;
+    await waitFor(
+      cdp,
+      `document.querySelector(".docs-title")?.textContent.includes("Agentic Experience") && document.querySelector("[data-testid='docs-content-rendered']")?.textContent.includes("Not Shipped Yet") && document.querySelector("[data-testid='docs-content-rendered']")?.textContent.includes("hosted Ask AI") && document.querySelector("[data-testid='docs-content-rendered']")?.textContent.includes("semantic docs search")`,
+      "Agentic Experience truthfulness route"
+    );
+    await screenshot(cdp, "docs-agentic-experience.png");
+
+    const rendererLoadEvent = cdp.once("Page.loadEventFired");
+    await cdp.send("Page.navigate", { url: new URL("/docs/packages/md-render-html", siteUrl).href });
+    await rendererLoadEvent;
+    await waitFor(
+      cdp,
+      `document.querySelector(".docs-title")?.textContent.includes("HTML Renderer") && document.querySelector("[data-testid='docs-content-rendered']")?.textContent.includes("renderMarkdownToHtml") && document.querySelector("[data-testid='docs-content-rendered']")?.textContent.includes("mmeSanitizeSchema") && Boolean(document.querySelector("[data-testid='theme-toggle']"))`,
+      "HTML renderer package route"
+    );
+    if ((await evaluate(cdp, `document.documentElement.dataset.mmeScheme`)) !== "dark") {
+      await clickSelector(cdp, "[data-testid='theme-toggle']");
+      await waitFor(cdp, `document.documentElement.dataset.mmeScheme === "dark"`, "package route dark mode");
+    }
+    await screenshot(cdp, "docs-package-code-dark.png");
+
     await cdp.send("Emulation.setDeviceMetricsOverride", {
       deviceScaleFactor: 1,
       height: 900,
       mobile: true,
       width: 390
     });
+    const mobilePackageLoadEvent = cdp.once("Page.loadEventFired");
+    await cdp.send("Page.navigate", { url: new URL("/docs/packages/md-cli", siteUrl).href });
+    await mobilePackageLoadEvent;
+    await waitFor(
+      cdp,
+      `document.querySelector(".docs-title")?.textContent.includes("CLI For Agents And Developers") && document.documentElement.scrollWidth <= window.innerWidth + 2`,
+      "mobile package docs route"
+    );
     await wait(250);
+    await screenshot(cdp, "docs-mobile-package.png");
     await screenshot(cdp, "docs-mobile.png");
     cdp.close();
   } finally {

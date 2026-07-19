@@ -34,6 +34,17 @@ const target = createMemorySaveTarget({
 });
 ```
 
+## Public API Checkpoints
+
+- `createSaveEngine` tracks dirty, saving, saved, conflict, and error states.
+- `createMemorySaveTarget` is useful for tests and non-disk demos.
+- `createDownloadRequiredSaveTarget` describes export/download-only persistence truthfully.
+- `persistenceTargetLabel` converts target kind into user-facing save truth.
+
+## Release Notes
+
+`@momentarise/md-save` is experimental under the `0.x` compatibility boundary. A `saved` state must describe the real target that was written; hosts own disk, browser, backend, or IDE file-service implementations.
+
 ## Related Docs
 
 - [Save Truthfulness](../concepts/save-truthfulness.md)

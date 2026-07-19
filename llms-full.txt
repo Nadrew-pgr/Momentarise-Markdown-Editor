@@ -874,6 +874,18 @@ updated: 2026-07-08
 
 Surface components consume tokens, preferences, icons, and injected strings. They do not own application routing or persistence.
 
+## Public API Checkpoints
+
+- `createToolbar` renders the rich editor command toolbar.
+- `createSlashMenu` renders grouped slash commands and AI entries.
+- `createSelectionBubbleToolbar` renders reusable selected-text action chrome.
+- `createDocumentStatus` renders truthful document state without owning persistence.
+- `createModeControl` renders document-kind-aware mode controls.
+
+## Release Notes
+
+`@momentarise/md-surface` is experimental under the `0.x` compatibility boundary. It provides framework-free DOM components; hosts still own routing, storage, app state, and command dispatch.
+
 ## Related Docs
 
 - [Theming](../concepts/theming.md)
@@ -919,6 +931,15 @@ import { renderMarkdownToHtml } from "@momentarise/md-render-html";
 const result = renderMarkdownToHtml("# Hello\n");
 console.log(result.html);
 ```
+
+## Public API Checkpoints
+
+- `renderMarkdownToHtml` renders Markdown to sanitized HTML for read-only surfaces.
+- `mmeSanitizeSchema` is the exported sanitizer schema used by the renderer.
+
+## Release Notes
+
+`@momentarise/md-render-html` is experimental under the `0.x` compatibility boundary. It renders Markdown documents and docs pages; standalone `.html` artifact preview belongs to `@momentarise/md-preview-html`.
 
 ## Related Docs
 
@@ -1286,6 +1307,17 @@ const target = createMemorySaveTarget({
 });
 ```
 
+## Public API Checkpoints
+
+- `createSaveEngine` tracks dirty, saving, saved, conflict, and error states.
+- `createMemorySaveTarget` is useful for tests and non-disk demos.
+- `createDownloadRequiredSaveTarget` describes export/download-only persistence truthfully.
+- `persistenceTargetLabel` converts target kind into user-facing save truth.
+
+## Release Notes
+
+`@momentarise/md-save` is experimental under the `0.x` compatibility boundary. A `saved` state must describe the real target that was written; hosts own disk, browser, backend, or IDE file-service implementations.
+
 ## Related Docs
 
 - [Save Truthfulness](../concepts/save-truthfulness.md)
@@ -1384,6 +1416,17 @@ import { createMockAiProvider } from "@momentarise/md-ai";
 const provider = createMockAiProvider();
 ```
 
+## Public API Checkpoints
+
+- `createOpenAiCompatibleProvider` builds an OpenAI-compatible provider from host-injected transport.
+- `createMockAiProvider` is the default deterministic test/demo provider.
+- `requestAiSuggestion` requests a staged writing suggestion after policy approval.
+- `acceptAiSuggestion` and `rejectAiSuggestion` keep AI changes explicit and reviewable.
+
+## Release Notes
+
+`@momentarise/md-ai` is experimental under the `0.x` compatibility boundary. It defines provider contracts and helper factories; production hosts still own credentials, network transport, billing, secure storage, and logs.
+
 ## Related Docs
 
 - [AI And Privacy](../concepts/ai-privacy.md)
@@ -1440,6 +1483,17 @@ const session = createMarkdownEditorSession({
 console.log(session.getOutline());
 session.destroy();
 ```
+
+## Public API Checkpoints
+
+- `createMarkdownEditorSession` owns the headless document session.
+- `createExtensionRegistry` collects host-provided commands, slash items, toolbar items, custom blocks, and AI actions.
+- `editorModesForDocumentKind` keeps Markdown and HTML artifact mode controls honest.
+- `resolvePreferences` applies host, workspace, document, and locked preference layers.
+
+## Release Notes
+
+`@momentarise/md-editor` is experimental under the `0.x` compatibility boundary. It is host-independent orchestration, not a UI shell or persistence adapter.
 
 ## Related Docs
 
@@ -1753,6 +1807,16 @@ Use `--json` for automation. Human-readable output may change; JSON keys are the
 ```bash
 node packages/md-cli/dist/index.js inspect docs/public/index.md --json
 ```
+
+## Public API Checkpoints
+
+- `runCli` is the programmatic entrypoint for host-owned CLI wrappers.
+- `init`, `check`, `inspect`, `format`, and `test:fixtures` are the launch-critical commands.
+- `--json` is the safer automation surface for coding agents and scripts.
+
+## Release Notes
+
+`@momentarise/md-cli` is experimental under the `0.x` compatibility boundary. Human-readable output may change; prefer `--json` for automation contracts.
 
 ## Related Docs
 

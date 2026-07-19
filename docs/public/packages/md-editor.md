@@ -44,6 +44,17 @@ console.log(session.getOutline());
 session.destroy();
 ```
 
+## Public API Checkpoints
+
+- `createMarkdownEditorSession` owns the headless document session.
+- `createExtensionRegistry` collects host-provided commands, slash items, toolbar items, custom blocks, and AI actions.
+- `editorModesForDocumentKind` keeps Markdown and HTML artifact mode controls honest.
+- `resolvePreferences` applies host, workspace, document, and locked preference layers.
+
+## Release Notes
+
+`@momentarise/md-editor` is experimental under the `0.x` compatibility boundary. It is host-independent orchestration, not a UI shell or persistence adapter.
+
 ## Related Docs
 
 - [Headless Quickstart](../quickstart/headless.md)

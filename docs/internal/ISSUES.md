@@ -2731,6 +2731,10 @@ This issue is validation and hardening, not a rewrite from zero. If the audit pr
 
 DX Reviewer and UX Reviewer.
 
+### Status
+
+Accepted for code continuation 2026-07-19 after public docs launch hardening, MME-0038 validation-debt proof, reviewer pass, expanded docs visual proof, and full test pass. Added `tests/docs-launch-hardening.test.mjs` for launch-critical package/API, AX, Ask AI, CLI, Open-in-chat, light/dark, and visual-artifact assertions; hardened public package docs for API checkpoints and 0.x release boundaries; regenerated `llms-full.txt`; and expanded the MME-0038 visual matrix with CLI package, AX page, dark package-code, and mobile package screenshots. DX/truth reviewer and visual reviewer reported no P0/P1/P2 findings. Final public-face human validation is still queued in `docs/internal/BACKLOG.md`; this status does not claim public launch acceptance. The visual reviewer noted a P3 about the floating round `N` overlay in mobile screenshots, queued for final screenshot/public-proof review. `MME-0049` remains the next candidate after issue-scoped commit.
+
 ## MME-0049 — AX skills, manifests, and reusable agent actions
 
 ### Goal
