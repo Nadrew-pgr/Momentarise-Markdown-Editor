@@ -5088,7 +5088,7 @@
   - Final command/mode UX polish remains scoped to `MME-0045`.
   - Visual proof requires system Chrome permission in this sandbox, same as prior visual scripts.
 - Commit status:
-  - Issue-scoped commit pending immediately after this status update.
+  - Issue-scoped commit created: `9353e64` (`feat: unify file workflows and status chrome`).
 - Push status:
   - Not pushed. Branch is ahead of origin and contains existing unpushed commits; `MME-0038` still has public-face validation debt and `MME-0044` has final workflow review queued.
 - Next issue:
