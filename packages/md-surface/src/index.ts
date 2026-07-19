@@ -1,8 +1,10 @@
 import type {
+  EditorDocumentKind,
   MarkdownEditorSession,
   SlashItemDefinition,
   ToolbarItemDefinition
 } from "@momentarise/md-editor";
+import { editorModesForDocumentKind } from "@momentarise/md-editor";
 import type { SaveState } from "@momentarise/md-save";
 import {
   resolveThemeToCssVariables,
@@ -85,6 +87,7 @@ export interface MmeStrings {
   };
   readonly mode: {
     readonly label: string;
+    readonly livePreview: string;
     readonly preview: string;
     readonly read?: string;
     readonly rich: string;
@@ -149,7 +152,7 @@ export interface SurfaceAiAction {
 
 export type SurfaceDocumentKind = "html-artifact" | "markdown";
 export type SurfaceDocumentMode = "fixture" | "imported-copy" | "unsupported" | "writable-file" | string;
-export type SurfaceEditorMode = "preview" | "rich" | "source";
+export type SurfaceEditorMode = "live-preview" | "preview" | "rich" | "source";
 
 export interface SurfaceDocumentState {
   readonly fileName: string;
@@ -415,9 +418,10 @@ export const defaultMmeStrings: MmeStrings = {
   },
   mode: {
     label: "Editor mode",
+    livePreview: "Live Preview",
     preview: "Preview",
     read: "Read",
-    rich: "Rich Mode",
+    rich: "Rich",
     source: "Source",
     toggleRich: "Toggle Rich Mode"
   },
@@ -1453,11 +1457,7 @@ export function createModeControl(options: CreateModeControlOptions): SurfaceCom
   const render = (): void => {
     root.setAttribute("aria-label", options.strings.mode.label);
     root.setAttribute("role", "group");
-    root.replaceChildren(
-      modeButton(options, state, "source"),
-      modeButton(options, state, "rich"),
-      modeButton(options, state, "preview")
-    );
+    root.replaceChildren(...surfaceModesForDocumentKind(state.documentKind).map((mode) => modeButton(options, state, mode)));
   };
 
   const onClick = (event: Event): void => {
@@ -1800,31 +1800,50 @@ function inlineAiActionButton(
 }
 
 function modeButton(options: CreateModeControlOptions, state: SurfaceModeControlState, mode: SurfaceEditorMode): HTMLButtonElement {
-  const button = createElement(options.host, "button", mode === "source" ? "mode-button mode-switch-track" : mode === "rich" ? "mode-button mode-switch-label" : "mode-button preview-mode-pill");
+  const button = createElement(
+    options.host,
+    "button",
+    mode === "source"
+      ? "mode-button mode-switch-label"
+      : mode === "rich"
+        ? "mode-button mode-switch-label"
+        : "mode-button preview-mode-pill"
+  );
   button.type = "button";
   button.dataset.editorMode = mode;
-  button.dataset.testid = mode === "source" ? "source-mode-button" : mode === "rich" ? "rich-mode-button" : "preview-mode-button";
+  button.dataset.testid =
+    mode === "source"
+      ? "source-mode-button"
+      : mode === "rich"
+        ? "rich-mode-button"
+        : mode === "live-preview"
+          ? "live-preview-mode-button"
+          : "preview-mode-button";
   button.setAttribute("aria-pressed", String(state.editorMode === mode));
   if (mode === "source") {
-    button.setAttribute("aria-label", options.strings.mode.toggleRich);
-    button.setAttribute("aria-checked", String(state.editorMode === "rich"));
-    button.setAttribute("role", "switch");
-    button.append(createElement(options.host, "span"));
+    button.setAttribute("aria-label", options.strings.mode.source);
+    button.textContent = options.strings.mode.source;
   } else if (mode === "rich") {
     button.textContent = options.strings.mode.rich;
+  } else if (mode === "live-preview") {
+    button.textContent = options.strings.mode.livePreview;
   } else {
     const readLabel = options.strings.mode.read ?? options.strings.mode.preview;
     button.textContent = state.documentKind === "markdown" ? readLabel : options.strings.mode.preview;
   }
-  if (mode === "rich") {
+  if (mode === "rich" || mode === "live-preview") {
     button.disabled = state.documentKind !== "markdown";
     button.hidden = state.documentKind !== "markdown";
   }
   if (mode === "preview") {
-    button.disabled = state.documentKind !== "html-artifact" && state.documentKind !== "markdown";
+    button.disabled = state.documentKind !== "html-artifact";
     button.hidden = false;
   }
   return button;
+}
+
+function surfaceModesForDocumentKind(documentKind: SurfaceDocumentKind): readonly SurfaceEditorMode[] {
+  return editorModesForDocumentKind(documentKind as EditorDocumentKind).map((definition) => definition.id as SurfaceEditorMode);
 }
 
 function statusLine(options: SurfaceComponentContext, label: string, testId: string, value: string): HTMLParagraphElement {

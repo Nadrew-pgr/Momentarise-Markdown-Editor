@@ -47,12 +47,15 @@
   ],
   "@momentarise/md-editor": [
     "DEFAULT_EDITOR_BEHAVIOR_PREFERENCES",
+    "DEFAULT_EDITOR_MODE_DEFINITIONS",
     "DEFAULT_HOST_CAPABILITIES",
     "DEFAULT_PREFERENCE_SCHEMA",
     "DOCUMENT_PREFERENCE_ALLOWLIST",
     "createExtensionRegistry",
     "createMarkdownEditorSession",
+    "editorModesForDocumentKind",
     "extractDocumentPreferences",
+    "isEditorModeAvailableForDocumentKind",
     "markdownEditorPackage",
     "resolvePreferences"
   ],

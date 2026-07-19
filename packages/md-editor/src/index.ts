@@ -112,6 +112,62 @@ export interface HostCapabilities {
   readonly viewportClass: "constrained" | "desktop" | "mobile" | "tablet";
 }
 
+export type EditorDocumentKind = "html-artifact" | "markdown";
+
+export interface EditorModeDefinition {
+  readonly documentKinds: readonly EditorDocumentKind[];
+  readonly editable: boolean;
+  readonly id: EditorMode;
+  readonly label: string;
+  readonly preservesSource: boolean;
+}
+
+export const DEFAULT_EDITOR_MODE_DEFINITIONS: readonly EditorModeDefinition[] = [
+  {
+    documentKinds: ["markdown", "html-artifact"],
+    editable: true,
+    id: "source",
+    label: "Source",
+    preservesSource: true
+  },
+  {
+    documentKinds: ["markdown"],
+    editable: true,
+    id: "rich",
+    label: "Rich",
+    preservesSource: true
+  },
+  {
+    documentKinds: ["markdown"],
+    editable: true,
+    id: "live-preview",
+    label: "Live Preview",
+    preservesSource: true
+  },
+  {
+    documentKinds: ["html-artifact"],
+    editable: false,
+    id: "preview",
+    label: "Preview",
+    preservesSource: true
+  }
+];
+
+export function editorModesForDocumentKind(
+  documentKind: EditorDocumentKind,
+  definitions: readonly EditorModeDefinition[] = DEFAULT_EDITOR_MODE_DEFINITIONS
+): readonly EditorModeDefinition[] {
+  return definitions.filter((definition) => definition.documentKinds.includes(documentKind));
+}
+
+export function isEditorModeAvailableForDocumentKind(
+  mode: EditorMode,
+  documentKind: EditorDocumentKind,
+  definitions: readonly EditorModeDefinition[] = DEFAULT_EDITOR_MODE_DEFINITIONS
+): boolean {
+  return editorModesForDocumentKind(documentKind, definitions).some((definition) => definition.id === mode);
+}
+
 export const DEFAULT_HOST_CAPABILITIES: HostCapabilities = {
   aiProviderPresent: false,
   fileSystemAccess: false,

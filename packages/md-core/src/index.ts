@@ -219,7 +219,7 @@ export interface RoundTripResult {
   readonly preservedOpaqueNodes: readonly OpaqueNode[];
 }
 
-export type EditorMode = "source" | "rich" | "preview";
+export type EditorMode = "source" | "rich" | "live-preview" | "preview";
 
 export type SaveStatus = "dirty" | "saving" | "saved" | "conflict" | "error";
 

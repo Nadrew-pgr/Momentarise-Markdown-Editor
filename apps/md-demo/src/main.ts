@@ -259,6 +259,9 @@ app.innerHTML = `
         </div>
         <div data-testid="slash-command-menu-host"></div>
         <div class="editor-host" data-editor-host data-testid="editor-host"></div>
+        <div class="live-preview-banner" data-testid="live-preview-banner" hidden>
+          Live Preview · rendered while editing · Markdown source syncs instantly
+        </div>
         <div class="rich-editor-host" data-testid="rich-editor-host" hidden></div>
         <div class="markdown-read-host" data-testid="markdown-read-host" hidden>
           <div class="markdown-read-banner" data-testid="markdown-read-banner">
@@ -415,6 +418,7 @@ app.innerHTML = `
 const editorHost = queryRequired<HTMLDivElement>("[data-editor-host]");
 const editorRegion = queryRequired<HTMLDivElement>(".editor-region");
 const richEditorHost = queryRequired<HTMLDivElement>('[data-testid="rich-editor-host"]');
+const livePreviewBanner = queryRequired<HTMLDivElement>('[data-testid="live-preview-banner"]');
 const markdownReadHost = queryRequired<HTMLDivElement>('[data-testid="markdown-read-host"]');
 const markdownReadBanner = queryRequired<HTMLDivElement>('[data-testid="markdown-read-banner"]');
 const markdownReadArticle = queryRequired<HTMLElement>('[data-testid="markdown-read-article"]');
@@ -495,9 +499,6 @@ const surfaceAiEntryPointsPrefElement = queryRequired<HTMLElement>('[data-testid
 const surfaceStatusDisclosurePrefElement = queryRequired<HTMLElement>('[data-testid="surface-status-disclosure-pref"]');
 const surfaceLayoutPrefElement = queryRequired<HTMLElement>('[data-testid="surface-layout-pref"]');
 const surfaceKeymapPrefElement = queryRequired<HTMLElement>('[data-testid="surface-keymap-pref"]');
-let sourceModeButton: HTMLButtonElement;
-let richModeButton: HTMLButtonElement;
-let previewModeButton: HTMLButtonElement;
 let richCommandToolbar: HTMLDivElement;
 let toolbarAiButton: HTMLButtonElement;
 let toolbarMoreMenu: HTMLDivElement;
@@ -544,7 +545,7 @@ let lastCopiedMarkdown: string | null = null;
 const markdownAstFormatter = createMarkdownAstFormatter();
 type DemoDocumentMode = "fixture" | WebOpenedMarkdownMode;
 type DemoDocumentKind = "markdown" | "html-artifact";
-type DemoEditorMode = "source" | "rich" | "preview";
+type DemoEditorMode = "live-preview" | "source" | "rich" | "preview";
 type PropertiesDisplayMode = "visible" | "hidden" | "source";
 type AiDemoProviderMode = "host-managed" | "mock" | "personal-byok" | "sidecar-local";
 
@@ -966,7 +967,7 @@ function applyExternalContentToEditors(content: string): void {
   if (activeDocument.kind === "html-artifact") {
     renderHtmlPreview();
   }
-  if (editorMode === "rich") {
+  if (isRichEditingMode()) {
     mountRichEditor(content);
   }
   if (editorMode === "preview" && activeDocument.kind === "markdown") {
@@ -993,17 +994,9 @@ function mountReferenceSurfaceComponents(): void {
     state: surfaceModeState(),
     strings: defaultMmeStrings,
     onSwitchMode(mode) {
-      if (mode === "source" && activeDocument.kind === "markdown") {
-        toggleRichMode();
-        return;
-      }
       switchEditorMode(mode);
     }
   });
-  sourceModeButton = queryRequired<HTMLButtonElement>('[data-testid="source-mode-button"]');
-  richModeButton = queryRequired<HTMLButtonElement>('[data-testid="rich-mode-button"]');
-  previewModeButton = queryRequired<HTMLButtonElement>('[data-testid="preview-mode-button"]');
-
   toolbarSurface = createToolbar({
     host: richCommandToolbarHost,
     icons: defaultIconSet,
@@ -1267,7 +1260,7 @@ function replaceActiveFindMatch(replacement: string): void {
     return;
   }
   setFindReplaceState({ replacement });
-  if (editorMode === "rich" && richEditor) {
+  if (isRichEditingMode() && richEditor) {
     const mapped = richRangeForSourceRange(richState, {
       from: match.from,
       to: match.to
@@ -1290,9 +1283,9 @@ function replaceActiveFindMatch(replacement: string): void {
       }
     });
   } else {
-    const result = session.replace(match, replacement, editorMode === "rich" ? "rich-view" : "host");
+    const result = session.replace(match, replacement, isRichEditingMode() ? "rich-view" : "host");
     replaceEditorDocument(result.content);
-    if (editorMode === "rich") {
+    if (isRichEditingMode()) {
       mountRichEditor(result.content);
     }
   }
@@ -1313,10 +1306,10 @@ function replaceAllFindMatches(replacement: string): void {
   setFindReplaceState({ replacement });
   const result = session.replaceAll(findReplaceState.query, replacement, {
     caseSensitive: false,
-    origin: editorMode === "rich" ? "rich-view" : "host"
+    origin: isRichEditingMode() ? "rich-view" : "host"
   });
   replaceEditorDocument(result.content);
-  if (editorMode === "rich") {
+  if (isRichEditingMode()) {
     mountRichEditor(result.content);
   }
   refreshFindMatches();
@@ -2261,7 +2254,7 @@ function loadOpenedMarkdownFile(
   if (editorMode === "preview") {
     editorMode = "source";
   }
-  if (editorMode === "rich") {
+  if (isRichEditingMode()) {
     mountRichEditor(opened.content);
   }
   refreshFindMatches();
@@ -2298,7 +2291,7 @@ function insertCustomMarkdownBlock(blockId: string, data: Readonly<Record<string
     logEvent(`Custom block unavailable: ${serialized.diagnostic?.reason ?? blockId}.`);
     return;
   }
-  if (editorMode === "rich" && insertCustomMarkdownBlockInRichEditor(blockId, serialized.content)) {
+  if (isRichEditingMode() && insertCustomMarkdownBlockInRichEditor(blockId, serialized.content)) {
     return;
   }
   if (richChanged) {
@@ -2309,7 +2302,7 @@ function insertCustomMarkdownBlock(blockId: string, data: Readonly<Record<string
   const next = `${current}${separator}${serialized.content}`;
   replaceEditorDocument(next);
   session.setContent(next, "host");
-  if (editorMode === "rich") {
+  if (isRichEditingMode()) {
     mountRichEditor(next);
   }
   renderSaveState();
@@ -2382,8 +2375,8 @@ function switchEditorMode(mode: DemoEditorMode): void {
   if (editorMode === mode) {
     return;
   }
-  if (mode === "rich" && activeDocument.kind !== "markdown") {
-    logEvent("Rich mode is unavailable for HTML artifacts; use Source or Preview.");
+  if (isRichEditingMode(mode) && activeDocument.kind !== "markdown") {
+    logEvent("Rich and Live Preview modes are unavailable for HTML artifacts; use Source or Preview.");
     renderEditorMode();
     return;
   }
@@ -2393,10 +2386,12 @@ function switchEditorMode(mode: DemoEditorMode): void {
     return;
   }
 
-  if (mode === "rich") {
-    mountRichEditor(editor.state.doc.toString());
-    editorMode = "rich";
-    logEvent("Switched to ProseMirror rich mode.");
+  if (isRichEditingMode(mode)) {
+    if (!isRichEditingMode() || !richEditor) {
+      mountRichEditor(editor.state.doc.toString());
+    }
+    editorMode = mode;
+    logEvent(mode === "live-preview" ? "Switched to Live Preview mode." : "Switched to ProseMirror rich mode.");
   } else if (mode === "preview") {
     if (richChanged) {
       syncRichMarkdownToSource("mode switch");
@@ -2411,7 +2406,7 @@ function switchEditorMode(mode: DemoEditorMode): void {
   } else {
     if (richChanged) {
       syncRichMarkdownToSource("mode switch");
-    } else if (editorMode === "rich") {
+    } else if (isRichEditingMode()) {
       replaceEditorDocument(richBaselineMarkdown);
     }
     editorMode = "source";
@@ -2432,14 +2427,14 @@ function renderEditorMode(): void {
   const markdownReadVisible = editorMode === "preview" && activeDocument.kind === "markdown";
   const htmlPreviewVisible = editorMode === "preview" && activeDocument.kind === "html-artifact";
   editorHost.hidden = editorMode !== "source";
-  richEditorHost.hidden = editorMode !== "rich";
+  livePreviewBanner.hidden = editorMode !== "live-preview";
+  richEditorHost.hidden = !isRichEditingMode();
+  richEditorHost.dataset.richEditingMode = isRichEditingMode() ? editorMode : "";
+  richEditorHost.setAttribute("aria-label", editorMode === "live-preview" ? "Live Preview editing surface" : "Rich editing surface");
   markdownReadHost.hidden = !markdownReadVisible;
   htmlPreviewHost.hidden = !htmlPreviewVisible;
   richBlockControls.hidden = editorMode !== "rich";
   modeControlSurface?.setState(surfaceModeState());
-  sourceModeButton = queryRequired<HTMLButtonElement>('[data-testid="source-mode-button"]');
-  richModeButton = queryRequired<HTMLButtonElement>('[data-testid="rich-mode-button"]');
-  previewModeButton = queryRequired<HTMLButtonElement>('[data-testid="preview-mode-button"]');
   toolbarSurface?.setState(surfaceToolbarState());
   toolbarAiButton = queryRequired<HTMLButtonElement>('[data-testid="toolbar-ai-button"]');
   toolbarMoreMenu = queryRequired<HTMLDivElement>('[data-testid="toolbar-more-menu"]');
@@ -2448,10 +2443,12 @@ function renderEditorMode(): void {
     editorSurfaceStateElement.textContent = "Markdown read view";
   } else if (htmlPreviewVisible) {
     editorSurfaceStateElement.textContent = "Sandboxed HTML preview";
+  } else if (editorMode === "live-preview") {
+    editorSurfaceStateElement.textContent = "Live Preview mode";
   } else {
     editorSurfaceStateElement.textContent = editorMode === "rich" ? "ProseMirror rich mode" : "CodeMirror source mode";
   }
-  if (editorMode !== "rich") {
+  if (!isRichEditingMode()) {
     closeSlashMenu();
     setToolbarMoreOpen(false);
     renderRichBlockControls();
@@ -2469,7 +2466,7 @@ function toggleRichMode(): void {
   if (activeDocument.kind !== "markdown") {
     return;
   }
-  switchEditorMode(editorMode === "rich" ? "source" : "rich");
+  switchEditorMode(isRichEditingMode() ? "source" : "rich");
 }
 
 function renderHtmlPreview(): void {
@@ -2822,7 +2819,7 @@ function applyMarkdownFromAi(content: string): void {
   persistRestorableDocument();
   renderSaveState();
   updateRoundTripStatus();
-  if (editorMode === "rich") {
+  if (isRichEditingMode()) {
     mountRichEditor(content);
   }
 }
@@ -2902,7 +2899,7 @@ function renderAiWritingState(): void {
 }
 
 function selectionForAiRequest(markdown: string): { readonly selection?: { readonly from: number; readonly to: number } } {
-  if (editorMode === "rich") {
+  if (isRichEditingMode()) {
     const richRange = richSelectionMarkdownRange(markdown);
     return richRange ? { selection: richRange } : {};
   }
@@ -3110,7 +3107,7 @@ function renderEditorAiMenu(): void {
 }
 
 function renderSelectionBubbleToolbar(): void {
-  if (!richEditor || editorMode !== "rich" || activeDocument.kind !== "markdown") {
+  if (!richEditor || !isRichEditingMode() || activeDocument.kind !== "markdown") {
     hideSelectionBubbleToolbar();
     return;
   }
@@ -3157,7 +3154,7 @@ function positionSelectionBubbleToolbar(): void {
 }
 
 function openRichBlockMenu(index: number): void {
-  if (!richEditor || editorMode !== "rich") {
+  if (!richEditor || !isRichEditingMode()) {
     return;
   }
   activeRichBlockMenuIndex = index;
@@ -3336,7 +3333,7 @@ function hasAiEligibleSelection(): boolean {
   if (editorMode === "source") {
     return !editor.state.selection.main.empty;
   }
-  if (editorMode === "rich" && richEditor) {
+  if (isRichEditingMode() && richEditor) {
     return Boolean(richSelectionMarkdownRange(getMarkdown()));
   }
   return false;
@@ -3571,8 +3568,8 @@ function restoreLastDemoDocument(): boolean {
       sourceLabel: "browser reload restore"
     }
   );
-  if (snapshot.editorMode === "rich") {
-    switchEditorMode("rich");
+  if (snapshot.editorMode === "rich" || snapshot.editorMode === "live-preview") {
+    switchEditorMode(snapshot.editorMode);
   } else if (snapshot.editorMode === "preview") {
     switchEditorMode("preview");
   }
@@ -3589,11 +3586,16 @@ function parseRestorableDemoDocument(raw: string): RestorableDemoDocument | null
     typeof parsed.content !== "string" ||
     typeof parsed.fileName !== "string" ||
     (parsed.kind !== "markdown" && parsed.kind !== "html-artifact") ||
-    (parsed.editorMode !== "source" && parsed.editorMode !== "rich" && parsed.editorMode !== "preview")
+    (
+      parsed.editorMode !== "source" &&
+      parsed.editorMode !== "rich" &&
+      parsed.editorMode !== "live-preview" &&
+      parsed.editorMode !== "preview"
+    )
   ) {
     return null;
   }
-  if (parsed.kind === "html-artifact" && parsed.editorMode === "rich") {
+  if (parsed.kind === "html-artifact" && isRichEditingMode(parsed.editorMode)) {
     return {
       content: parsed.content,
       editorMode: "source",
@@ -3664,7 +3666,7 @@ function renderRichBlockControls(): void {
 
 function renderRichFoldingUi(refreshDecorations = true): void {
   const currentRichState = currentRichStateFromEditor();
-  if (editorMode !== "rich" || !richEditor || !currentRichState) {
+  if (!isRichEditingMode() || !richEditor || !currentRichState) {
     return;
   }
 
@@ -3819,7 +3821,7 @@ function runRichCommand(commandId: RichCommandId, options: ApplyRichMarkdownComm
   if (!richEditor) {
     return;
   }
-  if (editorMode !== "rich") {
+  if (!isRichEditingMode()) {
     switchEditorMode("rich");
   }
   const commandState = richStateForCommand();
@@ -3935,7 +3937,7 @@ function updateSlashMenuFromRichState(): void {
 }
 
 function detectSlashCommandState(): SlashCommandState {
-  if (!richEditor || editorMode !== "rich" || !richEditor.state.selection.empty) {
+  if (!richEditor || !isRichEditingMode() || !richEditor.state.selection.empty) {
     return closedSlashCommandState();
   }
   const selection = richEditor.state.selection;
@@ -4162,7 +4164,7 @@ function typeRichTextForTest(text: string): void {
   }
   let nextState = richEditor.state;
   for (const character of text) {
-    nextState = nextState.apply(nextState.tr.insertText(character));
+    nextState = nextState.applyTransaction(nextState.tr.insertText(character)).state;
   }
   richState = {
     ...richState,
@@ -4410,7 +4412,7 @@ function handleCommandPaletteKeyboard(event: KeyboardEvent): boolean {
 }
 
 function focusActiveEditor(): void {
-  if (editorMode === "rich" && richEditor) {
+  if (isRichEditingMode() && richEditor) {
     richEditor.focus();
     return;
   }
@@ -4423,7 +4425,7 @@ function positionInlineAiPrompt(applyState = true): SurfaceInlineAiPromptState["
   const regionRect = editorRegion.getBoundingClientRect();
   const width = Math.min(520, Math.max(320, regionRect.width - 32));
   let caretRect: { readonly bottom: number; readonly left: number };
-  if (richEditor && editorMode === "rich") {
+  if (richEditor && isRichEditingMode()) {
     caretRect = currentRichBlockAnchorRect() ?? richCaretAnchorRect();
   } else {
     const hostRect = editorMode === "source" ? editorHost.getBoundingClientRect() : editorRegion.getBoundingClientRect();
@@ -4954,6 +4956,10 @@ function extractFrontmatterSource(markdownText: string): string {
 
 function getMarkdown(): string {
   return session.getContent();
+}
+
+function isRichEditingMode(mode: DemoEditorMode = editorMode): boolean {
+  return mode === "rich" || mode === "live-preview";
 }
 
 function logEvent(message: string): void {

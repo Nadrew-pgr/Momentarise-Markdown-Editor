@@ -1794,8 +1794,13 @@ type RichMarkdownInputRule =
   | { readonly kind: "bullet_list"; readonly prefixLength: number }
   | { readonly kind: "code_block"; readonly language: string | null; readonly prefixLength: number }
   | { readonly kind: "heading"; readonly level: number; readonly prefixLength: number }
+  | { readonly kind: "horizontal_rule"; readonly prefixLength: number }
   | { readonly kind: "ordered_list"; readonly prefixLength: number }
   | { readonly checked: boolean; readonly kind: "todo_item"; readonly prefixLength: number };
+
+type RichInlineInputRule =
+  | { readonly from: number; readonly kind: "inline_code"; readonly text: string; readonly to: number }
+  | { readonly from: number; readonly href: string; readonly kind: "link"; readonly text: string; readonly title: string | null; readonly to: number };
 
 function createRichPasteSanitizerPlugin(): Plugin {
   return new Plugin({
@@ -1896,6 +1901,11 @@ function createRichInputRulesPlugin(): Plugin {
       const listTodoRule = todoInputRuleForListItemText(textBeforeCursor);
       if (listTodoRule) {
         return createListTodoInputRuleTransaction(state, listTodoRule);
+      }
+
+      const inlineRule = inlineMarkdownInputRuleForText(textBeforeCursor);
+      if (inlineRule) {
+        return createInlineMarkdownInputRuleTransaction(state, inlineRule, text);
       }
 
       const rule = markdownInputRuleForText(textBeforeCursor);
@@ -2638,6 +2648,13 @@ function markdownInputRuleForText(text: string): RichMarkdownInputRule | null {
     };
   }
 
+  if (text === "---" || text === "***" || text === "___") {
+    return {
+      kind: "horizontal_rule",
+      prefixLength: text.length
+    };
+  }
+
   const codeFence = text.match(/^```([A-Za-z0-9_-]*) $/);
   if (codeFence) {
     const language = codeFence[1] ?? "";
@@ -2649,6 +2666,107 @@ function markdownInputRuleForText(text: string): RichMarkdownInputRule | null {
   }
 
   return null;
+}
+
+function inlineMarkdownInputRuleForText(text: string): RichInlineInputRule | null {
+  const inlineCode = text.match(/`([^`\n]+)`$/u);
+  if (inlineCode?.index !== undefined) {
+    return {
+      from: inlineCode.index,
+      kind: "inline_code",
+      text: inlineCode[1]!,
+      to: text.length
+    };
+  }
+
+  const link = text.match(/(?<!!)\[([^\]\n]+)\]\((.*)\)$/u);
+  if (link?.index !== undefined) {
+    const parsed = parseMarkdownLinkDestinationAndTitle(link[2]!);
+    if (!parsed || !isSafeUrl(parsed.href)) {
+      return null;
+    }
+    return {
+      from: link.index,
+      href: parsed.href,
+      kind: "link",
+      text: link[1]!,
+      title: parsed.title,
+      to: text.length
+    };
+  }
+
+  return null;
+}
+
+function parseMarkdownLinkDestinationAndTitle(raw: string): { readonly href: string; readonly title: string | null } | null {
+  const value = raw.trim();
+  if (!value) {
+    return null;
+  }
+  if (value.startsWith("<")) {
+    const closing = value.indexOf(">");
+    if (closing <= 1) {
+      return null;
+    }
+    const href = unescapeMarkdownLinkPart(value.slice(1, closing));
+    const title = parseMarkdownLinkTitle(value.slice(closing + 1).trim());
+    return title === undefined ? null : { href, title };
+  }
+
+  const destinationMatch = value.match(/^((?:\\.|[^\s])+)(.*)$/u);
+  if (!destinationMatch) {
+    return null;
+  }
+  const href = unescapeMarkdownLinkPart(destinationMatch[1]!);
+  const title = parseMarkdownLinkTitle(destinationMatch[2]!.trim());
+  return title === undefined ? null : { href, title };
+}
+
+function parseMarkdownLinkTitle(raw: string): string | null | undefined {
+  if (!raw) {
+    return null;
+  }
+  const doubleQuoted = raw.match(/^"((?:\\.|[^"\\])*)"$/u);
+  if (doubleQuoted) {
+    return unescapeMarkdownLinkPart(doubleQuoted[1]!);
+  }
+  const singleQuoted = raw.match(/^'((?:\\.|[^'\\])*)'$/u);
+  if (singleQuoted) {
+    return unescapeMarkdownLinkPart(singleQuoted[1]!);
+  }
+  return undefined;
+}
+
+function unescapeMarkdownLinkPart(value: string): string {
+  return value.replace(/\\([\\()"'])/gu, "$1");
+}
+
+function createInlineMarkdownInputRuleTransaction(
+  state: EditorState,
+  rule: RichInlineInputRule,
+  undoText: string
+): Transaction | null {
+  const { $from } = state.selection;
+  if ($from.parent.type !== state.schema.nodes.paragraph) {
+    return null;
+  }
+  const from = $from.start() + rule.from;
+  const to = $from.start() + rule.to;
+  const mark =
+    rule.kind === "inline_code"
+      ? state.schema.marks.code!.create()
+      : state.schema.marks.link!.create({
+          href: rule.href,
+          title: rule.title
+        });
+  const transaction = state.tr
+    .replaceWith(from, to, state.schema.text(rule.text, [mark]))
+    .setMeta(richInputRulesPluginKey, {
+      undoText
+    });
+  transaction.setSelection(TextSelection.create(transaction.doc, Math.min(from + rule.text.length, transaction.doc.content.size)));
+  transaction.removeStoredMark(mark.type);
+  return transaction;
 }
 
 function todoInputRuleForListItemText(
@@ -2756,6 +2874,8 @@ function replacementForInputRule(
         },
         paragraph.textContent ? [schema.text(paragraph.textContent)] : undefined
       );
+    case "horizontal_rule":
+      return schema.nodes.horizontal_rule!.create();
     case "ordered_list":
       return schema.nodes.ordered_list!.create({ order: 1 }, [
         schema.nodes.list_item!.create(null, [paragraph])
@@ -2774,6 +2894,7 @@ function selectionOffsetForInputRule(rule: Exclude<RichMarkdownInputRule, { read
     case "ordered_list":
       return 3;
     case "code_block":
+    case "horizontal_rule":
       return 1;
   }
 }
@@ -3237,6 +3358,7 @@ const richMarks: Record<string, MarkSpec> = {
   },
   code: {
     code: true,
+    inclusive: false,
     parseDOM: [{ tag: "code" }],
     toDOM: () => ["code", 0]
   },

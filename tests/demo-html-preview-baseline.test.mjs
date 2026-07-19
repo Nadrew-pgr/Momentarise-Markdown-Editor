@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 
 const demoSource = readFileSync("apps/md-demo/src/main.ts", "utf8");
+const surfaceSource = readFileSync("packages/md-surface/src/index.ts", "utf8");
 const styles = readFileSync("apps/md-demo/src/styles.css", "utf8");
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const demoPackageJson = JSON.parse(readFileSync("apps/md-demo/package.json", "utf8"));
@@ -10,7 +11,6 @@ for (const snippet of [
   "createSandboxedHtmlPreview",
   "data-testid=\"open-html-file-button\"",
   "data-testid=\"html-file-input\"",
-  "data-testid=\"preview-mode-button\"",
   "data-testid=\"html-preview-host\"",
   "data-testid=\"html-preview-banner\"",
   "data-testid=\"html-preview-frame\"",
@@ -22,6 +22,10 @@ for (const snippet of [
   if (!demoSource.includes(snippet)) {
     throw new Error(`MME-0015 demo HTML preview baseline missing: ${snippet}`);
   }
+}
+
+if (!surfaceSource.includes("preview-mode-button")) {
+  throw new Error("MME-0015 mode control surface must still expose the HTML Preview mode button.");
 }
 
 for (const snippet of [

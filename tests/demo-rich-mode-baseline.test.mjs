@@ -48,8 +48,7 @@ if (richPackage.scripts?.build !== "tsc -b") {
 const main = readFileSync("apps/md-demo/src/main.ts", "utf8");
 for (const snippet of [
   "@momentarise/md-rich-prosemirror",
-  "source-mode-button",
-  "rich-mode-button",
+  "mode-control-host",
   "rich-editor-host",
   "switchEditorMode",
   "syncRichMarkdownToSource",

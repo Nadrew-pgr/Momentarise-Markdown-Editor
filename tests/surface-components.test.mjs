@@ -450,7 +450,8 @@ const modeControl = createModeControl({
   }
 });
 modeControl.update();
-assert(query(modeHost, "[data-testid='source-mode-button']").getAttribute("role") === "switch", "Mode control must preserve switch semantics.");
+assert(query(modeHost, "[data-testid='source-mode-button']").textContent === "Source", "Mode control must expose Source as a visible mode.");
+assert(query(modeHost, "[data-testid='source-mode-button']").getAttribute("role") !== "switch", "Mode control must not expose binary switch semantics for three Markdown modes.");
 query(modeHost, "[data-testid='rich-mode-button']").click();
 assert(modeEvents[0] === "rich", "Mode control must emit rich-mode switch events.");
 
