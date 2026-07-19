@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { openInChatTargets, type OpenInChatTarget } from "./open-in-chat";
 import { createPagePrompt } from "./prompt";
 import { sectionMarkdownForSlug, type SerializableOutlineItem } from "./outline-utils";
+import type { AgentActionDescriptor, AgentActionRegistry, OpenInChatTargetDescriptor } from "./agent-actions";
 
 export interface DocActionsProps {
+  readonly actionRegistry: AgentActionRegistry;
   readonly outline: readonly SerializableOutlineItem[];
   readonly page: {
     readonly path: string;
@@ -15,9 +16,12 @@ export interface DocActionsProps {
   };
 }
 
-export function DocActions({ outline, page }: DocActionsProps) {
+export function DocActions({ actionRegistry, outline, page }: DocActionsProps) {
   const [status, setStatus] = useState("");
   const prompt = useMemo(() => createPagePrompt(page), [page]);
+  const pageActions = actionRegistry.pageActions.filter((action) => action.availability === "shipped");
+  const buttonActions = pageActions.filter((action) => action.payload.kind !== "open-in-chat");
+  const openInChatAction = pageActions.find((action) => action.payload.kind === "open-in-chat");
 
   return (
     <>
@@ -26,35 +30,20 @@ export function DocActions({ outline, page }: DocActionsProps) {
         <div className="docs-actions-panel">
           <p>Copy source, create an AI prompt, or open this page in an assistant.</p>
           <div className="docs-action-grid">
-            <a className="docs-action" data-testid="raw-markdown" href={page.rawUrl}>View source</a>
-            <button className="docs-action" data-testid="copy-markdown" type="button" onClick={() => copyText(page.source, "Markdown copied.", setStatus)}>
-              Copy Markdown
-            </button>
-            <button className="docs-action" data-testid="copy-prompt" type="button" onClick={() => copyText(prompt, "Prompt copied.", setStatus)}>
-              Copy Prompt
-            </button>
-            <button
-              className="docs-action"
-              data-testid="copy-section"
-              type="button"
-              onClick={() => copyText(sectionMarkdownForSlug(page.source, outline, currentSectionSlug()), "Section copied.", setStatus)}
-            >
-              Copy Section
-            </button>
-            <button className="docs-action" data-testid="copy-link" type="button" onClick={() => copyText(window.location.href, "Page link copied.", setStatus)}>
-              Copy Link
-            </button>
+            {buttonActions.map((action) => renderPageAction(action, page, outline, prompt, setStatus))}
           </div>
-          <details className="open-in-chat" data-testid="open-in-chat">
-            <summary>Open in Chat</summary>
-            <div className="open-in-chat-menu" role="menu">
-              {openInChatTargets.map((target) => (
-                <button key={target.id} type="button" role="menuitem" onClick={() => openTarget(target, prompt, setStatus)}>
-                  {target.label}
-                </button>
-              ))}
-            </div>
-          </details>
+          {openInChatAction ? (
+            <details className="open-in-chat" data-testid={openInChatAction.testId}>
+              <summary>{openInChatAction.label}</summary>
+              <div className="open-in-chat-menu" role="menu">
+                {actionRegistry.openInChatTargets.filter((target) => target.availability === "shipped").map((target) => (
+                  <button key={target.id} type="button" role="menuitem" onClick={() => openTarget(target, prompt, setStatus)}>
+                    {target.label}
+                  </button>
+                ))}
+              </div>
+            </details>
+          ) : null}
           </div>
       </details>
       <div aria-live="polite" className="docs-action-status" data-testid="docs-action-status" role="status">
@@ -64,12 +53,62 @@ export function DocActions({ outline, page }: DocActionsProps) {
   );
 }
 
+function renderPageAction(
+  action: AgentActionDescriptor,
+  page: DocActionsProps["page"],
+  outline: readonly SerializableOutlineItem[],
+  prompt: string,
+  setStatus: (message: string) => void
+) {
+  if (action.payload.kind === "link" && action.payload.href === "page.rawUrl") {
+    return (
+      <a className="docs-action" data-testid={action.testId} href={page.rawUrl} key={action.id}>
+        {action.label}
+      </a>
+    );
+  }
+  if (action.payload.kind === "copy") {
+    return (
+      <button
+        className="docs-action"
+        data-testid={action.testId}
+        key={action.id}
+        type="button"
+        onClick={() => copyText(resolveCopyValue(action, page, outline, prompt), action.payload.success ?? "Copied.", setStatus)}
+      >
+        {action.label}
+      </button>
+    );
+  }
+  return null;
+}
+
+function resolveCopyValue(
+  action: AgentActionDescriptor,
+  page: DocActionsProps["page"],
+  outline: readonly SerializableOutlineItem[],
+  prompt: string
+): string {
+  switch (action.payload.value) {
+    case "browser.currentUrl":
+      return window.location.href;
+    case "page.currentSection":
+      return sectionMarkdownForSlug(page.source, outline, currentSectionSlug());
+    case "page.prompt":
+      return prompt;
+    case "page.source":
+      return page.source;
+    default:
+      return "";
+  }
+}
+
 async function openTarget(
-  target: OpenInChatTarget,
+  target: OpenInChatTargetDescriptor,
   prompt: string,
   setStatus: (message: string) => void
 ): Promise<void> {
-  const url = target.buildUrl(prompt);
+  const url = buildTargetUrl(target, prompt);
   if (!url) {
     await copyText(prompt, `Prompt copied. Paste into ${target.label}.`, setStatus);
     return;
@@ -80,6 +119,20 @@ async function openTarget(
     return;
   }
   setStatus(`Opened ${target.label}.`);
+}
+
+function buildTargetUrl(target: OpenInChatTargetDescriptor, prompt: string): string | null {
+  if (target.mode === "copy-only") {
+    return null;
+  }
+  if (!target.baseUrl || !target.parameterName) {
+    return null;
+  }
+  const encoded = encodeURIComponent(prompt);
+  if (encoded.length > (target.maxEncodedPromptLength ?? 8000)) {
+    return null;
+  }
+  return `${target.baseUrl}?${target.parameterName}=${encoded}`;
 }
 
 async function copyText(text: string, successMessage: string, setStatus: (message: string) => void): Promise<void> {

@@ -1,0 +1,218 @@
+{
+  "schema": "https://momentarise.dev/schemas/agent-actions.v0.json",
+  "generatedBy": "scripts/generate-agent-artifacts.mjs",
+  "sourceBoundary": "public-docs-only",
+  "sourceHash": "a479d495a138a69b653db66ca17a24ef801ebf5f79a902e6433a8d60068fc0b2",
+  "pageActions": [
+    {
+      "id": "view-source",
+      "label": "View source",
+      "availability": "shipped",
+      "testId": "raw-markdown",
+      "payload": {
+        "kind": "link",
+        "href": "page.rawUrl"
+      },
+      "sourceDocs": [
+        "docs/public/concepts/agentic-experience.md"
+      ]
+    },
+    {
+      "id": "copy-markdown",
+      "label": "Copy Markdown",
+      "availability": "shipped",
+      "testId": "copy-markdown",
+      "payload": {
+        "kind": "copy",
+        "value": "page.source",
+        "success": "Markdown copied."
+      },
+      "sourceDocs": [
+        "docs/public/concepts/agentic-experience.md"
+      ]
+    },
+    {
+      "id": "copy-prompt",
+      "label": "Copy Prompt",
+      "availability": "shipped",
+      "testId": "copy-prompt",
+      "payload": {
+        "kind": "copy",
+        "value": "page.prompt",
+        "success": "Prompt copied."
+      },
+      "sourceDocs": [
+        "docs/public/concepts/agentic-experience.md"
+      ]
+    },
+    {
+      "id": "copy-section",
+      "label": "Copy Section",
+      "availability": "shipped",
+      "testId": "copy-section",
+      "payload": {
+        "kind": "copy",
+        "value": "page.currentSection",
+        "success": "Section copied."
+      },
+      "sourceDocs": [
+        "docs/public/concepts/agentic-experience.md"
+      ]
+    },
+    {
+      "id": "copy-link",
+      "label": "Copy Link",
+      "availability": "shipped",
+      "testId": "copy-link",
+      "payload": {
+        "kind": "copy",
+        "value": "browser.currentUrl",
+        "success": "Page link copied."
+      },
+      "sourceDocs": [
+        "docs/public/concepts/agentic-experience.md"
+      ]
+    },
+    {
+      "id": "open-in-chat",
+      "label": "Open in Chat",
+      "availability": "shipped",
+      "testId": "open-in-chat",
+      "payload": {
+        "kind": "open-in-chat",
+        "prompt": "page.prompt"
+      },
+      "sourceDocs": [
+        "docs/public/concepts/agentic-experience.md"
+      ]
+    },
+    {
+      "id": "edit-on-github",
+      "label": "Edit on GitHub",
+      "availability": "future",
+      "payload": {
+        "kind": "external-workflow",
+        "workflow": "edit-source-file"
+      },
+      "sourceDocs": [
+        "docs/public/roadmap.md"
+      ]
+    },
+    {
+      "id": "file-issue",
+      "label": "File issue",
+      "availability": "future",
+      "payload": {
+        "kind": "external-workflow",
+        "workflow": "issue-filing"
+      },
+      "sourceDocs": [
+        "docs/public/roadmap.md"
+      ]
+    },
+    {
+      "id": "ask-this-page",
+      "label": "Ask this page",
+      "availability": "future",
+      "payload": {
+        "kind": "hosted-ai",
+        "workflow": "semantic-docs-qa"
+      },
+      "sourceDocs": [
+        "docs/public/concepts/agentic-experience.md"
+      ]
+    }
+  ],
+  "openInChatTargets": [
+    {
+      "id": "chatgpt",
+      "label": "ChatGPT",
+      "availability": "shipped",
+      "mode": "query-param",
+      "baseUrl": "https://chatgpt.com/",
+      "parameterName": "q",
+      "maxEncodedPromptLength": 8000
+    },
+    {
+      "id": "claude",
+      "label": "Claude",
+      "availability": "shipped",
+      "mode": "query-param",
+      "baseUrl": "https://claude.ai/new",
+      "parameterName": "q",
+      "maxEncodedPromptLength": 8000
+    },
+    {
+      "id": "gemini",
+      "label": "Gemini",
+      "availability": "shipped",
+      "mode": "query-param",
+      "baseUrl": "https://gemini.google.com/app",
+      "parameterName": "q",
+      "maxEncodedPromptLength": 8000
+    },
+    {
+      "id": "mistral",
+      "label": "Mistral",
+      "availability": "shipped",
+      "mode": "query-param",
+      "baseUrl": "https://chat.mistral.ai/chat",
+      "parameterName": "q",
+      "maxEncodedPromptLength": 8000
+    },
+    {
+      "id": "t3-chat",
+      "label": "T3 Chat",
+      "availability": "shipped",
+      "mode": "query-param",
+      "baseUrl": "https://t3.chat/new",
+      "parameterName": "q",
+      "maxEncodedPromptLength": 8000
+    },
+    {
+      "id": "scira",
+      "label": "Scira",
+      "availability": "shipped",
+      "mode": "query-param",
+      "baseUrl": "https://scira.ai/",
+      "parameterName": "q",
+      "maxEncodedPromptLength": 8000
+    },
+    {
+      "id": "v0",
+      "label": "v0",
+      "availability": "shipped",
+      "mode": "copy-only"
+    },
+    {
+      "id": "claude-code",
+      "label": "Claude Code",
+      "availability": "shipped",
+      "mode": "copy-only"
+    },
+    {
+      "id": "codex",
+      "label": "Codex",
+      "availability": "shipped",
+      "mode": "copy-only"
+    },
+    {
+      "id": "cursor",
+      "label": "Cursor",
+      "availability": "shipped",
+      "mode": "copy-only"
+    },
+    {
+      "id": "openclaw",
+      "label": "OpenClaw",
+      "availability": "shipped",
+      "mode": "copy-only"
+    },
+    {
+      "id": "copilot",
+      "label": "Copilot-like agent",
+      "availability": "shipped",
+      "mode": "copy-only"
+    }
+  ]
+}

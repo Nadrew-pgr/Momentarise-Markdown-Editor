@@ -1,0 +1,460 @@
+import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { dirname, join, relative } from "node:path";
+import {
+  assertSafePublicMarkdownPath,
+  comparePublicDocsPages,
+  parsePublicDocsFrontmatter,
+  sanitizeLlmsLineField,
+  titleFromPath
+} from "../apps/docs-site/src/docs-shared.mjs";
+
+const publicRoot = "docs/public";
+const outputRoot = "docs/agent";
+const outputFiles = {
+  actions: `${outputRoot}/actions.json`,
+  manifest: `${outputRoot}/manifest.json`
+};
+const generatorPath = "scripts/generate-agent-artifacts.mjs";
+const checkMode = process.argv.includes("--check");
+
+const publicPages = (await Promise.all((await collectMarkdownFiles(publicRoot)).map(createPage))).sort(comparePublicDocsPages);
+const packageMetadata = await collectPackageMetadata();
+const sourceInputs = await collectSourceInputs(publicPages, packageMetadata);
+const inputHash = hashJson(sourceInputs);
+const skills = createSkills(publicPages, packageMetadata);
+const actions = createActions(inputHash);
+const manifest = createManifest(inputHash, skills, packageMetadata);
+const generatedFiles = new Map([
+  [outputFiles.manifest, stringifyJson(manifest)],
+  [outputFiles.actions, stringifyJson(actions)],
+  ...skills.map((skill) => [skill.path, renderSkill(skill)])
+]);
+
+if (checkMode) {
+  await checkGeneratedFiles(generatedFiles);
+} else {
+  await writeGeneratedFiles(generatedFiles);
+}
+
+function createManifest(sourceHash, skillDescriptors, packages) {
+  return {
+    schema: "https://momentarise.dev/schemas/agent-artifacts.v0.json",
+    generatedBy: generatorPath,
+    sourceBoundary: "public-docs-only",
+    sources: {
+      publicDocsRoot: publicRoot,
+      llms: ["llms.txt", "llms-full.txt"],
+      packageMetadata: packages.map((pkg) => pkg.manifestPath),
+      inputHash: sourceHash
+    },
+    actionsPath: outputFiles.actions,
+    skills: skillDescriptors.map(({ body, description, ...skill }) => skill)
+  };
+}
+
+function createActions(sourceHash) {
+  return {
+    schema: "https://momentarise.dev/schemas/agent-actions.v0.json",
+    generatedBy: generatorPath,
+    sourceBoundary: "public-docs-only",
+    sourceHash,
+    pageActions: [
+      {
+        id: "view-source",
+        label: "View source",
+        availability: "shipped",
+        testId: "raw-markdown",
+        payload: { kind: "link", href: "page.rawUrl" },
+        sourceDocs: ["docs/public/concepts/agentic-experience.md"]
+      },
+      {
+        id: "copy-markdown",
+        label: "Copy Markdown",
+        availability: "shipped",
+        testId: "copy-markdown",
+        payload: { kind: "copy", value: "page.source", success: "Markdown copied." },
+        sourceDocs: ["docs/public/concepts/agentic-experience.md"]
+      },
+      {
+        id: "copy-prompt",
+        label: "Copy Prompt",
+        availability: "shipped",
+        testId: "copy-prompt",
+        payload: { kind: "copy", value: "page.prompt", success: "Prompt copied." },
+        sourceDocs: ["docs/public/concepts/agentic-experience.md"]
+      },
+      {
+        id: "copy-section",
+        label: "Copy Section",
+        availability: "shipped",
+        testId: "copy-section",
+        payload: { kind: "copy", value: "page.currentSection", success: "Section copied." },
+        sourceDocs: ["docs/public/concepts/agentic-experience.md"]
+      },
+      {
+        id: "copy-link",
+        label: "Copy Link",
+        availability: "shipped",
+        testId: "copy-link",
+        payload: { kind: "copy", value: "browser.currentUrl", success: "Page link copied." },
+        sourceDocs: ["docs/public/concepts/agentic-experience.md"]
+      },
+      {
+        id: "open-in-chat",
+        label: "Open in Chat",
+        availability: "shipped",
+        testId: "open-in-chat",
+        payload: { kind: "open-in-chat", prompt: "page.prompt" },
+        sourceDocs: ["docs/public/concepts/agentic-experience.md"]
+      },
+      {
+        id: "edit-on-github",
+        label: "Edit on GitHub",
+        availability: "future",
+        payload: { kind: "external-workflow", workflow: "edit-source-file" },
+        sourceDocs: ["docs/public/roadmap.md"]
+      },
+      {
+        id: "file-issue",
+        label: "File issue",
+        availability: "future",
+        payload: { kind: "external-workflow", workflow: "issue-filing" },
+        sourceDocs: ["docs/public/roadmap.md"]
+      },
+      {
+        id: "ask-this-page",
+        label: "Ask this page",
+        availability: "future",
+        payload: { kind: "hosted-ai", workflow: "semantic-docs-qa" },
+        sourceDocs: ["docs/public/concepts/agentic-experience.md"]
+      }
+    ],
+    openInChatTargets: [
+      queryTarget("chatgpt", "ChatGPT", "https://chatgpt.com/", "q"),
+      queryTarget("claude", "Claude", "https://claude.ai/new", "q"),
+      queryTarget("gemini", "Gemini", "https://gemini.google.com/app", "q"),
+      queryTarget("mistral", "Mistral", "https://chat.mistral.ai/chat", "q"),
+      queryTarget("t3-chat", "T3 Chat", "https://t3.chat/new", "q"),
+      queryTarget("scira", "Scira", "https://scira.ai/", "q"),
+      copyTarget("v0", "v0"),
+      copyTarget("claude-code", "Claude Code"),
+      copyTarget("codex", "Codex"),
+      copyTarget("cursor", "Cursor"),
+      copyTarget("openclaw", "OpenClaw"),
+      copyTarget("copilot", "Copilot-like agent")
+    ]
+  };
+}
+
+function queryTarget(id, label, baseUrl, parameterName) {
+  return {
+    id,
+    label,
+    availability: "shipped",
+    mode: "query-param",
+    baseUrl,
+    parameterName,
+    maxEncodedPromptLength: 8000
+  };
+}
+
+function copyTarget(id, label) {
+  return {
+    id,
+    label,
+    availability: "shipped",
+    mode: "copy-only"
+  };
+}
+
+function createSkills(pages, packages) {
+  const packageDocs = packages.map((pkg) => pkg.publicDocPath).filter(Boolean);
+  return [
+    skill({
+      id: "mme-docs",
+      description:
+        "Use when answering questions about Momentarise Markdown Editor docs, public Markdown source, llms files, docs-site behavior, or framework capabilities from public documentation.",
+      sourceDocs: [
+        "docs/public/index.md",
+        "docs/public/concepts/document-model.md",
+        "docs/public/concepts/agentic-experience.md",
+        "docs/public/compatibility-promise.md",
+        "docs/public/roadmap.md"
+      ],
+      packageNames: [],
+      body: [
+        "Use public source first.",
+        "",
+        "Read these repo files before answering or implementing from docs:",
+        "- `docs/public/index.md`",
+        "- `docs/public/concepts/document-model.md`",
+        "- `docs/public/concepts/agentic-experience.md`",
+        "- `llms.txt` for the short public index",
+        "- `llms-full.txt` for the full public context bundle",
+        "",
+        "Rules:",
+        "- Treat Markdown plus YAML frontmatter as the durable source.",
+        "- Do not claim JSON or block database persistence.",
+        "- Do not use internal repo docs as public evidence.",
+        "- Separate shipped behavior from roadmap behavior.",
+        "- Cite `docs/public/...` paths when giving repo-grounded answers."
+      ]
+    }),
+    skill({
+      id: "mme-migration-help",
+      description:
+        "Use when helping migrate from Markdown textareas, Tiptap, BlockNote, MDX docs, CMS editors, or host-specific rich editors to Momentarise Markdown Editor.",
+      sourceDocs: [
+        "docs/public/concepts/import-export.md",
+        "docs/public/concepts/preservation.md",
+        "docs/public/concepts/document-model.md",
+        "docs/public/quickstart/vanilla.md",
+        "docs/public/quickstart/react.md",
+        "docs/public/quickstart/next.md",
+        "docs/public/packages/md-render-html.md"
+      ],
+      packageNames: packages.map((pkg) => pkg.name),
+      body: [
+        "Start from the current integration target.",
+        "",
+        "Read public docs in this order:",
+        "- `docs/public/concepts/document-model.md`",
+        "- `docs/public/concepts/preservation.md`",
+        "- `docs/public/concepts/import-export.md`",
+        "- the matching quickstart under `docs/public/quickstart/`",
+        "- package docs under `docs/public/packages/` as needed",
+        "- `llms.txt` for the public docs index",
+        "- `llms-full.txt` when you need the complete public context",
+        "",
+        "Migration boundaries:",
+        "- Markdown is source; HTML, MDX output, JSON blocks, CMS records, and editor ASTs are artifacts or adapters.",
+        "- Preserve unknown syntax and keep source fallback available.",
+        "- Do not promise production collaboration, hosted AI, or CMS persistence unless host code provides it."
+      ]
+    }),
+    skill({
+      id: "mme-package-selection",
+      description:
+        "Use when selecting Momentarise Markdown Editor packages, explaining package responsibilities, or choosing APIs for vanilla, React, Next.js, CLI, renderer, save, policy, AI, and host-adapter integrations.",
+      sourceDocs: packageDocs,
+      packageNames: packages.map((pkg) => pkg.name),
+      body: [
+        "Choose packages by boundary, not framework habit.",
+        "",
+        "Package source docs:",
+        ...packageDocs.map((doc) => `- \`${doc}\``),
+        "",
+        "Use `llms.txt` for navigation and `llms-full.txt` for complete package context.",
+        "",
+        "Selection rules:",
+        "- Core/model work starts with `@momentarise/md-core`, `md-format`, `md-save`, `md-policy`, and `md-ai`.",
+        "- Editor orchestration uses `@momentarise/md-editor`.",
+        "- UI surfaces use `@momentarise/md-surface`; React uses `@momentarise/md-react` as a thin binding.",
+        "- Source/rich/render/preview engines stay in their own packages.",
+        "- Host adapters provide capabilities; they must not become the durable source of truth."
+      ]
+    }),
+    skill({
+      id: "mme-ai-privacy-boundary",
+      description:
+        "Use when reviewing AI writing, BYOK, provider adapters, policy checks, prompt sharing, or privacy boundaries for Momentarise Markdown Editor.",
+      sourceDocs: [
+        "docs/public/concepts/ai-privacy.md",
+        "docs/public/concepts/policy.md",
+        "docs/public/concepts/agentic-experience.md",
+        "docs/public/packages/md-ai.md",
+        "docs/public/packages/md-policy.md"
+      ],
+      packageNames: ["@momentarise/md-ai", "@momentarise/md-policy"],
+      body: [
+        "Apply policy before AI.",
+        "",
+        "Read:",
+        "- `docs/public/concepts/ai-privacy.md`",
+        "- `docs/public/concepts/policy.md`",
+        "- `docs/public/packages/md-ai.md`",
+        "- `docs/public/packages/md-policy.md`",
+        "- `llms.txt` for the public docs index",
+        "- `llms-full.txt` for current public context",
+        "",
+        "Rules:",
+        "- AI writing is assistive and staged.",
+        "- Prompts are transport, not persistence.",
+        "- BYOK/provider credentials are host-owned and must not be logged.",
+        "- Do not claim hosted Ask AI, semantic search, managed billing, or long-running agents as shipped.",
+        "- Do not expose private repo docs or local secrets in copied prompts."
+      ]
+    }),
+    skill({
+      id: "mme-docs-to-implementation",
+      description:
+        "Use when turning Momentarise Markdown Editor public docs into implementation prompts, coding-agent instructions, checklists, or local proof commands.",
+      sourceDocs: [
+        "docs/public/concepts/agentic-experience.md",
+        "docs/public/packages/md-cli.md",
+        "docs/public/concepts/preservation.md",
+        "docs/public/concepts/save-truthfulness.md",
+        "docs/public/concepts/document-model.md"
+      ],
+      packageNames: ["@momentarise/md-cli", "@momentarise/md-editor", "@momentarise/md-save"],
+      body: [
+        "Build prompts from source docs, not screenshots.",
+        "",
+        "Read:",
+        "- `docs/public/concepts/agentic-experience.md`",
+        "- `docs/public/packages/md-cli.md`",
+        "- `docs/public/concepts/preservation.md`",
+        "- `docs/public/concepts/save-truthfulness.md`",
+        "- `llms.txt` and `llms-full.txt`",
+        "",
+        "Prompt rules:",
+        "- Include the relevant `docs/public/...` path.",
+        "- Preserve Markdown-as-source and no-full-document-rewrite constraints.",
+        "- Require real tests or CLI proof, usually `npm run build`, `npm run test:docs`, `npm run test:llms-sync`, or `node packages/md-cli/dist/index.js check --json`.",
+        "- Mark public-roadmap features as future unless current package docs prove otherwise."
+      ]
+    })
+  ].filter((generatedSkill) => generatedSkill.sourceDocs.every((doc) => pages.some((page) => `docs/public/${page.path}` === doc)));
+}
+
+function skill({ id, description, sourceDocs, packageNames, body }) {
+  return {
+    id,
+    description,
+    path: `${outputRoot}/skills/${id}/SKILL.md`,
+    sourceDocs,
+    packageNames,
+    body
+  };
+}
+
+function renderSkill(skillDescriptor) {
+  return [
+    "---",
+    `name: ${skillDescriptor.id}`,
+    `description: ${JSON.stringify(skillDescriptor.description)}`,
+    "---",
+    "",
+    `# ${titleFromPath(`${skillDescriptor.id}.md`)}`,
+    "",
+    ...skillDescriptor.body,
+    ""
+  ].join("\n");
+}
+
+async function createPage(path) {
+  assertSafePublicMarkdownPath(path);
+  const source = await readFile(join(publicRoot, path), "utf8");
+  const parsed = parsePublicDocsFrontmatter(source);
+  const h1 = parsed.body.match(/^#\s+(.+)$/m)?.[1]?.trim();
+  return {
+    description: parsed.metadata.description ?? "",
+    metadata: parsed.metadata,
+    path,
+    source,
+    title: parsed.metadata.title ?? h1 ?? titleFromPath(path)
+  };
+}
+
+async function collectPackageMetadata() {
+  const entries = await readdir("packages", { withFileTypes: true });
+  const packages = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    const manifestPath = `packages/${entry.name}/package.json`;
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    const publicDocPath = `docs/public/packages/${entry.name}.md`;
+    packages.push({
+      description: sanitizeLlmsLineField(manifest.description ?? "", 220),
+      manifestPath,
+      name: manifest.name,
+      publicDocPath: existsSync(publicDocPath) ? publicDocPath : undefined,
+      version: manifest.version
+    });
+  }
+  return packages.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+async function collectSourceInputs(pages, packages) {
+  return {
+    publicDocs: pages.map((page) => ({
+      path: `docs/public/${page.path}`,
+      source: page.source
+    })),
+    llms: [
+      { path: "llms.txt", source: await readFile("llms.txt", "utf8") },
+      { path: "llms-full.txt", source: await readFile("llms-full.txt", "utf8") }
+    ],
+    packages
+  };
+}
+
+async function collectMarkdownFiles(root) {
+  const entries = await readdir(root, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    const fullPath = join(root, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await collectMarkdownFiles(fullPath)));
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      files.push(relative(publicRoot, fullPath).replaceAll("\\", "/"));
+    }
+  }
+  return files.sort();
+}
+
+async function writeGeneratedFiles(files) {
+  await rm(outputRoot, { recursive: true, force: true });
+  for (const [path, content] of files) {
+    assertSafeGeneratedOutputPath(path);
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, content);
+  }
+}
+
+async function checkGeneratedFiles(files) {
+  const expectedPaths = [...files.keys()].sort();
+  const actualPaths = existsSync(outputRoot) ? (await collectOutputFiles(outputRoot)).sort() : [];
+  if (JSON.stringify(actualPaths) !== JSON.stringify(expectedPaths)) {
+    throw new Error(
+      `${outputRoot} file list is out of sync. Run: node ${generatorPath}\nActual: ${JSON.stringify(actualPaths)}\nExpected: ${JSON.stringify(expectedPaths)}`
+    );
+  }
+  for (const [path, content] of files) {
+    const committed = existsSync(path) ? await readFile(path, "utf8") : "";
+    if (committed !== content) {
+      throw new Error(`${path} is out of sync with public docs, llms files, or package metadata. Run: node ${generatorPath}`);
+    }
+  }
+}
+
+async function collectOutputFiles(root) {
+  const files = [];
+  for (const entry of await readdir(root, { withFileTypes: true })) {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await collectOutputFiles(path)));
+    } else if (entry.isFile()) {
+      files.push(path);
+    }
+  }
+  return files;
+}
+
+function stringifyJson(value) {
+  return `${JSON.stringify(value, null, 2)}\n`;
+}
+
+function hashJson(value) {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+function assertSafeGeneratedOutputPath(path) {
+  if (!path.startsWith(`${outputRoot}/`) || path.includes("..") || path.includes("\\")) {
+    throw new Error(`Unsafe generated output path: ${path}`);
+  }
+}

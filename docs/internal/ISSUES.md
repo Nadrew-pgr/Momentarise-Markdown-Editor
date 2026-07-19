@@ -2783,6 +2783,10 @@ This issue may require a product decision about the exact committed skill locati
 
 DX Reviewer and Security Reviewer.
 
+### Status
+
+Accepted for code continuation 2026-07-19 after generated repo-owned Agentic Experience artifacts, descriptor-driven docs actions, public-boundary tests, docs visual proof, reviewer pass, and full test pass. Added `scripts/generate-agent-artifacts.mjs`, generated `docs/agent/manifest.json`, `docs/agent/actions.json`, and five `docs/agent/skills/*/SKILL.md` files from public Markdown docs, `llms.txt`, `llms-full.txt`, and package metadata. Added `tests/agent-artifacts.test.mjs` and wired `test:agent-artifacts` into root `npm test`; the test proves drift detection, public-only boundaries, package metadata derivation, reusable action descriptors, shipped/future action availability, and docs-site descriptor consumption. The docs site now imports the generated action registry through `apps/docs-site/src/agent-actions.ts`, validates the registry schema/source boundary, renders page actions from descriptors, and filters Open-in-chat targets to shipped descriptors only. DX and security reviewers reported no P0/P1/P2 findings; builder fixed P3s for stale metadata, registry robustness, CWD fragility, and shipped target filtering. Final AX artifact distribution/product review is queued in `docs/internal/BACKLOG.md`; `MME-0050` remains the next candidate after issue-scoped commit.
+
 ## MME-0050 — Performance budgets and large-document benchmarks
 
 ### Goal

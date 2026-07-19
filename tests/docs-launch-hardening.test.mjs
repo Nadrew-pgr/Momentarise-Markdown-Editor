@@ -63,13 +63,15 @@ assert(
 
 const notShippedSection = sectionAfter(axGuide, "## Not Shipped Yet");
 for (const claim of [
-  "Generated Codex skills",
-  "reusable agent action descriptors",
   "hosted Ask AI",
   "semantic docs search",
-  "edit-on-GitHub"
+  "live edit-on-GitHub",
+  "automatic global skill installation"
 ]) {
   assert(notShippedSection.includes(claim), `AX guide must keep ${claim} under Not Shipped Yet.`);
+}
+for (const shipped of ["docs/agent/manifest.json", "docs/agent/actions.json", "docs/agent/skills"]) {
+  assert(axGuide.includes(shipped), `AX guide must document generated artifact ${shipped}.`);
 }
 
 for (const artifact of [

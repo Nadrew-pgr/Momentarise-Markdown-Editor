@@ -13,10 +13,12 @@ import { DocsSearch } from "./DocsSearch";
 import { LiveMarkdownDemo } from "./LiveMarkdownDemo";
 import { ThemeToggle } from "./ThemeToggle";
 import { BrandMark } from "./BrandMark";
+import { getDocsAgentActionRegistry, type AgentActionRegistry } from "./agent-actions";
 
 export function DocsPageView({ page }: { readonly page: DocsPage }) {
   const pages = allDocsPages();
   const outline = createOutlineForPage(page);
+  const actionRegistry = getDocsAgentActionRegistry();
   const rendered = renderMarkdownToHtml(page.body, { fileName: page.path });
   const decoratedHtml = decorateRenderedMarkdownHtml(rendered.html, page, pages, outline);
 
@@ -51,7 +53,7 @@ export function DocsPageView({ page }: { readonly page: DocsPage }) {
           <DocsPager currentPage={page} pages={pages} />
           <DocsFooter pages={pages} />
         </main>
-        <Outline page={page} outline={outline} />
+        <Outline actionRegistry={actionRegistry} page={page} outline={outline} />
       </div>
     </div>
   );
@@ -123,10 +125,19 @@ function NavigationList({ currentPage, pages }: { readonly currentPage: DocsPage
   );
 }
 
-function Outline({ page, outline }: { readonly page: DocsPage; readonly outline: ReturnType<typeof createOutlineForPage> }) {
+function Outline({
+  actionRegistry,
+  page,
+  outline
+}: {
+  readonly actionRegistry: AgentActionRegistry;
+  readonly page: DocsPage;
+  readonly outline: ReturnType<typeof createOutlineForPage>;
+}) {
   return (
     <aside className="docs-outline-panel">
       <DocActions
+        actionRegistry={actionRegistry}
         outline={outline}
         page={{
           path: page.path,

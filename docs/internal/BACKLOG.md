@@ -188,6 +188,7 @@ Tags: `public-release`, `human-review`, `ui`, `ax`
 - MME-0045 command-surface UX review: review toolbar density/icon grouping, slash menu ranking/group labels, selection bubble placement, mode control variants, mobile wrapping, and final product feel before public launch.
 - MME-0046 HTML preview product review: review the normal standalone HTML reading surface, details affordance placement, constrained-width feel, save/export wording, and whether the preview chrome feels public-ready before launch.
 - MME-0047 folding product review: review gutter density beside block handles, collapsed marker taste for headings/code/callouts/opaque blocks, keyboard focus treatment, nested fold feel, and whether folding feels public-ready before launch.
+- MME-0049 AX artifact distribution review: review generated `docs/agent/manifest.json`, `docs/agent/actions.json`, and `docs/agent/skills/*/SKILL.md` as public/distribution artifacts; confirm skill naming, action labels, Open-in-chat target list, future action descriptors, and not-installed-automatically wording before public launch.
 - Future visible/UI/HITL slices in this autonomous run should be added here instead of blocking code continuation, per the 2026-07-19 human instruction to review visible work in one final block.
 
 - Asset/upload provider contract for image paste and drag-drop, similar in spirit to BlockNote `uploadFile`, but adapted to MME's host-capability and SaveTarget contracts.

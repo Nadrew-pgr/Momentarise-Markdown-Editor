@@ -1,0 +1,148 @@
+{
+  "schema": "https://momentarise.dev/schemas/agent-artifacts.v0.json",
+  "generatedBy": "scripts/generate-agent-artifacts.mjs",
+  "sourceBoundary": "public-docs-only",
+  "sources": {
+    "publicDocsRoot": "docs/public",
+    "llms": [
+      "llms.txt",
+      "llms-full.txt"
+    ],
+    "packageMetadata": [
+      "packages/md-adapter-theia/package.json",
+      "packages/md-adapter-web/package.json",
+      "packages/md-ai/package.json",
+      "packages/md-cli/package.json",
+      "packages/md-core/package.json",
+      "packages/md-editor/package.json",
+      "packages/md-format/package.json",
+      "packages/md-policy/package.json",
+      "packages/md-preview-html/package.json",
+      "packages/md-react/package.json",
+      "packages/md-render-html/package.json",
+      "packages/md-rich-prosemirror/package.json",
+      "packages/md-save/package.json",
+      "packages/md-source-codemirror/package.json",
+      "packages/md-surface/package.json",
+      "packages/md-theme/package.json"
+    ],
+    "inputHash": "a479d495a138a69b653db66ca17a24ef801ebf5f79a902e6433a8d60068fc0b2"
+  },
+  "actionsPath": "docs/agent/actions.json",
+  "skills": [
+    {
+      "id": "mme-docs",
+      "path": "docs/agent/skills/mme-docs/SKILL.md",
+      "sourceDocs": [
+        "docs/public/index.md",
+        "docs/public/concepts/document-model.md",
+        "docs/public/concepts/agentic-experience.md",
+        "docs/public/compatibility-promise.md",
+        "docs/public/roadmap.md"
+      ],
+      "packageNames": []
+    },
+    {
+      "id": "mme-migration-help",
+      "path": "docs/agent/skills/mme-migration-help/SKILL.md",
+      "sourceDocs": [
+        "docs/public/concepts/import-export.md",
+        "docs/public/concepts/preservation.md",
+        "docs/public/concepts/document-model.md",
+        "docs/public/quickstart/vanilla.md",
+        "docs/public/quickstart/react.md",
+        "docs/public/quickstart/next.md",
+        "docs/public/packages/md-render-html.md"
+      ],
+      "packageNames": [
+        "@momentarise/md-adapter-theia",
+        "@momentarise/md-adapter-web",
+        "@momentarise/md-ai",
+        "@momentarise/md-cli",
+        "@momentarise/md-core",
+        "@momentarise/md-editor",
+        "@momentarise/md-format",
+        "@momentarise/md-policy",
+        "@momentarise/md-preview-html",
+        "@momentarise/md-react",
+        "@momentarise/md-render-html",
+        "@momentarise/md-rich-prosemirror",
+        "@momentarise/md-save",
+        "@momentarise/md-source-codemirror",
+        "@momentarise/md-surface",
+        "@momentarise/md-theme"
+      ]
+    },
+    {
+      "id": "mme-package-selection",
+      "path": "docs/agent/skills/mme-package-selection/SKILL.md",
+      "sourceDocs": [
+        "docs/public/packages/md-adapter-theia.md",
+        "docs/public/packages/md-adapter-web.md",
+        "docs/public/packages/md-ai.md",
+        "docs/public/packages/md-cli.md",
+        "docs/public/packages/md-core.md",
+        "docs/public/packages/md-editor.md",
+        "docs/public/packages/md-format.md",
+        "docs/public/packages/md-policy.md",
+        "docs/public/packages/md-preview-html.md",
+        "docs/public/packages/md-react.md",
+        "docs/public/packages/md-render-html.md",
+        "docs/public/packages/md-rich-prosemirror.md",
+        "docs/public/packages/md-save.md",
+        "docs/public/packages/md-source-codemirror.md",
+        "docs/public/packages/md-surface.md",
+        "docs/public/packages/md-theme.md"
+      ],
+      "packageNames": [
+        "@momentarise/md-adapter-theia",
+        "@momentarise/md-adapter-web",
+        "@momentarise/md-ai",
+        "@momentarise/md-cli",
+        "@momentarise/md-core",
+        "@momentarise/md-editor",
+        "@momentarise/md-format",
+        "@momentarise/md-policy",
+        "@momentarise/md-preview-html",
+        "@momentarise/md-react",
+        "@momentarise/md-render-html",
+        "@momentarise/md-rich-prosemirror",
+        "@momentarise/md-save",
+        "@momentarise/md-source-codemirror",
+        "@momentarise/md-surface",
+        "@momentarise/md-theme"
+      ]
+    },
+    {
+      "id": "mme-ai-privacy-boundary",
+      "path": "docs/agent/skills/mme-ai-privacy-boundary/SKILL.md",
+      "sourceDocs": [
+        "docs/public/concepts/ai-privacy.md",
+        "docs/public/concepts/policy.md",
+        "docs/public/concepts/agentic-experience.md",
+        "docs/public/packages/md-ai.md",
+        "docs/public/packages/md-policy.md"
+      ],
+      "packageNames": [
+        "@momentarise/md-ai",
+        "@momentarise/md-policy"
+      ]
+    },
+    {
+      "id": "mme-docs-to-implementation",
+      "path": "docs/agent/skills/mme-docs-to-implementation/SKILL.md",
+      "sourceDocs": [
+        "docs/public/concepts/agentic-experience.md",
+        "docs/public/packages/md-cli.md",
+        "docs/public/concepts/preservation.md",
+        "docs/public/concepts/save-truthfulness.md",
+        "docs/public/concepts/document-model.md"
+      ],
+      "packageNames": [
+        "@momentarise/md-cli",
+        "@momentarise/md-editor",
+        "@momentarise/md-save"
+      ]
+    }
+  ]
+}

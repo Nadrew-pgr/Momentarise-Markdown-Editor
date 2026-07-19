@@ -53,12 +53,14 @@ const dataSource = await readText(join(appRoot, "src/docs-data.ts"));
 const brandSource = await readText(join(appRoot, "src/BrandMark.tsx"));
 const viewSource = await readText(join(appRoot, "src/DocsPageView.tsx"));
 const actionsSource = await readText(join(appRoot, "src/DocActions.tsx"));
+const agentActionsSource = await readText(join(appRoot, "src/agent-actions.ts"));
+const generatedAgentActions = await readText("docs/agent/actions.json");
 const searchSource = await readText(join(appRoot, "src/DocsSearch.tsx"));
 const liveDemoSource = await readText(join(appRoot, "src/LiveMarkdownDemo.tsx"));
 const themeSource = await readText(join(appRoot, "src/ThemeToggle.tsx"));
 const htmlSource = await readText(join(appRoot, "src/rendered-html.ts"));
 const stylesSource = await readText(join(appRoot, "src/styles.css"));
-const appSource = `${layoutSource}\n${pageSource}\n${docsPageSource}\n${slugPageSource}\n${dataSource}\n${brandSource}\n${viewSource}\n${actionsSource}\n${searchSource}\n${liveDemoSource}\n${themeSource}\n${htmlSource}`;
+const appSource = `${layoutSource}\n${pageSource}\n${docsPageSource}\n${slugPageSource}\n${dataSource}\n${brandSource}\n${viewSource}\n${actionsSource}\n${agentActionsSource}\n${generatedAgentActions}\n${searchSource}\n${liveDemoSource}\n${themeSource}\n${htmlSource}`;
 assert(faviconSource.includes("image/svg+xml"), "docs site must handle /favicon.ico outside the docs catch-all route.");
 assert(!existsSync(join(appRoot, "app/[...slug]/page.tsx")), "docs routes must live under /docs, not as a root catch-all.");
 for (const required of [
@@ -79,6 +81,11 @@ for (const required of [
   "copy-section",
   "copy-link",
   "open-in-chat",
+  "getDocsAgentActionRegistry",
+  "docs/agent/actions.json",
+  "actionsRegistryJson",
+  "assertAgentActionRegistry",
+  "actionRegistry",
   "docs-outline",
   "docs-live-demo",
   "live-editor-frame",
@@ -158,7 +165,7 @@ for (const required of [
   assert(promptSource.includes(required), `prompt template must include ${required}.`);
 }
 
-const openChatSource = await readText(join(appRoot, "src/open-in-chat.ts"));
+assert(agentActionsSource.includes("docs/agent/actions.json"), "docs site must load generated agent action descriptors.");
 for (const required of [
   "chatgpt",
   "claude",
@@ -173,7 +180,7 @@ for (const required of [
   "openclaw",
   "copilot"
 ]) {
-  assert(openChatSource.includes(required), `open-in-chat table must include ${required}.`);
+  assert(generatedAgentActions.includes(required), `generated open-in-chat descriptors must include ${required}.`);
 }
 
 const publicDocs = await collectMarkdownFiles("docs/public");
@@ -199,7 +206,10 @@ for (const required of [
   "Open-in-chat",
   "copy current section",
   "Markdown remains the source",
-  "@momentarise/md-cli"
+  "@momentarise/md-cli",
+  "docs/agent/manifest.json",
+  "docs/agent/actions.json",
+  "docs/agent/skills"
 ]) {
   assert(axGuide.includes(required), `Agentic Experience guide must document ${required}.`);
 }
