@@ -2892,6 +2892,55 @@ Architecture Reviewer, Security Reviewer, and Test Reviewer.
 
 Accepted for code continuation 2026-07-19 after adding the host-owned asset upload provider contract, safe Markdown image helpers, `session.insertAsset`, policy-before-provider export/write checks, structured unavailable/denied/failed/pending results, provider exception handling, syntax-hardened image URL serialization, and source/rich/headless preservation tests. Successful uploads insert normal Markdown image syntax only; no hidden asset database, data URL default, or framework-owned storage was added. Proven by RED missing-export proof, green `npm run test:asset-upload-provider`, `npm run test:serializer`, `npm run test:rich-commands`, `npm run test:roundtrip`, `npm run test:public-api`, `npm run test:docs`, `npm run test:docs-site`, `npm run test:llms-sync`, `npm run test:agent-artifacts`, `git diff --check`, and full `npm test`. Architecture/security and test/preservation reviewer subagents reported no P0/P1/P2 findings; builder fixed P3s for malformed JS input, policy resolver exceptions, URL syntax hardening, pending-result coverage, and formatter-level image escaping proof. Final storage-provider, privacy, and visible upload UX review is queued in `docs/internal/BACKLOG.md`; no executable normal issue remains after MME-0051 until the next backlog item is promoted.
 
+## MME-0052 — Plain text and lightweight source file support
+
+### Goal
+
+Add truthful source-only handling for plain text and adjacent source-like files without implying Markdown round-trip, rich editing, or preview semantics that MME cannot preserve.
+
+### Scope
+
+- Classify `.txt`, `.text`, `.log`, `.csv`, `.tsv`, `.json`, `.yaml`, `.yml`, and `.toml` as lightweight source documents where supported by host adapters.
+- Keep Markdown-specific Source/Rich/Live Preview behavior limited to Markdown documents.
+- Open lightweight text files in source mode with truthful document-kind, route, save, writable/imported-copy, and line-ending behavior.
+- Preserve source bytes for plain text files through open/edit/save/export paths; do not parse them as Markdown for preservation claims.
+- Keep CSV/JSON/YAML/TOML semantic previews, validation, formatting, syntax-specific editing, and Markdown conversion out of this slice.
+- Document host/source-only boundaries for lightweight files.
+
+### Acceptance criteria
+
+- Public package exports or documented host helpers expose a reusable document-kind classifier for Markdown, HTML, and lightweight text/source files.
+- Demo/web adapter open/import routing accepts the lightweight text extensions and reports them as source-only documents, not Markdown documents.
+- Mode availability is document-kind aware: lightweight text files expose Source only; no Rich or Live Preview control claims apply.
+- Save state remains truthful for writable disk targets, imported copies, and download/export fallback targets.
+- Line endings and unrelated bytes are preserved through source edits and save/export flow tests.
+- Tests cover `.txt`, `.log`, `.json`, and unsupported binary/unknown extension routing.
+- Visual impact: existing open/status/mode chrome may change labels or disabled states for lightweight files; no new visual styling pass is required unless the current UI cannot truthfully represent source-only files.
+
+### Test-first plan
+
+- RED: add document-kind classifier tests proving `.txt`, `.log`, and `.json` route to lightweight source documents while `.md` and `.html` keep their existing routes.
+- RED: add demo/web open-mode tests proving lightweight text documents expose Source only and never claim Rich/Live Preview.
+- RED: add save-truth/source-preservation tests for a plain text fixture with CRLF and non-Markdown characters.
+
+### Implementation notes
+
+Read first: `packages/md-adapter-web/src/index.ts`, `apps/md-demo/src/main.ts`, `packages/md-editor/src/index.ts`, `packages/md-surface/src/index.ts`, `packages/md-source-codemirror/src/index.ts`, `packages/md-save/src/index.ts`, `tests/web-file-access.test.mjs`, `tests/web-external-change.test.mjs`, `tests/demo-reference-surface-baseline.test.mjs`, and existing mode/status tests.
+
+Keep this as a host/document-kind capability slice. Do not add syntax validators, code-formatters, CSV table previews, JSON tree views, SVG rendering, or Markdown conversion in this issue. Source mode remains CodeMirror; save truth remains Save Engine based.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation, unless visible routing/status wording requires product naming decisions.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, and UX Reviewer.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

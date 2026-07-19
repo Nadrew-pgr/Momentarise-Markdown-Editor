@@ -152,7 +152,7 @@ Tags: `baseline/hygiene`, `save-engine`, `status`, `settings`
 Tags: `future-adapter`, `research`
 
 - Theia, VS Code/Cursor-like IDE shells, Chrome extension, Electron/Tauri desktop shell, and mobile/tablet host shells.
-- Plain text and adjacent source-like files: `.txt`, `.text`, `.log`, `.csv`, `.tsv`, `.json`, `.yaml`, `.yml`, `.toml`.
+- Plain text and adjacent source-like files: `.txt`, `.text`, `.log`, `.csv`, `.tsv`, `.json`, `.yaml`, `.yml`, `.toml`. The first source-only routing slice is promoted as `MME-0052`; semantic previews, validation, formatting, and conversion remain future work.
 - SVG reader/preview: treat `.svg` as a lightweight visual document candidate, with sanitized or sandboxed rendering, no script execution, safe handling for event handlers and external references, and clear source/preview behavior.
 - Document formats: `.docx`, `.pptx`, Google Docs, PDF, and similar formats. Each must declare whether it is preview-only, import-to-Markdown, export-from-Markdown, or true round-trip editable with a format-preserving adapter.
 - Vanilla/Vite/any-bundler and React/Next are not backlog adapters by themselves: they consume framework-agnostic packages directly or via bindings. Only host shells and additional framework bindings live here.
@@ -252,13 +252,13 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - `MME-0049 — AX skills, manifests, and reusable agent actions`.
 - `MME-0050 — Performance budgets and large-document benchmarks`.
 - `MME-0051 — Asset upload provider contract and image paste/drop preservation`.
+- `MME-0052 — Plain text and lightweight source file support`.
 
 - Editor live preview parity.
 - Toolbar/slash/menu final UX.
 - Unified Open flow and file-type routing.
 - New file / Save As flow with truthful writable-vs-export behavior.
 - HTML preview reading polish.
-- Plain text/lightweight file adapter.
 - SVG reader / sanitized preview.
 - Office/PDF/Google Docs adapter research.
 - Payload CMS plugin/integration.

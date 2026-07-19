@@ -5523,3 +5523,22 @@
   - Not pushed. Branch is ahead of origin and contains queued public/product review debt; push remains deferred until final review policy is satisfied or Andrew instructs otherwise.
 - Next issue:
   - No executable normal issue remains after `MME-0051`; continuation requires promoting the next backlog item into normal issue form before implementation.
+
+## Backlog promotion checkpoint — MME-0052
+
+- Date: 2026-07-19.
+- Context:
+  - After `MME-0051`, `docs/internal/ISSUES.md` had no executable normal issue before `MME-BACKLOG`.
+  - The human instructed autonomous continuation and asked to defer final human/UI reviews into one end-of-run block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementing directly from backlog.
+- Change:
+  - Promoted `MME-0052 — Plain text and lightweight source file support` from backlog into normal `docs/internal/ISSUES.md` issue form.
+  - Updated `README.md` current slice and added a Phase I lightweight source formats line.
+  - Updated `docs/internal/BACKLOG.md` to mark the source-only routing slice as promoted while leaving semantic previews, validators, formatting, and conversion as future work.
+- Rationale:
+  - Lightweight source files are a serious editor hygiene gap and already partially appear in adapter accept lists, but the framework does not yet have a truthful document-kind contract for them.
+  - The slice is bounded to source-only classification, routing, save truth, and preservation; syntax previews/converters remain out of scope.
+- Checks run:
+  - Pending before commit: `git diff --check`.
+- Next issue:
+  - `MME-0052 — Plain text and lightweight source file support`.
