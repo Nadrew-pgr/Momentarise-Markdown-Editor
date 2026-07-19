@@ -5542,3 +5542,56 @@
   - Pending before commit: `git diff --check`.
 - Next issue:
   - `MME-0052 — Plain text and lightweight source file support`.
+
+## MME-0052 — Plain text and lightweight source file support
+
+- Date: 2026-07-19.
+- Previous issue status:
+  - `MME-0051` accepted for code continuation and committed (`7500a89` implementation/status, `174d77f` evidence).
+  - `MME-0052` was promoted from backlog into normal issue form and committed in checkpoint `533ec3a`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short`, and target files in `packages/md-adapter-web`, `apps/md-demo`, `packages/md-editor`, `packages/md-surface`, `packages/md-source-codemirror`, `packages/md-save`, and related tests.
+- RED proof before implementation:
+  - Added `tests/lightweight-source-files.test.mjs` and wired `test:lightweight-source-files` into root `npm test`.
+  - Initial `npm run test:lightweight-source-files` failed because `@momentarise/md-editor` did not export `classifyEditorDocumentKind`.
+- Change:
+  - Added `EditorDocumentKind`, `EditorDocumentFileKind`, extension constants, and `classifyEditorDocumentKind` helpers to `@momentarise/md-core`.
+  - Re-exported classifier helpers through `@momentarise/md-editor` and added lightweight-source to the Source mode definition.
+  - Extended `@momentarise/md-surface` document-kind contracts so lightweight source files expose Source only.
+  - Extended `@momentarise/md-adapter-web` to report Markdown, lightweight source, and unsupported document kinds for imports, writable opens, Save As, fallback, and unsupported paths.
+  - Hardened classification so known unsupported extensions do not become Markdown or source text through generic `text/plain`.
+  - Updated `apps/md-demo` unified open/import/save routing, restore handling, properties/diagnostics copy, and unsupported-file guards for source-only documents.
+  - Updated public package/import-export docs, package READMEs, public API fixtures, README, issue status, final human review queue, `llms-full.txt`, and generated AX artifacts.
+- Visual impact:
+  - Lightweight source files now show Source-only text mode and no Markdown parser/serializer claims.
+  - No screenshot/model visual review was run in this slice; final wording/product feel for lightweight source UX is queued for the end-of-run human review block.
+- Checks run:
+  - `npm run test:lightweight-source-files` — RED before implementation, then green after classifier, adapter, and reviewer fixes.
+  - `npm run test:web-file-access` — green with Markdown, lightweight source, unsupported import/open, CRLF, Save As, and picker-extension proof.
+  - `npm run test:web-external-change` — green.
+  - `npm run test:surface` — green.
+  - `npm run test:live-preview` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:public-api` — green after approving intentional `@momentarise/md-core`/`@momentarise/md-editor` exports.
+  - `npm run test:docs` — green.
+  - `npm run test:docs-site` — green.
+  - `npm run test:llms-sync` — green.
+  - `npm run test:agent-artifacts` — green.
+  - `npm run build:demo` — green; existing Vite bundle-size warning only.
+  - `git diff --check` — green.
+  - `npm test` — green; existing Vite bundle-size warning only.
+- Manual/dev-server verification:
+  - Restarted docs-site dev server at `http://localhost:5178` using `npm run dev -w @momentarise/docs-site -- --port 5178`.
+- Reviewer result:
+  - Architecture/API reviewer subagent `Arendt` used `gpt-5.3-codex-spark` with `xhigh` reasoning and reported no P0/P1/P2 findings. P3 covered unsupported adapter imports/opens falling back to Markdown. Builder fixed it with explicit unsupported results plus regression tests; reviewer recheck reported no remaining P0-P3 findings.
+  - Save/UX reviewer subagent `Singer` used `gpt-5.3-codex-spark` with `xhigh` reasoning and reported no P0/P1/P2 findings. P3 covered lightweight-source properties-panel toggles reparsing as Markdown. Builder fixed it and added a demo baseline assertion; reviewer recheck reported no remaining P0-P3 findings.
+- Residual risks:
+  - Final lightweight source UX/product review is queued in `docs/internal/BACKLOG.md`, including open/import/save wording, source-only labels, unsupported-file rejection wording, properties/diagnostics copy, and whether syntax-specific previews or validation should be promoted before public launch.
+  - Semantic previews, validation, formatting, JSON/YAML/TOML-specific editing, CSV table previews, SVG rendering, and Markdown conversion remain out of scope.
+  - Runtime UI integration coverage for toggling lightweight-source properties remains static/string-level; no image-based visual review was run.
+- Commit status:
+  - Pending issue-scoped implementation/status commit.
+- Push status:
+  - Not pushed. Branch is ahead of origin and contains queued public/product review debt; push remains deferred until final review policy is satisfied or Andrew instructs otherwise.
+- Next issue:
+  - No executable normal issue remains after `MME-0052`; continuation requires promoting the next backlog item into normal issue form before implementation.

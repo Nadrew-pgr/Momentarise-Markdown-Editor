@@ -50,6 +50,9 @@ const created = await createNewMarkdownFile({
 if (created.mode !== "writable-file") {
   throw new Error(`Expected created file mode to become writable-file, got ${created.mode}.`);
 }
+if (created.kind !== "markdown") {
+  throw new Error(`New file creation must report Markdown kind, got ${created.kind}.`);
+}
 if (created.fileName !== "created-note.md") {
   throw new Error(`Created file must use the selected handle name, got ${created.fileName}.`);
 }
@@ -75,6 +78,9 @@ const savedAs = await saveMarkdownAsFile({
 if (savedAs.mode !== "writable-file" || savedAs.target.persistenceTarget !== "disk") {
   throw new Error("Save As must return a writable disk document.");
 }
+if (savedAs.kind !== "markdown") {
+  throw new Error(`Markdown Save As must report Markdown kind, got ${savedAs.kind}.`);
+}
 if (saveAsHost.readDiskContent() !== editedContent) {
   throw new Error("Save As must write current Markdown to the newly selected file.");
 }
@@ -97,6 +103,26 @@ if (saveAsHost.readDiskContent() !== "# Saved As\n\nLater autosave body.\n") {
   throw new Error("Later saves must write to the Save As writable target.");
 }
 
+const sourceSaveAsHost = createMockSavePickerHost({
+  name: "server-copy.log"
+});
+const sourceSavedAs = await saveMarkdownAsFile({
+  content: "line one\nline two\n",
+  fileName: "server.log",
+  host: sourceSaveAsHost,
+  kind: "lightweight-source",
+  now: date("2026-05-30T00:59:20.000Z")
+});
+if (sourceSavedAs.kind !== "lightweight-source") {
+  throw new Error(`Lightweight source Save As must preserve source kind, got ${sourceSavedAs.kind}.`);
+}
+if (sourceSavedAs.fileName !== "server-copy.log") {
+  throw new Error(`Lightweight source Save As must preserve selected source extension, got ${sourceSavedAs.fileName}.`);
+}
+if (sourceSaveAsHost.readDiskContent() !== "line one\nline two\n") {
+  throw new Error("Lightweight source Save As must write current source text to the selected file.");
+}
+
 const newFileFallback = await createNewMarkdownFile({
   content: "# Fallback new file\n",
   fileName: "fallback-new.md",
@@ -117,6 +143,9 @@ if (saveAsFallback.mode !== "imported-copy" || saveAsFallback.target.persistence
 const opened = await openWritableMarkdownFile(writableHost);
 if (opened.mode !== "writable-file") {
   throw new Error(`Expected writable-file mode, got ${opened.mode}.`);
+}
+if (opened.kind !== "markdown") {
+  throw new Error(`Writable Markdown open must report Markdown kind, got ${opened.kind}.`);
 }
 if (opened.content !== initialContent) {
   throw new Error("Writable open must read Markdown content from the file handle.");
@@ -194,6 +223,21 @@ if (crlfHost.readDiskContent() !== editedCrlfDiskContent) {
   throw new Error("Edited CRLF file must preserve CRLF line endings on disk.");
 }
 
+const sourceHost = createMockPickerHost({
+  content: "plain source\r\nnext line\r\n",
+  name: "server.log"
+});
+const sourceOpened = await openWritableMarkdownFile(sourceHost);
+if (sourceOpened.kind !== "lightweight-source") {
+  throw new Error(`Writable source open must report lightweight-source kind, got ${sourceOpened.kind}.`);
+}
+if (sourceOpened.content !== "plain source\nnext line\n") {
+  throw new Error("Writable source open must normalize editor line endings.");
+}
+if (!sourceHost.showOpenFilePickerOptions[0]?.types?.[0]?.accept?.["text/plain"]?.includes(".log")) {
+  throw new Error("Open picker must advertise .log source text support.");
+}
+
 const conflictHost = createMockPickerHost({
   content: initialContent,
   name: "conflict-note.md"
@@ -229,6 +273,9 @@ const imported = createImportedCopyDocument({
 });
 if (imported.mode !== "imported-copy") {
   throw new Error(`Expected imported-copy mode, got ${imported.mode}.`);
+}
+if (imported.kind !== "markdown") {
+  throw new Error(`Imported Markdown copy must report Markdown kind, got ${imported.kind}.`);
 }
 if (imported.target.persistenceTarget !== "download-required") {
   throw new Error(`Imported copy target must require download, got ${imported.target.persistenceTarget}.`);
@@ -272,6 +319,27 @@ const importedCrlfEngine = createSaveEngine({
 });
 if (importedCrlfEngine.getState().status !== "saved") {
   throw new Error("Imported CRLF copy must open clean before user edits.");
+}
+
+const unsupportedImport = createImportedCopyDocument({
+  content: "not a supported source",
+  fileName: "image.png"
+});
+if (unsupportedImport.kind !== "unsupported" || unsupportedImport.mode !== "unsupported") {
+  throw new Error("Unsupported imported files must not be mislabeled as Markdown/source documents.");
+}
+
+const unsupportedOpenHost = createMockPickerHost({
+  content: "not a supported source",
+  name: "image.png",
+  type: "text/plain"
+});
+const unsupportedOpened = await openWritableMarkdownFile(unsupportedOpenHost);
+if (unsupportedOpened.kind !== "unsupported" || unsupportedOpened.mode !== "unsupported") {
+  throw new Error("Unsupported opened files must report unsupported kind and mode.");
+}
+if (unsupportedOpened.target.persistenceTarget !== "unsupported") {
+  throw new Error("Unsupported opened files must not expose a writable target.");
 }
 
 const directTargetHost = createMockPickerHost({
@@ -362,7 +430,7 @@ function assertState(actual, expected) {
   }
 }
 
-function createMockPickerHost({ content, failCreateWritable = false, mutateOnCreateWritable, name }) {
+function createMockPickerHost({ content, failCreateWritable = false, mutateOnCreateWritable, name, type = "" }) {
   let diskContent = content;
   const handle = {
     kind: "file",
@@ -387,6 +455,7 @@ function createMockPickerHost({ content, failCreateWritable = false, mutateOnCre
     async getFile() {
       return {
         name,
+        type,
         async text() {
           return diskContent;
         }

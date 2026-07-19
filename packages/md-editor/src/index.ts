@@ -1,4 +1,4 @@
-import type { DocumentDialect, DocumentHash, DocumentPath, EditorMode, MomentariseNode, ParseResult, PolicyDecision, SaveState, SourceRange } from "@momentarise/md-core";
+import type { DocumentDialect, DocumentHash, DocumentPath, EditorDocumentKind, EditorMode, MomentariseNode, ParseResult, PolicyDecision, SaveState, SourceRange } from "@momentarise/md-core";
 import { createHeadingSlugSegment } from "@momentarise/md-core";
 import { createMarkdownAstParser } from "@momentarise/md-format";
 import {
@@ -112,7 +112,13 @@ export interface HostCapabilities {
   readonly viewportClass: "constrained" | "desktop" | "mobile" | "tablet";
 }
 
-export type EditorDocumentKind = "html-artifact" | "markdown";
+export {
+  classifyEditorDocumentKind,
+  isHtmlArtifactFileName,
+  isLightweightSourceFileName,
+  isMarkdownDocumentFileName
+} from "@momentarise/md-core";
+export type { EditorDocumentFileKind, EditorDocumentKind } from "@momentarise/md-core";
 
 export interface EditorModeDefinition {
   readonly documentKinds: readonly EditorDocumentKind[];
@@ -124,7 +130,7 @@ export interface EditorModeDefinition {
 
 export const DEFAULT_EDITOR_MODE_DEFINITIONS: readonly EditorModeDefinition[] = [
   {
-    documentKinds: ["markdown", "html-artifact"],
+    documentKinds: ["markdown", "html-artifact", "lightweight-source"],
     editable: true,
     id: "source",
     label: "Source",

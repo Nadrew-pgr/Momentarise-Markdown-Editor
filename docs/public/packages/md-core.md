@@ -9,7 +9,7 @@ tags:
 packages:
   - "@momentarise/md-core"
 llms: include
-updated: 2026-07-08
+updated: 2026-07-19
 ---
 
 # Core Contracts
@@ -21,6 +21,7 @@ updated: 2026-07-08
 - document path and hash contracts;
 - source ranges and positions;
 - diagnostics;
+- document-kind classification;
 - document and node model types;
 - typed framework errors.
 
@@ -32,6 +33,16 @@ import { hashMarkdownContent, MomentariseError } from "@momentarise/md-core";
 const hash = hashMarkdownContent("# Hello\n");
 console.log(hash);
 ```
+
+## Document Kinds
+
+`classifyEditorDocumentKind()` identifies supported file routes without importing adapter or UI packages:
+
+- Markdown source: `.md`, `.markdown`, `.mdown`;
+- standalone HTML artifact: `.html`, `.htm`;
+- lightweight source text: `.txt`, `.text`, `.log`, `.csv`, `.tsv`, `.json`, `.yaml`, `.yml`, `.toml`.
+
+Unsupported files return `unsupported` so hosts can reject them before pretending they are editable Markdown.
 
 ## Boundaries
 

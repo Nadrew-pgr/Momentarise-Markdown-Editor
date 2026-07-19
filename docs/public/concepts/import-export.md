@@ -8,8 +8,9 @@ tags:
   - import
   - export
   - html
+  - source
 llms: include
-updated: 2026-07-08
+updated: 2026-07-19
 ---
 
 # Import, Export, And Rendering
@@ -23,6 +24,12 @@ Markdown files are the source. HTML, previews, print output, docs pages, and fut
 MME can open Markdown, parse it into framework nodes, preserve unsupported syntax as raw or opaque content, and serialize safely back to Markdown.
 
 That is the default import/export path: a real `.md` file remains a real `.md` file.
+
+## Lightweight Source Files
+
+MME can also open adjacent source-like text files such as `.txt`, `.text`, `.log`, `.csv`, `.tsv`, `.json`, `.yaml`, `.yml`, and `.toml`.
+
+Those files are source-only documents. They use the same truthful save and external-change contracts, but MME does not parse them as Markdown, does not expose Rich or Live Preview, and does not claim semantic validation or formatting.
 
 ## HTML Rendering
 

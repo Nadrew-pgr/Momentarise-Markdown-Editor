@@ -54,10 +54,12 @@ import {
 } from "@momentarise/md-ai";
 import { createDefaultPolicyResolver } from "@momentarise/md-policy";
 import {
+  classifyEditorDocumentKind,
   createMarkdownEditorSession,
   type AiActionDefinition,
   type AiActionParam,
   type CustomBlockDefinition,
+  type EditorDocumentKind,
   type ExtensionRunContext,
   type FindMatch,
   type MarkdownEditorSession,
@@ -185,8 +187,8 @@ app.innerHTML = `
           <button class="button secondary utility-action compact-action" type="button" data-testid="copy-button" tabindex="-1">Copy</button>
           <button class="button secondary utility-action compact-action" type="button" data-testid="download-button" tabindex="-1">Download</button>
         </div>
-        <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,.html,.htm,text/markdown,text/plain,text/html" data-testid="open-file-input" />
-        <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain" data-testid="import-copy-input" />
+        <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,.text,.log,.csv,.tsv,.json,.yaml,.yml,.toml,.html,.htm,text/markdown,text/plain,text/csv,text/tab-separated-values,application/json,application/yaml,application/toml,text/html" data-testid="open-file-input" />
+        <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,.text,.log,.csv,.tsv,.json,.yaml,.yml,.toml,text/markdown,text/plain,text/csv,text/tab-separated-values,application/json,application/yaml,application/toml" data-testid="import-copy-input" />
         <input class="file-input" type="file" accept=".html,.htm,text/html" data-testid="html-file-input" />
         <div data-testid="mode-control-host"></div>
         <details class="ai-command-surface" data-testid="ai-command-surface">
@@ -562,7 +564,7 @@ let eventCounter = 0;
 let lastCopiedMarkdown: string | null = null;
 const markdownAstFormatter = createMarkdownAstFormatter();
 type DemoDocumentMode = "fixture" | WebOpenedMarkdownMode;
-type DemoDocumentKind = "markdown" | "html-artifact";
+type DemoDocumentKind = EditorDocumentKind;
 type DemoEditorMode = "live-preview" | "source" | "rich" | "preview";
 type PropertiesDisplayMode = "visible" | "hidden" | "source";
 type AiDemoProviderMode = "host-managed" | "mock" | "personal-byok" | "sidecar-local";
@@ -1244,7 +1246,7 @@ function activeDocumentAdapterKind(): string {
 }
 
 function activeDocumentWritable(): boolean {
-  return activeDocument.kind === "markdown" && activeDocument.mode === "writable-file";
+  return activeDocument.kind !== "html-artifact" && activeDocument.mode === "writable-file";
 }
 
 function surfaceModeState(): {
@@ -1634,7 +1636,7 @@ importCopyInput.addEventListener("change", () => {
   const [file] = Array.from(importCopyInput.files ?? []);
   importCopyInput.value = "";
   if (file) {
-    void importMarkdownCopy(file);
+    void importSupportedFile(file, "fallback import input");
   }
 });
 
@@ -2076,6 +2078,7 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
       {
         content: normalizeMarkdownLineEndings(content),
         fileName,
+        kind: sourceDocumentKindForFile(fileName),
         mode: "writable-file",
         pathLabel: `disk://${fileName}`,
         target: createWritableFileSaveTarget({
@@ -2184,10 +2187,15 @@ async function openLocalFile(): Promise<void> {
           {
             accept: {
               "text/markdown": [".md", ".markdown", ".mdown"],
-              "text/plain": [".md", ".markdown", ".mdown", ".txt"],
+              "text/plain": [".md", ".markdown", ".mdown", ".txt", ".text", ".log"],
+              "text/csv": [".csv"],
+              "text/tab-separated-values": [".tsv"],
+              "application/json": [".json"],
+              "application/toml": [".toml"],
+              "application/yaml": [".yaml", ".yml"],
               "text/html": [".html", ".htm"]
             },
-            description: "Markdown or HTML files"
+            description: "Markdown, source text, or HTML files"
           }
         ]
       })) ?? [];
@@ -2198,8 +2206,16 @@ async function openLocalFile(): Promise<void> {
     const file = await handle.getFile();
     const fileName = file.name || handle.name;
     const rawContent = await file.text();
-    if (isHtmlFileName(fileName)) {
+    const documentKind = classifyEditorDocumentKind(fileName, file.type);
+    if (documentKind === "html-artifact") {
       loadHtmlArtifact(fileName, rawContent, "unified local file picker");
+      return;
+    }
+    if (documentKind === "unsupported") {
+      lastSaveAction = `open failed: unsupported file type ${fileName}`;
+      setEditorNotice(`Open failed: ${fileName} is not a supported Markdown, source text, or HTML file.`);
+      logEvent(`Open file rejected unsupported file ${fileName}.`);
+      renderSaveState();
       return;
     }
 
@@ -2209,6 +2225,7 @@ async function openLocalFile(): Promise<void> {
       {
         content,
         fileName,
+        kind: documentKind,
         mode: "writable-file",
         pathLabel: `disk://${fileName}`,
         target: createWritableFileSaveTarget({
@@ -2290,14 +2307,15 @@ async function saveCurrentMarkdownAs(): Promise<void> {
   try {
     const opened = await saveMarkdownAsFile({
       content: getMarkdown(),
-      fileName: markdownFileNameForSaveAs(activeDocument.fileName)
+      fileName: sourceFileNameForSaveAs(activeDocument.fileName, activeDocument.kind),
+      kind: activeDocument.kind
     });
     loadOpenedMarkdownFile(opened, {
       sourceLabel: "Save As file picker"
     });
-    lastSaveAction = `saved as writable Markdown file ${opened.fileName}`;
+    lastSaveAction = `saved as writable ${documentKindLabel(opened.kind)} file ${opened.fileName}`;
     clearEditorNotice();
-    logEvent(`Saved current Markdown as ${opened.fileName}. Future Save/autosave writes to the new writable target.`);
+    logEvent(`Saved current ${documentKindLabel(opened.kind)} as ${opened.fileName}. Future Save/autosave writes to the new writable target.`);
     renderSaveState();
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
@@ -2314,11 +2332,19 @@ async function saveCurrentMarkdownAs(): Promise<void> {
 }
 
 async function importSupportedFile(file: File, sourceLabel: string): Promise<void> {
-  if (isHtmlFileName(file.name)) {
+  const documentKind = classifyEditorDocumentKind(file.name, file.type);
+  if (documentKind === "html-artifact") {
     await importHtmlArtifact(file);
     return;
   }
-  await importMarkdownCopy(file);
+  if (documentKind === "unsupported") {
+    lastSaveAction = `import failed: unsupported file type ${file.name}`;
+    setEditorNotice(`Import failed: ${file.name} is not a supported Markdown, source text, or HTML file.`);
+    logEvent(`Import rejected unsupported file ${file.name} from ${sourceLabel}.`);
+    renderSaveState();
+    return;
+  }
+  await importSourceCopy(file, documentKind);
   logEvent(`Opened ${file.name} through ${sourceLabel}.`);
 }
 
@@ -2378,9 +2404,9 @@ function showRealFileOpenUnavailable(): void {
   renderSaveState();
 }
 
-async function importMarkdownCopy(file: File): Promise<void> {
+async function importSourceCopy(file: File, kind = sourceDocumentKindForFile(file.name, file.type)): Promise<void> {
   const content = await file.text();
-  loadOpenedMarkdownFile(createImportedCopyDocument({ content, fileName: file.name }), {
+  loadOpenedMarkdownFile(createImportedCopyDocument({ content, fileName: file.name, kind }), {
     sourceLabel: "fallback import"
   });
 }
@@ -2434,9 +2460,32 @@ function loadOpenedMarkdownFile(
     readonly sourceLabel?: string;
   } = {}
 ): void {
+  if (opened.kind === "unsupported") {
+    activeDocument = {
+      fileName: opened.fileName,
+      kind: "markdown",
+      mode: "unsupported",
+      pathLabel: opened.pathLabel
+    };
+    replaceDemoSession(opened.content, opened.target, opened.pathLabel);
+    foldStates = [];
+    htmlPreviewDescriptor = null;
+    lastCopiedMarkdown = null;
+    lastSaveAction = `unsupported file ${opened.fileName}`;
+    setEditorNotice(`${opened.fileName} is not a supported Markdown, source text, or HTML file.`);
+    destroyRichEditor();
+    editorMode = "source";
+    replaceEditorDocument(opened.content);
+    refreshFindMatches();
+    logEvent(`Rejected unsupported file ${opened.fileName} via ${options.sourceLabel ?? "document loader"}.`);
+    renderEditorMode();
+    renderSaveState();
+    updateRoundTripStatus();
+    return;
+  }
   let nextDocument: ActiveDemoDocument = {
     fileName: opened.fileName,
-    kind: "markdown",
+    kind: opened.kind,
     mode: opened.mode,
     pathLabel: opened.pathLabel
   };
@@ -2457,17 +2506,19 @@ function loadOpenedMarkdownFile(
   foldStates = [];
   htmlPreviewDescriptor = null;
   lastCopiedMarkdown = null;
-  lastSaveAction = `opened ${documentModeLabel(opened.mode)} document`;
+  lastSaveAction = `opened ${documentModeLabel(opened.mode)} ${documentKindLabel(opened.kind)}`;
   clearEditorNotice();
   replaceEditorDocument(opened.content);
-  if (editorMode === "preview") {
+  if (editorMode === "preview" || opened.kind !== "markdown") {
     editorMode = "source";
   }
-  if (isRichEditingMode()) {
+  if (opened.kind === "markdown" && isRichEditingMode()) {
     mountRichEditor(opened.content);
+  } else if (opened.kind !== "markdown") {
+    destroyRichEditor();
   }
   refreshFindMatches();
-  logEvent(`Opened ${opened.fileName} as ${documentModeLabel(opened.mode)} via ${options.sourceLabel ?? "document loader"}.`);
+  logEvent(`Opened ${opened.fileName} as ${documentModeLabel(opened.mode)} ${documentKindLabel(opened.kind)} via ${options.sourceLabel ?? "document loader"}.`);
   renderEditorMode();
   renderSaveState();
   updateRoundTripStatus();
@@ -2585,7 +2636,7 @@ function switchEditorMode(mode: DemoEditorMode): void {
     return;
   }
   if (isRichEditingMode(mode) && activeDocument.kind !== "markdown") {
-    logEvent("Rich and Live Preview modes are unavailable for HTML artifacts; use Source or Preview.");
+    logEvent(`Rich and Live Preview modes are unavailable for ${documentKindLabel(activeDocument.kind)} documents; use Source.`);
     renderEditorMode();
     return;
   }
@@ -2652,6 +2703,8 @@ function renderEditorMode(): void {
     editorSurfaceStateElement.textContent = "Markdown read view";
   } else if (htmlPreviewVisible) {
     editorSurfaceStateElement.textContent = "Sandboxed HTML preview";
+  } else if (activeDocument.kind === "lightweight-source") {
+    editorSurfaceStateElement.textContent = "Source-only text mode";
   } else if (editorMode === "live-preview") {
     editorSurfaceStateElement.textContent = "Live Preview mode";
   } else {
@@ -3844,15 +3897,16 @@ function restoreLastDemoDocument(): boolean {
   loadOpenedMarkdownFile(
     createImportedCopyDocument({
       content: snapshot.content,
-      fileName: snapshot.fileName
+      fileName: snapshot.fileName,
+      kind: snapshot.kind
     }),
     {
       sourceLabel: "browser reload restore"
     }
   );
-  if (snapshot.editorMode === "rich" || snapshot.editorMode === "live-preview") {
+  if (snapshot.kind === "markdown" && (snapshot.editorMode === "rich" || snapshot.editorMode === "live-preview")) {
     switchEditorMode(snapshot.editorMode);
-  } else if (snapshot.editorMode === "preview") {
+  } else if (snapshot.kind === "markdown" && snapshot.editorMode === "preview") {
     switchEditorMode("preview");
   }
   lastSaveAction = "restored browser draft; reopen the original file for writable autosave";
@@ -3867,7 +3921,7 @@ function parseRestorableDemoDocument(raw: string): RestorableDemoDocument | null
     parsed.version !== 1 ||
     typeof parsed.content !== "string" ||
     typeof parsed.fileName !== "string" ||
-    (parsed.kind !== "markdown" && parsed.kind !== "html-artifact") ||
+    (parsed.kind !== "markdown" && parsed.kind !== "html-artifact" && parsed.kind !== "lightweight-source") ||
     (
       parsed.editorMode !== "source" &&
       parsed.editorMode !== "rich" &&
@@ -3878,6 +3932,15 @@ function parseRestorableDemoDocument(raw: string): RestorableDemoDocument | null
     return null;
   }
   if (parsed.kind === "html-artifact" && isRichEditingMode(parsed.editorMode)) {
+    return {
+      content: parsed.content,
+      editorMode: "source",
+      fileName: parsed.fileName,
+      kind: parsed.kind,
+      version: 1
+    };
+  }
+  if (parsed.kind === "lightweight-source" && parsed.editorMode !== "source") {
     return {
       content: parsed.content,
       editorMode: "source",
@@ -4548,7 +4611,7 @@ async function copyMarkdown(): Promise<void> {
 
 function downloadMarkdown(): void {
   const blob = new Blob([getMarkdown()], {
-    type: `${activeDocument.kind === "html-artifact" ? "text/html" : "text/markdown"};charset=utf-8`
+    type: `${activeDocumentMimeType()};charset=utf-8`
   });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -4560,9 +4623,19 @@ function downloadMarkdown(): void {
   logEvent(
     activeDocument.kind === "html-artifact"
       ? "Generated HTML artifact download/export. Original target was unchanged."
-      : "Generated Markdown download/export. Original target was unchanged."
+      : `Generated ${documentKindLabel(activeDocument.kind)} download/export. Original target was unchanged.`
   );
   renderSaveState();
+}
+
+function activeDocumentMimeType(): string {
+  if (activeDocument.kind === "html-artifact") {
+    return "text/html";
+  }
+  if (activeDocument.kind === "lightweight-source") {
+    return "text/plain";
+  }
+  return "text/markdown";
 }
 
 async function resolveExternalConflict(action: "download-local-copy" | "reload-external" | "retry-save"): Promise<void> {
@@ -5077,9 +5150,30 @@ function documentModeLabel(mode: DemoDocumentMode): string {
   return "unsupported local file";
 }
 
-function markdownFileNameForSaveAs(fileName: string): string {
-  const trimmed = fileName.trim() || "Untitled.md";
-  return /\.(?:md|markdown|mdown|txt)$/i.test(trimmed) ? trimmed : `${trimmed}.md`;
+function documentKindLabel(kind: DemoDocumentKind | "unsupported"): string {
+  if (kind === "html-artifact") {
+    return "HTML artifact";
+  }
+  if (kind === "lightweight-source") {
+    return "source text";
+  }
+  if (kind === "unsupported") {
+    return "unsupported file";
+  }
+  return "Markdown";
+}
+
+function sourceDocumentKindForFile(fileName: string, mediaType?: string | null): Extract<DemoDocumentKind, "lightweight-source" | "markdown"> {
+  const kind = classifyEditorDocumentKind(fileName, mediaType);
+  return kind === "lightweight-source" ? "lightweight-source" : "markdown";
+}
+
+function sourceFileNameForSaveAs(fileName: string, kind: Extract<DemoDocumentKind, "lightweight-source" | "markdown">): string {
+  const trimmed = fileName.trim() || (kind === "lightweight-source" ? "Untitled.txt" : "Untitled.md");
+  if (kind === "lightweight-source") {
+    return classifyEditorDocumentKind(trimmed) === "lightweight-source" ? trimmed : `${trimmed}.txt`;
+  }
+  return /\.(?:md|markdown|mdown)$/i.test(trimmed) ? trimmed : `${trimmed}.md`;
 }
 
 async function loadSavedTestWritableMarkdownFile(
@@ -5109,6 +5203,7 @@ async function loadSavedTestWritableMarkdownFile(
     {
       content: normalizedContent,
       fileName,
+      kind: sourceDocumentKindForFile(fileName),
       mode: "writable-file",
       pathLabel: `disk://${fileName}`,
       target
@@ -5180,6 +5275,10 @@ function updateRoundTripStatus(): void {
     renderHtmlArtifactStatus();
     return;
   }
+  if (activeDocument.kind === "lightweight-source") {
+    renderLightweightSourceStatus();
+    return;
+  }
   const parseResult = markdownAstFormatter.parse(getMarkdown(), {
     dialect: "momentarise-enhanced"
   });
@@ -5217,6 +5316,16 @@ function renderHtmlArtifactStatus(): void {
   );
 }
 
+function renderLightweightSourceStatus(): void {
+  roundTripSourceLabelElement.textContent = "Source text";
+  roundTripFixtureElement.textContent = activeDocument.fileName;
+  roundTripModeElement.textContent = "source-only";
+  parserStatusElement.textContent = "not run for source text";
+  serializerStatusElement.textContent = "not run for source text";
+  renderLightweightSourceProperties();
+  diagnosticsElement.replaceChildren(emptyDiagnostic("source-only file; Markdown diagnostics are not run"));
+}
+
 function roundTripSourceLabel(mode: DemoDocumentMode): string {
   if (mode === "fixture") {
     return "Fixture";
@@ -5242,6 +5351,11 @@ function setPropertiesDisplayMode(mode: PropertiesDisplayMode): void {
   propertiesDisplayMode = mode;
   if (activeDocument.kind === "html-artifact") {
     renderHtmlArtifactProperties();
+    logEvent(`Properties panel switched to ${mode} mode.`);
+    return;
+  }
+  if (activeDocument.kind === "lightweight-source") {
+    renderLightweightSourceProperties();
     logEvent(`Properties panel switched to ${mode} mode.`);
     return;
   }
@@ -5278,6 +5392,18 @@ function renderHtmlArtifactProperties(): void {
   frontmatterSourceElement.textContent = "HTML artifact source has no YAML frontmatter.";
 }
 
+function renderLightweightSourceProperties(): void {
+  propertiesModeVisibleButton.setAttribute("aria-pressed", String(propertiesDisplayMode === "visible"));
+  propertiesModeHiddenButton.setAttribute("aria-pressed", String(propertiesDisplayMode === "hidden"));
+  propertiesModeSourceButton.setAttribute("aria-pressed", String(propertiesDisplayMode === "source"));
+
+  frontmatterElement.hidden = propertiesDisplayMode !== "visible";
+  frontmatterSourceElement.hidden = propertiesDisplayMode !== "source";
+  propertiesHiddenElement.hidden = propertiesDisplayMode !== "hidden";
+  frontmatterElement.replaceChildren(emptyValue("source text; no Markdown frontmatter parsed"));
+  frontmatterSourceElement.textContent = "Source-only text files are preserved as text; YAML frontmatter is not parsed.";
+}
+
 function renderFrontmatterList(parseResult: ParseResult): void {
   const frontmatter = parseResult.document.frontmatter;
   if (!frontmatter || Object.keys(frontmatter).length === 0) {
@@ -5302,6 +5428,12 @@ function renderDiagnostics(result: FixtureRoundTripResult): void {
       return item;
     })
   );
+}
+
+function emptyDiagnostic(message: string): HTMLElement {
+  const item = document.createElement("li");
+  item.textContent = message;
+  return item;
 }
 
 function frontmatterRow(key: string, value: FrontmatterRecord[string]): readonly HTMLElement[] {

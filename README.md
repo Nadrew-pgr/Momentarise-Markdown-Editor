@@ -65,11 +65,12 @@ Completed slices:
 - MME-0049: AX skills, manifests, and reusable agent actions, accepted for code continuation after generated repo-owned agent artifacts, reusable action descriptors, docs-site descriptor consumption, public-boundary tests, visual proof, reviewer pass, and full test pass; final AX artifact distribution review is queued for end-of-run review.
 - MME-0050: Performance budgets and large-document benchmarks, accepted for code continuation after a generated 10k-line fixture, committed performance budgets, JSON benchmark output, large-document preservation/save truth proof, reviewer pass, and full test pass; final budget-threshold review is queued for end-of-run review.
 - MME-0051: Asset upload provider contract and image paste/drop preservation, accepted for code continuation after adding a host-owned provider contract, policy-gated image insertion, source/rich/headless preservation tests, reviewer pass, and full test pass; final upload UX/storage-provider review is queued for end-of-run review.
+- MME-0052: Plain text and lightweight source file support, accepted for code continuation after adding a reusable document-kind classifier, source-only mode routing, web adapter save/import preservation, unsupported-file guardrails, docs updates, reviewer pass, and full test pass; final lightweight source UX review is queued for end-of-run review.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- MME-0052: Plain text and lightweight source file support.
+- No normal executable issue remains after MME-0052 until the next backlog item is promoted into `docs/internal/ISSUES.md`.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

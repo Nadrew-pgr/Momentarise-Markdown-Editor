@@ -188,6 +188,93 @@ export interface DocumentSnapshot {
   readonly revision?: DocumentRevision;
 }
 
+export type EditorDocumentKind = "html-artifact" | "lightweight-source" | "markdown";
+export type EditorDocumentFileKind = EditorDocumentKind | "unsupported";
+
+export const MARKDOWN_DOCUMENT_EXTENSIONS = [".md", ".markdown", ".mdown"] as const;
+export const HTML_ARTIFACT_EXTENSIONS = [".html", ".htm"] as const;
+export const LIGHTWEIGHT_SOURCE_EXTENSIONS = [
+  ".csv",
+  ".json",
+  ".log",
+  ".text",
+  ".toml",
+  ".tsv",
+  ".txt",
+  ".yaml",
+  ".yml"
+] as const;
+
+export function classifyEditorDocumentKind(fileName: string, mediaType?: string | null): EditorDocumentFileKind {
+  const normalizedMediaType = normalizeMediaType(mediaType);
+  if (normalizedMediaType && MARKDOWN_MEDIA_TYPES.has(normalizedMediaType)) {
+    return "markdown";
+  }
+  if (normalizedMediaType && HTML_MEDIA_TYPES.has(normalizedMediaType)) {
+    return "html-artifact";
+  }
+  if (isMarkdownDocumentFileName(fileName)) {
+    return "markdown";
+  }
+  if (isHtmlArtifactFileName(fileName)) {
+    return "html-artifact";
+  }
+  if (isLightweightSourceFileName(fileName)) {
+    return "lightweight-source";
+  }
+  if (hasFileExtension(fileName)) {
+    return "unsupported";
+  }
+  if (normalizedMediaType && LIGHTWEIGHT_SOURCE_MEDIA_TYPES.has(normalizedMediaType)) {
+    return "lightweight-source";
+  }
+  return "unsupported";
+}
+
+export function isMarkdownDocumentFileName(fileName: string): boolean {
+  return extensionSetIncludes(MARKDOWN_DOCUMENT_EXTENSIONS, fileName);
+}
+
+export function isHtmlArtifactFileName(fileName: string): boolean {
+  return extensionSetIncludes(HTML_ARTIFACT_EXTENSIONS, fileName);
+}
+
+export function isLightweightSourceFileName(fileName: string): boolean {
+  return extensionSetIncludes(LIGHTWEIGHT_SOURCE_EXTENSIONS, fileName);
+}
+
+function extensionSetIncludes(extensions: readonly string[], fileName: string): boolean {
+  const lower = fileName.trim().toLowerCase();
+  return extensions.some((extension) => lower.endsWith(extension));
+}
+
+function hasFileExtension(fileName: string): boolean {
+  const name = fileName.trim();
+  const lastSlash = Math.max(name.lastIndexOf("/"), name.lastIndexOf("\\"));
+  const baseName = name.slice(lastSlash + 1);
+  const dotIndex = baseName.lastIndexOf(".");
+  return dotIndex > 0 && dotIndex < baseName.length - 1;
+}
+
+function normalizeMediaType(mediaType: string | null | undefined): string {
+  return typeof mediaType === "string" ? mediaType.split(";")[0]!.trim().toLowerCase() : "";
+}
+
+const MARKDOWN_MEDIA_TYPES = new Set(["text/markdown", "text/x-markdown"]);
+const HTML_MEDIA_TYPES = new Set(["text/html", "application/xhtml+xml"]);
+const LIGHTWEIGHT_SOURCE_MEDIA_TYPES = new Set([
+  "application/json",
+  "application/toml",
+  "application/x-toml",
+  "application/x-yaml",
+  "application/yaml",
+  "text/csv",
+  "text/plain",
+  "text/tab-separated-values",
+  "text/toml",
+  "text/yaml"
+]);
+
 export interface ParseOptions {
   readonly dialect: DocumentDialect;
   readonly path?: DocumentPath;

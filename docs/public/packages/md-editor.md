@@ -49,7 +49,8 @@ session.destroy();
 - `createMarkdownEditorSession` owns the headless document session.
 - `createMarkdownImageReference`, `insertMarkdownImageReference`, and `session.insertAsset` let hosts wire image paste/drop/import flows without making MME own storage.
 - `createExtensionRegistry` collects host-provided commands, slash items, toolbar items, custom blocks, and AI actions.
-- `editorModesForDocumentKind` keeps Markdown and HTML artifact mode controls honest.
+- `classifyEditorDocumentKind` and file-name helpers route supported Markdown, HTML artifact, and lightweight source files.
+- `editorModesForDocumentKind` keeps Markdown, HTML artifact, and lightweight source mode controls honest.
 - `resolvePreferences` applies host, workspace, document, and locked preference layers.
 
 ## Release Notes

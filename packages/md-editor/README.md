@@ -4,7 +4,7 @@ Host-independent headless Markdown editor session for Momentarise Markdown Edito
 
 ## Mode model
 
-The headless session accepts `source`, `rich`, `live-preview`, and `preview` mode ids. Use `editorModesForDocumentKind()` or `isEditorModeAvailableForDocumentKind()` before exposing controls: Markdown documents expose Source, Rich, and Live Preview; standalone HTML artifacts expose Source and Preview.
+The headless session accepts `source`, `rich`, `live-preview`, and `preview` mode ids. Use `classifyEditorDocumentKind()`, `editorModesForDocumentKind()`, or `isEditorModeAvailableForDocumentKind()` before exposing controls: Markdown documents expose Source, Rich, and Live Preview; standalone HTML artifacts expose Source and Preview; lightweight source files expose Source only.
 
 
 ## Release metadata

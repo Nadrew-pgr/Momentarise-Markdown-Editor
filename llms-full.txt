@@ -711,8 +711,9 @@ tags:
   - import
   - export
   - html
+  - source
 llms: include
-updated: 2026-07-08
+updated: 2026-07-19
 ---
 
 # Import, Export, And Rendering
@@ -726,6 +727,12 @@ Markdown files are the source. HTML, previews, print output, docs pages, and fut
 MME can open Markdown, parse it into framework nodes, preserve unsupported syntax as raw or opaque content, and serialize safely back to Markdown.
 
 That is the default import/export path: a real `.md` file remains a real `.md` file.
+
+## Lightweight Source Files
+
+MME can also open adjacent source-like text files such as `.txt`, `.text`, `.log`, `.csv`, `.tsv`, `.json`, `.yaml`, `.yml`, and `.toml`.
+
+Those files are source-only documents. They use the same truthful save and external-change contracts, but MME does not parse them as Markdown, does not expose Rich or Live Preview, and does not claim semantic validation or formatting.
 
 ## HTML Rendering
 
@@ -1254,7 +1261,7 @@ tags:
 packages:
   - "@momentarise/md-core"
 llms: include
-updated: 2026-07-08
+updated: 2026-07-19
 ---
 
 # Core Contracts
@@ -1266,6 +1273,7 @@ updated: 2026-07-08
 - document path and hash contracts;
 - source ranges and positions;
 - diagnostics;
+- document-kind classification;
 - document and node model types;
 - typed framework errors.
 
@@ -1277,6 +1285,16 @@ import { hashMarkdownContent, MomentariseError } from "@momentarise/md-core";
 const hash = hashMarkdownContent("# Hello\n");
 console.log(hash);
 ```
+
+## Document Kinds
+
+`classifyEditorDocumentKind()` identifies supported file routes without importing adapter or UI packages:
+
+- Markdown source: `.md`, `.markdown`, `.mdown`;
+- standalone HTML artifact: `.html`, `.htm`;
+- lightweight source text: `.txt`, `.text`, `.log`, `.csv`, `.tsv`, `.json`, `.yaml`, `.yml`, `.toml`.
+
+Unsupported files return `unsupported` so hosts can reject them before pretending they are editable Markdown.
 
 ## Boundaries
 
@@ -1560,7 +1578,8 @@ session.destroy();
 - `createMarkdownEditorSession` owns the headless document session.
 - `createMarkdownImageReference`, `insertMarkdownImageReference`, and `session.insertAsset` let hosts wire image paste/drop/import flows without making MME own storage.
 - `createExtensionRegistry` collects host-provided commands, slash items, toolbar items, custom blocks, and AI actions.
-- `editorModesForDocumentKind` keeps Markdown and HTML artifact mode controls honest.
+- `classifyEditorDocumentKind` and file-name helpers route supported Markdown, HTML artifact, and lightweight source files.
+- `editorModesForDocumentKind` keeps Markdown, HTML artifact, and lightweight source mode controls honest.
 - `resolvePreferences` applies host, workspace, document, and locked preference layers.
 
 ## Release Notes
@@ -1721,7 +1740,7 @@ tags:
 packages:
   - "@momentarise/md-adapter-web"
 llms: include
-updated: 2026-07-08
+updated: 2026-07-19
 ---
 
 # Web File Access
@@ -1732,8 +1751,17 @@ updated: 2026-07-08
 
 - File System Access save targets;
 - imported-copy and download-required targets;
+- Markdown and lightweight source-file open/save routing;
 - external content reads;
 - focus and visibility refresh watchers.
+
+## Source File Routing
+
+The adapter opens Markdown plus lightweight source text files through the same save-target contracts. A `.log`, `.txt`, `.json`, `.yaml`, or `.toml` file can be writable when the browser grants a File System Access handle.
+
+Lightweight source files stay source-only. The adapter reports their document kind so hosts can hide Markdown-only Rich, Live Preview, parser, and serializer claims.
+
+Unsupported file names return an unsupported document result instead of being mislabeled as Markdown.
 
 ## External Change Strategy
 

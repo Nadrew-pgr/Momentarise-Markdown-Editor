@@ -10,7 +10,7 @@ tags:
 packages:
   - "@momentarise/md-adapter-web"
 llms: include
-updated: 2026-07-08
+updated: 2026-07-19
 ---
 
 # Web File Access
@@ -21,8 +21,17 @@ updated: 2026-07-08
 
 - File System Access save targets;
 - imported-copy and download-required targets;
+- Markdown and lightweight source-file open/save routing;
 - external content reads;
 - focus and visibility refresh watchers.
+
+## Source File Routing
+
+The adapter opens Markdown plus lightweight source text files through the same save-target contracts. A `.log`, `.txt`, `.json`, `.yaml`, or `.toml` file can be writable when the browser grants a File System Access handle.
+
+Lightweight source files stay source-only. The adapter reports their document kind so hosts can hide Markdown-only Rich, Live Preview, parser, and serializer claims.
+
+Unsupported file names return an unsupported document result instead of being mislabeled as Markdown.
 
 ## External Change Strategy
 

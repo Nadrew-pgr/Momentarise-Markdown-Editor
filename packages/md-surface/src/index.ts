@@ -161,7 +161,7 @@ export interface SurfaceAiAction {
   readonly prompt: string;
 }
 
-export type SurfaceDocumentKind = "html-artifact" | "markdown";
+export type SurfaceDocumentKind = "html-artifact" | "lightweight-source" | "markdown";
 export type SurfaceDocumentMode = "fixture" | "imported-copy" | "unsupported" | "writable-file" | string;
 export type SurfaceEditorMode = "live-preview" | "preview" | "rich" | "source";
 

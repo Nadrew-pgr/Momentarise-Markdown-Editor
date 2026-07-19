@@ -158,6 +158,10 @@ if (!openLocalFileFunction.includes("openFileInput.click")) {
 if (!main.includes("function importSupportedFile")) {
   throw new Error("Unified Open fallback must route selected files through type detection.");
 }
+const setPropertiesDisplayMode = extractFunction(main, "function setPropertiesDisplayMode");
+if (!setPropertiesDisplayMode.includes('activeDocument.kind === "lightweight-source"') || !setPropertiesDisplayMode.includes("renderLightweightSourceProperties")) {
+  throw new Error("Lightweight source files must keep source-only properties when the properties panel display mode changes.");
+}
 if (!openLocalFileFunction.includes("loadHtmlArtifact")) {
   throw new Error("Primary Open file action must route HTML artifacts into Source/Preview mode.");
 }

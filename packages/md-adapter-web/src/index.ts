@@ -1,4 +1,8 @@
-import type { DocumentHash, DocumentSnapshot, EditorMode, SaveState, SidecarState } from "@momentarise/md-core";
+import type { DocumentHash, DocumentSnapshot, EditorDocumentKind, EditorMode, SaveState, SidecarState } from "@momentarise/md-core";
+import {
+  classifyEditorDocumentKind,
+  isMarkdownDocumentFileName
+} from "@momentarise/md-core";
 import {
   createDownloadRequiredSaveTarget,
   hashMarkdownContent,
@@ -25,9 +29,12 @@ export interface WebAdapterHost {
 }
 
 export type WebOpenedMarkdownMode = "writable-file" | "imported-copy" | "unsupported";
+export type WebOpenedSourceDocumentKind = Extract<EditorDocumentKind, "lightweight-source" | "markdown">;
+export type WebOpenedDocumentKind = WebOpenedSourceDocumentKind | "unsupported";
 
 export interface WebFileLike {
   readonly name: string;
+  readonly type?: string;
   text(): Promise<string>;
 }
 
@@ -69,6 +76,7 @@ export interface WebSaveFilePickerOptions {
 export interface WebOpenedMarkdownFile {
   readonly content: string;
   readonly fileName: string;
+  readonly kind: WebOpenedDocumentKind;
   readonly mode: WebOpenedMarkdownMode;
   readonly pathLabel: string;
   readonly target: SaveTarget;
@@ -83,6 +91,7 @@ export interface CreateWritableFileSaveTargetOptions {
 export interface CreateImportedCopyDocumentOptions {
   readonly content: string;
   readonly fileName: string;
+  readonly kind?: WebOpenedSourceDocumentKind;
 }
 
 export interface CreateNewMarkdownFileOptions {
@@ -97,6 +106,7 @@ export interface SaveMarkdownAsFileOptions {
   readonly content: string;
   readonly fileName?: string;
   readonly host?: WebFileAccessHostLike;
+  readonly kind?: WebOpenedSourceDocumentKind;
   readonly lineEnding?: MarkdownLineEnding;
   readonly now?: Date;
 }
@@ -130,9 +140,14 @@ export function createImportedCopyDocument(
   options: CreateImportedCopyDocumentOptions
 ): WebOpenedMarkdownFile {
   const content = normalizeMarkdownLineEndings(options.content);
+  const kind = options.kind ?? sourceDocumentKindForFile(options.fileName);
+  if (kind === "unsupported") {
+    return createUnsupportedOpenedDocument(content, options.fileName);
+  }
   return {
     content,
     fileName: options.fileName,
+    kind,
     mode: "imported-copy",
     pathLabel: `imported-copy://${options.fileName}`,
     target: createDownloadRequiredSaveTarget({
@@ -147,12 +162,14 @@ export async function createNewMarkdownFile(options: CreateNewMarkdownFileOption
     content: string;
     fileName: string;
     host: WebFileAccessHostLike;
+    kind: WebOpenedSourceDocumentKind;
     lineEnding: MarkdownLineEnding;
     now?: Date;
   } = {
     content: options.content ?? "",
     fileName: options.fileName ?? "Untitled.md",
     host: options.host ?? defaultWebFileAccessHost(),
+    kind: "markdown",
     lineEnding: options.lineEnding ?? "lf"
   };
   if (options.now) {
@@ -166,12 +183,14 @@ export async function saveMarkdownAsFile(options: SaveMarkdownAsFileOptions): Pr
     content: string;
     fileName: string;
     host: WebFileAccessHostLike;
+    kind: WebOpenedSourceDocumentKind;
     lineEnding: MarkdownLineEnding;
     now?: Date;
   } = {
     content: options.content,
     fileName: options.fileName ?? "Untitled.md",
     host: options.host ?? defaultWebFileAccessHost(),
+    kind: options.kind ?? "markdown",
     lineEnding: options.lineEnding ?? "lf"
   };
   if (options.now) {
@@ -252,15 +271,17 @@ async function createOrSaveWritableMarkdownFile(options: {
   readonly content: string;
   readonly fileName: string;
   readonly host: WebFileAccessHostLike;
+  readonly kind: WebOpenedSourceDocumentKind;
   readonly lineEnding: MarkdownLineEnding;
   readonly now?: Date;
 }): Promise<WebOpenedMarkdownFile> {
-  const fileName = ensureMarkdownFileName(options.fileName);
+  const fileName = ensureSourceDocumentFileName(options.fileName, options.kind);
   const content = normalizeMarkdownLineEndings(options.content);
   if (!canCreateWritableFile(options.host) || !options.host.showSaveFilePicker) {
     return createImportedCopyDocument({
       content,
-      fileName
+      fileName,
+      kind: options.kind
     });
   }
 
@@ -269,7 +290,7 @@ async function createOrSaveWritableMarkdownFile(options: {
     suggestedName: fileName,
     types: markdownFilePickerTypes()
   });
-  const selectedFileName = ensureMarkdownFileName(handle.name || fileName);
+  const selectedFileName = ensureSourceDocumentFileName(handle.name || fileName, options.kind);
   const targetLabel = `disk://${selectedFileName}`;
   const target = createWritableFileSaveTarget({
     handle,
@@ -290,6 +311,7 @@ async function createOrSaveWritableMarkdownFile(options: {
   return {
     content,
     fileName: selectedFileName,
+    kind: options.kind,
     mode: "writable-file",
     pathLabel: targetLabel,
     target
@@ -347,6 +369,7 @@ export async function openWritableMarkdownFile(
     return {
       content: "",
       fileName: "unsupported.md",
+      kind: "markdown",
       mode: "unsupported",
       pathLabel: "unsupported://file-system-access",
       target: {
@@ -369,15 +392,21 @@ export async function openWritableMarkdownFile(
   const rawContent = await file.text();
   const lineEnding = detectMarkdownLineEnding(rawContent);
   const content = normalizeMarkdownLineEndings(rawContent);
+  const fileName = file.name || handle.name;
+  const kind = sourceDocumentKindForFile(fileName, file.type);
+  if (kind === "unsupported") {
+    return createUnsupportedOpenedDocument(content, fileName);
+  }
   return {
     content,
-    fileName: file.name || handle.name,
+    fileName,
+    kind,
     mode: "writable-file",
-    pathLabel: `disk://${file.name || handle.name}`,
+    pathLabel: `disk://${fileName}`,
     target: createWritableFileSaveTarget({
       handle,
       lineEnding,
-      targetLabel: `disk://${file.name || handle.name}`
+      targetLabel: `disk://${fileName}`
     })
   };
 }
@@ -387,16 +416,49 @@ function markdownFilePickerTypes(): readonly WebFilePickerType[] {
     {
       accept: {
         "text/markdown": [".md", ".markdown", ".mdown"],
-        "text/plain": [".md", ".markdown", ".txt"]
+        "text/plain": [".md", ".markdown", ".mdown", ".txt", ".text", ".log"],
+        "text/csv": [".csv"],
+        "text/tab-separated-values": [".tsv"],
+        "application/json": [".json"],
+        "application/toml": [".toml"],
+        "application/yaml": [".yaml", ".yml"]
       },
-      description: "Markdown files"
+      description: "Markdown and source text files"
     }
   ];
 }
 
 function ensureMarkdownFileName(fileName: string): string {
   const trimmed = fileName.trim() || "Untitled.md";
-  return /\.(?:md|markdown|mdown|txt)$/i.test(trimmed) ? trimmed : `${trimmed}.md`;
+  return isMarkdownDocumentFileName(trimmed) ? trimmed : `${trimmed}.md`;
+}
+
+function ensureSourceDocumentFileName(fileName: string, kind: WebOpenedSourceDocumentKind): string {
+  if (kind === "markdown") {
+    return ensureMarkdownFileName(fileName);
+  }
+  const trimmed = fileName.trim() || "Untitled.txt";
+  return classifyEditorDocumentKind(trimmed) === "lightweight-source" ? trimmed : `${trimmed}.txt`;
+}
+
+function sourceDocumentKindForFile(fileName: string, mediaType?: string | null): WebOpenedDocumentKind {
+  const kind = classifyEditorDocumentKind(fileName, mediaType);
+  return kind === "lightweight-source" || kind === "markdown" ? kind : "unsupported";
+}
+
+function createUnsupportedOpenedDocument(content: string, fileName: string): WebOpenedMarkdownFile {
+  const safeFileName = fileName.trim() || "unsupported";
+  return {
+    content,
+    fileName: safeFileName,
+    kind: "unsupported",
+    mode: "unsupported",
+    pathLabel: `unsupported://${safeFileName}`,
+    target: {
+      persistenceTarget: "unsupported",
+      targetLabel: `unsupported://${safeFileName}`
+    }
+  };
 }
 
 export function detectMarkdownLineEnding(content: string): MarkdownLineEnding {
