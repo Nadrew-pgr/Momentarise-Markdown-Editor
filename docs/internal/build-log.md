@@ -4787,7 +4787,7 @@
   - Unsupported table-like detection is intentionally narrow: it preserves consecutive pipe-line runs outside fenced code, not every possible table dialect.
   - Visual proof requires system Chrome permission in this sandbox, same as prior visual scripts.
 - Commit status:
-  - Issue-scoped commit to be created after this build-log entry.
+  - Issue-scoped commit created: `e3f893d` (`feat: preserve and render markdown tables`).
 - Push status:
   - Not pushed yet; branch contains existing unpushed commits and `MME-0038` remains pending public-face validation, so pushing as accepted release-ready work is blocked without a separate safe-push instruction.
 - Next issue:
