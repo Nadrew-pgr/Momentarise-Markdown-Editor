@@ -1574,7 +1574,12 @@ h1 {
   position: relative;
 }
 
-.ProseMirror .rich-fold-heading[data-rich-folded="true"]::after {
+.ProseMirror .rich-fold-block {
+  position: relative;
+}
+
+.ProseMirror .rich-fold-heading[data-rich-folded="true"]::after,
+.ProseMirror .rich-fold-block[data-rich-folded="true"]::after {
   content: "...";
   margin-left: 10px;
   color: var(--mme-color-text-muted);
@@ -1582,6 +1587,29 @@ h1 {
   font-size: 0.66em;
   font-weight: 600;
   vertical-align: middle;
+}
+
+.ProseMirror .rich-fold-block[data-rich-folded="true"] {
+  max-block-size: 2.9em;
+  overflow: hidden;
+  padding-inline-end: 48px;
+}
+
+.ProseMirror .rich-fold-block[data-rich-folded="true"]::after {
+  position: absolute;
+  right: 12px;
+  bottom: 0.42em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 28px;
+  block-size: 18px;
+  margin: 0;
+  border: 1px solid var(--mme-color-border-muted);
+  border-radius: var(--mme-radius-sm);
+  background: var(--mme-color-surface);
+  box-shadow: -8px 0 16px var(--mme-color-surface);
+  pointer-events: none;
 }
 
 .rich-fold-toggle {
@@ -1596,7 +1624,7 @@ h1 {
   background-color: currentColor;
   color: var(--mme-color-text-muted);
   cursor: pointer;
-  opacity: 0.74;
+  opacity: 0.18;
   transform: rotate(90deg);
   transition:
     color 120ms ease,
@@ -1606,19 +1634,34 @@ h1 {
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") center / 14px 14px no-repeat;
 }
 
+.rich-fold-gutter {
+  z-index: 3;
+}
+
 .rich-fold-toggle[aria-expanded="false"] {
   transform: rotate(0deg);
 }
 
+.rich-fold-toggle[data-fold-kind="code"],
+.rich-fold-toggle[data-fold-kind="callout"],
+.rich-fold-toggle[data-fold-kind="opaque"] {
+  top: 0.28em;
+}
+
 .rich-fold-toggle:hover,
-.rich-fold-toggle:focus {
+.rich-fold-toggle:focus,
+.rich-fold-toggle:focus-visible {
   color: var(--mme-color-text);
   background-color: currentColor;
-  outline: none;
+  opacity: 1;
+  outline: 2px solid var(--mme-color-accent);
+  outline-offset: 2px;
 }
 
 .ProseMirror .rich-fold-heading:hover .rich-fold-toggle,
-.ProseMirror .rich-fold-heading:focus-within .rich-fold-toggle {
+.ProseMirror .rich-fold-heading:focus-within .rich-fold-toggle,
+.ProseMirror .rich-fold-block:hover .rich-fold-toggle,
+.ProseMirror .rich-fold-block:focus-within .rich-fold-toggle {
   opacity: 1;
 }
 

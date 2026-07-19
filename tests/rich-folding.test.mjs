@@ -1,8 +1,10 @@
 const rich = await import("../packages/md-rich-prosemirror/dist/index.js");
 
 const requiredExports = [
+  "getRichFoldItems",
   "getRichFoldVisibility",
   "getRichHeadingFoldItems",
+  "toggleRichFold",
   "toggleRichHeadingFold"
 ];
 
@@ -147,10 +149,81 @@ assertIncludes(toggleMarkdown, "<details>", "explicit toggle block opening tag")
 assertIncludes(toggleMarkdown, "<summary>Toggle label</summary>", "explicit toggle block summary");
 assertIncludes(toggleMarkdown, "</details>", "explicit toggle block closing tag");
 
+const sourceSafeBlocks = `# Fold targets
+
+\`\`\`ts
+const durable = "Markdown";
+\`\`\`
+
+> [!note] Callout title
+> Callout body.
+
+<section data-mme-raw>
+  <p>Opaque HTML block.</p>
+</section>
+
+## After targets
+
+After body.
+`;
+const sourceSafeState = rich.createRichMarkdownState(sourceSafeBlocks);
+const foldItems = rich.getRichFoldItems(sourceSafeState, []);
+const codeItem = findFoldItem(foldItems, "code", 'const durable = "Markdown";');
+const calloutItem = findFoldItem(foldItems, "callout", "Callout title");
+const opaqueItem = findFoldItem(foldItems, "opaque", "Opaque HTML block");
+const afterHeading = findFoldItem(foldItems, "heading", "After targets");
+if (foldItems.filter((item) => item.foldable).length < 4) {
+  throw new Error(`Expected heading, code, callout, and opaque fold items.\n${JSON.stringify(foldItems, null, 2)}`);
+}
+
+let sourceSafeFolds = rich.toggleRichFold([], codeItem.nodeId);
+sourceSafeFolds = rich.toggleRichFold(sourceSafeFolds, calloutItem.nodeId);
+sourceSafeFolds = rich.toggleRichFold(sourceSafeFolds, opaqueItem.nodeId);
+const sourceSafeVisibility = rich.getRichFoldVisibility(sourceSafeState, sourceSafeFolds);
+assertFolded(sourceSafeVisibility, codeItem.nodeId, "code block");
+assertFolded(sourceSafeVisibility, calloutItem.nodeId, "callout block");
+assertFolded(sourceSafeVisibility, opaqueItem.nodeId, "opaque block");
+assertVisible(sourceSafeVisibility, "After targets");
+assertVisible(sourceSafeVisibility, "After body.");
+
+const sourceSafeBefore = rich.serializeRichMarkdownState(sourceSafeState).content;
+rich.getRichFoldVisibility(sourceSafeState, sourceSafeFolds);
+const sourceSafeAfter = rich.serializeRichMarkdownState(sourceSafeState).content;
+if (sourceSafeAfter !== sourceSafeBefore) {
+  throw new Error("Folding code/callout/opaque blocks must not mutate serialized Markdown.");
+}
+for (const expected of ['const durable = "Markdown";', "> [!note] Callout title", "<section data-mme-raw>"]) {
+  assertIncludes(sourceSafeAfter, expected, `source-safe folded content ${expected}`);
+}
+if (sourceSafeAfter.includes("<details>") && sourceSafeAfter !== sourceSafeBlocks) {
+  throw new Error("Source-safe folding must not synthesize toggle block details markup.");
+}
+
+const toggledBack = rich.getRichFoldVisibility(sourceSafeState, rich.toggleRichFold(sourceSafeFolds, codeItem.nodeId));
+assertUnfolded(toggledBack, codeItem.nodeId, "code block");
+assertFolded(toggledBack, calloutItem.nodeId, "callout block remains folded");
+assertFolded(toggledBack, opaqueItem.nodeId, "opaque block remains folded");
+
+const headingWithBlockFolds = rich.getRichFoldVisibility(
+  sourceSafeState,
+  rich.toggleRichHeadingFold(sourceSafeFolds, afterHeading.nodeId)
+);
+assertFolded(headingWithBlockFolds, codeItem.nodeId, "code block remains folded after heading fold");
+assertFolded(headingWithBlockFolds, calloutItem.nodeId, "callout remains folded after heading fold");
+assertHidden(headingWithBlockFolds, "After body.");
+
 function findHeading(items, text) {
   const item = items.find((candidate) => candidate.text === text);
   if (!item) {
     throw new Error(`Missing heading fold item: ${text}`);
+  }
+  return item;
+}
+
+function findFoldItem(items, kind, text) {
+  const item = items.find((candidate) => candidate.foldKind === kind && candidate.text.includes(text));
+  if (!item) {
+    throw new Error(`Missing ${kind} fold item containing ${JSON.stringify(text)}.\n${JSON.stringify(items, null, 2)}`);
   }
   return item;
 }
@@ -179,6 +252,26 @@ function assertVisible(visibility, text) {
   }
   if (block.hidden) {
     throw new Error(`Expected block to be visible: ${text}\n${JSON.stringify(visibility.blocks, null, 2)}`);
+  }
+}
+
+function assertFolded(visibility, nodeId, label) {
+  const block = visibility.blocks.find((candidate) => candidate.nodeId === nodeId);
+  if (!block) {
+    throw new Error(`Missing folded block for ${label}: ${nodeId}`);
+  }
+  if (!block.folded) {
+    throw new Error(`Expected ${label} to be folded.\n${JSON.stringify(block, null, 2)}`);
+  }
+}
+
+function assertUnfolded(visibility, nodeId, label) {
+  const block = visibility.blocks.find((candidate) => candidate.nodeId === nodeId);
+  if (!block) {
+    throw new Error(`Missing unfolded block for ${label}: ${nodeId}`);
+  }
+  if (block.folded) {
+    throw new Error(`Expected ${label} to be unfolded.\n${JSON.stringify(block, null, 2)}`);
   }
 }
 

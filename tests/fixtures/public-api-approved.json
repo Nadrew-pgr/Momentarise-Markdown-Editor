@@ -105,6 +105,7 @@
     "createRichMarkdownState",
     "filterRichMarkdownCommands",
     "getCurrentCodeBlockInfo",
+    "getRichFoldItems",
     "getRichFoldVisibility",
     "getRichHeadingFoldItems",
     "insertParagraphAfterCurrentBlock",
@@ -125,6 +126,7 @@
     "serializeRichMarkdownState",
     "setCurrentCodeBlockInfo",
     "toggleCurrentTodoItem",
+    "toggleRichFold",
     "toggleRichHeadingFold"
   ],
   "@momentarise/md-save": [

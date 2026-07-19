@@ -77,16 +77,28 @@ export interface SetRichCodeBlockInfoOptions {
   readonly meta?: string | null;
 }
 
-export interface RichHeadingFoldItem {
+export type RichFoldKind = "callout" | "code" | "heading" | "opaque";
+
+export interface RichFoldItem {
   readonly folded: boolean;
+  readonly foldable: true;
+  readonly foldKind: RichFoldKind;
   readonly hiddenBlockCount: number;
-  readonly level: number;
+  readonly level: number | null;
   readonly nodeId: string;
   readonly position: number;
   readonly text: string;
+  readonly type: string;
+}
+
+export interface RichHeadingFoldItem extends RichFoldItem {
+  readonly foldKind: "heading";
+  readonly level: number;
 }
 
 export interface RichFoldedBlock {
+  readonly foldKind: RichFoldKind | null;
+  readonly foldable: boolean;
   readonly folded: boolean;
   readonly headingLevel: number | null;
   readonly hidden: boolean;
@@ -687,17 +699,30 @@ export function getRichHeadingFoldItems(
   state: RichMarkdownState,
   folds: readonly FoldState[] = []
 ): readonly RichHeadingFoldItem[] {
+  return getRichFoldItems(state, folds).filter((item): item is RichHeadingFoldItem => item.foldKind === "heading");
+}
+
+export function getRichFoldItems(
+  state: RichMarkdownState,
+  folds: readonly FoldState[] = []
+): readonly RichFoldItem[] {
   const foldMap = collapsedFoldMap(folds);
   const blockRecords = richTopLevelBlockRecords(state.editorState.doc, foldMap);
   return blockRecords
-    .filter((record) => record.type === "heading" && record.headingLevel !== null)
+    .filter((record) => record.foldable && record.foldKind !== null)
     .map((record) => ({
       folded: record.folded,
-      hiddenBlockCount: countHeadingSectionBlocks(blockRecords, record.index, record.headingLevel ?? 1),
-      level: record.headingLevel ?? 1,
+      foldable: true,
+      foldKind: record.foldKind!,
+      hiddenBlockCount:
+        record.headingLevel === null
+          ? 0
+          : countHeadingSectionBlocks(blockRecords, record.index, record.headingLevel),
+      level: record.headingLevel,
       nodeId: record.nodeId,
       position: record.position,
-      text: record.text
+      text: record.text,
+      type: record.type
     }));
 }
 
@@ -719,6 +744,13 @@ export function getRichFoldVisibility(
 }
 
 export function toggleRichHeadingFold(
+  folds: readonly FoldState[],
+  foldNodeId: string
+): readonly FoldState[] {
+  return toggleRichFold(folds, foldNodeId);
+}
+
+export function toggleRichFold(
   folds: readonly FoldState[],
   foldNodeId: string
 ): readonly FoldState[] {
@@ -2935,6 +2967,8 @@ function richTopLevelBlockRecords(
   const siblingCounts = new Map<string, number>();
   doc.forEach((node, offset, index) => {
     const headingLevel = node.type.name === "heading" ? Number(node.attrs.level) || 1 : null;
+    const text = foldRecordText(node);
+    const foldKind = richFoldKindForNode(node, headingLevel, text);
     let nodeId = `block:${index}:${node.type.name}`;
     if (headingLevel !== null) {
       while (collapsedStack.length > 0 && collapsedStack[collapsedStack.length - 1]!.level >= headingLevel) {
@@ -2944,11 +2978,15 @@ function richTopLevelBlockRecords(
         headingPath.pop();
       }
       nodeId = createHeadingNodeId(headingPath, headingLevel, node.textContent, siblingCounts);
+    } else if (foldKind !== null) {
+      nodeId = createBlockFoldNodeId(node.type.name, text, siblingCounts);
     }
 
     const hiddenBy = collapsedStack[collapsedStack.length - 1]?.nodeId ?? null;
-    const folded = headingLevel !== null && foldMap.get(nodeId) === true;
+    const folded = foldKind !== null && foldMap.get(nodeId) === true;
     records.push({
+      foldKind,
+      foldable: foldKind !== null,
       folded,
       headingLevel,
       hidden: Boolean(hiddenBy),
@@ -2956,7 +2994,7 @@ function richTopLevelBlockRecords(
       index,
       nodeId,
       position: offset,
-      text: node.textContent.trim(),
+      text,
       to: offset + node.nodeSize,
       type: node.type.name
     });
@@ -2975,6 +3013,49 @@ function richTopLevelBlockRecords(
     }
   });
   return records;
+}
+
+function foldRecordText(node: ProseMirrorNode): string {
+  if (node.type.name === "unsupported_block") {
+    return String(node.attrs.raw ?? "").trim();
+  }
+  return node.textContent.trim();
+}
+
+function richFoldKindForNode(
+  node: ProseMirrorNode,
+  headingLevel: number | null,
+  text: string
+): RichFoldKind | null {
+  if (headingLevel !== null) {
+    return "heading";
+  }
+  if (node.type.name === "code_block") {
+    return "code";
+  }
+  if (node.type.name === "blockquote" && /^\s*\[!/i.test(text)) {
+    return "callout";
+  }
+  if (node.type.name === "unsupported_block") {
+    const reason = String(node.attrs.reason ?? "");
+    if (/callout/i.test(reason) || /^\s*>\s*\[!/i.test(text)) {
+      return "callout";
+    }
+    return "opaque";
+  }
+  return null;
+}
+
+function createBlockFoldNodeId(
+  typeName: string,
+  text: string,
+  siblingCounts: Map<string, number>
+): string {
+  const hash = String(hashMarkdownContent(text || typeName)).replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "");
+  const key = `fold|${typeName}|${hash}`;
+  const occurrence = (siblingCounts.get(key) ?? 0) + 1;
+  siblingCounts.set(key, occurrence);
+  return `fold:${typeName}:${hash}${occurrence > 1 ? `-${occurrence}` : ""}`;
 }
 
 function countHeadingSectionBlocks(

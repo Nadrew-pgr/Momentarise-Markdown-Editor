@@ -60,11 +60,12 @@ Completed slices:
 - MME-0044: Unified Open, New File, Save As, and status chrome, accepted for code continuation after save-picker APIs, truthful fallback/export states, explicit conflict actions, reviewer fixes, and visual proof; final human workflow review is queued for end-of-run review.
 - MME-0045: Toolbar, slash, and mode controls final UX, accepted for code continuation after reusable surface command grouping, active/disabled toolbar state, fuzzy slash search, mode-control variants, mobile/constrained visual proof, and reviewer fixes; final human command-surface review is queued for end-of-run review.
 - MME-0046: HTML preview reading polish, accepted for code continuation after removing the permanent technical preview strip, adding discreet sandbox/save details, proving scripts remain disabled, and capturing desktop/constrained visual proof; final human HTML-preview product review is queued for end-of-run review.
+- MME-0047: Folding and document structure polish, accepted for code continuation after generic fold APIs, source-safe code/callout/opaque folding, quieter gutter controls, contextual ARIA labels, visual proof, and reviewer fixes; final human folding product review is queued for end-of-run review.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- MME-0047: Folding and document structure polish.
+- MME-0048: Public docs launch hardening and MME-0038 validation debt.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

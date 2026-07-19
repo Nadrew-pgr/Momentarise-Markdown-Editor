@@ -71,6 +71,7 @@ import {
   createRichMarkdownState,
   filterRichMarkdownCommands,
   getCurrentCodeBlockInfo,
+  getRichFoldItems,
   getRichFoldVisibility,
   getRichHeadingFoldItems,
   insertParagraphAfterCurrentBlock,
@@ -82,11 +83,12 @@ import {
   runRichMarkdownCommand,
   serializeRichMarkdownState,
   setCurrentCodeBlockInfo,
+  toggleRichFold,
   toggleRichHeadingFold,
   toggleCurrentTodoItem,
   type ApplyRichMarkdownCommandOptions,
   type RichFoldVisibility,
-  type RichHeadingFoldItem,
+  type RichFoldItem,
   type RichCommandId,
   type RichMarkdownCommand,
   type RichMarkdownState,
@@ -1872,7 +1874,7 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
     return {
       ...visibility,
       folds: foldStates,
-      items: getRichHeadingFoldItems(richState, foldStates)
+      items: getRichFoldItems(richState, foldStates)
     };
   },
   getLastCopiedMarkdown() {
@@ -2147,6 +2149,9 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   },
   toggleRichFoldForText(text: string) {
     toggleRichFoldForText(text);
+  },
+  toggleRichFoldBlockForText(text: string) {
+    toggleRichFoldBlockForText(text);
   },
   switchEditorMode(mode: DemoEditorMode) {
     switchEditorMode(mode);
@@ -3985,7 +3990,8 @@ function createRichFoldingDecorations(editorState: ProseMirrorEditorState): Deco
   for (const block of visibility.blocks) {
     const classes = [
       block.hidden ? "rich-fold-hidden" : "",
-      block.type === "heading" ? "rich-fold-heading" : ""
+      block.type === "heading" ? "rich-fold-heading" : "",
+      block.foldable && block.type !== "heading" ? "rich-fold-block" : ""
     ]
       .filter(Boolean)
       .join(" ");
@@ -3996,15 +4002,18 @@ function createRichFoldingDecorations(editorState: ProseMirrorEditorState): Deco
       if (block.hidden) {
         attributes["aria-hidden"] = "true";
       }
-      if (block.type === "heading") {
+      if (block.foldable) {
         attributes["data-rich-folded"] = String(block.folded);
+        if (block.foldKind) {
+          attributes["data-rich-fold-kind"] = block.foldKind;
+        }
       }
       decorations.push(
         Decoration.node(block.position, block.to, attributes)
       );
     }
 
-    if (block.type === "heading") {
+    if (block.foldable && !block.hidden) {
       decorations.push(
         Decoration.widget(block.position + 1, () => createRichFoldToggleButton(block), {
           key: `fold-toggle:${block.nodeId}:${block.folded}`,
@@ -4017,14 +4026,26 @@ function createRichFoldingDecorations(editorState: ProseMirrorEditorState): Deco
   return DecorationSet.create(editorState.doc, decorations);
 }
 
-function createRichFoldToggleButton(block: { readonly folded: boolean; readonly headingLevel: number | null; readonly nodeId: string; readonly text: string }): HTMLElement {
+function createRichFoldToggleButton(block: {
+  readonly folded: boolean;
+  readonly foldKind: string | null;
+  readonly headingLevel: number | null;
+  readonly nodeId: string;
+  readonly text: string;
+}): HTMLElement {
   const button = document.createElement("button");
-  button.className = "rich-fold-toggle";
+  const foldKind = block.foldKind ?? "heading";
+  const targetLabel =
+    foldKind === "heading"
+      ? block.text || `H${block.headingLevel ?? 1}`
+      : `${foldKind} block${foldLabelPreview(block.text)}`;
+  button.className = "rich-fold-toggle rich-fold-gutter";
   button.contentEditable = "false";
+  button.dataset.foldKind = foldKind;
   button.dataset.foldNodeId = block.nodeId;
   button.setAttribute("aria-expanded", String(!block.folded));
-  button.setAttribute("aria-label", `${block.folded ? "Expand" : "Collapse"} ${block.text || `H${block.headingLevel ?? 1}`}`);
-  button.title = block.folded ? "Expand section" : "Collapse section";
+  button.setAttribute("aria-label", `${block.folded ? "Expand" : "Collapse"} ${targetLabel}`);
+  button.title = block.folded ? `Expand ${targetLabel}` : `Collapse ${targetLabel}`;
   button.type = "button";
   button.addEventListener("mousedown", (event) => {
     event.preventDefault();
@@ -4037,15 +4058,25 @@ function createRichFoldToggleButton(block: { readonly folded: boolean; readonly 
   return button;
 }
 
+function foldLabelPreview(text: string): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "";
+  }
+  const maxLength = 72;
+  return `: ${normalized.length > maxLength ? `${normalized.slice(0, maxLength - 3)}...` : normalized}`;
+}
+
 function toggleRichFoldByNodeId(nodeId: string): void {
   const currentRichState = currentRichStateFromEditor();
   if (!currentRichState) {
     return;
   }
-  const item = getRichHeadingFoldItems(currentRichState, foldStates).find((candidate) => candidate.nodeId === nodeId);
-  foldStates = toggleRichHeadingFold(foldStates, nodeId);
+  const item = getRichFoldItems(currentRichState, foldStates).find((candidate) => candidate.nodeId === nodeId);
+  foldStates = toggleRichFold(foldStates, nodeId);
   renderRichFoldingUi();
-  logEvent(`${item?.folded ? "Expanded" : "Collapsed"} rich heading section: ${item?.text ?? nodeId}.`);
+  const kind = item?.foldKind === "heading" ? "heading section" : `${item?.foldKind ?? "fold"} block`;
+  logEvent(`${item?.folded ? "Expanded" : "Collapsed"} rich ${kind}: ${item?.text ?? nodeId}.`);
 }
 
 function toggleRichFoldForText(text: string): void {
@@ -4056,6 +4087,22 @@ function toggleRichFoldForText(text: string): void {
   const item = getRichHeadingFoldItems(currentRichState, foldStates).find((candidate) => candidate.text === text);
   if (!item) {
     throw new Error(`Cannot find foldable heading: ${text}`);
+  }
+  foldStates = toggleRichHeadingFold(foldStates, item.nodeId);
+  renderRichFoldingUi();
+  logEvent(`${item.folded ? "Expanded" : "Collapsed"} rich heading section: ${item.text}.`);
+}
+
+function toggleRichFoldBlockForText(text: string): void {
+  const currentRichState = currentRichStateFromEditor();
+  if (!currentRichState) {
+    throw new Error("Rich editor is not mounted.");
+  }
+  const item = getRichFoldItems(currentRichState, foldStates).find(
+    (candidate) => candidate.foldKind !== "heading" && candidate.text.includes(text)
+  );
+  if (!item) {
+    throw new Error(`Cannot find foldable block containing: ${text}`);
   }
   toggleRichFoldByNodeId(item.nodeId);
 }
@@ -5386,7 +5433,7 @@ declare global {
       };
       getFoldState: () => RichFoldVisibility & {
         readonly folds: readonly FoldState[];
-        readonly items: readonly RichHeadingFoldItem[];
+        readonly items: readonly RichFoldItem[];
       };
       getHtmlPreviewState: () => {
         readonly available: boolean;
@@ -5527,6 +5574,7 @@ declare global {
       startMockAiSessionForTest: () => void;
       switchEditorMode: (mode: DemoEditorMode) => void;
       toggleCurrentRichTodo: () => void;
+      toggleRichFoldBlockForText: (text: string) => void;
       toggleRichFoldForText: (text: string) => void;
       typeRichTextForTest: (text: string) => void;
     };

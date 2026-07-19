@@ -2678,6 +2678,10 @@ Do not convert toggle blocks into folding state. Toggle blocks are document cont
 
 UX Reviewer and Test Reviewer.
 
+### Status
+
+Accepted for code continuation 2026-07-19 after folding hierarchy/source-truth polish, reviewer rechecks, visual proof, and full test pass. Added generic `getRichFoldItems`/`toggleRichFold` APIs while keeping heading-specific compatibility APIs, made code blocks, callouts, and opaque raw blocks foldable as interface state only, kept H1-H6 parent/child fold state predictable, and proved folding never mutates serialized Markdown. Demo folding controls now use a quieter gutter/focus affordance, contextual screen-reader labels, and visible collapsed markers for headings and non-heading blocks. Visual proof covers quiet focused gutter controls, code/callout/opaque collapsed states, and nested parent/child persistence. Proven by RED `npm run test:rich-folding` and `npm run test:demo-folding`, green targeted checks, `npm run visual:mme-0047`, `git diff --check`, and full `npm test`. Test/API reviewer reported no P0/P1/P2 findings; UX reviewer found two P2s around non-heading marker clarity and generic labels, builder fixed both, and delta review reported no remaining P0/P1/P2. Final human folding product review is queued in `docs/internal/BACKLOG.md`; `MME-0048` remains the next candidate after issue-scoped commit.
+
 ## MME-0048 — Public docs launch hardening and MME-0038 validation debt
 
 ### Goal

@@ -13,11 +13,17 @@ if (!packageJson.scripts.test.includes("test:demo-folding")) {
 if (packageJson.scripts["visual:mme-0014"] !== "node scripts/visual-check-mme0014.mjs") {
   throw new Error("Root package scripts must expose visual:mme-0014.");
 }
+if (packageJson.scripts["visual:mme-0047"] !== "node scripts/visual-check-mme0047.mjs") {
+  throw new Error("Root package scripts must expose visual:mme-0047.");
+}
 
 for (const snippet of [
+  "getRichFoldItems",
   "getRichFoldVisibility",
   "getRichHeadingFoldItems",
+  "toggleRichFold",
   "toggleRichHeadingFold",
+  "toggleRichFoldBlockForText",
   "getFoldState",
   "toggleRichFoldForText"
 ]) {
@@ -27,6 +33,8 @@ for (const snippet of [
 }
 
 for (const snippet of [
+  ".rich-fold-block",
+  ".rich-fold-gutter",
   ".rich-fold-toggle",
   ".rich-fold-hidden",
   "[data-rich-folded=\"true\"]"
@@ -50,6 +58,9 @@ for (const forbiddenSnippet of [
 if (!styles.includes("content: \"...\"")) {
   throw new Error("Collapsed headings must use a subtle ellipsis marker instead of hidden-count text.");
 }
+if (!styles.includes("[data-fold-kind=\"code\"]") || !styles.includes("[data-fold-kind=\"callout\"]")) {
+  throw new Error("MME-0047 must style code/callout folding as first-class fold targets.");
+}
 if (styles.includes("▾") || styles.includes("▸")) {
   throw new Error("Rich folding chevrons must be drawn with CSS, not font-dependent triangle glyphs.");
 }
@@ -71,5 +82,26 @@ for (const artifact of [
 ]) {
   if (!visualScript.includes(artifact)) {
     throw new Error(`MME-0014 visual script must capture ${artifact}.`);
+  }
+}
+
+const visualScript0047 = readFileSync("scripts/visual-check-mme0047.mjs", "utf8");
+for (const snippet of [
+  'toggleRichFoldBlockForText("const durable")',
+  'toggleRichFoldForText("Child")'
+]) {
+  if (!visualScript0047.includes(snippet)) {
+    throw new Error(`MME-0047 visual script must exercise runtime folding hook: ${snippet}.`);
+  }
+}
+for (const artifact of [
+  "folding-quiet-gutter-focus.png",
+  "folding-code-block-collapsed.png",
+  "folding-callout-collapsed.png",
+  "folding-opaque-block-collapsed.png",
+  "folding-parent-child-state.png"
+]) {
+  if (!visualScript0047.includes(artifact)) {
+    throw new Error(`MME-0047 visual script must capture ${artifact}.`);
   }
 }

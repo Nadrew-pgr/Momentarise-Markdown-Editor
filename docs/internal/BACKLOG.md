@@ -186,6 +186,7 @@ Tags: `public-release`, `human-review`, `ui`, `ax`
 - MME-0044 visible file/status workflow review: review unified Open, New File, Save As, imported-copy/export fallback wording, dirty/conflict actions, status popover density, and browser prompt ergonomics before public launch.
 - MME-0045 command-surface UX review: review toolbar density/icon grouping, slash menu ranking/group labels, selection bubble placement, mode control variants, mobile wrapping, and final product feel before public launch.
 - MME-0046 HTML preview product review: review the normal standalone HTML reading surface, details affordance placement, constrained-width feel, save/export wording, and whether the preview chrome feels public-ready before launch.
+- MME-0047 folding product review: review gutter density beside block handles, collapsed marker taste for headings/code/callouts/opaque blocks, keyboard focus treatment, nested fold feel, and whether folding feels public-ready before launch.
 - Future visible/UI/HITL slices in this autonomous run should be added here instead of blocking code continuation, per the 2026-07-19 human instruction to review visible work in one final block.
 
 - Asset/upload provider contract for image paste and drag-drop, similar in spirit to BlockNote `uploadFile`, but adapted to MME's host-capability and SaveTarget contracts.
