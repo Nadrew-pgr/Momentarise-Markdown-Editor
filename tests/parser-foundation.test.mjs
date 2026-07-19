@@ -52,6 +52,19 @@ if (typeof taskListItem.attributes?.checked !== "boolean") {
   throw new Error("Task list items must expose Momentarise-native checked state before rich mode.");
 }
 
+const tableVariants = findFixture("019-gfm-table-variants");
+const tableNode = findNodeByType(tableVariants.result.document.root, "table");
+const tableSource = sourceForNode(tableVariants.fixture.input, tableNode);
+if (!tableSource.includes("| Escaped \\| pipe | Editor | preserved |")) {
+  throw new Error(`Supported GFM tables must expose source ranges that preserve escaped pipes.\n${tableSource}`);
+}
+const malformedTableOpaque = collectOpaqueNodes(tableVariants.result.document.root).find(
+  (node) => node.reason === "unsupported table-like syntax"
+);
+if (!malformedTableOpaque || !malformedTableOpaque.raw.includes("| broken table-like block | should stay raw |")) {
+  throw new Error("Malformed table-like syntax must be carried as opaque raw Markdown.");
+}
+
 const codeFence = findNodeByType(findFixture("005-code-fence-language").result.document.root, "codeFence");
 if (codeFence.attributes?.language !== "ts" || typeof codeFence.attributes?.value !== "string") {
   throw new Error("Code fence nodes must expose language and value before rich mode.");
@@ -141,6 +154,13 @@ function findNodeByType(node, type, predicate = () => true) {
     }
   }
   return null;
+}
+
+function sourceForNode(source, node) {
+  if (!node?.sourceRange) {
+    throw new Error(`Node is missing source range: ${node?.type ?? "<null>"}`);
+  }
+  return source.slice(node.sourceRange.start.offset, node.sourceRange.end.offset);
 }
 
 function assertNoThirdPartyAstLeak(node, fixtureId) {

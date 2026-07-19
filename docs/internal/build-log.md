@@ -4728,3 +4728,67 @@
   - Not pushed yet; existing branch already has unpushed commits and MME-0038 remains pending public-face validation.
 - Next issue:
   - `MME-0040 — Tables preservation and rendering`.
+
+## MME-0040 — Tables preservation and rendering
+
+- Date: 2026-07-19.
+- Previous issue status:
+  - `MME-0038` remains code-complete with explicit public-face validation debt and is committed as pending-status, not accepted as final public validation.
+  - `MME-0039` was completed earlier out of phase order.
+  - Backlog promotion for `MME-0040..MME-0050` was committed before implementation.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short --branch`, and relevant package/test/fixture files for `md-format`, `md-rich-prosemirror`, `md-render-html`, fixture corpus, parser/serializer/rich/render tests.
+- RED proof before implementation:
+  - Added `fixtures/019-gfm-table-variants/` with supported GFM table variants plus malformed table-like Markdown.
+  - Added parser/rich/render tests before implementation.
+  - Initial `npm run test:parser` failed because malformed table-like syntax was not carried as opaque raw Markdown.
+  - Initial `npm run test:rich-fidelity` failed because malformed table-like syntax did not mount as an opaque preserved-table fallback.
+  - `npm run test:render-html` already passed under the new semantic/sanitizer table assertions, proving existing renderer capability while pinning coverage.
+- Change:
+  - Added `fixtures/019-gfm-table-variants/input.md` and expectations covering alignment markers, escaped pipes, inline code/strong marks, blank-line boundaries, and malformed table-like syntax.
+  - Extended `@momentarise/md-format` with narrow unsupported table-like detection outside fenced code. Supported GFM table source ranges remain owned by the existing `remark-gfm` AST path; unsupported/non-standard table-like runs are added as opaque raw nodes.
+  - Extended `@momentarise/md-rich-prosemirror` so unsupported blocks with table-related reasons render as explicit preserved-table/source-only fallbacks with `data-mme-preserved-table="true"`, while preserving raw Markdown bytes.
+  - Added renderer assertions proving supported GFM tables produce semantic `<table>`, `<thead>`, `<tbody>`, `<th>`, and `<td>` output, preserve alignment attributes, render inline marks inside cells, and sanitize hostile HTML inside table cells without dropping safe visible text.
+  - Added `scripts/visual-check-mme0040.mjs`, root `visual:mme-0040`, and visual artifacts under `docs/internal/visual-checks/MME-0040/`.
+  - Updated `README.md` and `docs/internal/ISSUES.md` to mark `MME-0040` complete and make `MME-0041` the next current slice.
+- Visual impact:
+  - Markdown read mode now has explicit visual proof for semantic table rendering.
+  - Rich mode now shows a clear "Preserved Markdown table. Edit in Source mode." fallback for supported/malformed table-like content instead of presenting it as a generic preserved Markdown block.
+  - No general UI chrome changes.
+  - Screenshots:
+    - `docs/internal/visual-checks/MME-0040/table-read-semantic.png`
+    - `docs/internal/visual-checks/MME-0040/rich-preserved-table-fallback.png`
+- Checks run:
+  - `npm run test:parser` — RED before implementation, then green.
+  - `npm run test:rich-fidelity` — RED before implementation, then green.
+  - `npm run test:rich-targeted-serialization` — green.
+  - `npm run test:render-html` — green.
+  - `npm run test:fixtures` — green.
+  - `npm run test:roundtrip` — green.
+  - `npm run test:serializer` — green.
+  - `npm run test:rich-prosemirror` — green.
+  - `npm run test:architecture` — green.
+  - `npm run test:public-api` — green.
+  - `npm run test:theme` — green.
+  - `npm run visual:mme-0040` — sandbox Chrome aborted before CDP; rerun green with system Chrome permission.
+  - `git diff --check` — green.
+  - `npm test` — green; existing demo Vite chunk-size warning only.
+- Manual/visual verification:
+  - Dev server command: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`.
+  - Local URL: `http://127.0.0.1:5174/`.
+  - Visual script loaded the real `fixtures/019-gfm-table-variants/input.md`, switched to Markdown read mode, asserted semantic table rendering plus malformed table-like text visibility, switched to rich mode, asserted two preserved-table fallbacks, and verified rich mount kept Markdown byte-identical.
+  - Manual screenshot inspection confirmed nonblank render, semantic table visible in read mode, source-only table fallback visible in rich mode, no obvious overlap, and no table bytes dropped.
+- Reviewer result:
+  - Initial architecture reviewer subagent `Harvey` used `gpt-5.3-codex-spark` with `xhigh` reasoning but errored from context-window exhaustion before returning findings.
+  - Test reviewer subagent `Chandrasekhar` used `gpt-5.3-codex-spark` with `xhigh` reasoning and found three issues: visual script used hardcoded table Markdown instead of the fixture, preserved-table fallback heuristic was too broad, and sandbox Chrome failed before assertions. Builder fixed the first two by reading the fixture from disk and limiting table fallback to table-related reasons; the visual check remains documented as sandbox-failing but green under system Chrome permission.
+  - Compact architecture reviewer subagent `Russell` used `gpt-5.3-codex-spark` with `xhigh` reasoning after fixes and reported no P0/P1/P2 findings.
+- Residual risks:
+  - Full rich table cell editing remains out of scope and should be split later if desired.
+  - Unsupported table-like detection is intentionally narrow: it preserves consecutive pipe-line runs outside fenced code, not every possible table dialect.
+  - Visual proof requires system Chrome permission in this sandbox, same as prior visual scripts.
+- Commit status:
+  - Issue-scoped commit to be created after this build-log entry.
+- Push status:
+  - Not pushed yet; branch contains existing unpushed commits and `MME-0038` remains pending public-face validation, so pushing as accepted release-ready work is blocked without a separate safe-push instruction.
+- Next issue:
+  - `MME-0041 — Footnotes and endnotes`.

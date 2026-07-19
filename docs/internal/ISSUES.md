@@ -2305,6 +2305,10 @@ The rich-mode behavior for this issue is intentionally preservation-first. If Pr
 
 Architecture Reviewer and Test Reviewer.
 
+### Status
+
+Completed 2026-07-19; code HITL remained waived for TypeScript/package work. Added a GFM table variants fixture covering alignment, escaped pipes, inline marks, blank-line boundaries, and malformed table-like syntax. The parser now adds opaque raw nodes for unsupported table-like runs outside fenced code while keeping supported GFM table ranges owned by the existing `remark-gfm` AST path. Rich mode still does not claim editable table cells: supported and malformed table-like blocks mount as explicit preserved-table source-only fallbacks and serialize back byte-for-byte. `@momentarise/md-render-html` has semantic/sanitizer table proof. Proven by RED `npm run test:parser`, green `npm run test:parser`, `npm run test:rich-fidelity`, `npm run test:rich-targeted-serialization`, `npm run test:render-html`, `npm run test:fixtures`, `npm run test:roundtrip`, `npm run test:serializer`, `npm run test:rich-prosemirror`, `npm run visual:mme-0040`, `git diff --check`, and full `npm test`. Test reviewer findings were fixed; compact architecture reviewer reported no P0/P1/P2 findings. `MME-0041` is the next candidate after issue-scoped commit.
+
 ## MME-0041 — Footnotes and endnotes
 
 ### Goal

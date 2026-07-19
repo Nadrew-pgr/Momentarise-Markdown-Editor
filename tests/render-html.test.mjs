@@ -100,6 +100,49 @@ for (const visible of [
   );
 }
 
+const tableVariantsMarkdown = readFileSync("fixtures/019-gfm-table-variants/input.md", "utf8");
+const tableVariantsRender = renderMarkdownToHtml(tableVariantsMarkdown, {
+  fileName: "fixtures/019-gfm-table-variants/input.md"
+});
+for (const requiredHtml of ["<table>", "<thead>", "<tbody>", "<th", "<td", "<code>code</code>", "<strong>Bold</strong>"]) {
+  assert(
+    tableVariantsRender.html.includes(requiredHtml),
+    `Supported GFM table must render semantic table HTML containing ${requiredHtml}.\n${tableVariantsRender.html}`
+  );
+}
+for (const requiredText of ["Escaped | pipe", "broken table-like block", "Final paragraph after malformed table-like syntax."]) {
+  assert(
+    visibleText(tableVariantsRender.html).includes(requiredText),
+    `Rendered table variants must keep visible text ${requiredText}.\n${tableVariantsRender.html}`
+  );
+}
+assert(
+  /align="(?:center|right)"/.test(tableVariantsRender.html),
+  `GFM alignment markers must survive as safe semantic table alignment.\n${tableVariantsRender.html}`
+);
+
+const hostileTable = [
+  "| Label | HTML |",
+  "| -- | -- |",
+  '| Unsafe | <img src="https://example.invalid/x.png" onerror="boom()" alt="external image"> <a href="javascript:alert(1)" onclick="boom()">bad link</a> |'
+].join("\n");
+const hostileTableRender = renderMarkdownToHtml(hostileTable, {
+  fileName: "unsafe-table.md"
+});
+assert(hostileTableRender.html.includes("<table>"), "Hostile table fixture must still render as a table.");
+for (const forbidden of ["onerror=", "onclick=", "javascript:", "https://example.invalid"]) {
+  assert(
+    !hostileTableRender.html.toLowerCase().includes(forbidden),
+    `Rendered table HTML leaked forbidden token: ${forbidden}\n${hostileTableRender.html}`
+  );
+}
+for (const visible of ["external image", "bad link"]) {
+  assert(
+    visibleText(hostileTableRender.html).includes(visible),
+    `Sanitized hostile table content must keep safe visible text: ${visible}\n${hostileTableRender.html}`
+  );
+}
+
 const hostileMarkdown = [
   "# Unsafe HTML",
   "",

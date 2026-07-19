@@ -170,7 +170,11 @@ export function createMarkdownAstParser(): MarkdownParser {
       const mappedChildren = (ast.children ?? []).map((child, index) =>
         mapMdastNode(child, source, `ast-${index}`)
       );
-      const detectedOpaqueNodes = detectOpaqueNodes(source);
+      const supportedTableRanges = collectSourceRangesByType(mappedChildren, "table");
+      const detectedOpaqueNodes = [
+        ...detectOpaqueNodes(source),
+        ...detectUnsupportedTableLikeNodes(source, supportedTableRanges)
+      ].sort((first, second) => first.sourceRange.start.offset - second.sourceRange.start.offset);
       const astOpaqueNodes = collectOpaqueNodesFromList(mappedChildren);
       const extraOpaqueNodes = detectedOpaqueNodes.filter(
         (detected) =>
@@ -934,6 +938,13 @@ function collectOpaqueNodesFromList(nodes: readonly MomentariseNode[]): readonly
   return nodes.flatMap((node) => collectOpaqueNodes(node));
 }
 
+function collectSourceRangesByType(nodes: readonly MomentariseNode[], type: string): readonly SourceRange[] {
+  return nodes.flatMap((node) => {
+    const self = node.type === type && node.sourceRange ? [node.sourceRange] : [];
+    return node.kind === "opaque" ? self : [...self, ...collectSourceRangesByType(node.children ?? [], type)];
+  });
+}
+
 export function runFixtureRoundTrip(options: RunFixtureRoundTripOptions): RoundTripHarnessResult {
   const formatter = options.formatter ?? createIdentityMarkdownFormatter();
   const dialect = options.dialect ?? defaultDialect;
@@ -1163,6 +1174,67 @@ function detectOpaqueNodes(source: string): readonly OpaqueNode[] {
     }
   }
   return nodes.sort((first, second) => first.sourceRange.start.offset - second.sourceRange.start.offset);
+}
+
+function detectUnsupportedTableLikeNodes(
+  source: string,
+  supportedTableRanges: readonly SourceRange[]
+): readonly OpaqueNode[] {
+  const fencedRegions = fencedCodeRegions(source);
+  const lines = sourceLines(source);
+  const nodes: OpaqueNode[] = [];
+  let index = 0;
+  let cursor = 0;
+
+  while (cursor < lines.length) {
+    const start = cursor;
+    while (cursor < lines.length && isTableLikeLine(lines[cursor]!.text) && !isInsideFencedRegion(fencedRegions, lines[cursor]!.start)) {
+      cursor += 1;
+    }
+
+    const runLength = cursor - start;
+    if (runLength >= 2) {
+      const first = lines[start]!;
+      const last = lines[cursor - 1]!;
+      if (!supportedTableRanges.some((range) => sourceRangeOverlapsOffsets(range, first.start, last.end))) {
+        nodes.push(opaqueNodeFromRaw(source, first.start, last.end, "unsupported table-like syntax", index));
+        index += 1;
+      }
+    }
+
+    if (runLength === 0) {
+      cursor = start + 1;
+    }
+  }
+
+  return nodes;
+}
+
+function sourceLines(source: string): ReadonlyArray<{ readonly end: number; readonly start: number; readonly text: string }> {
+  const lines: Array<{ readonly end: number; readonly start: number; readonly text: string }> = [];
+  let offset = 0;
+  const parts = source.split("\n");
+  for (let index = 0; index < parts.length; index += 1) {
+    const text = parts[index]!;
+    const hasLineEnding = index < parts.length - 1;
+    const end = offset + text.length + (hasLineEnding ? 1 : 0);
+    lines.push({
+      end,
+      start: offset,
+      text
+    });
+    offset = end;
+  }
+  return lines;
+}
+
+function isTableLikeLine(line: string): boolean {
+  const trimmed = line.trim();
+  return trimmed.startsWith("|") && trimmed.slice(1).includes("|");
+}
+
+function sourceRangeOverlapsOffsets(range: SourceRange, startOffset: number, endOffset: number): boolean {
+  return range.start.offset < endOffset && range.end.offset > startOffset;
 }
 
 function fencedCodeRegions(source: string): ReadonlyArray<readonly [number, number]> {

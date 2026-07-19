@@ -75,6 +75,34 @@ if (!tableRaw || !tableRaw.includes("| :-- | :-: | --: |")) {
   throw new Error(`unsupported_block must carry the raw table source, got: ${JSON.stringify(tableRaw)}`);
 }
 
+const tableVariantsInput = await readFile(`${fixturesRoot}/019-gfm-table-variants/input.md`, "utf8");
+const tableVariantsState = rich.createRichMarkdownState(tableVariantsInput, { dialect: "momentarise-enhanced" });
+const tableVariantsOutput = rich.serializeRichMarkdownState(tableVariantsState).content;
+if (tableVariantsOutput !== tableVariantsInput) {
+  throw new Error(`Table variants fixture must rich round-trip byte-for-byte:\n${firstByteDifference(tableVariantsInput, tableVariantsOutput)}`);
+}
+const tableVariantUnsupportedBlocks = topLevelBlocks(tableVariantsState).filter((node) => node.type.name === "unsupported_block");
+const supportedTableFallback = tableVariantUnsupportedBlocks.find((node) =>
+  String(node.attrs.raw ?? "").includes("| Feature | Owner | Status |")
+);
+if (!supportedTableFallback || !/table/i.test(String(supportedTableFallback.attrs.reason ?? ""))) {
+  throw new Error("Supported GFM tables must mount as an explicit preserved-table fallback in rich mode.");
+}
+const malformedTableFallback = tableVariantUnsupportedBlocks.find((node) =>
+  String(node.attrs.raw ?? "").includes("| broken table-like block | should stay raw |")
+);
+if (!malformedTableFallback || String(malformedTableFallback.attrs.reason ?? "") !== "unsupported table-like syntax") {
+  throw new Error("Malformed table-like syntax must mount as an opaque preserved-table fallback in rich mode.");
+}
+const supportedTableDom = supportedTableFallback.type.spec.toDOM?.(supportedTableFallback);
+if (
+  !domSpecContainsAttribute(supportedTableDom, "data-mme-preserved-table", "true") ||
+  !domSpecContainsText(supportedTableDom, "Preserved Markdown table") ||
+  !domSpecContainsText(supportedTableDom, "Edit in Source mode")
+) {
+  throw new Error(`Preserved table fallback DOM must clearly tell users it is source-only.\n${JSON.stringify(supportedTableDom)}`);
+}
+
 // Strikethrough must survive a rich edit in the same paragraph.
 const strikeSource = "Keep ~~struck words~~ and plain text.\n";
 const strikeState = rich.createRichMarkdownState(strikeSource, { dialect: "momentarise-enhanced" });
@@ -135,6 +163,35 @@ function collectOpaque(node) {
     return [node];
   }
   return (node.children ?? []).flatMap((child) => collectOpaque(child));
+}
+
+function topLevelBlocks(state) {
+  const blocks = [];
+  state.editorState.doc.forEach((node) => {
+    blocks.push(node);
+  });
+  return blocks;
+}
+
+function domSpecContainsAttribute(spec, name, value) {
+  if (!Array.isArray(spec)) {
+    return false;
+  }
+  const maybeAttrs = spec[1];
+  if (maybeAttrs && typeof maybeAttrs === "object" && !Array.isArray(maybeAttrs) && maybeAttrs[name] === value) {
+    return true;
+  }
+  return spec.some((entry) => domSpecContainsAttribute(entry, name, value));
+}
+
+function domSpecContainsText(spec, text) {
+  if (typeof spec === "string") {
+    return spec.includes(text);
+  }
+  if (!Array.isArray(spec)) {
+    return false;
+  }
+  return spec.some((entry) => domSpecContainsText(entry, text));
 }
 
 function firstByteDifference(input, output) {

@@ -40,6 +40,29 @@ for (const rawLine of [
   assertIncludes(editedOutput, rawLine, `untouched raw line ${rawLine}`);
 }
 
+const tableVariantsInput = await readFile("fixtures/019-gfm-table-variants/input.md", "utf8");
+const tableVariantsEdited = rich.replaceFirstRichText(
+  rich.createRichMarkdownState(tableVariantsInput, { dialect: "momentarise-enhanced" }),
+  "Intro paragraph before table variants.",
+  "Edited paragraph before table variants."
+);
+const tableVariantsEditedOutput = rich.serializeRichMarkdownState(tableVariantsEdited).content;
+for (const preservedLine of [
+  "| Feature | Owner | Status |",
+  "| :-- | :-: | --: |",
+  "| Escaped \\| pipe | Editor | preserved |",
+  "| broken table-like block | should stay raw |",
+  "| too | many | cells |"
+]) {
+  assertIncludes(tableVariantsEditedOutput, preservedLine, `table variant preserved line ${preservedLine}`);
+}
+assertEveryLineExcept(
+  tableVariantsInput,
+  tableVariantsEditedOutput,
+  (line) => line === "Intro paragraph before table variants.",
+  "editing a paragraph before table variants must preserve every table-like line"
+);
+
 const delimiterInput = [
   "Setext Heading",
   "==============",

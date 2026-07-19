@@ -25,7 +25,7 @@ import {
 } from "prosemirror-commands";
 import { history, redo, undo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
-import { Fragment, Mark, Node as ProseMirrorNode, Schema, type MarkSpec, type NodeSpec, type ResolvedPos } from "prosemirror-model";
+import { Fragment, Mark, Node as ProseMirrorNode, Schema, type DOMOutputSpec, type MarkSpec, type NodeSpec, type ResolvedPos } from "prosemirror-model";
 import { EditorState, NodeSelection, Plugin, PluginKey, Selection, TextSelection, type Transaction } from "prosemirror-state";
 
 export interface MomentariseRichProseMirrorContract {
@@ -3022,12 +3022,35 @@ const richNodes: Record<string, NodeSpec> = {
     },
     group: "block",
     selectable: true,
-    toDOM: (node) => ["pre", { "data-unsupported": "true" }, String(node.attrs.raw)]
+    toDOM: (node) => unsupportedBlockToDOM(node)
   },
   text: {
     group: "inline"
   }
 };
+
+function unsupportedBlockToDOM(node: ProseMirrorNode): DOMOutputSpec {
+  const raw = String(node.attrs.raw ?? "");
+  const reason = String(node.attrs.reason ?? "unsupported Markdown");
+  if (isPreservedTableFallback(reason)) {
+    return [
+      "figure",
+      {
+        "aria-label": "Preserved Markdown table. Edit in Source mode.",
+        "contenteditable": "false",
+        "data-mme-preserved-table": "true",
+        "data-unsupported": "true"
+      },
+      ["figcaption", { "data-mme-preserved-table-label": "true" }, "Preserved Markdown table. Edit in Source mode."],
+      ["pre", { "data-mme-preserved-table-source": "true", "data-unsupported": "true" }, raw]
+    ];
+  }
+  return ["pre", { "data-unsupported": "true" }, raw];
+}
+
+function isPreservedTableFallback(reason: string): boolean {
+  return /table/i.test(reason);
+}
 
 const richMarks: Record<string, MarkSpec> = {
   em: {

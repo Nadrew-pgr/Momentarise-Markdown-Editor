@@ -29,6 +29,7 @@ Fixtures are intentionally synthetic and sanitized. They must not contain privat
 16. `016-policy-sensitive`: safe placeholder document plus sanitized `.env` and `.gitignore` files for access-policy behavior.
 17. `017-long-heading-document`: many headings for folding and navigation tests.
 18. `018-nested-lists-todos`: nested lists and task lists.
+19. `019-gfm-table-variants`: supported GFM table variants plus malformed table-like syntax.
 
 ## Use
 
