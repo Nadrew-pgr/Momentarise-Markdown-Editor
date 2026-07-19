@@ -50,6 +50,12 @@ if (sandboxAllowsScripts(descriptor.sandbox)) {
 if (!descriptor.warnings.some((warning) => warning.code === "html-preview-scripts-disabled")) {
   throw new Error("Descriptor must explain that scripts are disabled by default.");
 }
+if (!descriptor.warnings.some((warning) => warning.code === "html-preview-sandboxed")) {
+  throw new Error("Descriptor must keep sandbox truth discoverable for host UI details.");
+}
+if (!descriptor.warnings.some((warning) => warning.code === "html-preview-inline-script-present")) {
+  throw new Error("Descriptor must disclose inline scripts without enabling them.");
+}
 
 const explicitCompatibilityDescriptor = createSandboxedHtmlPreview({
   fileName: "compat-preview.html",
@@ -58,6 +64,21 @@ const explicitCompatibilityDescriptor = createSandboxedHtmlPreview({
 });
 if (explicitCompatibilityDescriptor.sandbox !== "allow-same-origin") {
   throw new Error("Hosts must still be able to opt into allow-same-origin explicitly.");
+}
+
+const scriptOptInDescriptor = createSandboxedHtmlPreview({
+  fileName: "script-request.html",
+  html: "<script>window.top.__MME_LEAK = true;</script>",
+  sandboxTokens: ["allow-scripts", "allow-same-origin"]
+});
+if (scriptOptInDescriptor.sandbox.includes("allow-scripts")) {
+  throw new Error("HTML preview must strip allow-scripts even when a host passes it in V0.");
+}
+if (scriptOptInDescriptor.scriptsEnabled !== false) {
+  throw new Error("HTML preview descriptor must never claim scripts are enabled in V0.");
+}
+if (sandboxAllowsScripts(scriptOptInDescriptor.sandbox)) {
+  throw new Error("Script opt-in request must not produce a script-enabled sandbox.");
 }
 
 for (const fileName of ["artifact.html", "artifact.HTML", "fragment.htm"]) {

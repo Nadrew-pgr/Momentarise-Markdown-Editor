@@ -12,8 +12,13 @@ for (const snippet of [
   "data-testid=\"open-html-file-button\"",
   "data-testid=\"html-file-input\"",
   "data-testid=\"html-preview-host\"",
-  "data-testid=\"html-preview-banner\"",
   "data-testid=\"html-preview-frame\"",
+  "data-testid=\"html-preview-details\"",
+  "data-testid=\"html-preview-details-toggle\"",
+  "data-testid=\"html-preview-details-menu\"",
+  "data-testid=\"html-preview-sandbox-tokens\"",
+  "data-testid=\"html-preview-scripts\"",
+  "data-testid=\"html-preview-save-truth\"",
   "data-testid=\"html-preview-status\"",
   "loadHtmlArtifactForTest",
   "getHtmlPreviewState",
@@ -24,13 +29,18 @@ for (const snippet of [
   }
 }
 
+if (demoSource.includes("data-testid=\"html-preview-banner\"")) {
+  throw new Error("MME-0046 normal HTML preview must not keep a permanent technical banner.");
+}
+
 if (!surfaceSource.includes("preview-mode-button")) {
   throw new Error("MME-0015 mode control surface must still expose the HTML Preview mode button.");
 }
 
 for (const snippet of [
   ".html-preview-host",
-  ".html-preview-banner",
+  ".html-preview-details",
+  ".html-preview-details-menu",
   ".html-preview-frame",
   ".mode-button:disabled"
 ]) {
@@ -39,8 +49,15 @@ for (const snippet of [
   }
 }
 
+if (styles.includes(".html-preview-banner")) {
+  throw new Error("MME-0046 styles must remove the permanent HTML preview banner strip.");
+}
+
 if (!packageJson.scripts?.["visual:mme-0015"]) {
   throw new Error("Root package must expose visual:mme-0015.");
+}
+if (!packageJson.scripts?.["visual:mme-0046"]) {
+  throw new Error("Root package must expose visual:mme-0046.");
 }
 if (!packageJson.scripts?.test?.includes("test:html-preview")) {
   throw new Error("Root npm test must include HTML preview package tests.");
@@ -77,5 +94,20 @@ for (const snippet of [
 ]) {
   if (!visualScript.includes(snippet)) {
     throw new Error(`MME-0015 visual script missing: ${snippet}`);
+  }
+}
+
+const htmlPolishVisualScript = readFileSync("scripts/visual-check-mme0046.mjs", "utf8");
+for (const snippet of [
+  "normal-html-reading-desktop.png",
+  "normal-html-reading-constrained.png",
+  "html-preview-details-open.png",
+  "html-preview-script-blocked.png",
+  "html-preview-details-toggle",
+  "html-preview-details-menu",
+  "sandboxAllowsScripts"
+]) {
+  if (!htmlPolishVisualScript.includes(snippet)) {
+    throw new Error(`MME-0046 visual script missing: ${snippet}`);
   }
 }

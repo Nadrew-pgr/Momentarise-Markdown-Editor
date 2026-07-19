@@ -5162,3 +5162,63 @@
   - Not pushed. Branch is ahead of origin and contains existing unpushed commits; visible/product review debt is queued for final human review before public launch.
 - Next issue:
   - `MME-0046 — HTML preview reading polish` after issue-scoped MME-0045 commit.
+
+## MME-0046 — HTML preview reading polish
+
+- Date: 2026-07-19.
+- Previous issue status:
+  - `MME-0045` completed and committed (`e7a7de7` plus follow-up evidence commit `83278cf`).
+  - `MME-0038`, `MME-0044`, `MME-0045`, and now `MME-0046` visible/product reviews are queued for the end-of-run human review block instead of blocking code continuation.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short`, and target files in `packages/md-preview-html`, `packages/md-surface`, `apps/md-demo`, MME-0015 HTML visual checks, MME-0032 sandbox default changes, existing HTML preview tests, and visual scripts.
+- RED proof before implementation:
+  - Updated `tests/html-preview.test.mjs` before implementation to require sandbox truth warnings, inline-script disclosure, and protection against `allow-scripts` opt-in attempts.
+  - Updated `tests/demo-html-preview-baseline.test.mjs` before implementation to reject the permanent `html-preview-banner`, require a discreet HTML preview details affordance, and require a new MME-0046 visual script.
+  - Added `scripts/visual-check-mme0046.mjs` and `docs/internal/visual-checks/MME-0046/README.md` before browser proof.
+  - Initial `npm run test:demo-html-preview` failed because `data-testid="html-preview-details"` did not exist.
+- Change:
+  - Removed the permanent technical HTML preview banner/strip from the normal standalone HTML artifact preview.
+  - Added a discreet `Preview details` disclosure over the iframe, exposing file name, sandbox tokens, script state, document target, and save truth without occupying permanent reading space.
+  - Kept standalone HTML artifact preview separate from Markdown read/inline HTML rendering paths.
+  - Kept standalone HTML artifacts on the `download-required`/export persistence path and surfaced that truth in the details menu.
+  - Kept `createSandboxedHtmlPreview()` as the preview descriptor source of truth, with `scriptsEnabled: false`, empty default sandbox tokens, and `allow-scripts` stripped even if a host passes it.
+  - Added visual proof for clean desktop reading, constrained-width reading, details-open disclosure, and hostile script blocking.
+  - Updated `README.md`, `docs/internal/ISSUES.md`, and `docs/internal/BACKLOG.md` for MME-0046 status and the end-of-run human review queue.
+- Visual impact:
+  - Standalone HTML Preview mode now reads like a normal document surface instead of a debug/device preview.
+  - The iframe uses the preview viewport directly; no permanent technical status strip reduces reading height.
+  - Sandbox/save truth remains available through the compact `Preview details` overlay.
+  - Screenshots:
+    - `docs/internal/visual-checks/MME-0046/normal-html-reading-desktop.png`
+    - `docs/internal/visual-checks/MME-0046/normal-html-reading-constrained.png`
+    - `docs/internal/visual-checks/MME-0046/html-preview-details-open.png`
+    - `docs/internal/visual-checks/MME-0046/html-preview-script-blocked.png`
+- Checks run:
+  - `npm run test:demo-html-preview` — RED before implementation, then green after implementation.
+  - `npm run test:html-preview` — green.
+  - `npm run build:demo` — green; existing Vite bundle-size warning only.
+  - `npm run visual:mme-0046` — sandbox Chrome aborted before CDP on first run; rerun green with system Chrome permission, and rerun green after the save-truth details refresh.
+  - `npm run test:demo-render-html` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:live-preview` — green.
+  - `git diff --check` — green.
+  - `npm test` — green; existing Vite bundle-size warning only.
+- Manual/visual verification:
+  - Dev server command remains `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`.
+  - Local URL: `http://127.0.0.1:5174/`.
+  - Manual screenshot inspection confirmed nonblank desktop/constrained preview, no permanent technical banner, iframe-owned reading surface, discoverable details menu, truthful export/save wording, and hostile script preview text without script execution.
+- Reviewer result:
+  - Security reviewer subagent `Noether` used `gpt-5.3-codex-spark` with `xhigh` reasoning and reported no P0/P1/P2 findings: `createSandboxedHtmlPreview` remains the source of truth, default sandbox grants no tokens, `allow-scripts` is filtered, HTML artifacts remain download/export-only, and Markdown vs HTML artifact paths stay separated.
+  - UX/visual reviewer subagent `Feynman` used `gpt-5.3-codex-spark` with `xhigh` reasoning and reported no P0/P1/P2 findings after reviewing the four MME-0046 screenshots and current diff.
+  - Final delta reviewer subagent `Nietzsche` used `gpt-5.3-codex-spark` with `xhigh` reasoning and reported no new P0/P1/P2 findings after the save-truth details refresh.
+- Residual risks:
+  - Final HTML-preview product taste is queued for the end-of-run human review block, per human instruction.
+  - This is reading polish only, not an advanced HTML artifact template/editor system.
+  - The preview uses the imported HTML's own scroll/body behavior inside the sandboxed iframe; MME controls the host surface and sandbox boundary, not every artifact's internal layout CSS.
+  - Visual proof requires system Chrome permission in this sandbox.
+- Commit status:
+  - Pending issue-scoped implementation commit after this build-log update.
+- Push status:
+  - Not pushed. Branch is ahead of origin and contains existing unpushed commits; visible/product review debt is queued for final human review before public launch.
+- Next issue:
+  - `MME-0047 — Folding and document structure polish` after issue-scoped MME-0046 commit.

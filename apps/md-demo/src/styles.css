@@ -1232,27 +1232,11 @@ h1 {
   background: var(--mme-color-bg);
 }
 
-.html-preview-host {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  background: var(--mme-color-surface);
-}
-
 .markdown-read-host {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   background: var(--mme-color-bg);
-}
-
-.html-preview-banner {
-  min-height: 34px;
-  padding: 8px 18px;
-  border-bottom: 1px solid var(--mme-color-border);
-  background: var(--mme-color-bg);
-  color: var(--mme-color-text-muted);
-  font-size: 11.5px;
-  font-weight: 550;
 }
 
 .markdown-read-banner {
@@ -1329,6 +1313,82 @@ h1 {
 .markdown-read-article :where(th, td) {
   border: 1px solid var(--mme-color-border);
   padding: 6px 8px;
+}
+
+.html-preview-host {
+  position: relative;
+  overflow: hidden;
+  background: var(--mme-color-preview-canvas);
+}
+
+.html-preview-details {
+  position: absolute;
+  z-index: var(--mme-z-menu);
+  top: 12px;
+  right: 12px;
+}
+
+.html-preview-details > summary {
+  list-style: none;
+}
+
+.html-preview-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.html-preview-details-toggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--mme-color-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--mme-color-surface-raised) 94%, transparent);
+  color: var(--mme-color-text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 650;
+  box-shadow: var(--mme-shadow-sm);
+}
+
+.html-preview-details-toggle:hover {
+  border-color: var(--mme-color-border-strong);
+  color: var(--mme-color-text);
+}
+
+.html-preview-details-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  gap: 8px;
+  width: min(330px, calc(100vw - 24px));
+  padding: 10px;
+  border: 1px solid var(--mme-color-border);
+  border-radius: var(--mme-radius-lg);
+  background: var(--mme-color-surface-raised);
+  box-shadow: var(--mme-shadow-md);
+}
+
+.html-preview-details-menu p {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+}
+
+.html-preview-details-menu span {
+  color: var(--mme-color-text-muted);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.html-preview-details-menu strong {
+  overflow-wrap: anywhere;
+  color: var(--mme-color-text);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .html-preview-frame {

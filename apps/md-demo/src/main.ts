@@ -265,9 +265,22 @@ app.innerHTML = `
           <article class="markdown-read-article" data-testid="markdown-read-article" aria-label="Markdown read view"></article>
         </div>
         <div class="html-preview-host" data-testid="html-preview-host" hidden>
-          <div class="html-preview-banner" data-testid="html-preview-banner">
-            HTML artifact preview · sandboxed · no tokens · scripts disabled
-          </div>
+          <details class="html-preview-details" data-testid="html-preview-details">
+            <summary
+              class="html-preview-details-toggle"
+              data-testid="html-preview-details-toggle"
+              aria-label="HTML preview details"
+            >
+              Preview details
+            </summary>
+            <div class="html-preview-details-menu" data-testid="html-preview-details-menu">
+              <p><span>File</span><strong data-testid="html-preview-file-name">Unavailable</strong></p>
+              <p><span>Sandbox</span><strong data-testid="html-preview-sandbox-tokens">none</strong></p>
+              <p><span>Scripts</span><strong data-testid="html-preview-scripts">disabled</strong></p>
+              <p><span>Target</span><strong data-testid="html-preview-target">none</strong></p>
+              <p><span>Save</span><strong data-testid="html-preview-save-truth">unavailable</strong></p>
+            </div>
+          </details>
           <iframe
             class="html-preview-frame"
             data-testid="html-preview-frame"
@@ -418,7 +431,12 @@ const markdownReadHost = queryRequired<HTMLDivElement>('[data-testid="markdown-r
 const markdownReadBanner = queryRequired<HTMLDivElement>('[data-testid="markdown-read-banner"]');
 const markdownReadArticle = queryRequired<HTMLElement>('[data-testid="markdown-read-article"]');
 const htmlPreviewHost = queryRequired<HTMLDivElement>('[data-testid="html-preview-host"]');
-const htmlPreviewBanner = queryRequired<HTMLDivElement>('[data-testid="html-preview-banner"]');
+const htmlPreviewDetails = queryRequired<HTMLDetailsElement>('[data-testid="html-preview-details"]');
+const htmlPreviewFileNameElement = queryRequired<HTMLElement>('[data-testid="html-preview-file-name"]');
+const htmlPreviewSandboxTokensElement = queryRequired<HTMLElement>('[data-testid="html-preview-sandbox-tokens"]');
+const htmlPreviewScriptsElement = queryRequired<HTMLElement>('[data-testid="html-preview-scripts"]');
+const htmlPreviewTargetElement = queryRequired<HTMLElement>('[data-testid="html-preview-target"]');
+const htmlPreviewSaveTruthElement = queryRequired<HTMLElement>('[data-testid="html-preview-save-truth"]');
 const htmlPreviewFrame = queryRequired<HTMLIFrameElement>('[data-testid="html-preview-frame"]');
 const modeControlHost = queryRequired<HTMLDivElement>('[data-testid="mode-control-host"]');
 const richCommandToolbarHost = queryRequired<HTMLDivElement>('[data-testid="rich-command-toolbar-host"]');
@@ -1871,7 +1889,9 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   getHtmlPreviewState() {
     return {
       available: activeDocument.kind === "html-artifact",
-      bannerText: htmlPreviewBanner.textContent ?? "",
+      bannerText: "",
+      detailsOpen: htmlPreviewDetails.open,
+      detailsText: htmlPreviewDetails.textContent ?? "",
       fileName: htmlPreviewDescriptor?.fileName ?? null,
       frameSandbox: htmlPreviewFrame.getAttribute("sandbox"),
       frameSrcdocLength: htmlPreviewFrame.getAttribute("srcdoc")?.length ?? 0,
@@ -2657,8 +2677,13 @@ function renderHtmlPreview(): void {
   if (activeDocument.kind !== "html-artifact") {
     htmlPreviewFrame.removeAttribute("srcdoc");
     htmlPreviewFrame.setAttribute("sandbox", "");
-    htmlPreviewBanner.textContent = "HTML artifact preview unavailable";
     htmlPreviewStatusElement.textContent = "HTML artifact preview unavailable";
+    htmlPreviewDetails.open = false;
+    htmlPreviewFileNameElement.textContent = "Unavailable";
+    htmlPreviewSandboxTokensElement.textContent = "none";
+    htmlPreviewScriptsElement.textContent = "disabled";
+    htmlPreviewTargetElement.textContent = "none";
+    htmlPreviewSaveTruthElement.textContent = "unavailable";
     return;
   }
 
@@ -2668,8 +2693,18 @@ function renderHtmlPreview(): void {
   });
   htmlPreviewFrame.setAttribute("sandbox", htmlPreviewDescriptor.sandbox);
   htmlPreviewFrame.srcdoc = htmlPreviewDescriptor.srcdoc;
-  htmlPreviewBanner.textContent = `${activeDocument.fileName} · HTML artifact preview · sandboxed · scripts disabled`;
+  renderHtmlPreviewDetails(htmlPreviewDescriptor);
   htmlPreviewStatusElement.textContent = htmlPreviewStatusLabel(htmlPreviewDescriptor);
+}
+
+function renderHtmlPreviewDetails(descriptor: SandboxedHtmlPreviewDescriptor): void {
+  const scriptStatus = sandboxAllowsScripts(descriptor.sandbox) ? "scripts allowed" : "scripts disabled";
+  const tokenStatus = descriptor.sandboxTokens.length === 0 ? "no sandbox tokens" : `tokens: ${descriptor.sandbox}`;
+  htmlPreviewFileNameElement.textContent = descriptor.fileName;
+  htmlPreviewSandboxTokensElement.textContent = tokenStatus;
+  htmlPreviewScriptsElement.textContent = scriptStatus;
+  htmlPreviewTargetElement.textContent = activeDocument.pathLabel;
+  htmlPreviewSaveTruthElement.textContent = `${defaultMmeStrings.status.htmlTarget}; ${saveEngineStatusLabel(session.getSaveState())}`;
 }
 
 function renderMarkdownReadView(): void {
@@ -4623,6 +4658,9 @@ function renderSaveState(): void {
     document: surfaceDocumentState(),
     saveState: state
   });
+  if (activeDocument.kind === "html-artifact" && htmlPreviewDescriptor) {
+    renderHtmlPreviewDetails(htmlPreviewDescriptor);
+  }
   renderReferenceSurfaceState();
 }
 
@@ -5353,6 +5391,8 @@ declare global {
       getHtmlPreviewState: () => {
         readonly available: boolean;
         readonly bannerText: string;
+        readonly detailsOpen: boolean;
+        readonly detailsText: string;
         readonly fileName: string | null;
         readonly frameSandbox: string | null;
         readonly frameSrcdocLength: number;

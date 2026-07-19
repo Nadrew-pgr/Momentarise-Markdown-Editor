@@ -2625,6 +2625,10 @@ This is reading polish, not an advanced HTML template system. If a richer artifa
 
 UX Reviewer and Security Reviewer.
 
+### Status
+
+Accepted for code continuation 2026-07-19 after HTML-preview reading polish, reviewer rechecks, visual proof, and full test pass. Removed the permanent technical preview banner from the normal standalone HTML reading surface, added a discreet `Preview details` disclosure for file, sandbox tokens, script state, target, and save truth, kept HTML artifacts on the download/export persistence path, and tightened tests proving `allow-scripts` cannot be enabled in V0. Visual proof covers desktop reading, constrained-width reading, details-open disclosure, and hostile inline script blocking. Proven by RED `npm run test:demo-html-preview`, green targeted checks, `npm run visual:mme-0046`, `git diff --check`, and full `npm test`. Security and UX reviewer subagents reported no P0/P1/P2 findings; a final delta reviewer also reported no new P0/P1/P2 after the save-truth refresh. Final human HTML-preview product review is queued in `docs/internal/BACKLOG.md`; `MME-0047` remains the next candidate after issue-scoped commit.
+
 ## MME-0047 — Folding and document structure polish
 
 ### Goal
