@@ -4723,7 +4723,7 @@
 - Reviewer/fallback:
   - Documentation promotion self-review required after edit; implementation reviewer pass starts with `MME-0040`.
 - Commit status:
-  - Promotion docs commit to be created before coding `MME-0040`.
+  - Promotion docs commit created: `43070ff` (`docs: promote public readiness backlog issues`).
 - Push status:
   - Not pushed yet; existing branch already has unpushed commits and MME-0038 remains pending public-face validation.
 - Next issue:
