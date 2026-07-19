@@ -4922,8 +4922,8 @@
   - Mouse insertion is intentionally conservative: it triggers only for editor-root empty-tail clicks below the final eligible block, not arbitrary nearby coordinates or overlay surfaces.
   - Visual proof requires system Chrome permission in this sandbox, same as prior visual scripts.
 - Commit status:
-  - Pending issue-scoped commit.
+  - Issue-scoped commit created: `a0534b2` (`feat: harden rich editor final block interactions`).
 - Push status:
-  - Pending commit first; branch already has existing unpushed commits and `MME-0038` remains pending public-face validation, so pushing as accepted release-ready work remains blocked without a separate safe-push instruction.
+  - Not pushed yet; branch contains existing unpushed commits and `MME-0038` remains pending public-face validation, so pushing as accepted release-ready work is blocked without a separate safe-push instruction.
 - Next issue:
   - `MME-0043 — Live Preview parity foundation`.
