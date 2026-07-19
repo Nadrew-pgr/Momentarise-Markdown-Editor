@@ -5217,7 +5217,7 @@
   - The preview uses the imported HTML's own scroll/body behavior inside the sandboxed iframe; MME controls the host surface and sandbox boundary, not every artifact's internal layout CSS.
   - Visual proof requires system Chrome permission in this sandbox.
 - Commit status:
-  - Pending issue-scoped implementation commit after this build-log update.
+  - Issue-scoped implementation commit created: `e5d9d78` (`feat: polish html preview reading`).
 - Push status:
   - Not pushed. Branch is ahead of origin and contains existing unpushed commits; visible/product review debt is queued for final human review before public launch.
 - Next issue:
