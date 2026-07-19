@@ -1,7 +1,8 @@
 import type { DocumentHash, DocumentSnapshot, EditorDocumentKind, EditorMode, SaveState, SidecarState } from "@momentarise/md-core";
 import {
   classifyEditorDocumentKind,
-  isMarkdownDocumentFileName
+  isMarkdownDocumentFileName,
+  isSvgArtifactFileName
 } from "@momentarise/md-core";
 import {
   createDownloadRequiredSaveTarget,
@@ -29,7 +30,7 @@ export interface WebAdapterHost {
 }
 
 export type WebOpenedMarkdownMode = "writable-file" | "imported-copy" | "unsupported";
-export type WebOpenedSourceDocumentKind = Extract<EditorDocumentKind, "lightweight-source" | "markdown">;
+export type WebOpenedSourceDocumentKind = Extract<EditorDocumentKind, "lightweight-source" | "markdown" | "svg-artifact">;
 export type WebOpenedDocumentKind = WebOpenedSourceDocumentKind | "unsupported";
 
 export interface WebFileLike {
@@ -421,9 +422,10 @@ function markdownFilePickerTypes(): readonly WebFilePickerType[] {
         "text/tab-separated-values": [".tsv"],
         "application/json": [".json"],
         "application/toml": [".toml"],
-        "application/yaml": [".yaml", ".yml"]
+        "application/yaml": [".yaml", ".yml"],
+        "image/svg+xml": [".svg"]
       },
-      description: "Markdown and source text files"
+      description: "Markdown, source text, and SVG files"
     }
   ];
 }
@@ -437,13 +439,17 @@ function ensureSourceDocumentFileName(fileName: string, kind: WebOpenedSourceDoc
   if (kind === "markdown") {
     return ensureMarkdownFileName(fileName);
   }
+  if (kind === "svg-artifact") {
+    const trimmed = fileName.trim() || "Untitled.svg";
+    return isSvgArtifactFileName(trimmed) ? trimmed : `${trimmed}.svg`;
+  }
   const trimmed = fileName.trim() || "Untitled.txt";
   return classifyEditorDocumentKind(trimmed) === "lightweight-source" ? trimmed : `${trimmed}.txt`;
 }
 
 function sourceDocumentKindForFile(fileName: string, mediaType?: string | null): WebOpenedDocumentKind {
   const kind = classifyEditorDocumentKind(fileName, mediaType);
-  return kind === "lightweight-source" || kind === "markdown" ? kind : "unsupported";
+  return kind === "lightweight-source" || kind === "markdown" || kind === "svg-artifact" ? kind : "unsupported";
 }
 
 function createUnsupportedOpenedDocument(content: string, fileName: string): WebOpenedMarkdownFile {

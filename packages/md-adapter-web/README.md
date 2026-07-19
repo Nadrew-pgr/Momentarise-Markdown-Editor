@@ -6,7 +6,7 @@ This package keeps browser-specific file access at the adapter boundary:
 
 - File System Access handles are wrapped as source-document `SaveTarget`s.
 - `createNewMarkdownFile()` and `saveMarkdownAsFile()` use the browser save picker when available and return a writable disk target only after the initial source bytes are written.
-- `openWritableMarkdownFile()` and `createImportedCopyDocument()` report whether the opened source is Markdown or lightweight source text.
+- `openWritableMarkdownFile()` and `createImportedCopyDocument()` report whether the opened source is Markdown, lightweight source text, or standalone SVG artifact source.
 - Unsupported file names return unsupported document results instead of being treated as Markdown.
 - Hosts can check `canCreateWritableFile()` separately from `canUseFileSystemAccess()` because some browsers may support opening files without supporting save-picker creation.
 - Writable targets expose `readExternalHash()` for save-time verification and `readExternalContent()` for safe clean reloads.

@@ -188,11 +188,12 @@ export interface DocumentSnapshot {
   readonly revision?: DocumentRevision;
 }
 
-export type EditorDocumentKind = "html-artifact" | "lightweight-source" | "markdown";
+export type EditorDocumentKind = "html-artifact" | "lightweight-source" | "markdown" | "svg-artifact";
 export type EditorDocumentFileKind = EditorDocumentKind | "unsupported";
 
 export const MARKDOWN_DOCUMENT_EXTENSIONS = [".md", ".markdown", ".mdown"] as const;
 export const HTML_ARTIFACT_EXTENSIONS = [".html", ".htm"] as const;
+export const SVG_ARTIFACT_EXTENSIONS = [".svg"] as const;
 export const LIGHTWEIGHT_SOURCE_EXTENSIONS = [
   ".csv",
   ".json",
@@ -213,11 +214,17 @@ export function classifyEditorDocumentKind(fileName: string, mediaType?: string 
   if (normalizedMediaType && HTML_MEDIA_TYPES.has(normalizedMediaType)) {
     return "html-artifact";
   }
+  if (normalizedMediaType && SVG_MEDIA_TYPES.has(normalizedMediaType)) {
+    return "svg-artifact";
+  }
   if (isMarkdownDocumentFileName(fileName)) {
     return "markdown";
   }
   if (isHtmlArtifactFileName(fileName)) {
     return "html-artifact";
+  }
+  if (isSvgArtifactFileName(fileName)) {
+    return "svg-artifact";
   }
   if (isLightweightSourceFileName(fileName)) {
     return "lightweight-source";
@@ -237,6 +244,10 @@ export function isMarkdownDocumentFileName(fileName: string): boolean {
 
 export function isHtmlArtifactFileName(fileName: string): boolean {
   return extensionSetIncludes(HTML_ARTIFACT_EXTENSIONS, fileName);
+}
+
+export function isSvgArtifactFileName(fileName: string): boolean {
+  return extensionSetIncludes(SVG_ARTIFACT_EXTENSIONS, fileName);
 }
 
 export function isLightweightSourceFileName(fileName: string): boolean {
@@ -262,6 +273,7 @@ function normalizeMediaType(mediaType: string | null | undefined): string {
 
 const MARKDOWN_MEDIA_TYPES = new Set(["text/markdown", "text/x-markdown"]);
 const HTML_MEDIA_TYPES = new Set(["text/html", "application/xhtml+xml"]);
+const SVG_MEDIA_TYPES = new Set(["image/svg+xml"]);
 const LIGHTWEIGHT_SOURCE_MEDIA_TYPES = new Set([
   "application/json",
   "application/toml",

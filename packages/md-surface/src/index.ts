@@ -161,7 +161,7 @@ export interface SurfaceAiAction {
   readonly prompt: string;
 }
 
-export type SurfaceDocumentKind = "html-artifact" | "lightweight-source" | "markdown";
+export type SurfaceDocumentKind = "html-artifact" | "lightweight-source" | "markdown" | "svg-artifact";
 export type SurfaceDocumentMode = "fixture" | "imported-copy" | "unsupported" | "writable-file" | string;
 export type SurfaceEditorMode = "live-preview" | "preview" | "rich" | "source";
 
@@ -2213,7 +2213,7 @@ function modeButton(options: CreateModeControlOptions, state: SurfaceModeControl
     button.hidden = state.documentKind !== "markdown";
   }
   if (mode === "preview") {
-    button.disabled = state.documentKind !== "html-artifact";
+    button.disabled = state.documentKind !== "html-artifact" && state.documentKind !== "svg-artifact";
     button.hidden = false;
   }
   return button;

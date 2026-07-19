@@ -16,6 +16,10 @@ const crlfContent = "# CRLF File\r\n\r\nInitial body.\r\n";
 const normalizedCrlfContent = "# CRLF File\n\nInitial body.\n";
 const editedCrlfContent = "# CRLF File\n\nEdited body.\n";
 const editedCrlfDiskContent = "# CRLF File\r\n\r\nEdited body.\r\n";
+const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">\r\n  <circle cx="16" cy="16" r="12" />\r\n</svg>\r\n`;
+const normalizedSvgContent = svgContent.replace(/\r\n?/g, "\n");
+const editedSvgContent = normalizedSvgContent.replace("</svg>\n", "  <path d=\"M8 16h16\" />\n</svg>\n");
+const editedSvgDiskContent = editedSvgContent.replace(/\n/g, "\r\n");
 
 if (canUseFileSystemAccess({}) !== false) {
   throw new Error("Host without showOpenFilePicker must not report File System Access support.");
@@ -121,6 +125,26 @@ if (sourceSavedAs.fileName !== "server-copy.log") {
 }
 if (sourceSaveAsHost.readDiskContent() !== "line one\nline two\n") {
   throw new Error("Lightweight source Save As must write current source text to the selected file.");
+}
+
+const svgSaveAsHost = createMockSavePickerHost({
+  name: "diagram-copy.svg"
+});
+const svgSavedAs = await saveMarkdownAsFile({
+  content: normalizedSvgContent,
+  fileName: "diagram",
+  host: svgSaveAsHost,
+  kind: "svg-artifact",
+  now: date("2026-05-30T00:59:30.000Z")
+});
+if (svgSavedAs.kind !== "svg-artifact") {
+  throw new Error(`SVG Save As must preserve SVG artifact kind, got ${svgSavedAs.kind}.`);
+}
+if (svgSavedAs.fileName !== "diagram-copy.svg") {
+  throw new Error(`SVG Save As must preserve selected SVG extension, got ${svgSavedAs.fileName}.`);
+}
+if (svgSaveAsHost.readDiskContent() !== normalizedSvgContent) {
+  throw new Error("SVG Save As must write editable SVG source, not a sanitized preview artifact.");
 }
 
 const newFileFallback = await createNewMarkdownFile({
@@ -238,6 +262,50 @@ if (!sourceHost.showOpenFilePickerOptions[0]?.types?.[0]?.accept?.["text/plain"]
   throw new Error("Open picker must advertise .log source text support.");
 }
 
+const svgHost = createMockPickerHost({
+  content: svgContent,
+  name: "diagram.svg",
+  type: "image/svg+xml"
+});
+const svgOpened = await openWritableMarkdownFile(svgHost);
+if (svgOpened.kind !== "svg-artifact") {
+  throw new Error(`Writable SVG open must report svg-artifact kind, got ${svgOpened.kind}.`);
+}
+if (svgOpened.content !== normalizedSvgContent) {
+  throw new Error("Writable SVG open must normalize editor line endings.");
+}
+if (!svgHost.showOpenFilePickerOptions[0]?.types?.[0]?.accept?.["image/svg+xml"]?.includes(".svg")) {
+  throw new Error("Open picker must advertise .svg artifact support.");
+}
+const svgEngine = createSaveEngine({
+  content: svgOpened.content,
+  now: date("2026-05-30T01:00:20.000Z"),
+  target: svgOpened.target
+});
+const svgNoop = await svgEngine.flush({
+  now: date("2026-05-30T01:00:21.000Z"),
+  reason: "manual"
+});
+if (svgNoop.status !== "noop") {
+  throw new Error(`Expected clean SVG save to be noop, got ${svgNoop.status}.`);
+}
+if (svgHost.readDiskContent() !== svgContent) {
+  throw new Error("Clean SVG no-op save must not rewrite line endings.");
+}
+svgEngine.updateContent(editedSvgContent, {
+  now: date("2026-05-30T01:00:22.000Z")
+});
+const svgSaved = await svgEngine.flush({
+  now: date("2026-05-30T01:00:23.000Z"),
+  reason: "manual"
+});
+if (svgSaved.status !== "saved") {
+  throw new Error(`Expected edited SVG file to save, got ${svgSaved.status}.`);
+}
+if (svgHost.readDiskContent() !== editedSvgDiskContent) {
+  throw new Error("Edited SVG file must preserve CRLF line endings on disk.");
+}
+
 const conflictHost = createMockPickerHost({
   content: initialContent,
   name: "conflict-note.md"
@@ -304,6 +372,20 @@ assertIncludes(
   "download required",
   "imported copy persistence label"
 );
+
+const importedSvg = createImportedCopyDocument({
+  content: svgContent,
+  fileName: "imported.svg"
+});
+if (importedSvg.kind !== "svg-artifact" || importedSvg.mode !== "imported-copy") {
+  throw new Error(`Imported SVG must report imported SVG artifact, got ${importedSvg.kind}/${importedSvg.mode}.`);
+}
+if (importedSvg.target.persistenceTarget !== "download-required") {
+  throw new Error("Imported SVG must require download/export instead of claiming original overwrite.");
+}
+if (importedSvg.content !== normalizedSvgContent) {
+  throw new Error("Imported SVG must normalize editor line endings.");
+}
 
 const importedCrlf = createImportedCopyDocument({
   content: crlfContent,

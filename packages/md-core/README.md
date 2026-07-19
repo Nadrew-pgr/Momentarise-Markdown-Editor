@@ -2,6 +2,7 @@
 
 Host-independent core contracts for Momentarise Markdown Editor.
 
+`classifyEditorDocumentKind()` routes Markdown, standalone HTML artifacts, standalone SVG artifacts, and lightweight source text without importing adapters or UI packages.
 
 ## Release metadata
 

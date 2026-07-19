@@ -116,7 +116,8 @@ export {
   classifyEditorDocumentKind,
   isHtmlArtifactFileName,
   isLightweightSourceFileName,
-  isMarkdownDocumentFileName
+  isMarkdownDocumentFileName,
+  isSvgArtifactFileName
 } from "@momentarise/md-core";
 export type { EditorDocumentFileKind, EditorDocumentKind } from "@momentarise/md-core";
 
@@ -130,7 +131,7 @@ export interface EditorModeDefinition {
 
 export const DEFAULT_EDITOR_MODE_DEFINITIONS: readonly EditorModeDefinition[] = [
   {
-    documentKinds: ["markdown", "html-artifact", "lightweight-source"],
+    documentKinds: ["markdown", "html-artifact", "lightweight-source", "svg-artifact"],
     editable: true,
     id: "source",
     label: "Source",
@@ -151,7 +152,7 @@ export const DEFAULT_EDITOR_MODE_DEFINITIONS: readonly EditorModeDefinition[] = 
     preservesSource: true
   },
   {
-    documentKinds: ["html-artifact"],
+    documentKinds: ["html-artifact", "svg-artifact"],
     editable: false,
     id: "preview",
     label: "Preview",

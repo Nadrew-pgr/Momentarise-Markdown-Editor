@@ -5614,3 +5614,62 @@
   - Pending before commit: `git diff --check`.
 - Next issue:
   - `MME-0053 — SVG source reader and sanitized preview`.
+
+## MME-0053 — SVG source reader and sanitized preview
+
+- Date: 2026-07-19.
+- Previous issue status:
+  - `MME-0052` accepted for code continuation and committed (`b952cf3` implementation/status, `4e2db91` evidence).
+  - `MME-0053` was promoted from backlog into normal issue form and committed in checkpoint `3239715`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short`, and target files in `packages/md-core`, `packages/md-editor`, `packages/md-surface`, `packages/md-preview-html`, `packages/md-adapter-web`, `apps/md-demo`, tests, public docs, and generated agent/LLM artifacts.
+- RED proof before implementation:
+  - Added `tests/svg-preview.test.mjs` and wired `test:svg-preview` into root `npm test`.
+  - Initial `npm run test:svg-preview` failed because `@momentarise/md-core` and `@momentarise/md-editor` did not yet expose SVG artifact classification or a sanitized SVG preview helper.
+- Change:
+  - Added standalone `svg-artifact` document-kind classification in `@momentarise/md-core` and re-exported SVG helpers through `@momentarise/md-editor`.
+  - Extended editor/surface mode contracts so standalone SVG artifacts expose Source and Preview only, never Rich or Live Preview.
+  - Added `createSandboxedSvgPreview` to `@momentarise/md-preview-html` with scripts disabled, sandbox `allow-scripts` stripping, a DOM-based allowlist sanitizer, unsafe URL/reference removal, and an inert fallback when DOM sanitization is unavailable.
+  - Extended `@momentarise/md-adapter-web` and the demo app to open/import/save standalone `.svg` files with truthful writable/imported-copy states and preserved source line endings.
+  - Added demo runtime diagnostics/properties copy for sanitized SVG previews and kept preview artifacts derived from, not written over, the source.
+  - Updated public import/export and package docs, package READMEs, public API fixtures, generated LLM artifacts, generated AX artifacts, and the end-of-run review queue.
+- Visual impact:
+  - Standalone SVG artifacts now have a visible sanitized Preview path plus source-preserving Source mode.
+  - Runtime visual artifacts captured in `docs/internal/visual-checks/MME-0053`: source opened, sanitized preview, details popover, and writable source saved.
+  - Final SVG preview product/wording review remains queued for the end-of-run human review block.
+- Checks run:
+  - `npm run test:svg-preview` — RED before implementation, then green after classifier, sanitizer, docs-trace, web-adapter, and reviewer fixes.
+  - `npm run test:web-file-access` — green with SVG open/import/noop/save/CRLF/Save As proof.
+  - `npm run test:surface` — green with SVG Source/Preview-only surface controls.
+  - `npm run test:public-api` — green after approving intentional SVG-related exports.
+  - `npm run test:lightweight-source-files` — green.
+  - `npm run test:html-preview` — green.
+  - `npm run test:demo-html-preview` — green.
+  - `npm run test:demo-reference-surface` — green.
+  - `npm run test:web-external-change` — green.
+  - `npm run build:demo` — green; existing Vite chunk-size warning only.
+  - `npm run build:docs-site` — green.
+  - `npm run test:docs` — green.
+  - `npm run test:llms-sync` — green.
+  - `npm run test:agent-artifacts` — green.
+  - `npm run test:docs-site` — green.
+  - `npm run test:docs-launch` — green.
+  - `npm run visual:mme-0053` — green after rerunning with required Chrome sandbox permission; artifacts saved under `docs/internal/visual-checks/MME-0053`.
+  - `npm test` — first run caught an architecture-gate `document.` token in the SVG sanitizer implementation; builder fixed the local variable name and reran full `npm test` green.
+- Manual/dev-server verification:
+  - Restarted docs-site dev server at `http://localhost:5178` using `npm run dev -w @momentarise/docs-site -- --port 5178`.
+  - Existing md-demo server at `http://127.0.0.1:5174` answered HTTP 200.
+- Reviewer result:
+  - Architecture/API reviewer subagent `Hume` used `gpt-5.3-codex-spark` with `xhigh` reasoning and reported no findings.
+  - Security reviewer subagent `Mencius` used `gpt-5.3-codex-spark` with `xhigh` reasoning. Initial findings covered brittle regex sanitization and overclaimed docs wording. Builder replaced the sanitizer with a DOM allowlist implementation, tightened conservative wording, and re-review reported no remaining findings.
+  - Test reviewer subagent `Ampere` used `gpt-5.3-codex-spark` with `xhigh` reasoning. Initial findings covered static demo routing assertions, narrow hostile SVG corpus, missing surface/web matrices, and weak public docs trace. Builder added the missing regression coverage plus runtime visual proof; re-review reported no findings.
+- Residual risks:
+  - Final `.svg` open/import/save wording, Source/Preview labeling, sanitizer-warning understandability, and visible preview chrome review is queued in `docs/internal/BACKLOG.md`.
+  - The DOMParser-unavailable runtime path intentionally renders an inert placeholder instead of attempting unsafe string sanitization.
+  - Inline SVG in Markdown, image upload/storage, SVG editing tools, raster export, optimization, conversion, and external resource fetching remain out of scope.
+- Commit status:
+  - Pending before commit.
+- Push status:
+  - Not pushed. Branch is ahead of origin and contains queued public/product review debt; push remains deferred until final review policy is satisfied or Andrew instructs otherwise.
+- Next issue:
+  - No executable normal issue remains after `MME-0053`; continuation requires promoting the next backlog item into normal issue form before implementation.

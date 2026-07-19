@@ -711,6 +711,7 @@ tags:
   - import
   - export
   - html
+  - svg
   - source
 llms: include
 updated: 2026-07-19
@@ -745,6 +746,14 @@ Raw HTML inside Markdown can render where policy allows, but HTML is not silentl
 Standalone `.html` files use the sandbox preview path. They are treated as HTML artifacts, not Markdown documents.
 
 Scripts are disabled by default and sandbox permissions must stay explicit.
+
+## Standalone SVG Preview
+
+Standalone `.svg` files are visual source artifacts. MME opens the source for editing and exposes a conservative sanitized Preview path.
+
+The V0 sanitizer keeps simple SVG drawing elements and strips unsupported or active preview content such as scripts, `on*` event handlers, script/data URL protocols, external references, `foreignObject`, remote CSS, image references, and unknown elements before rendering. The sanitized preview is derived only; Save and Save As write the original SVG source text, not the preview artifact.
+
+SVG artifacts expose Source and Preview. They do not expose Markdown parsing, Rich mode, or Live Preview.
 
 ## Future Format Adapters
 
@@ -968,37 +977,43 @@ console.log(result.html);
 ---
 path: docs/public/packages/md-preview-html.md
 url: https://momentarise.dev/docs/packages/md-preview-html
-title: HTML Artifact Preview
+title: HTML And SVG Artifact Preview
 ---
 
 ---
-title: HTML Artifact Preview
-description: Sandboxed preview descriptors for standalone HTML files.
+title: HTML And SVG Artifact Preview
+description: Sandboxed preview descriptors for standalone HTML and sanitized SVG files.
 nav_section: Features
 nav_order: 13
 audience: developers
 tags:
   - package
   - html
+  - svg
 packages:
   - "@momentarise/md-preview-html"
 llms: include
-updated: 2026-07-08
+updated: 2026-07-19
 ---
 
-# HTML Artifact Preview
+# HTML And SVG Artifact Preview
 
-`@momentarise/md-preview-html` handles standalone HTML artifact preview descriptors.
+`@momentarise/md-preview-html` handles standalone artifact preview descriptors for HTML and SVG sources.
 
 ## Use It For
 
 - sandboxed iframe preview defaults;
 - script-disabled HTML artifact reading;
+- sanitized SVG artifact reading through `createSandboxedSvgPreview`;
 - host policy around HTML compatibility tokens.
 
 ## Boundary
 
-Standalone `.html` artifacts are not Markdown documents. Markdown inline or block HTML is rendered by [md-render-html](md-render-html.md).
+Standalone `.html` and `.svg` artifacts are not Markdown documents. Markdown inline or block HTML is rendered by [md-render-html](md-render-html.md).
+
+HTML preview preserves source as iframe `srcdoc` and relies on an empty script-disabled sandbox by default.
+
+SVG preview first produces a conservative sanitized derived artifact. V0 keeps simple drawing elements and strips unsupported or active elements, event attributes, script/data URL protocols, external references, remote CSS, and image references before rendering. The original SVG source remains the editable and saved text.
 
 ## Related Docs
 
@@ -1292,6 +1307,7 @@ console.log(hash);
 
 - Markdown source: `.md`, `.markdown`, `.mdown`;
 - standalone HTML artifact: `.html`, `.htm`;
+- standalone SVG artifact: `.svg`;
 - lightweight source text: `.txt`, `.text`, `.log`, `.csv`, `.tsv`, `.json`, `.yaml`, `.yml`, `.toml`.
 
 Unsupported files return `unsupported` so hosts can reject them before pretending they are editable Markdown.
@@ -1578,8 +1594,8 @@ session.destroy();
 - `createMarkdownEditorSession` owns the headless document session.
 - `createMarkdownImageReference`, `insertMarkdownImageReference`, and `session.insertAsset` let hosts wire image paste/drop/import flows without making MME own storage.
 - `createExtensionRegistry` collects host-provided commands, slash items, toolbar items, custom blocks, and AI actions.
-- `classifyEditorDocumentKind` and file-name helpers route supported Markdown, HTML artifact, and lightweight source files.
-- `editorModesForDocumentKind` keeps Markdown, HTML artifact, and lightweight source mode controls honest.
+- `classifyEditorDocumentKind` and file-name helpers route supported Markdown, HTML artifact, SVG artifact, and lightweight source files.
+- `editorModesForDocumentKind` keeps Markdown, HTML artifact, SVG artifact, and lightweight source mode controls honest.
 - `resolvePreferences` applies host, workspace, document, and locked preference layers.
 
 ## Release Notes
@@ -1751,7 +1767,7 @@ updated: 2026-07-19
 
 - File System Access save targets;
 - imported-copy and download-required targets;
-- Markdown and lightweight source-file open/save routing;
+- Markdown, lightweight source-file, and SVG source open/save routing;
 - external content reads;
 - focus and visibility refresh watchers.
 
@@ -1760,6 +1776,8 @@ updated: 2026-07-19
 The adapter opens Markdown plus lightweight source text files through the same save-target contracts. A `.log`, `.txt`, `.json`, `.yaml`, or `.toml` file can be writable when the browser grants a File System Access handle.
 
 Lightweight source files stay source-only. The adapter reports their document kind so hosts can hide Markdown-only Rich, Live Preview, parser, and serializer claims.
+
+Standalone `.svg` files are reported as SVG artifacts. They can use writable source save targets when the browser grants a handle, and hosts can pair them with `@momentarise/md-preview-html` for sanitized Preview rendering.
 
 Unsupported file names return an unsupported document result instead of being mislabeled as Markdown.
 

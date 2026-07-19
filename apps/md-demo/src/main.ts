@@ -35,9 +35,12 @@ import {
 } from "@momentarise/md-adapter-web";
 import {
   createSandboxedHtmlPreview,
+  createSandboxedSvgPreview,
   isHtmlFileName,
+  isSvgFileName,
   sandboxAllowsScripts,
-  type SandboxedHtmlPreviewDescriptor
+  type SandboxedHtmlPreviewDescriptor,
+  type SandboxedSvgPreviewDescriptor
 } from "@momentarise/md-preview-html";
 import {
   renderMarkdownToHtml,
@@ -187,7 +190,7 @@ app.innerHTML = `
           <button class="button secondary utility-action compact-action" type="button" data-testid="copy-button" tabindex="-1">Copy</button>
           <button class="button secondary utility-action compact-action" type="button" data-testid="download-button" tabindex="-1">Download</button>
         </div>
-        <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,.text,.log,.csv,.tsv,.json,.yaml,.yml,.toml,.html,.htm,text/markdown,text/plain,text/csv,text/tab-separated-values,application/json,application/yaml,application/toml,text/html" data-testid="open-file-input" />
+        <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,.text,.log,.csv,.tsv,.json,.yaml,.yml,.toml,.html,.htm,.svg,text/markdown,text/plain,text/csv,text/tab-separated-values,application/json,application/yaml,application/toml,text/html,image/svg+xml" data-testid="open-file-input" />
         <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,.text,.log,.csv,.tsv,.json,.yaml,.yml,.toml,text/markdown,text/plain,text/csv,text/tab-separated-values,application/json,application/yaml,application/toml" data-testid="import-copy-input" />
         <input class="file-input" type="file" accept=".html,.htm,text/html" data-testid="html-file-input" />
         <div data-testid="mode-control-host"></div>
@@ -290,7 +293,7 @@ app.innerHTML = `
             data-testid="html-preview-frame"
             referrerpolicy="no-referrer"
             sandbox=""
-            title="Sandboxed HTML preview"
+            title="Sandboxed artifact preview"
           ></iframe>
         </div>
       </div>
@@ -388,8 +391,8 @@ app.innerHTML = `
           <p class="status-value" data-testid="editor-surface-state">CodeMirror source mode</p>
         </section>
         <section class="status-block html-preview-status-block" data-testid="html-preview-status-block" hidden>
-          <p class="label">HTML Preview</p>
-          <p class="status-value" data-testid="html-preview-status">HTML artifact preview unavailable</p>
+          <p class="label">Artifact Preview</p>
+          <p class="status-value" data-testid="html-preview-status">Artifact preview unavailable</p>
         </section>
         <section class="status-block">
           <p class="label">Round-trip</p>
@@ -645,7 +648,8 @@ let richState: RichMarkdownState = createRichMarkdownState(fixtureMarkdown, {
 });
 let richEditor: ProseMirrorEditorView | null = null;
 let foldStates: readonly FoldState[] = [];
-let htmlPreviewDescriptor: SandboxedHtmlPreviewDescriptor | null = null;
+type ArtifactPreviewDescriptor = SandboxedHtmlPreviewDescriptor | SandboxedSvgPreviewDescriptor;
+let htmlPreviewDescriptor: ArtifactPreviewDescriptor | null = null;
 let markdownReadResult: RenderMarkdownToHtmlResult | null = null;
 let richBaselineMarkdown = fixtureMarkdown;
 let richChanged = false;
@@ -985,7 +989,7 @@ async function handleExternalChange(externalHash: SaveState["externalHash"]): Pr
 function applyExternalContentToEditors(content: string): void {
   closeTransientCommandSurfaces();
   replaceEditorDocument(content);
-  if (activeDocument.kind === "html-artifact") {
+  if (isPreviewArtifactKind(activeDocument.kind)) {
     renderHtmlPreview();
   }
   if (isRichEditingMode()) {
@@ -1565,7 +1569,7 @@ const editor = new CodeMirrorEditorView({
           persistRestorableDocument();
           renderSaveState();
           updateRoundTripStatus();
-          if (activeDocument.kind === "html-artifact") {
+          if (isPreviewArtifactKind(activeDocument.kind)) {
             renderHtmlPreview();
           }
         }
@@ -1892,7 +1896,7 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   },
   getHtmlPreviewState() {
     return {
-      available: activeDocument.kind === "html-artifact",
+      available: isPreviewArtifactKind(activeDocument.kind),
       bannerText: "",
       detailsOpen: htmlPreviewDetails.open,
       detailsText: htmlPreviewDetails.textContent ?? "",
@@ -2006,6 +2010,14 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
       getMarkdown(),
       "test Save As writable Markdown file",
       `saved as writable Markdown file ${fileName}`
+    );
+  },
+  loadWritableSvgFileForTest(fileName = "visual.svg", content = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 48 48\"><circle cx=\"24\" cy=\"24\" r=\"20\" /></svg>\n") {
+    return loadSavedTestWritableMarkdownFile(
+      fileName,
+      content,
+      "test writable SVG file",
+      `opened writable SVG file ${fileName}`
     );
   },
   loadHtmlArtifactForTest(fileName: string, content: string) {
@@ -2193,9 +2205,10 @@ async function openLocalFile(): Promise<void> {
               "application/json": [".json"],
               "application/toml": [".toml"],
               "application/yaml": [".yaml", ".yml"],
-              "text/html": [".html", ".htm"]
+              "text/html": [".html", ".htm"],
+              "image/svg+xml": [".svg"]
             },
-            description: "Markdown, source text, or HTML files"
+            description: "Markdown, source text, HTML, or SVG files"
           }
         ]
       })) ?? [];
@@ -2213,7 +2226,7 @@ async function openLocalFile(): Promise<void> {
     }
     if (documentKind === "unsupported") {
       lastSaveAction = `open failed: unsupported file type ${fileName}`;
-      setEditorNotice(`Open failed: ${fileName} is not a supported Markdown, source text, or HTML file.`);
+      setEditorNotice(`Open failed: ${fileName} is not a supported Markdown, source text, HTML, or SVG file.`);
       logEvent(`Open file rejected unsupported file ${fileName}.`);
       renderSaveState();
       return;
@@ -2339,7 +2352,7 @@ async function importSupportedFile(file: File, sourceLabel: string): Promise<voi
   }
   if (documentKind === "unsupported") {
     lastSaveAction = `import failed: unsupported file type ${file.name}`;
-    setEditorNotice(`Import failed: ${file.name} is not a supported Markdown, source text, or HTML file.`);
+    setEditorNotice(`Import failed: ${file.name} is not a supported Markdown, source text, HTML, or SVG file.`);
     logEvent(`Import rejected unsupported file ${file.name} from ${sourceLabel}.`);
     renderSaveState();
     return;
@@ -2472,7 +2485,7 @@ function loadOpenedMarkdownFile(
     htmlPreviewDescriptor = null;
     lastCopiedMarkdown = null;
     lastSaveAction = `unsupported file ${opened.fileName}`;
-    setEditorNotice(`${opened.fileName} is not a supported Markdown, source text, or HTML file.`);
+    setEditorNotice(`${opened.fileName} is not a supported Markdown, source text, HTML, or SVG file.`);
     destroyRichEditor();
     editorMode = "source";
     replaceEditorDocument(opened.content);
@@ -2640,7 +2653,7 @@ function switchEditorMode(mode: DemoEditorMode): void {
     renderEditorMode();
     return;
   }
-  if (mode === "preview" && activeDocument.kind !== "html-artifact" && activeDocument.kind !== "markdown") {
+  if (mode === "preview" && !isPreviewArtifactKind(activeDocument.kind) && activeDocument.kind !== "markdown") {
     logEvent("Preview mode is unavailable for this document type.");
     renderEditorMode();
     return;
@@ -2662,7 +2675,13 @@ function switchEditorMode(mode: DemoEditorMode): void {
       renderHtmlPreview();
     }
     editorMode = "preview";
-    logEvent(activeDocument.kind === "markdown" ? "Switched to Markdown read view." : "Switched to sandboxed HTML preview mode.");
+    logEvent(
+      activeDocument.kind === "markdown"
+        ? "Switched to Markdown read view."
+        : activeDocument.kind === "svg-artifact"
+          ? "Switched to sanitized SVG preview mode."
+          : "Switched to sandboxed HTML preview mode."
+    );
   } else {
     if (richChanged) {
       syncRichMarkdownToSource("mode switch");
@@ -2685,7 +2704,7 @@ function renderEditorMode(): void {
   app.dataset.documentKind = activeDocument.kind;
   app.dataset.editorMode = editorMode;
   const markdownReadVisible = editorMode === "preview" && activeDocument.kind === "markdown";
-  const htmlPreviewVisible = editorMode === "preview" && activeDocument.kind === "html-artifact";
+  const htmlPreviewVisible = editorMode === "preview" && isPreviewArtifactKind(activeDocument.kind);
   editorHost.hidden = editorMode !== "source";
   livePreviewBanner.hidden = editorMode !== "live-preview";
   richEditorHost.hidden = !isRichEditingMode();
@@ -2698,9 +2717,11 @@ function renderEditorMode(): void {
   toolbarSurface?.setState(surfaceToolbarState());
   toolbarAiButton = queryRequired<HTMLButtonElement>('[data-testid="toolbar-ai-button"]');
   toolbarMoreMenu = queryRequired<HTMLDivElement>('[data-testid="toolbar-more-menu"]');
-  htmlPreviewStatusBlock.hidden = activeDocument.kind !== "html-artifact";
+  htmlPreviewStatusBlock.hidden = !isPreviewArtifactKind(activeDocument.kind);
   if (markdownReadVisible) {
     editorSurfaceStateElement.textContent = "Markdown read view";
+  } else if (htmlPreviewVisible && activeDocument.kind === "svg-artifact") {
+    editorSurfaceStateElement.textContent = "Sanitized SVG preview";
   } else if (htmlPreviewVisible) {
     editorSurfaceStateElement.textContent = "Sandboxed HTML preview";
   } else if (activeDocument.kind === "lightweight-source") {
@@ -2732,10 +2753,10 @@ function toggleRichMode(): void {
 }
 
 function renderHtmlPreview(): void {
-  if (activeDocument.kind !== "html-artifact") {
+  if (!isPreviewArtifactKind(activeDocument.kind)) {
     htmlPreviewFrame.removeAttribute("srcdoc");
     htmlPreviewFrame.setAttribute("sandbox", "");
-    htmlPreviewStatusElement.textContent = "HTML artifact preview unavailable";
+    htmlPreviewStatusElement.textContent = "Artifact preview unavailable";
     htmlPreviewDetails.open = false;
     htmlPreviewFileNameElement.textContent = "Unavailable";
     htmlPreviewSandboxTokensElement.textContent = "none";
@@ -2745,24 +2766,33 @@ function renderHtmlPreview(): void {
     return;
   }
 
-  htmlPreviewDescriptor = createSandboxedHtmlPreview({
-    fileName: activeDocument.fileName,
-    html: editor.state.doc.toString()
-  });
+  htmlPreviewDescriptor =
+    activeDocument.kind === "svg-artifact"
+      ? createSandboxedSvgPreview({
+          fileName: activeDocument.fileName,
+          svg: editor.state.doc.toString()
+        })
+      : createSandboxedHtmlPreview({
+          fileName: activeDocument.fileName,
+          html: editor.state.doc.toString()
+        });
   htmlPreviewFrame.setAttribute("sandbox", htmlPreviewDescriptor.sandbox);
   htmlPreviewFrame.srcdoc = htmlPreviewDescriptor.srcdoc;
   renderHtmlPreviewDetails(htmlPreviewDescriptor);
   htmlPreviewStatusElement.textContent = htmlPreviewStatusLabel(htmlPreviewDescriptor);
 }
 
-function renderHtmlPreviewDetails(descriptor: SandboxedHtmlPreviewDescriptor): void {
+function renderHtmlPreviewDetails(descriptor: ArtifactPreviewDescriptor): void {
   const scriptStatus = sandboxAllowsScripts(descriptor.sandbox) ? "scripts allowed" : "scripts disabled";
   const tokenStatus = descriptor.sandboxTokens.length === 0 ? "no sandbox tokens" : `tokens: ${descriptor.sandbox}`;
   htmlPreviewFileNameElement.textContent = descriptor.fileName;
   htmlPreviewSandboxTokensElement.textContent = tokenStatus;
   htmlPreviewScriptsElement.textContent = scriptStatus;
   htmlPreviewTargetElement.textContent = activeDocument.pathLabel;
-  htmlPreviewSaveTruthElement.textContent = `${defaultMmeStrings.status.htmlTarget}; ${saveEngineStatusLabel(session.getSaveState())}`;
+  htmlPreviewSaveTruthElement.textContent =
+    descriptor.kind === "svg-artifact-preview"
+      ? `preview sanitized only; source ${saveEngineStatusLabel(session.getSaveState())}`
+      : `${defaultMmeStrings.status.htmlTarget}; ${saveEngineStatusLabel(session.getSaveState())}`;
 }
 
 function renderMarkdownReadView(): void {
@@ -3908,6 +3938,8 @@ function restoreLastDemoDocument(): boolean {
     switchEditorMode(snapshot.editorMode);
   } else if (snapshot.kind === "markdown" && snapshot.editorMode === "preview") {
     switchEditorMode("preview");
+  } else if (snapshot.kind === "svg-artifact" && snapshot.editorMode === "preview") {
+    switchEditorMode("preview");
   }
   lastSaveAction = "restored browser draft; reopen the original file for writable autosave";
   setEditorNotice("Restored a browser draft copy. Reopen the original file with Open file to enable writable disk save and autosave.");
@@ -3921,7 +3953,7 @@ function parseRestorableDemoDocument(raw: string): RestorableDemoDocument | null
     parsed.version !== 1 ||
     typeof parsed.content !== "string" ||
     typeof parsed.fileName !== "string" ||
-    (parsed.kind !== "markdown" && parsed.kind !== "html-artifact" && parsed.kind !== "lightweight-source") ||
+    (parsed.kind !== "markdown" && parsed.kind !== "html-artifact" && parsed.kind !== "lightweight-source" && parsed.kind !== "svg-artifact") ||
     (
       parsed.editorMode !== "source" &&
       parsed.editorMode !== "rich" &&
@@ -3941,6 +3973,15 @@ function parseRestorableDemoDocument(raw: string): RestorableDemoDocument | null
     };
   }
   if (parsed.kind === "lightweight-source" && parsed.editorMode !== "source") {
+    return {
+      content: parsed.content,
+      editorMode: "source",
+      fileName: parsed.fileName,
+      kind: parsed.kind,
+      version: 1
+    };
+  }
+  if (parsed.kind === "svg-artifact" && parsed.editorMode !== "source" && parsed.editorMode !== "preview") {
     return {
       content: parsed.content,
       editorMode: "source",
@@ -4623,6 +4664,8 @@ function downloadMarkdown(): void {
   logEvent(
     activeDocument.kind === "html-artifact"
       ? "Generated HTML artifact download/export. Original target was unchanged."
+      : activeDocument.kind === "svg-artifact"
+        ? "Generated SVG source download/export. Sanitized preview was not written."
       : `Generated ${documentKindLabel(activeDocument.kind)} download/export. Original target was unchanged.`
   );
   renderSaveState();
@@ -4634,6 +4677,9 @@ function activeDocumentMimeType(): string {
   }
   if (activeDocument.kind === "lightweight-source") {
     return "text/plain";
+  }
+  if (activeDocument.kind === "svg-artifact") {
+    return "image/svg+xml";
   }
   return "text/markdown";
 }
@@ -4778,16 +4824,17 @@ function renderSaveState(): void {
     document: surfaceDocumentState(),
     saveState: state
   });
-  if (activeDocument.kind === "html-artifact" && htmlPreviewDescriptor) {
+  if (isPreviewArtifactKind(activeDocument.kind) && htmlPreviewDescriptor) {
     renderHtmlPreviewDetails(htmlPreviewDescriptor);
   }
   renderReferenceSurfaceState();
 }
 
-function htmlPreviewStatusLabel(descriptor: SandboxedHtmlPreviewDescriptor): string {
+function htmlPreviewStatusLabel(descriptor: ArtifactPreviewDescriptor): string {
   const scriptStatus = sandboxAllowsScripts(descriptor.sandbox) ? "scripts allowed" : "scripts disabled";
   const tokenStatus = descriptor.sandboxTokens.length === 0 ? "no sandbox tokens" : `tokens: ${descriptor.sandbox}`;
-  return `HTML artifact preview, sandboxed, ${tokenStatus}, ${scriptStatus}`;
+  const label = descriptor.kind === "svg-artifact-preview" ? "SVG artifact preview, sanitized" : "HTML artifact preview, sandboxed";
+  return `${label}, ${tokenStatus}, ${scriptStatus}`;
 }
 
 function openAiCommandSurface(): void {
@@ -5157,23 +5204,33 @@ function documentKindLabel(kind: DemoDocumentKind | "unsupported"): string {
   if (kind === "lightweight-source") {
     return "source text";
   }
+  if (kind === "svg-artifact") {
+    return "SVG artifact";
+  }
   if (kind === "unsupported") {
     return "unsupported file";
   }
   return "Markdown";
 }
 
-function sourceDocumentKindForFile(fileName: string, mediaType?: string | null): Extract<DemoDocumentKind, "lightweight-source" | "markdown"> {
+function sourceDocumentKindForFile(fileName: string, mediaType?: string | null): Extract<DemoDocumentKind, "lightweight-source" | "markdown" | "svg-artifact"> {
   const kind = classifyEditorDocumentKind(fileName, mediaType);
-  return kind === "lightweight-source" ? "lightweight-source" : "markdown";
+  return kind === "lightweight-source" || kind === "svg-artifact" ? kind : "markdown";
 }
 
-function sourceFileNameForSaveAs(fileName: string, kind: Extract<DemoDocumentKind, "lightweight-source" | "markdown">): string {
-  const trimmed = fileName.trim() || (kind === "lightweight-source" ? "Untitled.txt" : "Untitled.md");
+function sourceFileNameForSaveAs(fileName: string, kind: Extract<DemoDocumentKind, "lightweight-source" | "markdown" | "svg-artifact">): string {
+  const trimmed = fileName.trim() || (kind === "lightweight-source" ? "Untitled.txt" : kind === "svg-artifact" ? "Untitled.svg" : "Untitled.md");
   if (kind === "lightweight-source") {
     return classifyEditorDocumentKind(trimmed) === "lightweight-source" ? trimmed : `${trimmed}.txt`;
   }
+  if (kind === "svg-artifact") {
+    return isSvgFileName(trimmed) ? trimmed : `${trimmed}.svg`;
+  }
   return /\.(?:md|markdown|mdown)$/i.test(trimmed) ? trimmed : `${trimmed}.md`;
+}
+
+function isPreviewArtifactKind(kind: DemoDocumentKind): kind is Extract<DemoDocumentKind, "html-artifact" | "svg-artifact"> {
+  return kind === "html-artifact" || kind === "svg-artifact";
 }
 
 async function loadSavedTestWritableMarkdownFile(
@@ -5275,6 +5332,10 @@ function updateRoundTripStatus(): void {
     renderHtmlArtifactStatus();
     return;
   }
+  if (activeDocument.kind === "svg-artifact") {
+    renderSvgArtifactStatus();
+    return;
+  }
   if (activeDocument.kind === "lightweight-source") {
     renderLightweightSourceStatus();
     return;
@@ -5307,6 +5368,29 @@ function renderHtmlArtifactStatus(): void {
   parserStatusElement.textContent = "not run for HTML artifact";
   serializerStatusElement.textContent = "not run for HTML artifact";
   renderHtmlArtifactProperties();
+  diagnosticsElement.replaceChildren(
+    ...descriptor.warnings.slice(0, 4).map((warning) => {
+      const item = document.createElement("li");
+      item.textContent = `${warning.severity}: ${warning.code}`;
+      return item;
+    })
+  );
+}
+
+function renderSvgArtifactStatus(): void {
+  const descriptor =
+    htmlPreviewDescriptor?.kind === "svg-artifact-preview"
+      ? htmlPreviewDescriptor
+      : createSandboxedSvgPreview({
+          fileName: activeDocument.fileName,
+          svg: getMarkdown()
+        });
+  roundTripSourceLabelElement.textContent = "SVG artifact";
+  roundTripFixtureElement.textContent = activeDocument.fileName;
+  roundTripModeElement.textContent = "sanitized preview";
+  parserStatusElement.textContent = "not run for SVG artifact";
+  serializerStatusElement.textContent = "not run for SVG artifact";
+  renderSvgArtifactProperties();
   diagnosticsElement.replaceChildren(
     ...descriptor.warnings.slice(0, 4).map((warning) => {
       const item = document.createElement("li");
@@ -5354,6 +5438,11 @@ function setPropertiesDisplayMode(mode: PropertiesDisplayMode): void {
     logEvent(`Properties panel switched to ${mode} mode.`);
     return;
   }
+  if (activeDocument.kind === "svg-artifact") {
+    renderSvgArtifactProperties();
+    logEvent(`Properties panel switched to ${mode} mode.`);
+    return;
+  }
   if (activeDocument.kind === "lightweight-source") {
     renderLightweightSourceProperties();
     logEvent(`Properties panel switched to ${mode} mode.`);
@@ -5390,6 +5479,18 @@ function renderHtmlArtifactProperties(): void {
   propertiesHiddenElement.hidden = propertiesDisplayMode !== "hidden";
   frontmatterElement.replaceChildren(emptyValue("HTML artifact; no Markdown frontmatter."));
   frontmatterSourceElement.textContent = "HTML artifact source has no YAML frontmatter.";
+}
+
+function renderSvgArtifactProperties(): void {
+  propertiesModeVisibleButton.setAttribute("aria-pressed", String(propertiesDisplayMode === "visible"));
+  propertiesModeHiddenButton.setAttribute("aria-pressed", String(propertiesDisplayMode === "hidden"));
+  propertiesModeSourceButton.setAttribute("aria-pressed", String(propertiesDisplayMode === "source"));
+
+  frontmatterElement.hidden = propertiesDisplayMode !== "visible";
+  frontmatterSourceElement.hidden = propertiesDisplayMode !== "source";
+  propertiesHiddenElement.hidden = propertiesDisplayMode !== "hidden";
+  frontmatterElement.replaceChildren(emptyValue("SVG artifact; no Markdown frontmatter parsed."));
+  frontmatterSourceElement.textContent = "SVG source is preserved as source text; the preview is sanitized and derived.";
 }
 
 function renderLightweightSourceProperties(): void {
@@ -5678,6 +5779,7 @@ declare global {
       loadHtmlArtifactForTest: (fileName: string, content: string) => void;
       loadImportedCopyForTest: (fileName: string, content: string) => void;
       loadWritableMarkdownFileForTest: (fileName: string, content: string) => void;
+      loadWritableSvgFileForTest: (fileName?: string, content?: string) => Promise<void>;
       memorySave: (source: "button" | "keyboard shortcut") => void;
       insertParagraphAfterCurrentRichBlock: () => void;
       openFirstRichBlockMenuForTest: () => void;

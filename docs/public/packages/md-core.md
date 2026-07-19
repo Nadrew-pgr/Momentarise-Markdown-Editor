@@ -40,6 +40,7 @@ console.log(hash);
 
 - Markdown source: `.md`, `.markdown`, `.mdown`;
 - standalone HTML artifact: `.html`, `.htm`;
+- standalone SVG artifact: `.svg`;
 - lightweight source text: `.txt`, `.text`, `.log`, `.csv`, `.tsv`, `.json`, `.yaml`, `.yml`, `.toml`.
 
 Unsupported files return `unsupported` so hosts can reject them before pretending they are editable Markdown.

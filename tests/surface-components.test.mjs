@@ -628,6 +628,14 @@ modeControl.setState({
 });
 assert(query(modeHost, "[data-testid='preview-mode-button']"), "HTML mode control must expose Preview.");
 assert(!modeHost.querySelector("[data-testid='rich-mode-button']"), "HTML mode control must not expose Rich.");
+modeControl.setState({
+  documentKind: "svg-artifact",
+  editorMode: "source"
+});
+assert(query(modeHost, "[data-testid='source-mode-button']"), "SVG mode control must expose Source.");
+assert(query(modeHost, "[data-testid='preview-mode-button']"), "SVG mode control must expose Preview.");
+assert(!modeHost.querySelector("[data-testid='rich-mode-button']"), "SVG mode control must not expose Rich.");
+assert(!modeHost.querySelector("[data-testid='live-preview-mode-button']"), "SVG mode control must not expose Live Preview.");
 
 const singleModeHost = document.createElement("div");
 const singleModeEvents = [];

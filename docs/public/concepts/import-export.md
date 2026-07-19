@@ -8,6 +8,7 @@ tags:
   - import
   - export
   - html
+  - svg
   - source
 llms: include
 updated: 2026-07-19
@@ -42,6 +43,14 @@ Raw HTML inside Markdown can render where policy allows, but HTML is not silentl
 Standalone `.html` files use the sandbox preview path. They are treated as HTML artifacts, not Markdown documents.
 
 Scripts are disabled by default and sandbox permissions must stay explicit.
+
+## Standalone SVG Preview
+
+Standalone `.svg` files are visual source artifacts. MME opens the source for editing and exposes a conservative sanitized Preview path.
+
+The V0 sanitizer keeps simple SVG drawing elements and strips unsupported or active preview content such as scripts, `on*` event handlers, script/data URL protocols, external references, `foreignObject`, remote CSS, image references, and unknown elements before rendering. The sanitized preview is derived only; Save and Save As write the original SVG source text, not the preview artifact.
+
+SVG artifacts expose Source and Preview. They do not expose Markdown parsing, Rich mode, or Live Preview.
 
 ## Future Format Adapters
 

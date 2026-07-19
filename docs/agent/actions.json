@@ -2,7 +2,7 @@
   "schema": "https://momentarise.dev/schemas/agent-actions.v0.json",
   "generatedBy": "scripts/generate-agent-artifacts.mjs",
   "sourceBoundary": "public-docs-only",
-  "sourceHash": "c1d9234c0a47a3d63faf0ce644d73913933d7f8dc3bfa0dbd3fbee572218a468",
+  "sourceHash": "135100b2312a5ab2f847d8627fe96cf4e00a82fb0594a52c36b235372109e7e6",
   "pageActions": [
     {
       "id": "view-source",

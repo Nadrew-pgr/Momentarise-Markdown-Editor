@@ -1,6 +1,10 @@
 # @momentarise/md-preview-html
 
-Sandbox descriptor helpers for Momentarise Markdown Editor HTML artifact previews.
+Sandbox descriptor helpers for Momentarise Markdown Editor HTML artifact previews and sanitized SVG artifact previews.
+
+HTML preview preserves the supplied source as iframe `srcdoc` with scripts disabled by default.
+
+SVG preview produces a conservative sanitized derived artifact before rendering. V0 keeps simple drawing elements and strips unsupported or active elements, event handlers, script/data URL protocols, external references, `foreignObject`, remote CSS, and image references from the preview artifact. The editable source remains unchanged.
 
 
 ## Release metadata

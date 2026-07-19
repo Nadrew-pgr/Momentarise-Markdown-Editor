@@ -43,6 +43,7 @@
     "LIGHTWEIGHT_SOURCE_EXTENSIONS",
     "MARKDOWN_DOCUMENT_EXTENSIONS",
     "MomentariseError",
+    "SVG_ARTIFACT_EXTENSIONS",
     "classifyEditorDocumentKind",
     "createHeadingNodeId",
     "createHeadingSlugSegment",
@@ -52,6 +53,7 @@
     "isLightweightSourceFileName",
     "isMarkdownDocumentFileName",
     "isMomentariseError",
+    "isSvgArtifactFileName",
     "nodeId",
     "slugHeadingText"
   ],
@@ -73,6 +75,7 @@
     "isLightweightSourceFileName",
     "isMarkdownDocumentFileName",
     "isSafeAssetUrl",
+    "isSvgArtifactFileName",
     "markdownEditorPackage",
     "resolvePreferences"
   ],
@@ -95,8 +98,10 @@
   ],
   "@momentarise/md-preview-html": [
     "createSandboxedHtmlPreview",
+    "createSandboxedSvgPreview",
     "htmlPreviewPackage",
     "isHtmlFileName",
+    "isSvgFileName",
     "sandboxAllowsScripts"
   ],
   "@momentarise/md-react": [
