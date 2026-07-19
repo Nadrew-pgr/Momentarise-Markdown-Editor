@@ -5590,7 +5590,7 @@
   - Semantic previews, validation, formatting, JSON/YAML/TOML-specific editing, CSV table previews, SVG rendering, and Markdown conversion remain out of scope.
   - Runtime UI integration coverage for toggling lightweight-source properties remains static/string-level; no image-based visual review was run.
 - Commit status:
-  - Pending issue-scoped implementation/status commit.
+  - Issue-scoped implementation/status commit created: `b952cf3` (`feat: support lightweight source files`).
 - Push status:
   - Not pushed. Branch is ahead of origin and contains queued public/product review debt; push remains deferred until final review policy is satisfied or Andrew instructs otherwise.
 - Next issue:
