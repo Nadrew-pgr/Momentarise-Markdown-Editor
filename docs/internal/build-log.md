@@ -5668,7 +5668,7 @@
   - The DOMParser-unavailable runtime path intentionally renders an inert placeholder instead of attempting unsafe string sanitization.
   - Inline SVG in Markdown, image upload/storage, SVG editing tools, raster export, optimization, conversion, and external resource fetching remain out of scope.
 - Commit status:
-  - Pending before commit.
+  - Issue-scoped implementation/status commit created: `10ed09d` (`feat: support svg artifact preview`).
 - Push status:
   - Not pushed. Branch is ahead of origin and contains queued public/product review debt; push remains deferred until final review policy is satisfied or Andrew instructs otherwise.
 - Next issue:
