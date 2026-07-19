@@ -22,6 +22,7 @@ Markdown-native framework for portable, preservation-first document editors.
 - [HTML Renderer](https://momentarise.dev/docs/packages/md-render-html): Sanitized Markdown-to-HTML rendering for read-only surfaces.
 - [HTML Artifact Preview](https://momentarise.dev/docs/packages/md-preview-html): Sandboxed preview descriptors for standalone HTML files.
 - [Agentic Experience](https://momentarise.dev/docs/concepts/agentic-experience): How MME docs expose Markdown context to coding agents without hiding the source.
+- [Performance Budgets](https://momentarise.dev/docs/concepts/performance): CI-runnable performance guardrails for large Markdown documents.
 - [Theming](https://momentarise.dev/docs/concepts/theming): Theme MME through tokens, host theme objects, icons, and class maps.
 - [Theme System](https://momentarise.dev/docs/packages/md-theme): Tokens, host theme objects, icons, and class maps.
 - [Core Contracts](https://momentarise.dev/docs/packages/md-core): Stable host-independent primitives shared by every MME package.

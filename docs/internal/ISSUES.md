@@ -2835,6 +2835,10 @@ Use benchmarks as guardrails, not vanity metrics. If current architecture cannot
 
 Architecture Reviewer and Test Reviewer.
 
+### Status
+
+Accepted for code continuation 2026-07-19 after adding committed performance budgets, a generated 10k-line large Markdown fixture, CI-runnable JSON benchmark output, large-document parse/serialize/rich/render/outline/find/save guardrails, source-preserving targeted edit proof, and autosave hash/content truthfulness proof. Added `scripts/generate-large-performance-fixture.mjs`, `fixtures/021-large-performance/`, `docs/internal/performance-budgets.json`, `scripts/performance-benchmarks.mjs`, `tests/performance-budgets.test.mjs`, `docs/public/concepts/performance.md`, package scripts, regenerated `llms` files, and refreshed generated agent artifacts after the new public doc changed the AX manifest. Performance/DX reviewer reported no P0/P1/P2 findings; builder fixed P3s for JSON-only report wording, explicit CI guard command, bounded docs render coverage, and fixture variability. Preservation/save reviewer initially found P2s for benchmark-level save hash/content truth and session replace preservation; builder fixed both and reviewer confirmation found no remaining P0/P1/P2. Proven by RED missing-generator failure, green `npm run test:performance-budgets`, `npm run test:fixtures`, `npm run test:docs`, `npm run test:docs-site`, `npm run test:llms-sync`, `npm run test:agent-artifacts`, `git diff --check`, and full `npm test`. Final budget-threshold and fixture-representativeness review is queued in `docs/internal/BACKLOG.md`; no further executable normal issue follows until the next backlog item is promoted.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

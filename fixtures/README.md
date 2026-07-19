@@ -31,6 +31,7 @@ Fixtures are intentionally synthetic and sanitized. They must not contain privat
 18. `018-nested-lists-todos`: nested lists and task lists.
 19. `019-gfm-table-variants`: supported GFM table variants plus malformed table-like syntax.
 20. `020-gfm-footnotes`: GFM footnote references, definitions, duplicate/missing references, and malformed footnote-like fallback.
+21. `021-large-performance`: generated 10k-line Markdown performance fixture with many real Markdown structures.
 
 ## Use
 

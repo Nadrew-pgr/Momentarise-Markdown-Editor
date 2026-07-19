@@ -1,0 +1,56 @@
+{
+  "schema": "https://momentarise.dev/schemas/performance-budgets.v0.json",
+  "fixture": "fixtures/021-large-performance/input.md",
+  "command": "npm run test:performance-budgets",
+  "reportCommand": "npm run benchmark:performance",
+  "docsPublicFiles": [
+    "docs/public/concepts/performance.md"
+  ],
+  "updated": "2026-07-19",
+  "notes": [
+    "Budgets are broad CI guardrails, not marketing benchmark claims.",
+    "Thresholds should be tightened only after collecting repeatable machine-class data."
+  ],
+  "operations": {
+    "parseLargeDocument": {
+      "maxMs": 4000,
+      "description": "Parse the 10k-line fixture through @momentarise/md-format."
+    },
+    "serializeLargeDocument": {
+      "maxMs": 750,
+      "description": "Serialize the parsed large fixture without rewriting source."
+    },
+    "richMountLargeDocument": {
+      "maxMs": 20000,
+      "description": "Build a ProseMirror rich state from the large fixture."
+    },
+    "richSerializeLargeDocument": {
+      "maxMs": 12000,
+      "description": "Serialize the large rich state back to Markdown."
+    },
+    "renderHtmlLargeDocument": {
+      "maxMs": 15000,
+      "description": "Render and sanitize the large fixture to HTML."
+    },
+    "outlineLargeDocument": {
+      "maxMs": 5000,
+      "description": "Build an editor session and derive the large fixture outline."
+    },
+    "findReplaceLargeDocument": {
+      "maxMs": 5000,
+      "description": "Find and replace one heading in the large fixture through the headless session."
+    },
+    "saveHashLargeDocument": {
+      "maxMs": 750,
+      "description": "Hash the large fixture through the shared save/core hash."
+    },
+    "saveAutosaveTruth": {
+      "maxMs": 1000,
+      "description": "Update large content, check autosave debounce truth, and flush to a memory target."
+    },
+    "docsPublicRender": {
+      "maxMs": 5000,
+      "description": "Render declared public Markdown docs through @momentarise/md-render-html."
+    }
+  }
+}
