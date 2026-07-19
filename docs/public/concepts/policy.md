@@ -10,7 +10,7 @@ tags:
 packages:
   - "@momentarise/md-policy"
 llms: include
-updated: 2026-07-08
+updated: 2026-07-19
 ---
 
 # Document Access Policy
@@ -43,6 +43,12 @@ The decision can include reason, source, severity, override status, and confirma
 ## Hard Deny
 
 Secrets, tokens, `.env` files, keys, identity documents, banking documents, and private folders can be hard-denied by default policy or host policy.
+
+## Asset Uploads
+
+Asset upload is host-owned. MME checks policy before asset egress and document mutation: `export` covers sending the pasted or dropped asset to a host provider, and `write` covers inserting the resulting Markdown image reference into the document.
+
+If policy denies either capability, the provider is not called and the document is unchanged.
 
 ## Related Docs
 

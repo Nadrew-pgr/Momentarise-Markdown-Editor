@@ -64,11 +64,12 @@ Completed slices:
 - MME-0048: Public docs launch hardening and MME-0038 validation debt, accepted for code continuation after launch-critical API/AX assertions, package docs hardening, expanded docs visual proof, reviewer pass, and full test pass; final public-face validation remains queued for end-of-run review.
 - MME-0049: AX skills, manifests, and reusable agent actions, accepted for code continuation after generated repo-owned agent artifacts, reusable action descriptors, docs-site descriptor consumption, public-boundary tests, visual proof, reviewer pass, and full test pass; final AX artifact distribution review is queued for end-of-run review.
 - MME-0050: Performance budgets and large-document benchmarks, accepted for code continuation after a generated 10k-line fixture, committed performance budgets, JSON benchmark output, large-document preservation/save truth proof, reviewer pass, and full test pass; final budget-threshold review is queued for end-of-run review.
+- MME-0051: Asset upload provider contract and image paste/drop preservation, accepted for code continuation after adding a host-owned provider contract, policy-gated image insertion, source/rich/headless preservation tests, reviewer pass, and full test pass; final upload UX/storage-provider review is queued for end-of-run review.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- MME-0051: Asset upload provider contract and image paste/drop preservation.
+- No executable normal issue remains after MME-0051; the next continuation step is promoting the next backlog item into normal issue form before implementation.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

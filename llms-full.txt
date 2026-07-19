@@ -535,7 +535,7 @@ tags:
 packages:
   - "@momentarise/md-policy"
 llms: include
-updated: 2026-07-08
+updated: 2026-07-19
 ---
 
 # Document Access Policy
@@ -569,6 +569,12 @@ The decision can include reason, source, severity, override status, and confirma
 
 Secrets, tokens, `.env` files, keys, identity documents, banking documents, and private folders can be hard-denied by default policy or host policy.
 
+## Asset Uploads
+
+Asset upload is host-owned. MME checks policy before asset egress and document mutation: `export` covers sending the pasted or dropped asset to a host provider, and `write` covers inserting the resulting Markdown image reference into the document.
+
+If policy denies either capability, the provider is not called and the document is unchanged.
+
 ## Related Docs
 
 - [AI And Privacy](ai-privacy.md)
@@ -591,7 +597,7 @@ tags:
   - ui
   - editor
 llms: include
-updated: 2026-07-08
+updated: 2026-07-19
 ---
 
 # Editor UI
@@ -618,6 +624,12 @@ MME exposes commands through the extension registry so hosts can assemble the UI
 - custom block registrations.
 
 The default surface is framework-free. React and Next.js consume it through bindings or client boundaries; they do not own the editor model.
+
+## Assets
+
+Image paste, drop, and import flows use a host-owned asset provider. MME does not ship a storage service or hidden asset database. When a provider returns a safe URL/path, MME inserts normal Markdown image syntax and preserves the surrounding source.
+
+If no provider is configured, callers receive an `unavailable` result. If upload is denied by policy or the provider fails, callers receive a structured denial or failure. In all three cases, the document stays unchanged.
 
 ## Status Surfaces
 
@@ -1509,7 +1521,7 @@ tags:
 packages:
   - "@momentarise/md-editor"
 llms: include
-updated: 2026-07-08
+updated: 2026-07-19
 ---
 
 # Headless Editor Session
@@ -1546,6 +1558,7 @@ session.destroy();
 ## Public API Checkpoints
 
 - `createMarkdownEditorSession` owns the headless document session.
+- `createMarkdownImageReference`, `insertMarkdownImageReference`, and `session.insertAsset` let hosts wire image paste/drop/import flows without making MME own storage.
 - `createExtensionRegistry` collects host-provided commands, slash items, toolbar items, custom blocks, and AI actions.
 - `editorModesForDocumentKind` keeps Markdown and HTML artifact mode controls honest.
 - `resolvePreferences` applies host, workspace, document, and locked preference layers.
@@ -1944,7 +1957,7 @@ audience: developers
 tags:
   - roadmap
 llms: include
-updated: 2026-07-08
+updated: 2026-07-19
 ---
 
 # Roadmap
@@ -1959,6 +1972,7 @@ MME V0 focuses on framework credibility: preservation, source/rich editing, trut
 - Save Engine tracks dirty, saved, conflict, and error states.
 - Policy gates AI and sensitive file access.
 - React and Theia paths prove host integration.
+- Asset upload contracts let hosts insert Markdown image references from paste/drop/import flows without making MME own storage.
 
 ## Near-Term Public Readiness
 
@@ -1973,7 +1987,6 @@ MME V0 focuses on framework credibility: preservation, source/rich editing, trut
 - Mobile and tablet input pass.
 - Table and footnote editing.
 - Live preview parity.
-- Asset upload provider contract.
 - CMS and publishing integrations.
 
 ## Related Docs

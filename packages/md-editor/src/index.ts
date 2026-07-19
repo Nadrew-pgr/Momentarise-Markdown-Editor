@@ -1,4 +1,4 @@
-import type { DocumentDialect, DocumentHash, DocumentPath, EditorMode, MomentariseNode, ParseResult, SaveState, SourceRange } from "@momentarise/md-core";
+import type { DocumentDialect, DocumentHash, DocumentPath, EditorMode, MomentariseNode, ParseResult, PolicyDecision, SaveState, SourceRange } from "@momentarise/md-core";
 import { createHeadingSlugSegment } from "@momentarise/md-core";
 import { createMarkdownAstParser } from "@momentarise/md-format";
 import {
@@ -352,6 +352,7 @@ export interface SessionScheduler {
 
 export interface MarkdownEditorSessionOptions {
   readonly aiProvider?: AiProvider;
+  readonly assetProvider?: AssetUploadProvider;
   readonly autosaveDelayMs?: number;
   readonly content: string;
   readonly dialect?: DocumentDialect;
@@ -403,6 +404,74 @@ export interface TextRange {
   readonly to: number;
 }
 
+export interface AssetUploadInput {
+  readonly bytes?: Uint8Array;
+  readonly hash?: string;
+  readonly mediaType: string;
+  readonly name: string;
+  readonly size: number;
+  readonly source?: "drop" | "host" | "import" | "paste";
+}
+
+export interface AssetUploadContext {
+  readonly documentPath: string | null;
+  readonly requestedAt: string;
+  readonly suggestedAlt?: string;
+  readonly suggestedTitle?: string;
+}
+
+export interface AssetUploadProvider {
+  upload(input: AssetUploadInput, context: AssetUploadContext): AssetUploadProviderResult | Promise<AssetUploadProviderResult>;
+}
+
+export type AssetUploadProviderResult =
+  | {
+      readonly alt?: string;
+      readonly metadata?: Readonly<Record<string, string>>;
+      readonly status: "uploaded";
+      readonly title?: string;
+      readonly url: string;
+    }
+  | {
+      readonly reason: string;
+      readonly status: "denied" | "failed" | "pending";
+    };
+
+export interface MarkdownImageReferenceInput {
+  readonly alt?: string;
+  readonly title?: string | null;
+  readonly url: string;
+}
+
+export interface InsertMarkdownImageReferenceResult {
+  readonly content: string;
+  readonly range: TextRange;
+  readonly reference: string;
+}
+
+export interface InsertAssetOptions {
+  readonly alt?: string;
+  readonly origin?: SessionContentOrigin;
+  readonly range?: TextRange;
+  readonly title?: string;
+}
+
+export type AssetInsertResult =
+  | {
+      readonly content: string;
+      readonly policyDecisions: readonly PolicyDecision[];
+      readonly range: TextRange;
+      readonly reference: string;
+      readonly status: "inserted";
+      readonly upload: Extract<AssetUploadProviderResult, { readonly status: "uploaded" }>;
+    }
+  | {
+      readonly policyDecisions: readonly PolicyDecision[];
+      readonly reason: string;
+      readonly status: "denied" | "failed" | "pending" | "unavailable";
+      readonly upload?: Exclude<AssetUploadProviderResult, { readonly status: "uploaded" }>;
+    };
+
 export interface OutlineItem {
   readonly children: readonly OutlineItem[];
   readonly depth: number;
@@ -435,6 +504,7 @@ export interface MarkdownEditorSession {
   noteExternalChange(externalHash: DocumentHash): SaveExternalChangeResult;
   on<Event extends SessionEvent>(event: Event, handler: (payload: SessionEventPayloadMap[Event]) => void): () => void;
   rejectPendingSuggestion(): void;
+  insertAsset(input: AssetUploadInput, options?: InsertAssetOptions): Promise<AssetInsertResult>;
   replace(range: TextRange, replacement: string, origin?: SessionContentOrigin): ReplaceResult;
   replaceAll(query: string, replacement: string, options?: FindOptions & { readonly origin?: SessionContentOrigin }): ReplaceResult;
   requestAiSuggestion(request: Omit<AiWritingRequest, "document">): Promise<AiWritingSuggestion>;
@@ -609,6 +679,48 @@ export function createMarkdownEditorSession(options: MarkdownEditorSessionOption
   return new DefaultMarkdownEditorSession(options);
 }
 
+export function createMarkdownImageReference(input: MarkdownImageReferenceInput): string | null {
+  const url = normalizeAssetUrl(input.url);
+  if (!url || !isSafeAssetUrl(url)) {
+    return null;
+  }
+  const destination = escapeMarkdownImageDestination(url);
+  const alt = escapeMarkdownImageAlt(input.alt ?? "");
+  const title = normalizeImageTitle(input.title);
+  return title ? `![${alt}](${destination} "${title}")` : `![${alt}](${destination})`;
+}
+
+export function insertMarkdownImageReference(
+  content: string,
+  range: TextRange,
+  input: MarkdownImageReferenceInput
+): InsertMarkdownImageReferenceResult {
+  const reference = createMarkdownImageReference(input);
+  if (!reference) {
+    throw new Error("Asset URL is not safe for Markdown image insertion.");
+  }
+  const normalized = normalizeTextRange(range, content.length);
+  const insertion = imageInsertionContent(content, normalized, reference);
+  return {
+    content: `${content.slice(0, normalized.from)}${insertion}${content.slice(normalized.to)}`,
+    range: normalized,
+    reference
+  };
+}
+
+export function isSafeAssetUrl(value: string | null | undefined): boolean {
+  const normalized = normalizeAssetUrl(value);
+  if (!normalized) {
+    return false;
+  }
+  const schemeMatch = normalized.match(/^([a-z][a-z0-9+.-]*):/i);
+  if (!schemeMatch) {
+    return true;
+  }
+  const scheme = schemeMatch[1]!.toLowerCase();
+  return scheme === "http" || scheme === "https";
+}
+
 export function createExtensionRegistry(): ExtensionRegistry {
   const registry = new DefaultExtensionRegistry();
   registerDefaultKeybindings(registry);
@@ -628,6 +740,7 @@ class DefaultMarkdownEditorSession implements MarkdownEditorSession {
   private parseCache: ParseResult | null = null;
   private readonly path: string | null;
   private pendingSuggestion: AiWritingSuggestion | null = null;
+  private readonly assetProvider: AssetUploadProvider | undefined;
   private readonly policyResolver: PolicyResolver;
   private readonly provider: AiProvider | undefined;
   private readonly saveEngine: SaveEngine;
@@ -636,6 +749,7 @@ class DefaultMarkdownEditorSession implements MarkdownEditorSession {
   constructor(options: MarkdownEditorSessionOptions) {
     this.dialect = options.dialect ?? "momentarise-enhanced";
     this.path = options.path ?? null;
+    this.assetProvider = options.assetProvider;
     this.policyResolver = options.policyResolver ?? createDefaultPolicyResolver();
     this.provider = options.aiProvider;
     this.scheduler = options.scheduler;
@@ -754,6 +868,104 @@ class DefaultMarkdownEditorSession implements MarkdownEditorSession {
     }
     const result = rejectAiSuggestion(this.getContent(), this.pendingSuggestion);
     this.pendingSuggestion = result.suggestion;
+  }
+
+  async insertAsset(input: AssetUploadInput, options: InsertAssetOptions = {}): Promise<AssetInsertResult> {
+    this.assertAlive();
+    const mediaType = typeof input?.mediaType === "string" ? input.mediaType : "";
+    if (!mediaType.toLowerCase().startsWith("image/")) {
+      return {
+        policyDecisions: [],
+        reason: mediaType ? `Unsupported asset media type ${mediaType}.` : "Unsupported asset media type.",
+        status: "failed"
+      };
+    }
+    let policyDecisions: readonly PolicyDecision[];
+    try {
+      policyDecisions = [
+        this.policyResolver.resolve({
+          capability: "export",
+          subject: {
+            documentPath: this.path
+          }
+        }),
+        this.policyResolver.resolve({
+          capability: "write",
+          subject: {
+            documentPath: this.path
+          }
+        })
+      ];
+    } catch (error) {
+      return {
+        policyDecisions: [],
+        reason: error instanceof Error ? error.message : String(error),
+        status: "failed"
+      };
+    }
+    const blocked = policyDecisions.find((decision) => !decision.allowed);
+    if (blocked) {
+      return {
+        policyDecisions,
+        reason: blocked.reason ?? `Policy denied ${blocked.capability}.`,
+        status: "denied"
+      };
+    }
+    if (!this.assetProvider) {
+      return {
+        policyDecisions,
+        reason: "No asset upload provider is configured.",
+        status: "unavailable"
+      };
+    }
+    let upload: AssetUploadProviderResult;
+    try {
+      upload = await this.assetProvider.upload(input, {
+        documentPath: this.path,
+        requestedAt: new Date().toISOString(),
+        ...(options.alt === undefined ? {} : { suggestedAlt: options.alt }),
+        ...(options.title === undefined ? {} : { suggestedTitle: options.title })
+      });
+    } catch (error) {
+      return {
+        policyDecisions,
+        reason: error instanceof Error ? error.message : String(error),
+        status: "failed"
+      };
+    }
+    if (upload.status !== "uploaded") {
+      return {
+        policyDecisions,
+        reason: upload.reason,
+        status: upload.status,
+        upload
+      };
+    }
+    const referenceInput: MarkdownImageReferenceInput = {
+      alt: upload.alt ?? options.alt ?? safeAssetName(input.name),
+      url: upload.url,
+      ...((upload.title ?? options.title) === undefined ? {} : { title: upload.title ?? options.title })
+    };
+    const reference = createMarkdownImageReference(referenceInput);
+    if (!reference) {
+      return {
+        policyDecisions,
+        reason: "Asset provider returned an unsafe image URL.",
+        status: "failed"
+      };
+    }
+    const content = this.getContent();
+    const range = options.range ?? { from: content.length, to: content.length };
+    const inserted = insertMarkdownImageReference(content, range, referenceInput);
+    this.setContent(inserted.content, options.origin ?? "host");
+    return {
+      content: inserted.content,
+      policyDecisions,
+      range: inserted.range,
+      reference,
+      status: "inserted",
+      upload
+    };
   }
 
   replace(range: TextRange, replacement: string, origin: SessionContentOrigin = "host"): ReplaceResult {
@@ -955,6 +1167,49 @@ function normalizeTextRange(range: TextRange, contentLength: number): TextRange 
   const from = Math.max(0, Math.min(range.from, contentLength));
   const to = Math.max(from, Math.min(range.to, contentLength));
   return { from, to };
+}
+
+function normalizeAssetUrl(value: string | null | undefined): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+  const normalized = value.trim();
+  return /[\u0000-\u001F\u007F\s]/u.test(normalized) ? "" : normalized;
+}
+
+function normalizeImageTitle(value: string | null | undefined): string {
+  return typeof value === "string" && value.trim()
+    ? value.trim().replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r?\n/g, " ")
+    : "";
+}
+
+function escapeMarkdownImageAlt(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/\[/g, "\\[").replace(/\]/g, "\\]").replace(/\r?\n/g, " ");
+}
+
+function escapeMarkdownImageDestination(value: string): string {
+  return value
+    .replace(/\\/g, "%5C")
+    .replace(/\(/g, "%28")
+    .replace(/\)/g, "%29")
+    .replace(/"/g, "%22")
+    .replace(/</g, "%3C")
+    .replace(/>/g, "%3E");
+}
+
+function safeAssetName(value: string | null | undefined): string {
+  return typeof value === "string" && value.trim() ? value.trim() : "asset";
+}
+
+function imageInsertionContent(content: string, range: TextRange, reference: string): string {
+  if (range.from !== range.to) {
+    return reference;
+  }
+  const before = content.slice(0, range.from);
+  const after = content.slice(range.to);
+  const prefix = before.length === 0 || before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
+  const suffix = after.length === 0 || after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : "\n\n";
+  return `${prefix}${reference}${suffix}`;
 }
 
 function createMarkdownOutline(parseResult: ParseResult): readonly OutlineItem[] {

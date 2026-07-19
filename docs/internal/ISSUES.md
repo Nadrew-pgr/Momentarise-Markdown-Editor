@@ -2888,6 +2888,10 @@ Keep this as a reusable framework contract, not a demo-only upload button. Do no
 
 Architecture Reviewer, Security Reviewer, and Test Reviewer.
 
+### Status
+
+Accepted for code continuation 2026-07-19 after adding the host-owned asset upload provider contract, safe Markdown image helpers, `session.insertAsset`, policy-before-provider export/write checks, structured unavailable/denied/failed/pending results, provider exception handling, syntax-hardened image URL serialization, and source/rich/headless preservation tests. Successful uploads insert normal Markdown image syntax only; no hidden asset database, data URL default, or framework-owned storage was added. Proven by RED missing-export proof, green `npm run test:asset-upload-provider`, `npm run test:serializer`, `npm run test:rich-commands`, `npm run test:roundtrip`, `npm run test:public-api`, `npm run test:docs`, `npm run test:docs-site`, `npm run test:llms-sync`, `npm run test:agent-artifacts`, `git diff --check`, and full `npm test`. Architecture/security and test/preservation reviewer subagents reported no P0/P1/P2 findings; builder fixed P3s for malformed JS input, policy resolver exceptions, URL syntax hardening, pending-result coverage, and formatter-level image escaping proof. Final storage-provider, privacy, and visible upload UX review is queued in `docs/internal/BACKLOG.md`; no executable normal issue remains after MME-0051 until the next backlog item is promoted.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

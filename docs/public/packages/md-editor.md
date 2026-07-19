@@ -10,7 +10,7 @@ tags:
 packages:
   - "@momentarise/md-editor"
 llms: include
-updated: 2026-07-08
+updated: 2026-07-19
 ---
 
 # Headless Editor Session
@@ -47,6 +47,7 @@ session.destroy();
 ## Public API Checkpoints
 
 - `createMarkdownEditorSession` owns the headless document session.
+- `createMarkdownImageReference`, `insertMarkdownImageReference`, and `session.insertAsset` let hosts wire image paste/drop/import flows without making MME own storage.
 - `createExtensionRegistry` collects host-provided commands, slash items, toolbar items, custom blocks, and AI actions.
 - `editorModesForDocumentKind` keeps Markdown and HTML artifact mode controls honest.
 - `resolvePreferences` applies host, workspace, document, and locked preference layers.

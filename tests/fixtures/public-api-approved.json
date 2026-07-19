@@ -56,9 +56,12 @@
     "DOCUMENT_PREFERENCE_ALLOWLIST",
     "createExtensionRegistry",
     "createMarkdownEditorSession",
+    "createMarkdownImageReference",
     "editorModesForDocumentKind",
     "extractDocumentPreferences",
+    "insertMarkdownImageReference",
     "isEditorModeAvailableForDocumentKind",
+    "isSafeAssetUrl",
     "markdownEditorPackage",
     "resolvePreferences"
   ],

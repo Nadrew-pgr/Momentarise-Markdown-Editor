@@ -8,7 +8,7 @@ tags:
   - ui
   - editor
 llms: include
-updated: 2026-07-08
+updated: 2026-07-19
 ---
 
 # Editor UI
@@ -35,6 +35,12 @@ MME exposes commands through the extension registry so hosts can assemble the UI
 - custom block registrations.
 
 The default surface is framework-free. React and Next.js consume it through bindings or client boundaries; they do not own the editor model.
+
+## Assets
+
+Image paste, drop, and import flows use a host-owned asset provider. MME does not ship a storage service or hidden asset database. When a provider returns a safe URL/path, MME inserts normal Markdown image syntax and preserves the surrounding source.
+
+If no provider is configured, callers receive an `unavailable` result. If upload is denied by policy or the provider fails, callers receive a structured denial or failure. In all three cases, the document stays unchanged.
 
 ## Status Surfaces
 

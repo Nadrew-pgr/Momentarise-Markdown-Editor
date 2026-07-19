@@ -3744,13 +3744,21 @@ function serializeInline(node: ProseMirrorNode): string {
       return;
     }
     if (child.type.name === "image") {
-      const alt = stringAttribute(child.attrs.alt) ?? "";
+      const alt = escapeMarkdownImageAlt(stringAttribute(child.attrs.alt) ?? "");
       const src = stringAttribute(child.attrs.src) ?? "";
-      const title = stringAttribute(child.attrs.title);
+      const title = escapeMarkdownTitle(stringAttribute(child.attrs.title));
       parts.push(title ? `![${alt}](${src} "${title}")` : `![${alt}](${src})`);
     }
   });
   return parts.join("");
+}
+
+function escapeMarkdownImageAlt(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/\[/g, "\\[").replace(/\]/g, "\\]").replace(/\r?\n/g, " ");
+}
+
+function escapeMarkdownTitle(value: string | null): string {
+  return value ? value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r?\n/g, " ") : "";
 }
 
 function wrapTextWithMarks(text: string, marks: readonly Mark[]): string {

@@ -3,6 +3,7 @@ import {
   createMarkdownAstFormatter,
   createMarkdownAstParser,
   runFixtureRoundTrip,
+  serializeMomentariseDocument,
   serializeMarkdownEdits
 } from "../packages/md-format/dist/index.js";
 
@@ -25,6 +26,46 @@ if (roundTrip.summary.failed !== 0) {
     .join("\n");
   throw new Error(`Expected all serializer round-trip fixtures to pass.\n${failures}`);
 }
+
+const formatterImageSource = "# Assets\n\nAfter.\n";
+const formatterImageParse = parser.parse(formatterImageSource, {
+  dialect: "momentarise-enhanced"
+});
+const formatterImageSerialized = serializeMomentariseDocument({
+  ...formatterImageParse,
+  document: {
+    ...formatterImageParse.document,
+    root: {
+      ...formatterImageParse.document.root,
+      children: [
+        formatterImageParse.document.root.children[0],
+        {
+          children: [
+            {
+              attributes: {
+                alt: "Risky [alt]",
+                title: 'Risky "title"',
+                url: "./assets/risky.png"
+              },
+              id: "synthetic-risky-image",
+              kind: "inline",
+              type: "image"
+            }
+          ],
+          id: "synthetic-risky-image-paragraph",
+          kind: "block",
+          type: "paragraph"
+        },
+        formatterImageParse.document.root.children[1]
+      ]
+    }
+  }
+});
+assertEqual(
+  formatterImageSerialized.content,
+  '# Assets\n\n![Risky \\[alt\\]](./assets/risky.png "Risky \\"title\\"")\n\nAfter.\n',
+  "model serializer image escaping"
+);
 
 assertEditPreservesOutsideRange({
   description: "heading edit",
@@ -270,6 +311,12 @@ function walk(node) {
 function assertIncludes(value, expected, label) {
   if (!value.includes(expected)) {
     throw new Error(`Expected ${label} to include ${JSON.stringify(expected)}.`);
+  }
+}
+
+function assertEqual(actual, expected, label) {
+  if (actual !== expected) {
+    throw new Error(`Expected ${label} to equal ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}.`);
   }
 }
 

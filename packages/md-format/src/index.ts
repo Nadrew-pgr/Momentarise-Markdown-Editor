@@ -541,13 +541,13 @@ function serializeMomentariseInline(node: MomentariseNode, source: string): stri
       const text = serializeMomentariseInlineList(node.children ?? [], source);
       const url = stringAttribute(node.attributes?.url) ?? "";
       const title = stringAttribute(node.attributes?.title);
-      return title ? `[${text}](${url} "${title}")` : `[${text}](${url})`;
+      return title ? `[${escapeMarkdownLabel(text)}](${url} "${escapeMarkdownTitle(title)}")` : `[${escapeMarkdownLabel(text)}](${url})`;
     }
     case "image": {
       const alt = stringAttribute(node.attributes?.alt) ?? "";
       const url = stringAttribute(node.attributes?.url) ?? "";
       const title = stringAttribute(node.attributes?.title);
-      return title ? `![${alt}](${url} "${title}")` : `![${alt}](${url})`;
+      return title ? `![${escapeMarkdownLabel(alt)}](${url} "${escapeMarkdownTitle(title)}")` : `![${escapeMarkdownLabel(alt)}](${url})`;
     }
     default:
       return node.children ? serializeMomentariseInlineList(node.children, source) : rawFromRange(node, source);
@@ -563,6 +563,14 @@ function rawFromRange(node: MomentariseNode, source: string): string {
 
 function stringAttribute(value: NodeAttributeValue | undefined): string | null {
   return typeof value === "string" ? value : null;
+}
+
+function escapeMarkdownLabel(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/\[/g, "\\[").replace(/\]/g, "\\]").replace(/\r?\n/g, " ");
+}
+
+function escapeMarkdownTitle(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r?\n/g, " ");
 }
 
 function numberAttribute(value: NodeAttributeValue | undefined): number | null {
