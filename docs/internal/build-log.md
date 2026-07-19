@@ -5470,3 +5470,56 @@
   - Pending before commit: `git diff --check`.
 - Next issue:
   - `MME-0051 — Asset upload provider contract and image paste/drop preservation`.
+
+## MME-0051 — Asset upload provider contract and image paste/drop preservation
+
+- Date: 2026-07-19.
+- Previous issue status:
+  - `MME-0050` accepted for code continuation and committed (`075a2e8` plus evidence commit `0a1e4c6`).
+  - `MME-0051` was promoted from backlog into normal issue form and committed in checkpoint `cf8fa67`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short`, and target files in `packages/md-core`, `packages/md-editor`, `packages/md-policy`, `packages/md-surface`, `packages/md-rich-prosemirror`, `packages/md-react`, `packages/md-save`, `apps/md-demo/src/main.ts`, tests, and public docs.
+- RED proof before implementation:
+  - Added `tests/asset-upload-provider.test.mjs` and wired `test:asset-upload-provider` into root `npm test`.
+  - Initial `npm run test:asset-upload-provider` failed because `@momentarise/md-editor` did not export `createMarkdownImageReference`.
+- Change:
+  - Added public asset upload types and `AssetUploadProvider` to `@momentarise/md-editor`.
+  - Added `createMarkdownImageReference`, `insertMarkdownImageReference`, `isSafeAssetUrl`, and `session.insertAsset`.
+  - `insertAsset` now checks policy `export` and `write` before calling providers, returns structured unavailable/denied/failed/pending results, catches provider and resolver exceptions, and leaves content/hash unchanged for non-inserted paths.
+  - Successful uploads insert normal Markdown image syntax only; no hidden asset database, data URL default, framework storage, cloud SDK, drag/drop UI, media library, or image optimization pipeline was added.
+  - Hardened Markdown image serialization for alt/title/url syntax in `@momentarise/md-editor`, `@momentarise/md-format`, and `@momentarise/md-rich-prosemirror`.
+  - Updated public policy/editor/package/roadmap docs and regenerated `llms-full.txt` plus generated AX artifacts after public docs changed.
+  - Updated README, issue status, and end-of-run human review queue.
+- Visual impact:
+  - No visible editing or general UI change in this slice.
+  - No visual check was required; visible paste/drop/upload UX is intentionally queued as a follow-up review/design slice.
+- Checks run:
+  - `npm run test:asset-upload-provider` — RED before implementation, then green after contract and reviewer fixes.
+  - `npm run test:serializer` — green with direct formatter-level risky image escaping proof.
+  - `npm run test:rich-commands` — green.
+  - `npm run test:roundtrip` — green.
+  - `npm run test:public-api` — green after approving the new `@momentarise/md-editor` exports.
+  - `npm run test:docs` — green.
+  - `npm run test:docs-site` — green.
+  - `npm run test:llms-sync` — green.
+  - `npm run test:agent-artifacts` — green.
+  - `npm run test:architecture` — green.
+  - `npm run test:editor-session` — green.
+  - `npm run test:policy` — green.
+  - `git diff --check` — green.
+  - `npm test` — green after reviewer fixes; existing Vite bundle-size warning only.
+- Manual/dev-server verification:
+  - Restarted docs-site dev server at `http://localhost:5178` using `npm run dev -w @momentarise/docs-site -- --port 5178`.
+- Reviewer result:
+  - Architecture/security reviewer subagent `Euclid` used `gpt-5.3-codex-spark` with `xhigh` reasoning and reported no P0/P1/P2 findings. P3s covered malformed JS input, policy resolver exceptions, and syntax-breaking URLs. Builder fixed all three and added regression coverage.
+  - Test/preservation reviewer subagent `Copernicus` used `gpt-5.3-codex-spark` with `xhigh` reasoning and reported no P0/P1/P2 findings. P3s covered silent URL whitespace mutation, missing `pending` coverage, and missing direct formatter image escaping proof. Builder fixed all three and added regression coverage.
+- Residual risks:
+  - Final upload/storage UX review is queued in `docs/internal/BACKLOG.md`, including storage-provider examples, privacy wording, pending/failure semantics, visible paste/drop/upload UX, and whether a first-party demo provider should exist before public launch.
+  - Real browser paste/drop UI, media library, image optimization, hosted upload services, and storage SDK integrations remain out of scope for MME-0051.
+  - The contract currently accepts safe local/HTTP(S) Markdown image destinations and rejects whitespace/control-character destinations; future provider examples should document expected URL/path encoding.
+- Commit status:
+  - Issue-scoped implementation/status commit created: `7500a89` (`feat: add asset upload provider contract`).
+- Push status:
+  - Not pushed. Branch is ahead of origin and contains queued public/product review debt; push remains deferred until final review policy is satisfied or Andrew instructs otherwise.
+- Next issue:
+  - No executable normal issue remains after `MME-0051`; continuation requires promoting the next backlog item into normal issue form before implementation.
