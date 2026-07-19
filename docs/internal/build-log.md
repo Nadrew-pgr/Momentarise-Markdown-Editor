@@ -4853,7 +4853,7 @@
   - Render-mode preserved-source fallback intentionally scrubs unsafe attribute/URL payloads in the artifact; the original Markdown bytes remain preserved by parser/rich/source flows.
   - Visual proof requires system Chrome permission in this sandbox, same as prior visual scripts.
 - Commit status:
-  - Pending until issue-scoped commit is created; hash will be recorded in the follow-up evidence entry.
+  - Issue-scoped commit created: `e4866a2` (`feat: preserve and render markdown footnotes`).
 - Push status:
   - Not pushed yet; branch contains existing unpushed commits and `MME-0038` remains pending public-face validation, so pushing as accepted release-ready work is blocked without a separate safe-push instruction.
 - Next issue:
