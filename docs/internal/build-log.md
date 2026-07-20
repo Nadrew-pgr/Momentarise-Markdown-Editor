@@ -5953,7 +5953,7 @@
   - Final command placement/naming, generated identifiers, focus transfer, keyboard feel, source visibility, definition density, and constrained layout are queued in `docs/internal/BACKLOG.md` for Andrew's final review block.
   - Existing demo bundle-size warning remains outside this issue.
 - Commit status:
-  - Pending issue-scoped implementation/status commit after final diff validation.
+  - Issue-scoped implementation/status commit created: `dcd5aaa` (`feat: add rich markdown footnote insertion`).
 - Push status:
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
