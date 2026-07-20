@@ -70,12 +70,12 @@ Completed slices:
 - MME-0054: Visible asset upload UX and demo provider, accepted for code continuation after adding toolbar/slash/paste/drop insertion, localized upload state, exact source/rich placement, stale-upload rejection, truthful failure states, runtime browser proof, reviewer pass, and full test pass; final upload product/wording review is queued for end-of-run review.
 - MME-0055: Rich GFM table editing baseline, accepted for code continuation after editable top-level tables, targeted Markdown serialization, reusable cell movement, truthful undo/redo/save behavior, real keyboard and constrained-width browser proof, reviewer pass, and full test pass; final table product/taste review is queued for end-of-run review.
 - MME-0056: Rich GFM footnote definition editing baseline, accepted for code continuation after semantic references, editable safe definitions, exact targeted serialization, conservative complex/duplicate fallback, truthful undo/redo/save behavior, browser proof, reviewer pass, and full test pass; final footnote UX/AX review is queued for end-of-run review.
-- MME-0057: Rich GFM footnote insertion baseline, promoted as the current executable slice for collision-safe reference-plus-definition insertion with targeted source patches, truthful history/save behavior, and deferred final product review.
+- MME-0057: Rich GFM footnote insertion baseline, accepted for code continuation after collision-safe reference-plus-definition insertion, exact bounded Markdown materialization, same-paragraph multiple insertion, escaped-source mapping, truthful command diagnostics/history/save behavior, browser proof, reviewer pass, and full test pass; final insertion UX/product review is queued for end-of-run review.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- MME-0057 is the current executable issue after promotion from the next baseline footnote insertion gap.
+- No executable normal issue remains after MME-0057; autonomous continuation must promote the next must-have backlog item before implementation.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

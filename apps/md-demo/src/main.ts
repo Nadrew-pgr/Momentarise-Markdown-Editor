@@ -143,6 +143,7 @@ import {
   type SurfaceToolbarState
 } from "@momentarise/md-surface";
 import { NodeSelection, Plugin, PluginKey, TextSelection, type EditorState as ProseMirrorEditorState } from "prosemirror-state";
+import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { Decoration, DecorationSet, EditorView as ProseMirrorEditorView } from "prosemirror-view";
 import {
   REFERENCE_AI_ACTIONS,
@@ -716,6 +717,7 @@ const richCommandIcons: Partial<Record<RichCommandId, IconName>> = {
   callout: "quote",
   codeBlock: "code",
   divider: "divider",
+  footnote: "link",
   heading1: "heading",
   heading2: "heading",
   heading3: "heading",
@@ -737,9 +739,8 @@ function registerReferenceExtensions(editorSession: MarkdownEditorSession): void
       id: richCommandExtensionId(command.id),
       labelKey: `commands.${command.id}`,
       run() {
-        runRichCommand(command.id);
         return {
-          handled: true
+          handled: runRichCommand(command.id)
         };
       }
     });
@@ -749,9 +750,8 @@ function registerReferenceExtensions(editorSession: MarkdownEditorSession): void
       id: richCommandExtensionId(command.id),
       labelKey: `commands.${command.id}`,
       run() {
-        runRichCommand(command.id);
         return {
-          handled: true
+          handled: runRichCommand(command.id)
         };
       }
     });
@@ -2674,7 +2674,7 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
     openSlashMenuForTest(query);
   },
   runRichCommand(commandId: RichCommandId, options?: ApplyRichMarkdownCommandOptions) {
-    runRichCommand(commandId, options);
+    return runRichCommand(commandId, options);
   },
   insertParagraphAfterCurrentRichBlock() {
     insertParagraphAfterCurrentRichBlock();
@@ -4386,6 +4386,8 @@ function createRichFindHighlightPlugin(): Plugin {
 }
 
 function syncRichMarkdownToSource(source: "rich edit" | "mode switch"): void {
+  const footnoteInsertionBaseSource = richState.footnoteInsertionBaseSource ?? richState.source;
+  const preserveFootnoteInsertionBaseline = hasInsertedRichFootnoteNodes(richState.editorState.doc);
   const markdown = serializeRichMarkdownState(richState).content;
   const parsedRichState = createRichMarkdownState(markdown, {
     dialect: "momentarise-enhanced",
@@ -4394,7 +4396,8 @@ function syncRichMarkdownToSource(source: "rich edit" | "mode switch"): void {
   });
   richState = {
     ...parsedRichState,
-    editorState: richState.editorState
+    editorState: richState.editorState,
+    ...(preserveFootnoteInsertionBaseline ? { footnoteInsertionBaseSource } : {})
   };
   replaceEditorDocument(markdown);
   session.setContent(markdown, "rich-view");
@@ -4405,6 +4408,21 @@ function syncRichMarkdownToSource(source: "rich edit" | "mode switch"): void {
   if (source === "mode switch") {
     logEvent("Serialized rich mode back to Markdown source.");
   }
+}
+
+function hasInsertedRichFootnoteNodes(doc: ProseMirrorNode): boolean {
+  let inserted = false;
+  doc.descendants((node) => {
+    if (
+      (node.type.name === "footnote_reference" && typeof node.attrs.insertionSourceOffset === "number") ||
+      (node.type.name === "footnote_definition" && node.attrs.inserted === true)
+    ) {
+      inserted = true;
+      return false;
+    }
+    return !inserted;
+  });
+  return inserted;
 }
 
 function persistRestorableDocument(): void {
@@ -4766,9 +4784,9 @@ function toggleCurrentRichTodo(): void {
   applyPackageRichState(toggleCurrentTodoItem(currentRichState), "Toggled current rich todo.");
 }
 
-function runRichCommand(commandId: RichCommandId, options: ApplyRichMarkdownCommandOptions = {}): void {
+function runRichCommand(commandId: RichCommandId, options: ApplyRichMarkdownCommandOptions = {}): boolean {
   if (!richEditor) {
-    return;
+    return false;
   }
   if (!isRichEditingMode()) {
     switchEditorMode("rich");
@@ -4777,8 +4795,12 @@ function runRichCommand(commandId: RichCommandId, options: ApplyRichMarkdownComm
   const result = runRichMarkdownCommand(commandState, commandId, optionsForCommand(commandId, options));
   if (!result.handled) {
     closeSlashMenu();
-    logEvent(`Rich command unavailable: ${commandLabel(commandId)}.`);
-    return;
+    logEvent(
+      commandId === "footnote"
+        ? defaultMmeStrings.footnote.unavailable
+        : `Rich command unavailable: ${commandLabel(commandId)}.`
+    );
+    return false;
   }
   richState = result.state;
   richEditor.updateState(result.state.editorState);
@@ -4788,7 +4810,12 @@ function runRichCommand(commandId: RichCommandId, options: ApplyRichMarkdownComm
   renderRichBlockControls();
   syncRichMarkdownToSource("rich edit");
   richEditor.focus();
-  logEvent(`Ran rich command: ${commandLabel(commandId)}.`);
+  logEvent(
+    commandId === "footnote"
+      ? defaultMmeStrings.footnote.inserted
+      : `Ran rich command: ${commandLabel(commandId)}.`
+  );
+  return true;
 }
 
 async function dispatchSlashItem(extensionId: string | undefined): Promise<void> {
@@ -4848,6 +4875,12 @@ function optionsForCommand(
     return {
       ...options,
       href: "https://example.invalid"
+    };
+  }
+  if (commandId === "footnote" && !options.text) {
+    return {
+      ...options,
+      text: defaultMmeStrings.footnote.initialBody
     };
   }
   return options;
@@ -6314,7 +6347,7 @@ declare global {
       ) => void;
       replaceActiveFindMatchForTest: (replacement: string) => void;
       replaceAllFindMatchesForTest: (query: string, replacement: string) => void;
-      runRichCommand: (commandId: RichCommandId, options?: ApplyRichMarkdownCommandOptions) => void;
+      runRichCommand: (commandId: RichCommandId, options?: ApplyRichMarkdownCommandOptions) => boolean;
       reorderRichBlocksForTest: (fromIndex: number, toIndex: number, placement?: "after" | "before") => string | null;
       selectFinalRichBlockForTest: () => void;
       selectRichFootnoteDefinitionForTest: (identifier: string) => void;

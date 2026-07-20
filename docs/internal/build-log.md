@@ -5909,3 +5909,52 @@
   - Fresh implementation-file validation corrected two stale path guesses to the real `packages/md-editor/src/index.ts`, `tests/extension-registry.test.mjs`, and `tests/demo-slash-toolbar-baseline.test.mjs` paths before RED work.
 - Next issue:
   - `MME-0057 — Rich GFM footnote insertion baseline`.
+
+## MME-0057 — Rich GFM footnote insertion baseline
+
+- Date: 2026-07-20.
+- Previous issue status:
+  - `MME-0056` accepted for code continuation and committed (`0134bf9` implementation/status, `f3e828a` evidence).
+  - `MME-0057` was promoted from backlog and committed in checkpoints `bf7991c` and `3eee0ab`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short`, and every parser, core, editor, rich-package, surface, demo, fixture, test, and save file named by the issue.
+- RED proof before implementation:
+  - Added `tests/rich-footnote-insertion.test.mjs`, registered `test:rich-footnote-insertion`, and confirmed the first run failed with `Missing MME-0057 rich footnote insertion export: insertRichFootnote`.
+- Change:
+  - Added public `insertRichFootnote`, typed non-mutating failure reasons, and `footnote` command registration in `@momentarise/md-rich-prosemirror`.
+  - Added deterministic `note`, `note-2`, and later identifier allocation using normalized existing references and definitions; explicit invalid or colliding preferred identifiers refuse safely.
+  - Inserts one semantic reference and matching editable single-line definition in one ProseMirror history transaction while Markdown remains durable truth.
+  - Materializes only stored reference offsets plus appended definitions against a preserved baseline, reparses that virtual Markdown for normal targeted serialization, retains LF/CRLF, and preserves unrelated/unknown HTML/directive bytes exactly.
+  - Supports multiple insertions in one paragraph, Markdown backslash escapes, and an unambiguous empty-document insertion; decoded character references, stale source, unsupported selections, code, invalid bodies, and unmappable positions refuse without mutation.
+  - Command results retain generated identifier/failure reason; extension callbacks now return actual handled truth instead of unconditional success.
+  - Added localized surface labels, toolbar-more/slash command registration, demo state rebasing, save-state logs, public API approval, minimal package/public docs truth, regenerated `llms-full.txt`, and regenerated AX manifests.
+- Visual impact:
+  - Added keyboard-reachable Footnote slash action plus inserted semantic reference/definition rendering.
+  - Artifacts: `docs/internal/visual-checks/MME-0057/footnote-command-desktop.png`, `footnote-inserted-desktop.png`, `footnote-source-desktop.png`, and `footnote-inserted-constrained.png`.
+  - Real Chrome CDP proof types `/foot`, invokes with Enter, checks collision allocation to `note-3`, performs one-step undo/redo, saves to clean state, verifies exact disk/source Markdown, and proves 390px visibility/containment.
+  - Builder inspected all four artifacts: nonblank, readable, contained, and without incoherent overlap. Final product/taste review remains queued for Andrew's end-of-run block.
+- Checks run:
+  - `npm run test:rich-footnote-insertion` — RED first, then green after implementation and every reviewer fix.
+  - `npm run test:rich-footnote-editing`, `npm run test:rich-targeted-serialization`, `npm run test:rich-commands`, `npm run test:rich-security`, `npm run test:surface`, `npm run test:extension-registry`, and `npm run test:demo-commands` — green.
+  - `npm run test:contracts`, `npm run test:public-api`, `npm run test:docs`, `npm run test:llms-sync`, and `npm run test:agent-artifacts` — green.
+  - `node --check scripts/visual-check-mme0057.mjs` — green.
+  - `npm run visual:mme-0057` — sandbox Chrome first exited before CDP; permissioned local Chrome reruns passed after implementation and reviewer fixes.
+  - `npm test` — green after final reviewer fixes; existing Vite chunk-size warning only.
+  - `curl http://127.0.0.1:5174/` — HTTP `200` after clean server restart.
+  - `git diff --check` — green immediately before commit.
+- Reviewer result:
+  - Architecture reviewer `Newton`, preservation/test reviewer `Sagan`, and security/accessibility integration reviewer `Boole` inspected only and used `gpt-5.3-codex-spark` with `xhigh` reasoning.
+  - Initial findings covered artificial same-paragraph insertion refusal, escaped-inline source mapping, missing stale/unmappable/adversarial preservation proof, empty-document mapping, and command diagnostic loss. Builder fixed all actionable findings immediately.
+  - Final reviewer `Parfit`, also `gpt-5.3-codex-spark` with `xhigh` reasoning, inspected the full corrected diff and reported no remaining P0-P3 findings.
+- Residual risks:
+  - Whitespace-only or rich-created empty blocks without an exact source range still refuse conservatively rather than guessing an insertion byte offset.
+  - Decoded Markdown character references refuse insertion at ambiguous positions; future generalized source-to-rendered-text mapping can expand this safely.
+  - Identifier rename, automatic repair, complex/multi-line/nested definitions, reorder, hover previews, and backlink redesign remain out of scope.
+  - Final command placement/naming, generated identifiers, focus transfer, keyboard feel, source visibility, definition density, and constrained layout are queued in `docs/internal/BACKLOG.md` for Andrew's final review block.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Pending issue-scoped implementation/status commit after final diff validation.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0057`; continuation requires promoting the next must-have backlog item before implementation.

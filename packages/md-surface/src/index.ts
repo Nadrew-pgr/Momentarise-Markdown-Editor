@@ -106,6 +106,11 @@ export interface MmeStrings {
     readonly replacementLabel: string;
     readonly replacementPlaceholder: string;
   };
+  readonly footnote: {
+    readonly inserted: string;
+    readonly initialBody: string;
+    readonly unavailable: string;
+  };
   readonly mode: {
     readonly label: string;
     readonly livePreview: string;
@@ -154,6 +159,7 @@ export interface MmeStrings {
     readonly callout: string;
     readonly codeBlock: string;
     readonly divider: string;
+    readonly footnote: string;
     readonly heading1: string;
     readonly heading2: string;
     readonly heading3: string;
@@ -489,6 +495,11 @@ export const defaultMmeStrings: MmeStrings = {
     replacementLabel: "Replace",
     replacementPlaceholder: "Replace with"
   },
+  footnote: {
+    inserted: "Footnote inserted",
+    initialBody: "Footnote",
+    unavailable: "Footnote insertion unavailable"
+  },
   mode: {
     label: "Editor mode",
     livePreview: "Live Preview",
@@ -543,6 +554,7 @@ export const defaultMmeStrings: MmeStrings = {
     callout: "Callout",
     codeBlock: "Code block",
     divider: "Divider",
+    footnote: "Footnote",
     heading1: "Heading 1",
     heading2: "Heading 2",
     heading3: "H3",
@@ -581,6 +593,7 @@ const toolbarMoreCommands: readonly ToolbarCommandDefinition[] = [
   { group: "insert", icon: "quote", id: "mme:callout", richCommand: "callout", title: "callout" },
   { group: "insert", icon: "chevron", id: "mme:toggleBlock", richCommand: "toggleBlock", testId: "toolbar-command-toggleBlock", title: "toggleBlock" },
   { group: "insert", icon: "image", id: "mme:image", richCommand: "image", title: "image" },
+  { group: "insert", icon: "link", id: "mme:footnote", richCommand: "footnote", title: "footnote" },
   { group: "marks", icon: "code", id: "mme:inlineCode", richCommand: "inlineCode", title: "inlineCode" }
 ] as const;
 

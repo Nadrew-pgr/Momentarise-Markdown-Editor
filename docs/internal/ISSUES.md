@@ -3187,6 +3187,10 @@ Architecture Reviewer, Test Reviewer, and UX Reviewer.
 
 ## MME-0057 — Rich GFM footnote insertion baseline
 
+### Status: completed
+
+Accepted for code continuation 2026-07-20 after adding a package-owned semantic footnote insertion helper and command, deterministic normalization-aware identifiers, exact reference and document-end definition materialization, same-paragraph multiple insertion, backslash-escaped source mapping, conservative entity/stale/unmappable refusal, LF/CRLF preservation, one-step undo/redo, truthful save state, public API/docs coverage, and real browser command/source/constrained-width proof. Architecture, preservation/test, and security/accessibility reviewers used `gpt-5.3-codex-spark` with `xhigh` reasoning; builder fixed same-paragraph insertion, escaped-source mapping, adversarial preservation coverage, empty-document mapping, and command-diagnostic findings. Final re-review reported no remaining P0-P3 findings. Final command placement, naming, generated identifiers, focus flow, source visibility, and constrained-layout product review remains queued in `docs/internal/BACKLOG.md` for Andrew's end-of-run block. Identifier rename, automatic repair, and complex definition editing remain future work.
+
 ### Goal
 
 Let users insert a new Markdown-native footnote reference and matching simple definition from Rich mode without full-document serialization, identifier collisions, or hidden non-Markdown state.

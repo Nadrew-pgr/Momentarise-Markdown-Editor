@@ -129,6 +129,7 @@
     "getRichHeadingFoldItems",
     "insertParagraphAfterCurrentBlock",
     "insertParagraphAfterFinalBlock",
+    "insertRichFootnote",
     "markdownDocumentToProseMirror",
     "momentariseRichProseMirrorPackage",
     "moveRichTableCell",

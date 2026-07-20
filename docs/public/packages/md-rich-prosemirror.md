@@ -25,6 +25,7 @@ updated: 2026-07-20
 - list and todo editing;
 - standard GFM table editing and cell navigation;
 - simple GFM footnote definition editing;
+- collision-safe GFM footnote insertion;
 - folding;
 - block affordance helpers;
 - source-to-rich and rich-to-source selection mapping for host commands.
@@ -45,9 +46,9 @@ Nested, malformed, non-standard, or non-representable table-like syntax stays in
 
 Unique top-level single-line GFM definitions with representable inline content mount as semantic editable blocks. Their references remain semantic inline nodes and retain their original Markdown spelling.
 
-Hosts can use `selectRichFootnoteDefinition` to select an existing body by identifier and `replaceRichFootnoteDefinitionText` to replace it with single-line text. Changed definitions serialize through their original source range; unrelated Markdown and line endings remain untouched.
+Hosts can use `selectRichFootnoteDefinition` to select an existing body by identifier, `replaceRichFootnoteDefinitionText` to replace it with single-line text, and `insertRichFootnote` to insert one reference plus its matching definition in a single history action. Changed and inserted definitions serialize through exact source mappings; unrelated Markdown and line endings remain untouched.
 
-Multi-line, multi-block, nested, duplicate, malformed, unsafe, or otherwise non-representable definitions stay in the visible source-only fallback. Identifier rename, new definition insertion, and automatic reference repair are not part of this baseline.
+Insertion allocates collision-safe identifiers, accepts an explicit unused identifier, and refuses non-collapsed or unsupported selections, non-representable bodies, and stale source mappings. Multi-line, multi-block, nested, duplicate, malformed, unsafe, or otherwise non-representable definitions stay in the visible source-only fallback. Identifier rename and automatic reference repair are not part of this baseline.
 
 ## Related Docs
 
