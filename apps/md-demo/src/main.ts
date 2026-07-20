@@ -61,6 +61,9 @@ import {
   createMarkdownEditorSession,
   type AiActionDefinition,
   type AiActionParam,
+  type AssetInsertResult,
+  type AssetUploadInput,
+  type AssetUploadProvider,
   type CustomBlockDefinition,
   type EditorDocumentKind,
   type ExtensionRunContext,
@@ -88,6 +91,7 @@ import {
   runRichMarkdownCommand,
   serializeRichMarkdownState,
   setCurrentCodeBlockInfo,
+  sourceRangeForRichRange,
   toggleRichFold,
   toggleRichHeadingFold,
   toggleCurrentTodoItem,
@@ -126,6 +130,7 @@ import {
   defaultMmeStrings,
   type SurfaceAiAction,
   type SurfaceAiAssistantState,
+  type SurfaceAssetUploadState,
   type SurfaceAiProviderKind,
   type SurfaceAiProviderState,
   type SurfaceDocumentState,
@@ -190,9 +195,17 @@ app.innerHTML = `
           <button class="button secondary utility-action compact-action" type="button" data-testid="copy-button" tabindex="-1">Copy</button>
           <button class="button secondary utility-action compact-action" type="button" data-testid="download-button" tabindex="-1">Download</button>
         </div>
+        <div class="command-group asset-upload-group" data-testid="asset-upload-group" aria-label="${defaultMmeStrings.assetUpload.label}">
+          <button class="button secondary asset-upload-button" type="button" data-testid="asset-upload-button">
+            <span class="asset-upload-icon" aria-hidden="true">${defaultIconSet.render("image")}</span>
+            <span>${defaultMmeStrings.assetUpload.chooseImage}</span>
+          </button>
+          <p class="asset-upload-status" data-testid="asset-upload-status" role="status" aria-live="polite" hidden>${defaultMmeStrings.assetUpload.statusLabel}: idle</p>
+        </div>
         <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,.text,.log,.csv,.tsv,.json,.yaml,.yml,.toml,.html,.htm,.svg,text/markdown,text/plain,text/csv,text/tab-separated-values,application/json,application/yaml,application/toml,text/html,image/svg+xml" data-testid="open-file-input" />
         <input class="file-input" type="file" accept=".md,.markdown,.mdown,.txt,.text,.log,.csv,.tsv,.json,.yaml,.yml,.toml,text/markdown,text/plain,text/csv,text/tab-separated-values,application/json,application/yaml,application/toml" data-testid="import-copy-input" />
         <input class="file-input" type="file" accept=".html,.htm,text/html" data-testid="html-file-input" />
+        <input class="file-input" type="file" accept="image/*" data-testid="asset-upload-input" />
         <div data-testid="mode-control-host"></div>
         <details class="ai-command-surface" data-testid="ai-command-surface">
           <summary class="button secondary editor-ai-button" data-testid="editor-ai-button">AI</summary>
@@ -465,6 +478,9 @@ const openHtmlFileButton = queryRequired<HTMLButtonElement>('[data-testid="open-
 const importCopyButton = queryRequired<HTMLButtonElement>('[data-testid="import-copy-button"]');
 const importCopyInput = queryRequired<HTMLInputElement>('[data-testid="import-copy-input"]');
 const htmlFileInput = queryRequired<HTMLInputElement>('[data-testid="html-file-input"]');
+const assetUploadButton = queryRequired<HTMLButtonElement>('[data-testid="asset-upload-button"]');
+const assetUploadInput = queryRequired<HTMLInputElement>('[data-testid="asset-upload-input"]');
+const assetUploadStatusElement = queryRequired<HTMLElement>('[data-testid="asset-upload-status"]');
 const copyButton = queryRequired<HTMLButtonElement>('[data-testid="copy-button"]');
 const downloadButton = queryRequired<HTMLButtonElement>('[data-testid="download-button"]');
 const simulateConflictButton = queryRequired<HTMLButtonElement>('[data-testid="simulate-conflict-button"]');
@@ -571,6 +587,7 @@ type DemoDocumentKind = EditorDocumentKind;
 type DemoEditorMode = "live-preview" | "source" | "rich" | "preview";
 type PropertiesDisplayMode = "visible" | "hidden" | "source";
 type AiDemoProviderMode = "host-managed" | "mock" | "personal-byok" | "sidecar-local";
+type DemoAssetProviderMode = "delayed" | "demo" | "failed" | "pending" | "unavailable" | "unsafe";
 
 interface SlashCommandState {
   readonly from: number;
@@ -615,6 +632,14 @@ interface DemoAiProviderConfig {
   readonly transport?: OpenAiCompatibleTransport;
 }
 
+interface DemoAssetInsertOptions {
+  readonly alt?: string;
+  readonly fileName?: string;
+  readonly mediaType?: string;
+  readonly source?: AssetUploadInput["source"];
+  readonly title?: string;
+}
+
 const fixtureSaveTarget = createMemorySaveTarget({
   initialContent: fixtureMarkdown,
   targetLabel: "fixture://source-mode-fixture.md"
@@ -629,6 +654,11 @@ let demoAiProviderName = "mock";
 let demoAiProviderHeaders: Readonly<Record<string, string>> | null = null;
 let demoAiProviderTransport: OpenAiCompatibleTransport | null = null;
 let demoAiProviderTransportCallCount = 0;
+let demoAssetProviderMode: DemoAssetProviderMode = "demo";
+let assetUploadState: SurfaceAssetUploadState = {
+  message: defaultMmeStrings.assetUpload.idle,
+  status: "idle"
+};
 let session: MarkdownEditorSession;
 let activeSaveTarget: SaveTarget = fixtureSaveTarget;
 let externalChangeWatcher: ExternalChangeWatcher | null = null;
@@ -758,6 +788,30 @@ function registerReferenceExtensions(editorSession: MarkdownEditorSession): void
       };
     }
   });
+  editorSession.extensions.registerSlashItem({
+    aliases: ["image", "asset", "upload", "paste-image"],
+    group: "insert",
+    id: "host:insert-image-asset",
+    labelKey: "extensions.hostInsertImageAsset",
+    run() {
+      requestAssetUploadFromPicker("slash");
+      return {
+        handled: true
+      };
+    }
+  });
+  editorSession.extensions.registerToolbarItem({
+    group: "insert",
+    icon: "image",
+    id: "host:insert-image-asset",
+    labelKey: "extensions.hostInsertImageAsset",
+    run() {
+      requestAssetUploadFromPicker("toolbar");
+      return {
+        handled: true
+      };
+    }
+  });
   editorSession.extensions.registerAiAction({
     buildPrompt(params) {
       return `Translate the selection to ${params.language} with a ${params.tone} tone.`;
@@ -855,8 +909,10 @@ function richCommandSlashGroup(group: RichMarkdownCommand["group"]): SlashItemDe
 }
 
 function createDemoSession(content: string, target: SaveTarget, path: string | null): MarkdownEditorSession {
+  const assetProvider = createDemoAssetUploadProvider();
   const nextSession = createMarkdownEditorSession({
     aiProvider: demoAiProvider,
+    ...(assetProvider === undefined ? {} : { assetProvider }),
     autosaveDelayMs: 1000,
     content,
     path,
@@ -885,6 +941,10 @@ restartExternalChangeWatcher();
 
 function replaceDemoSession(content: string, target: SaveTarget, path: string | null): void {
   activeSaveTarget = target;
+  assetUploadState = {
+    message: defaultMmeStrings.assetUpload.idle,
+    status: "idle"
+  };
   externalChangeWatcher?.stop();
   externalChangeWatcher = null;
   session.destroy();
@@ -901,6 +961,393 @@ function replaceDemoSession(content: string, target: SaveTarget, path: string | 
     statusText: defaultMmeStrings.ai.noSession
   };
   mountReferenceSurfaceComponents();
+}
+
+function createDemoAssetUploadProvider(): AssetUploadProvider | undefined {
+  if (demoAssetProviderMode === "unavailable") {
+    return undefined;
+  }
+  return {
+    async upload(input, context) {
+      if (demoAssetProviderMode === "delayed") {
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 80);
+        });
+      }
+      if (demoAssetProviderMode === "failed") {
+        return {
+          reason: "Demo asset provider failed before storage.",
+          status: "failed"
+        };
+      }
+      if (demoAssetProviderMode === "pending") {
+        return {
+          reason: "Demo asset provider marked the image pending.",
+          status: "pending"
+        };
+      }
+      if (demoAssetProviderMode === "unsafe") {
+        return {
+          alt: context.suggestedAlt ?? readableAssetAlt(input.name),
+          status: "uploaded",
+          url: "data:image/png;base64,unsafe-demo"
+        };
+      }
+      return {
+        alt: context.suggestedAlt ?? readableAssetAlt(input.name),
+        metadata: {
+          demo: "true",
+          storage: "host-owned-reference"
+        },
+        status: "uploaded",
+        ...(context.suggestedTitle === undefined ? {} : { title: context.suggestedTitle }),
+        url: `./assets/${demoAssetFileName(input.name)}`
+      };
+    }
+  };
+}
+
+function configureDemoAssetProviderForTest(mode: DemoAssetProviderMode = "demo"): void {
+  demoAssetProviderMode = mode;
+  recreateDemoSessionForCurrentDocument();
+  setAssetUploadState({
+    message: mode === "unavailable" ? defaultMmeStrings.assetUpload.unavailable : defaultMmeStrings.assetUpload.idle,
+    status: mode === "unavailable" ? "unavailable" : "idle"
+  });
+}
+
+function recreateDemoSessionForCurrentDocument(): void {
+  const content = getMarkdown();
+  replaceDemoSession(content, activeSaveTarget, activeDocument.pathLabel);
+  replaceEditorDocument(content);
+  if (activeDocument.kind === "markdown" && isRichEditingMode()) {
+    mountRichEditor(content);
+  }
+  renderEditorMode();
+  renderSaveState();
+  updateRoundTripStatus();
+  renderReferenceSurfaceState();
+}
+
+function requestAssetUploadFromPicker(_source: "slash" | "toolbar"): void {
+  if (!canInsertAssetIntoActiveDocument()) {
+    setAssetUploadState({
+      disabledReason: defaultMmeStrings.assetUpload.markdownOnly,
+      message: defaultMmeStrings.assetUpload.markdownOnly,
+      status: "failed"
+    });
+    return;
+  }
+  assetUploadInput.value = "";
+  assetUploadInput.click();
+}
+
+async function requestAssetUploadFromFile(file: File, source: NonNullable<AssetUploadInput["source"]>): Promise<AssetInsertResult> {
+  if (!canInsertAssetIntoActiveDocument()) {
+    const result = failedAssetInsertResult(defaultMmeStrings.assetUpload.markdownOnly);
+    setAssetUploadState(assetStateForInsertResult(result, { fileName: file.name, source }));
+    return result;
+  }
+  const fileSession = session;
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (session !== fileSession) {
+      return failedAssetInsertResult(defaultMmeStrings.assetUpload.documentChanged);
+    }
+    return insertDemoAsset(
+      {
+        bytes,
+        hash: await hashDemoAssetBytes(bytes),
+        mediaType: file.type || mediaTypeForAssetName(file.name),
+        name: file.name,
+        size: bytes.byteLength,
+        source
+      },
+      {
+        alt: readableAssetAlt(file.name),
+        fileName: file.name,
+        source
+      }
+    );
+  } catch (error) {
+    const result = failedAssetInsertResult(`${defaultMmeStrings.assetUpload.readFailed}: ${errorMessage(error)}`);
+    setAssetUploadState(assetStateForInsertResult(result, { fileName: file.name, source }));
+    logEvent(`Image asset could not be read: ${errorMessage(error)}.`);
+    return result;
+  }
+}
+
+async function insertDemoAsset(input: AssetUploadInput, options: DemoAssetInsertOptions = {}): Promise<AssetInsertResult> {
+  if (!canInsertAssetIntoActiveDocument()) {
+    const result = failedAssetInsertResult(defaultMmeStrings.assetUpload.markdownOnly);
+    setAssetUploadState(assetStateForInsertResult(result, options));
+    return result;
+  }
+  if (assetUploadState.busy) {
+    return {
+      policyDecisions: [],
+      reason: defaultMmeStrings.assetUpload.pending,
+      status: "pending"
+    };
+  }
+  const uploadSession = session;
+  const range = currentAssetInsertionRange();
+  if (!range) {
+    const reason = defaultMmeStrings.assetUpload.locationUnavailable;
+    const result = failedAssetInsertResult(reason);
+    setAssetUploadState(assetStateForInsertResult(result, options));
+    logEvent(`Image asset not inserted: failed — ${reason}`);
+    return result;
+  }
+  setAssetUploadState({
+    busy: true,
+    message: defaultMmeStrings.assetUpload.uploading,
+    status: "pending"
+  });
+  let result: AssetInsertResult;
+  try {
+    result = await uploadSession.insertAsset(input, {
+      ...(options.alt === undefined ? {} : { alt: options.alt }),
+      origin: editorMode === "source" ? "source-view" : "rich-view",
+      range,
+      ...(options.title === undefined ? {} : { title: options.title })
+    });
+  } catch (error) {
+    result = failedAssetInsertResult(errorMessage(error));
+  }
+  if (session !== uploadSession) {
+    return failedAssetInsertResult(defaultMmeStrings.assetUpload.documentChanged);
+  }
+  if (result.status === "inserted") {
+    replaceEditorDocument(result.content);
+    if (isRichEditingMode()) {
+      mountRichEditor(result.content);
+    }
+    refreshFindMatches();
+    persistRestorableDocument();
+    renderSaveState();
+    updateRoundTripStatus();
+    setAssetUploadState(assetStateForInsertResult(result, options));
+    logEvent(`Inserted image asset ${options.fileName ?? input.name} from ${options.source ?? input.source ?? "host"}.`);
+    return result;
+  }
+  if (result.status === "unavailable") {
+    setAssetUploadState(assetStateForInsertResult(result, options));
+  } else if (result.status === "denied") {
+    setAssetUploadState(assetStateForInsertResult(result, options));
+  } else if (result.status === "failed") {
+    setAssetUploadState(assetStateForInsertResult(result, options));
+  } else if (result.status === "pending") {
+    setAssetUploadState(assetStateForInsertResult(result, options));
+  }
+  logEvent(`Image asset not inserted: ${result.status} — ${result.reason}`);
+  renderSaveState();
+  updateRoundTripStatus();
+  return result;
+}
+
+function currentAssetInsertionRange(): { readonly from: number; readonly to: number } | null {
+  if (isRichEditingMode()) {
+    if (richChanged) {
+      syncRichMarkdownToSource("rich edit");
+    }
+    const markdown = getMarkdown();
+    if (richEditor) {
+      const selection = richEditor.state.selection;
+      const mappedSelection = sourceRangeForRichRange(richState, {
+        from: selection.from,
+        to: selection.to
+      });
+      if (mappedSelection) {
+        return mappedSelection;
+      }
+    }
+    return markdown.length === 0 ? { from: 0, to: 0 } : null;
+  }
+  const markdown = getMarkdown();
+  const selection = editor.state.selection.main;
+  return {
+    from: Math.max(0, Math.min(selection.from, markdown.length)),
+    to: Math.max(0, Math.min(selection.to, markdown.length))
+  };
+}
+
+function failedAssetInsertResult(reason: string): AssetInsertResult {
+  return {
+    policyDecisions: [],
+    reason,
+    status: "failed"
+  };
+}
+
+function canInsertAssetIntoActiveDocument(): boolean {
+  return activeDocument.kind === "markdown";
+}
+
+function assetStateForInsertResult(result: AssetInsertResult, options: DemoAssetInsertOptions): SurfaceAssetUploadState {
+  switch (result.status) {
+    case "inserted":
+      return {
+        message: `${defaultMmeStrings.assetUpload.inserted}: ${options.fileName ?? result.upload.url}`,
+        status: "inserted"
+      };
+    case "unavailable":
+      return {
+        message: `${defaultMmeStrings.assetUpload.unavailable}: ${result.reason}`,
+        status: "unavailable"
+      };
+    case "denied":
+      return {
+        message: `${defaultMmeStrings.assetUpload.denied}: ${result.reason}`,
+        status: "denied"
+      };
+    case "failed":
+      return {
+        message: `${defaultMmeStrings.assetUpload.failed}: ${result.reason}`,
+        status: "failed"
+      };
+    case "pending":
+      return {
+        message: `${defaultMmeStrings.assetUpload.pending}: ${result.reason}`,
+        status: "pending"
+      };
+  }
+}
+
+function setAssetUploadState(nextState: SurfaceAssetUploadState): void {
+  assetUploadState = nextState;
+  renderAssetUploadState();
+}
+
+function renderAssetUploadState(): void {
+  const disabledReason = activeDocument.kind === "markdown" ? assetUploadState.disabledReason : defaultMmeStrings.assetUpload.markdownOnly;
+  assetUploadButton.disabled = Boolean(assetUploadState.busy || disabledReason);
+  assetUploadButton.setAttribute("aria-busy", assetUploadState.busy ? "true" : "false");
+  assetUploadButton.title = disabledReason ?? defaultMmeStrings.assetUpload.chooseImage;
+  assetUploadStatusElement.dataset.assetUploadStatus = assetUploadState.status;
+  assetUploadStatusElement.hidden = assetUploadState.status === "idle";
+  assetUploadStatusElement.textContent = visibleAssetUploadMessage(assetUploadState);
+  assetUploadStatusElement.title = assetUploadState.message;
+  assetUploadStatusElement.setAttribute("aria-label", `${defaultMmeStrings.assetUpload.statusLabel}: ${assetUploadState.message}`);
+}
+
+function visibleAssetUploadMessage(state: SurfaceAssetUploadState): string {
+  if (state.status === "inserted") {
+    return state.message;
+  }
+  if (state.status === "denied") {
+    return defaultMmeStrings.assetUpload.denied;
+  }
+  if (state.status === "failed") {
+    return defaultMmeStrings.assetUpload.failed;
+  }
+  if (state.status === "pending") {
+    return defaultMmeStrings.assetUpload.pending;
+  }
+  if (state.status === "unavailable") {
+    return defaultMmeStrings.assetUpload.unavailable;
+  }
+  return state.message;
+}
+
+function handleEditorAssetPaste(event: ClipboardEvent): void {
+  const file = firstImageFile(event.clipboardData);
+  if (!file) {
+    return;
+  }
+  event.preventDefault();
+  void requestAssetUploadFromFile(file, "paste");
+}
+
+function handleEditorAssetDrop(event: DragEvent): void {
+  const file = firstImageFile(event.dataTransfer);
+  if (!file) {
+    return;
+  }
+  event.preventDefault();
+  void requestAssetUploadFromFile(file, "drop");
+}
+
+function handleEditorAssetDragOver(event: DragEvent): void {
+  if (firstImageFile(event.dataTransfer)) {
+    event.preventDefault();
+  }
+}
+
+function firstImageFile(transfer: DataTransfer | null | undefined): File | null {
+  if (!transfer) {
+    return null;
+  }
+  for (let index = 0; index < transfer.items.length; index += 1) {
+    const item = transfer.items[index];
+    if (item?.kind !== "file") {
+      continue;
+    }
+    const file = item.getAsFile();
+    if (file && isImageFile(file)) {
+      return file;
+    }
+  }
+  for (const file of Array.from(transfer.files)) {
+    if (isImageFile(file)) {
+      return file;
+    }
+  }
+  return null;
+}
+
+function isImageFile(file: File): boolean {
+  return file.type.toLowerCase().startsWith("image/") || /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)$/i.test(file.name);
+}
+
+function readableAssetAlt(fileName: string): string {
+  return fileName.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim() || "Image";
+}
+
+function demoAssetFileName(fileName: string): string {
+  const trimmed = fileName.trim() || "image.png";
+  const dotIndex = trimmed.lastIndexOf(".");
+  const extension = dotIndex >= 0 ? trimmed.slice(dotIndex + 1).toLowerCase().replace(/[^a-z0-9]/g, "") : "png";
+  const base = dotIndex >= 0 ? trimmed.slice(0, dotIndex) : trimmed;
+  const slug = base
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "image";
+  return `${slug}.${extension || "png"}`;
+}
+
+function mediaTypeForAssetName(fileName: string): string {
+  const extension = fileName.toLowerCase().split(".").pop();
+  if (extension === "jpg" || extension === "jpeg") {
+    return "image/jpeg";
+  }
+  if (extension === "gif") {
+    return "image/gif";
+  }
+  if (extension === "svg") {
+    return "image/svg+xml";
+  }
+  if (extension === "webp") {
+    return "image/webp";
+  }
+  return "image/png";
+}
+
+async function hashDemoAssetBytes(bytes: Uint8Array): Promise<string> {
+  if (globalThis.crypto?.subtle) {
+    const digestBytes = new Uint8Array(bytes.byteLength);
+    digestBytes.set(bytes);
+    const buffer = await globalThis.crypto.subtle.digest("SHA-256", digestBytes);
+    return `sha256:${Array.from(new Uint8Array(buffer), (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+  }
+  return `size:${bytes.length}`;
+}
+
+function createTestImageFile(fileName: string, content = "mme-test-image"): File {
+  return new File([content], fileName, {
+    type: mediaTypeForAssetName(fileName)
+  });
 }
 
 function restartExternalChangeWatcher(): void {
@@ -1636,6 +2083,18 @@ importCopyButton.addEventListener("click", () => {
   importCopyInput.click();
 });
 
+assetUploadButton.addEventListener("click", () => {
+  requestAssetUploadFromPicker("toolbar");
+});
+
+assetUploadInput.addEventListener("change", () => {
+  const [file] = Array.from(assetUploadInput.files ?? []);
+  assetUploadInput.value = "";
+  if (file) {
+    void requestAssetUploadFromFile(file, "host");
+  }
+});
+
 importCopyInput.addEventListener("change", () => {
   const [file] = Array.from(importCopyInput.files ?? []);
   importCopyInput.value = "";
@@ -1736,6 +2195,11 @@ commandPaletteButton.addEventListener("click", () => {
   }
   setCommandPaletteOpen(true);
 });
+
+editor.dom.addEventListener("paste", handleEditorAssetPaste);
+richEditorHost.addEventListener("paste", handleEditorAssetPaste);
+editorRegion.addEventListener("drop", handleEditorAssetDrop);
+editorRegion.addEventListener("dragover", handleEditorAssetDragOver);
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden" && sessionShouldBlockClose()) {
@@ -1894,6 +2358,44 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
       pathLabel: activeDocument.pathLabel
     };
   },
+  getAssetUploadState() {
+    return {
+      buttonDisabled: assetUploadButton.disabled,
+      busy: Boolean(assetUploadState.busy),
+      mode: demoAssetProviderMode,
+      status: assetUploadState.status,
+      statusText: assetUploadStatusElement.textContent ?? ""
+    };
+  },
+  configureDemoAssetProviderForTest(mode: DemoAssetProviderMode = "demo") {
+    configureDemoAssetProviderForTest(mode);
+  },
+  async insertDemoAssetForTest(options: DemoAssetInsertOptions = {}) {
+    const fileName = options.fileName ?? "demo-image.png";
+    const bytes = new TextEncoder().encode(`mme-test-image:${fileName}`);
+    return insertDemoAsset(
+      {
+        bytes,
+        hash: await hashDemoAssetBytes(bytes),
+        mediaType: options.mediaType ?? mediaTypeForAssetName(fileName),
+        name: fileName,
+        size: bytes.byteLength,
+        source: options.source ?? "host"
+      },
+      {
+        alt: options.alt ?? "Demo image",
+        fileName,
+        source: options.source ?? "host",
+        ...(options.title === undefined ? {} : { title: options.title })
+      }
+    );
+  },
+  simulateAssetPasteForTest(fileName = "pasted-image.png") {
+    return requestAssetUploadFromFile(createTestImageFile(fileName), "paste");
+  },
+  simulateAssetDropForTest(fileName = "dropped-image.png") {
+    return requestAssetUploadFromFile(createTestImageFile(fileName), "drop");
+  },
   getHtmlPreviewState() {
     return {
       available: isPreviewArtifactKind(activeDocument.kind),
@@ -2024,7 +2526,7 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
     loadHtmlArtifact(fileName, content, "test HTML artifact");
   },
   loadAiPolicyDeniedDocumentForTest() {
-    loadOpenedMarkdownFile(createImportedCopyDocument({ content: "# Secret\n\nDo not send.\n", fileName: ".env" }), {
+    loadOpenedMarkdownFile(createImportedCopyDocument({ content: "# Secret\n\nDo not send.\n", fileName: ".env", kind: "markdown" }), {
       sourceLabel: "AI policy denied fixture"
     });
   },
@@ -3435,6 +3937,7 @@ function renderReferenceSurfaceState(): void {
   toolbarSurface?.setState(surfaceToolbarState());
   toolbarAiButton = queryRequired<HTMLButtonElement>('[data-testid="toolbar-ai-button"]');
   toolbarMoreMenu = queryRequired<HTMLDivElement>('[data-testid="toolbar-more-menu"]');
+  renderAssetUploadState();
   setInlineAiPromptState({
     anchor: inlineAiPromptState.open ? positionInlineAiPrompt(false) : inlineAiPromptState.anchor,
     provider: inlineAiProviderState()
@@ -5625,12 +6128,20 @@ declare global {
       editor: CodeMirrorEditorView;
       applyHostThemeForTest: (theme: MmeTheme, scheme?: MmeScheme) => void;
       flushSave: (reason: SaveFlushReason) => Promise<void>;
+      insertDemoAssetForTest: (options?: DemoAssetInsertOptions) => Promise<AssetInsertResult>;
       forceStatusRefresh: () => void;
       getActiveDocument: () => {
         readonly fileName: string;
         readonly kind: DemoDocumentKind;
         readonly mode: DemoDocumentMode;
         readonly pathLabel: string;
+      };
+      getAssetUploadState: () => {
+        readonly buttonDisabled: boolean;
+        readonly busy: boolean;
+        readonly mode: DemoAssetProviderMode;
+        readonly status: SurfaceAssetUploadState["status"];
+        readonly statusText: string;
       };
       getEditorMode: () => DemoEditorMode;
       getLastCopiedMarkdown: () => string | null;
@@ -5769,6 +6280,7 @@ declare global {
       };
       getTestDiskContent: () => string | null;
       acceptAiSuggestionForTest: () => void;
+      configureDemoAssetProviderForTest: (mode?: DemoAssetProviderMode) => void;
       configureHostAiProviderForTest: () => void;
       configurePersonalByokProviderForTest: () => void;
       configureRelativeSecretEndpointForTest: () => void;
@@ -5796,6 +6308,8 @@ declare global {
       saveAsWritableMarkdownFileForTest: (fileName?: string) => Promise<void>;
       showRealFileOpenUnavailableForTest: () => void;
       showUnsupportedLocalFileStateForTest: () => void;
+      simulateAssetDropForTest: (fileName?: string) => Promise<AssetInsertResult>;
+      simulateAssetPasteForTest: (fileName?: string) => Promise<AssetInsertResult>;
       simulateCleanExternalApplyForTest: (content: string) => Promise<void>;
       simulateExternalConflict: () => Promise<void>;
       setCursorAfterText: (text: string) => void;

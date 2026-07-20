@@ -130,6 +130,46 @@ h1 {
   border-right: 1px solid var(--mme-color-border);
 }
 
+.asset-upload-group {
+  position: relative;
+}
+
+.asset-upload-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.asset-upload-icon,
+.asset-upload-icon svg {
+  display: block;
+  inline-size: 16px;
+  block-size: 16px;
+  flex: 0 0 16px;
+}
+
+.asset-upload-status {
+  max-width: 190px;
+  margin: 0 0 0 5px;
+  overflow: hidden;
+  color: var(--mme-color-text-muted);
+  font-size: 11px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-upload-status[data-asset-upload-status="inserted"] {
+  color: var(--mme-color-accent);
+}
+
+.asset-upload-status[data-asset-upload-status="denied"],
+.asset-upload-status[data-asset-upload-status="failed"],
+.asset-upload-status[data-asset-upload-status="unavailable"] {
+  color: var(--mme-color-danger);
+}
+
 .open-file-button {
   min-width: 76px;
 }
@@ -2267,6 +2307,15 @@ h1 {
     width: auto;
     padding-inline: 12px;
     border: 1px solid var(--mme-color-border);
+  }
+
+  .asset-upload-group {
+    align-items: center;
+    max-width: 100%;
+  }
+
+  .asset-upload-status {
+    max-width: min(48vw, 220px);
   }
 
   .compact-action {

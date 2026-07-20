@@ -10,7 +10,7 @@ tags:
 packages:
   - "@momentarise/md-rich-prosemirror"
 llms: include
-updated: 2026-07-08
+updated: 2026-07-20
 ---
 
 # ProseMirror Rich View
@@ -24,7 +24,8 @@ updated: 2026-07-08
 - input rules;
 - list and todo editing;
 - folding;
-- block affordance helpers.
+- block affordance helpers;
+- source-to-rich and rich-to-source selection mapping for host commands.
 
 ## Boundary
 

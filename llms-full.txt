@@ -597,7 +597,7 @@ tags:
   - ui
   - editor
 llms: include
-updated: 2026-07-19
+updated: 2026-07-20
 ---
 
 # Editor UI
@@ -629,7 +629,9 @@ The default surface is framework-free. React and Next.js consume it through bind
 
 Image paste, drop, and import flows use a host-owned asset provider. MME does not ship a storage service or hidden asset database. When a provider returns a safe URL/path, MME inserts normal Markdown image syntax and preserves the surrounding source.
 
-If no provider is configured, callers receive an `unavailable` result. If upload is denied by policy or the provider fails, callers receive a structured denial or failure. In all three cases, the document stays unchanged.
+If no provider is configured, callers receive an `unavailable` result. If upload is denied by policy, the provider fails, the document changes while upload is pending, or a rich selection cannot map safely to Markdown source, callers receive a structured non-inserted result. The document stays unchanged by that upload attempt.
+
+The reference editor exposes the same path through its **Insert image** action, slash command, image paste, and image drop. Its local demo provider returns `./assets/...` references to demonstrate integration only; it does not copy the selected binary or provide production storage. A real host must replace that provider with storage it owns and return the persisted URL or path.
 
 ## Status Surfaces
 
@@ -882,7 +884,7 @@ tags:
 packages:
   - "@momentarise/md-surface"
 llms: include
-updated: 2026-07-08
+updated: 2026-07-20
 ---
 
 # Surface Components
@@ -909,6 +911,7 @@ Surface components consume tokens, preferences, icons, and injected strings. The
 - `createSelectionBubbleToolbar` renders reusable selected-text action chrome.
 - `createDocumentStatus` renders truthful document state without owning persistence.
 - `createModeControl` renders document-kind-aware mode controls.
+- `SurfaceAssetUploadState` and localized `assetUpload` strings let hosts present idle, pending, inserted, unavailable, denied, and failed image-insertion states without moving storage into the surface package.
 
 ## Release Notes
 
@@ -1713,7 +1716,7 @@ tags:
 packages:
   - "@momentarise/md-rich-prosemirror"
 llms: include
-updated: 2026-07-08
+updated: 2026-07-20
 ---
 
 # ProseMirror Rich View
@@ -1727,7 +1730,8 @@ updated: 2026-07-08
 - input rules;
 - list and todo editing;
 - folding;
-- block affordance helpers.
+- block affordance helpers;
+- source-to-rich and rich-to-source selection mapping for host commands.
 
 ## Boundary
 

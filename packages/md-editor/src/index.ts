@@ -925,6 +925,7 @@ class DefaultMarkdownEditorSession implements MarkdownEditorSession {
         status: "unavailable"
       };
     }
+    const sourceHashBeforeUpload = this.getSaveState().currentHash;
     let upload: AssetUploadProviderResult;
     try {
       upload = await this.assetProvider.upload(input, {
@@ -946,6 +947,20 @@ class DefaultMarkdownEditorSession implements MarkdownEditorSession {
         reason: upload.reason,
         status: upload.status,
         upload
+      };
+    }
+    if (this.destroyed) {
+      return {
+        policyDecisions,
+        reason: "Editor session changed while asset upload was pending.",
+        status: "failed"
+      };
+    }
+    if (this.getSaveState().currentHash !== sourceHashBeforeUpload) {
+      return {
+        policyDecisions,
+        reason: "Document changed while asset upload was pending.",
+        status: "failed"
       };
     }
     const referenceInput: MarkdownImageReferenceInput = {

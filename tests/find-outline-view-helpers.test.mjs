@@ -8,7 +8,7 @@ if (packageJson.scripts["visual:mme-0033"] !== "node scripts/visual-check-mme003
   throw new Error("MME-0033 visual script must be registered in package.json.");
 }
 
-for (const exportName of ["richPositionForSourceOffset", "richRangeForSourceRange"]) {
+for (const exportName of ["richPositionForSourceOffset", "richRangeForSourceRange", "sourceRangeForRichRange"]) {
   if (typeof rich[exportName] !== "function") {
     throw new Error(`@momentarise/md-rich-prosemirror must export ${exportName} for MME-0033 rich find highlights.`);
   }
@@ -34,6 +34,26 @@ const range = rich.richRangeForSourceRange(richState, {
 });
 if (!range || range.approximate || range.from >= range.to) {
   throw new Error(`Untouched rich source range must map exactly, got ${JSON.stringify(range)}.`);
+}
+const inverseRange = rich.sourceRangeForRichRange(richState, {
+  from: range.from,
+  to: range.to
+});
+if (!inverseRange || inverseRange.from !== sourceOffset || inverseRange.to !== sourceOffset + "needle".length) {
+  throw new Error(`Untouched rich selection must map back to its exact source range, got ${JSON.stringify(inverseRange)}.`);
+}
+const cursor = rich.richRangeForSourceRange(richState, {
+  from: sourceOffset + "needle".length,
+  to: sourceOffset + "needle".length
+});
+const inverseCursor = cursor
+  ? rich.sourceRangeForRichRange(richState, {
+      from: cursor.from,
+      to: cursor.to
+    })
+  : null;
+if (!inverseCursor || inverseCursor.from !== sourceOffset + "needle".length || inverseCursor.to !== inverseCursor.from) {
+  throw new Error(`Rich cursor must map back to its exact source offset, got ${JSON.stringify(inverseCursor)}.`);
 }
 
 const syntaxRichSource = "Paragraph with *needle* text.\n";

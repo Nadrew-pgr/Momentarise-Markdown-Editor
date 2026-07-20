@@ -8,7 +8,7 @@ tags:
   - ui
   - editor
 llms: include
-updated: 2026-07-19
+updated: 2026-07-20
 ---
 
 # Editor UI
@@ -40,7 +40,9 @@ The default surface is framework-free. React and Next.js consume it through bind
 
 Image paste, drop, and import flows use a host-owned asset provider. MME does not ship a storage service or hidden asset database. When a provider returns a safe URL/path, MME inserts normal Markdown image syntax and preserves the surrounding source.
 
-If no provider is configured, callers receive an `unavailable` result. If upload is denied by policy or the provider fails, callers receive a structured denial or failure. In all three cases, the document stays unchanged.
+If no provider is configured, callers receive an `unavailable` result. If upload is denied by policy, the provider fails, the document changes while upload is pending, or a rich selection cannot map safely to Markdown source, callers receive a structured non-inserted result. The document stays unchanged by that upload attempt.
+
+The reference editor exposes the same path through its **Insert image** action, slash command, image paste, and image drop. Its local demo provider returns `./assets/...` references to demonstrate integration only; it does not copy the selected binary or provide production storage. A real host must replace that provider with storage it owns and return the persisted URL or path.
 
 ## Status Surfaces
 

@@ -193,6 +193,7 @@ Tags: `public-release`, `human-review`, `ui`, `ax`
 - MME-0051 upload/storage UX review: review the public asset-upload provider contract, storage-provider examples, privacy wording, pending/failure semantics, visible paste/drop/upload UX, and whether a first-party demo upload provider should be added before public launch.
 - MME-0052 lightweight source UX review: review `.txt/.log/.json/.yaml/.toml` open/import/save wording, source-only mode labeling, unsupported-file rejection wording, properties/diagnostics copy, and whether syntax-specific previews or validation should be promoted before public launch.
 - MME-0053 SVG artifact preview review: review `.svg` open/import/save wording, Source/Preview mode labeling, sanitized-preview details, visible preview chrome, and whether sanitizer warnings are understandable enough before public launch.
+- MME-0054 visible asset upload UX review: review Insert image placement, slash/paste/drop discoverability, success/error/pending feedback, demo-provider wording, local `./assets/...` references, and whether a real first-party example provider is required before public launch.
 - Future visible/UI/HITL slices in this autonomous run should be added here instead of blocking code continuation, per the 2026-07-19 human instruction to review visible work in one final block.
 
 - Visible asset upload UX and demo provider follow-up for image paste/drop, building on the promoted MME-0051 provider contract while keeping real storage host-owned. First visible upload UX slice promoted as `MME-0054`.

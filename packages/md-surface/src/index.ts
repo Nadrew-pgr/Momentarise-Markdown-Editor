@@ -44,6 +44,22 @@ export interface SurfaceComponentContext {
 }
 
 export interface MmeStrings {
+  readonly assetUpload: {
+    readonly chooseImage: string;
+    readonly denied: string;
+    readonly documentChanged: string;
+    readonly failed: string;
+    readonly idle: string;
+    readonly inserted: string;
+    readonly label: string;
+    readonly locationUnavailable: string;
+    readonly markdownOnly: string;
+    readonly pending: string;
+    readonly readFailed: string;
+    readonly statusLabel: string;
+    readonly unavailable: string;
+    readonly uploading: string;
+  };
   readonly ai: {
     readonly accept: string;
     readonly actionsLabel: string;
@@ -159,6 +175,15 @@ export interface SurfaceAiAction {
   readonly id: string;
   readonly label: string;
   readonly prompt: string;
+}
+
+export type SurfaceAssetUploadStatus = "denied" | "failed" | "idle" | "inserted" | "pending" | "unavailable";
+
+export interface SurfaceAssetUploadState {
+  readonly busy?: boolean;
+  readonly disabledReason?: string;
+  readonly message: string;
+  readonly status: SurfaceAssetUploadStatus;
 }
 
 export type SurfaceDocumentKind = "html-artifact" | "lightweight-source" | "markdown" | "svg-artifact";
@@ -397,6 +422,22 @@ export function surfaceFileNameFromPath(pathLabel: string): string {
 }
 
 export const defaultMmeStrings: MmeStrings = {
+  assetUpload: {
+    chooseImage: "Insert image",
+    denied: "Image insertion denied",
+    documentChanged: "The document changed before image insertion completed",
+    failed: "Image insertion failed",
+    idle: "Ready",
+    inserted: "Image inserted",
+    label: "Image upload",
+    locationUnavailable: "The rich editor position cannot be mapped safely to Markdown source",
+    markdownOnly: "Image insertion is available for Markdown documents only",
+    pending: "Image upload pending",
+    readFailed: "The selected image could not be read",
+    statusLabel: "Image upload status",
+    unavailable: "Image upload unavailable",
+    uploading: "Preparing image"
+  },
   ai: {
     accept: "Accept",
     actionsLabel: "AI actions",
@@ -427,6 +468,7 @@ export const defaultMmeStrings: MmeStrings = {
   },
   extensions: {
     "extensions.hostCalloutCard": "Host callout card",
+    "extensions.hostInsertImageAsset": "Insert image asset",
     "extensions.hostTranslateSelection": "Host translate",
     "extensions.language": "Language",
     "extensions.tone": "Tone",

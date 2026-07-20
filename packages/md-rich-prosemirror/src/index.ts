@@ -860,6 +860,52 @@ export function richRangeForSourceRange(
   return null;
 }
 
+export function sourceRangeForRichRange(
+  state: RichMarkdownState,
+  richRange: SourceOffsetRange
+): SourceOffsetRange | null {
+  const normalized = {
+    from: Math.min(richRange.from, richRange.to),
+    to: Math.max(richRange.from, richRange.to)
+  };
+  const pairs = richTopLevelBlockPairs(state.parseResult, state.schema).filter(
+    (pair) => pair.pm !== null && Boolean(pair.model.sourceRange)
+  );
+  const blocks: ProseMirrorNode[] = [];
+  state.editorState.doc.forEach((child) => {
+    blocks.push(child);
+  });
+  const blockRanges = richTopLevelBlockRanges(state.editorState);
+  const alignedBlocks = alignRichBlocks(blocks, pairs);
+  for (let blockIndex = 0; blockIndex < alignedBlocks.length; blockIndex += 1) {
+    const aligned = alignedBlocks[blockIndex]!;
+    if (aligned.kind !== "matched") {
+      continue;
+    }
+    const blockRange = blockRanges[blockIndex];
+    if (!blockRange) {
+      return null;
+    }
+    const textFrom = blockRange.from + 1;
+    const textTo = textFrom + blockRange.text.length;
+    if (normalized.from < textFrom || normalized.to > textTo) {
+      continue;
+    }
+    const modelRange = pairs[aligned.pairIndex]!.model.sourceRange!;
+    const raw = state.source.slice(modelRange.start.offset, modelRange.end.offset);
+    const textStartInRaw = blockRange.text ? raw.indexOf(blockRange.text) : 0;
+    if (textStartInRaw < 0) {
+      return null;
+    }
+    const sourceTextStart = modelRange.start.offset + textStartInRaw;
+    return {
+      from: sourceTextStart + normalized.from - textFrom,
+      to: sourceTextStart + normalized.to - textFrom
+    };
+  }
+  return null;
+}
+
 export function reorderRichTopLevelBlock(
   state: RichMarkdownState,
   options: ReorderRichTopLevelBlockOptions

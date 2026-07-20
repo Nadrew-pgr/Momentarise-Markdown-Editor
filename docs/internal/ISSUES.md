@@ -3045,6 +3045,10 @@ Keep this as a visible framework/demo integration of the existing host-owned con
 
 UX Reviewer, Architecture Reviewer, Security Reviewer, and Test Reviewer.
 
+### Status: completed
+
+Accepted for code continuation 2026-07-20 after adding a visible Insert image action, slash/paste/drop routing through `session.insertAsset`, localized reusable upload state, a clearly demo-scoped relative-path provider, exact source and rich-position insertion, stale upload rejection, and truthful unavailable/denied/failed/pending/unsafe feedback. Proven by RED race/i18n checks, green targeted tests, real browser event and screenshot verification, `git diff --check`, and full `npm test`. UX/accessibility, architecture/security, and test/preservation reviewer subagents used `gpt-5.3-codex-spark` with `xhigh` reasoning; builder fixed their async race, transfer discovery, i18n, rich mapping, policy-fixture, byte-integrity, and runtime-proof findings, and all three final re-reviews reported no remaining P0-P3 findings. Final upload product/wording review is queued in `docs/internal/BACKLOG.md`; no executable normal issue remains after MME-0054 until the next backlog item is promoted.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

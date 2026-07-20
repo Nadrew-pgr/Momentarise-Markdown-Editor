@@ -67,11 +67,12 @@ Completed slices:
 - MME-0051: Asset upload provider contract and image paste/drop preservation, accepted for code continuation after adding a host-owned provider contract, policy-gated image insertion, source/rich/headless preservation tests, reviewer pass, and full test pass; final upload UX/storage-provider review is queued for end-of-run review.
 - MME-0052: Plain text and lightweight source file support, accepted for code continuation after adding a reusable document-kind classifier, source-only mode routing, web adapter save/import preservation, unsupported-file guardrails, docs updates, reviewer pass, and full test pass; final lightweight source UX review is queued for end-of-run review.
 - MME-0053: SVG source reader and sanitized preview, accepted for code continuation after adding standalone SVG artifact classification, Source/Preview-only routing, DOM-based allowlist sanitization, web/demo save-truth preservation, hostile-SVG tests, runtime visual proof, reviewer pass, and full test pass; final SVG artifact preview UX review is queued for end-of-run review.
+- MME-0054: Visible asset upload UX and demo provider, accepted for code continuation after adding toolbar/slash/paste/drop insertion, localized upload state, exact source/rich placement, stale-upload rejection, truthful failure states, runtime browser proof, reviewer pass, and full test pass; final upload product/wording review is queued for end-of-run review.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- MME-0054: Visible asset upload UX and demo provider.
+- No executable normal issue remains after MME-0054; the next must-have backlog slice must be promoted before implementation.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

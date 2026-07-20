@@ -5692,3 +5692,57 @@
   - Pending before commit: `git diff --check`.
 - Next issue:
   - `MME-0054 — Visible asset upload UX and demo provider`.
+
+## MME-0054 — Visible asset upload UX and demo provider
+
+- Date: 2026-07-20.
+- Previous issue status:
+  - `MME-0053` accepted for code continuation and committed (`10ed09d` implementation/status, `d7f5074` evidence).
+  - `MME-0054` was promoted from backlog into normal issue form and committed in checkpoint `a7bc2c0`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short`, and the editor, surface, rich-view, demo, adapter, save, policy, and test files named by the issue.
+- RED proof before implementation:
+  - Added `tests/demo-asset-upload-ux.test.mjs`, registered it in root `npm test`, and confirmed its first run failed because the required MME-0054 browser verifier did not exist.
+  - Added a delayed-provider regression to `tests/asset-upload-provider.test.mjs`; it failed because an upload completed into same-session externally replaced content.
+  - Extended the demo contract test for an unmappable rich position; it failed because the localized safe-failure state did not exist.
+- Change:
+  - Added localized `SurfaceAssetUploadState` and image-upload strings to `@momentarise/md-surface`.
+  - Added a visible Insert image action plus extension-registry toolbar/slash entry, real paste/drop handling, and compact truthful upload feedback to the reference demo.
+  - Routed every insertion through `session.insertAsset`, preserving policy-before-provider behavior and normal Markdown image serialization.
+  - Added a demo-only provider returning local `./assets/...` references without storing or copying the selected binary; public docs state that a real host must replace it with host-owned storage.
+  - Added `sourceRangeForRichRange` to `@momentarise/md-rich-prosemirror` so rich insertion targets exact source positions and fails safely when a selection cannot be mapped.
+  - Hardened async insertion against destroyed sessions, document replacement, same-session content changes, read failures, concurrent uploads, MIME-less image filenames, and unsafe provider URLs.
+  - Updated public docs, public API fixtures, generated LLM/AX artifacts, and the final human review queue.
+- Visual impact:
+  - Insert image is visible as a compact icon-and-label action; idle feedback stays hidden and inserted/error states become visible without permanent chrome.
+  - Browser artifacts under `docs/internal/visual-checks/MME-0054` cover desktop idle, inserted, denied, and mobile states.
+  - The same automated run exercises real `ClipboardEvent` and `DragEvent` paths, rich insertion before preserved GFM table syntax, unmappable-rich safe failure, and two stale-upload races.
+- Checks run:
+  - `npm run test:asset-upload-provider` — RED for same-session external replacement, then green after hash-guarded insertion.
+  - `npm run test:demo-asset-upload-ux` — RED for missing safe rich-location feedback, then green after localized mapping failure handling.
+  - `npm run visual:mme-0054` — green with local Chrome permission; runtime artifacts saved under `docs/internal/visual-checks/MME-0054`.
+  - `npm run test:find-outline` — green with exact source-to-rich and rich-to-source mapping proof.
+  - `npm run test:surface` — green.
+  - `npm run test:rich-targeted-serialization` — green.
+  - `npm run test:public-api` — green after approving the intentional `sourceRangeForRichRange` export.
+  - `npm run test:docs` — green.
+  - `npm run test:llms-sync` — green.
+  - `npm run test:agent-artifacts` — green.
+  - `npm test` — green; existing Vite chunk-size warning only.
+- Manual/dev-server verification:
+  - Restarted the reference demo at `http://127.0.0.1:5174/` using `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`.
+- Reviewer result:
+  - UX/accessibility reviewer subagent `Nietzsche`, architecture/security reviewer subagent `Erdos`, and test/preservation reviewer subagent `Einstein` used `gpt-5.3-codex-spark` with `xhigh` reasoning.
+  - Initial findings covered upload/document races, paste/drop discovery, i18n leakage, rich-position drift, policy-denied fixture truth, byte/hash integrity, and browser-runtime proof. Builder fixed the actionable findings immediately.
+  - Architecture re-review briefly questioned in-document edits during upload; the core content-hash guard already rejects those edits while intentionally retaining the invocation range across cursor-only movement. Reviewer recheck closed the finding.
+  - All three final re-reviews reported no remaining P0-P3 findings.
+- Residual risks:
+  - Final Insert image placement, slash/paste/drop discoverability, state wording, local demo reference behavior, and first-party example-provider need are queued in `docs/internal/BACKLOG.md` for Andrew's end-of-run review block.
+  - The demo provider intentionally proves reference insertion only; it does not persist image bytes.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Pending issue-scoped implementation/status commit.
+- Push status:
+  - Not pushed. Queued final public/product review debt remains; push stays deferred unless Andrew explicitly changes that policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0054`; continuation requires promoting the next must-have backlog item before implementation.

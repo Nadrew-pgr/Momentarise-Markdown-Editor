@@ -144,6 +144,7 @@
     "selectFirstRichText",
     "serializeRichMarkdownState",
     "setCurrentCodeBlockInfo",
+    "sourceRangeForRichRange",
     "toggleCurrentTodoItem",
     "toggleRichFold",
     "toggleRichHeadingFold"

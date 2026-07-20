@@ -100,6 +100,46 @@ assertEqual(providerCalls, 1, "provider should be called once for allowed insert
 assertIncludes(session.getContent(), '![Whiteboard](./assets/whiteboard.png "Sprint sketch")', "session insertion must use provider metadata");
 assertEqual(session.getSaveState().currentHash, hashMarkdownContent(session.getContent()), "session save hash must track inserted content");
 
+let resolveDeferredUpload;
+let deferredProviderStarted = false;
+const deferredSession = createMarkdownEditorSession({
+  assetProvider: {
+    async upload() {
+      deferredProviderStarted = true;
+      return new Promise((resolve) => {
+        resolveDeferredUpload = resolve;
+      });
+    }
+  },
+  content: initial,
+  path: "notes/external-race.md",
+  scheduler: createManualScheduler(),
+  target: createMemorySaveTarget({ initialContent: initial })
+});
+const deferredInsertion = deferredSession.insertAsset(
+  {
+    bytes: fixtureBytes("deferred"),
+    mediaType: "image/png",
+    name: "deferred.png",
+    size: 8
+  },
+  { range: insertRange }
+);
+await Promise.resolve();
+assert(deferredProviderStarted, "deferred provider must start before the external replacement");
+const externallyReplaced = "# Externally replaced\n\nKeep this exact source.\n";
+const externalResult = deferredSession.applyExternalContent(externallyReplaced);
+assertEqual(externalResult.status, "applied", "clean external replacement must apply during upload");
+resolveDeferredUpload({
+  alt: "Deferred",
+  status: "uploaded",
+  url: "./assets/deferred.png"
+});
+const staleInsertion = await deferredInsertion;
+assertEqual(staleInsertion.status, "failed", "upload completing after same-session content replacement must fail");
+assertIncludes(staleInsertion.reason, "Document changed", "stale upload failure must explain the document race");
+assertUnchanged(deferredSession, externallyReplaced, "stale upload must preserve externally replaced content and hash");
+
 const deniedResolver = createPolicyResolver({
   hardDenyRules: [],
   rules: [

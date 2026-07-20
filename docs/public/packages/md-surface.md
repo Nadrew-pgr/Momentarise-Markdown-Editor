@@ -10,7 +10,7 @@ tags:
 packages:
   - "@momentarise/md-surface"
 llms: include
-updated: 2026-07-08
+updated: 2026-07-20
 ---
 
 # Surface Components
@@ -37,6 +37,7 @@ Surface components consume tokens, preferences, icons, and injected strings. The
 - `createSelectionBubbleToolbar` renders reusable selected-text action chrome.
 - `createDocumentStatus` renders truthful document state without owning persistence.
 - `createModeControl` renders document-kind-aware mode controls.
+- `SurfaceAssetUploadState` and localized `assetUpload` strings let hosts present idle, pending, inserted, unavailable, denied, and failed image-insertion states without moving storage into the surface package.
 
 ## Release Notes
 
