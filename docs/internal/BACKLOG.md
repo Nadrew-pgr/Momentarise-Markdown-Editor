@@ -37,6 +37,7 @@ Tags: `baseline/hygiene`, `markdown`, `navigation`, `round-trip`
 - Support backlink navigation in rendered views.
 - Keep source mode fallback for editing unusual footnote syntax.
 - Future rich editing should include insertion and edit affordances without hiding the Markdown source model.
+- First rich editing slice for existing simple definitions promoted as `MME-0056`; insertion, identifier rename, and complex definition editing remain backlog.
 - Tests must include real footnote fixtures and parser/source/rich round-trip proof before claiming coverage.
 
 ### Core Markdown Blocks
@@ -260,6 +261,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - `MME-0053 — SVG source reader and sanitized preview`.
 - `MME-0054 — Visible asset upload UX and demo provider`.
 - `MME-0055 — Rich GFM table editing baseline`.
+- `MME-0056 — Rich GFM footnote definition editing baseline`.
 
 - Editor live preview parity.
 - Toolbar/slash/menu final UX.
@@ -270,6 +272,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - Payload CMS plugin/integration.
 - Document status/save truth UI.
 - Footnotes/endnotes preservation, rendering, backlink navigation, and editing UX.
+- First rich footnote definition editing baseline promoted as `MME-0056`; insertion, rename, and complex definitions remain future splits.
 - Table rendering and first rich table editing baseline promoted as `MME-0040` and `MME-0055`; advanced spreadsheet-like table UX remains backlog.
 - Nested GFM table rich editing after nested-range serialization can replace only table bytes inside blockquotes/lists; MME-0055 keeps these tables source-only instead of rewriting container syntax.
 - Inline slash AI prompt surface.

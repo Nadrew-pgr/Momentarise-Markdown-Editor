@@ -3118,6 +3118,71 @@ Architecture Reviewer, Test Reviewer, and UX Reviewer.
 
 Accepted for code continuation 2026-07-20 after adding editable standard top-level GFM tables, reusable cell selection/movement/edit helpers, table-range-only Markdown serialization, untouched-byte identity, CRLF preservation, malformed/nested source-only fallback, Markdown-safe final-row insertion, truthful undo/redo/save behavior, and real browser keyboard/focus/constrained-width proof. `prosemirror-tables` is isolated to the rich package and uses its MIT license. Architecture/security, test/preservation, and UX/accessibility reviewer subagents used `gpt-5.3-codex-spark` with `xhigh` reasoning; builder fixed their nested-range boundary, save-proof, keyboard-event, false-dirty, responsive-overflow, and focus-indicator findings, and all final re-reviews reported no remaining P0-P3 findings. Final table UX/product review is queued in `docs/internal/BACKLOG.md`; nested table editing and advanced spreadsheet-like controls remain future work.
 
+## MME-0056 — Rich GFM footnote definition editing baseline
+
+### Goal
+
+Make safely representable existing GFM footnote definitions directly editable in Rich mode while preserving references, complex definitions, and unrelated Markdown exactly.
+
+### Scope
+
+- Map supported top-level single-paragraph GFM footnote definitions into a semantic editable rich node with an explicit identifier label.
+- Keep multi-line, multi-block, nested, duplicate, malformed, unsafe, or otherwise non-representable footnote definitions in the existing source-only fallback.
+- Keep GFM footnote references semantic and Markdown-representable in rich paragraphs without turning them into plain lossy text.
+- Support selecting an existing simple definition and replacing its single-line body text through reusable `@momentarise/md-rich-prosemirror` helpers.
+- Serialize a changed simple definition back to valid `[^identifier]: body` Markdown while replacing only that definition's source range and preserving every unrelated source byte and line ending.
+- Preserve untouched supported references and definitions byte-for-byte through rich mount and serialize.
+- Keep identifier rename, new footnote insertion, complex definition editing, drag reordering, and rendered backlink UX out of this first editing slice.
+- Add runtime visual proof for editing a simple definition and retaining complex definition fallbacks, with final product/taste review queued for Andrew's end-of-run review block.
+
+### Acceptance criteria
+
+- A supported top-level single-paragraph footnote definition mounts as a semantic editable rich node instead of an opaque fallback.
+- A rich footnote reference retains its identifier semantics and serializes as valid `[^identifier]` syntax after a neighboring paragraph edit.
+- Replacing one supported definition body produces valid GFM Markdown and does not rewrite source outside that definition range.
+- Untouched supported references and definitions remain byte-identical through rich round-trip.
+- Multi-line, multi-block, nested, duplicate, malformed, unsafe, or non-representable definitions remain visibly source-only and byte-identical.
+- Source/Rich switching, undo/redo, Save Engine hashes, and autosave remain truthful after a definition edit.
+- Public rich-footnote helper exports are intentional, package-owned, documented, and covered by the public API audit.
+- Browser verification captures editable and edited definition states plus the preserved complex fallback at desktop and constrained widths.
+
+### Test-first plan
+
+- RED: add a focused fixture/test proving a simple top-level definition currently mounts as `unsupported_block` instead of an editable semantic node.
+- RED: add definition-body edit and targeted-serialization proof that only the selected definition range changes.
+- RED: add reference-semantics and neighboring-paragraph edit proof.
+- RED: add multi-line/duplicate/malformed fallback and save-truth regressions.
+
+### Manual verification
+
+- Start the reference demo, open the footnote fixture, switch to Rich, edit the supported simple definition, undo/redo, switch to Source, and confirm valid Markdown plus truthful dirty/save state.
+- Confirm complex, duplicate, and malformed definitions remain clearly source-only.
+- Capture desktop and constrained-width artifacts under `docs/internal/visual-checks/MME-0056/`.
+
+### Visual impact
+
+Supported simple footnote definitions become labeled editable rich blocks. Complex and unusual definitions retain the preserved-source fallback. Final label density, focus treatment, and footnote product taste review remains queued for Andrew's end-of-run review block.
+
+### Implementation notes
+
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `fixtures/020-gfm-footnotes`, `tests/parser-foundation.test.mjs`, `tests/rich-roundtrip-fidelity.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/render-html.test.mjs`, `tests/save-engine.test.mjs`, and the MME-0041 build-log/visual artifacts.
+
+Use the existing parser source ranges and rich targeted-serialization machinery. Do not normalize unrelated reference spelling or definition indentation. Keep view-engine behavior in `@momentarise/md-rich-prosemirror`; no ProseMirror dependency may enter core/model/service packages.
+
+Do not add identifier rename, automatic reference repair, new footnote insertion UI, rich multi-block definition editing, nested definition editing, footnote reorder UI, hover previews, or renderer/backlink redesign in this slice.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible footnote UX/product review is queued for the end-of-run human review block unless a Markdown-serialization or identifier-semantics decision becomes unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, and UX Reviewer.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.
