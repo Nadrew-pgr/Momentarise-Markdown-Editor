@@ -3256,6 +3256,71 @@ Do not add identifier rename, automatic repair of missing references or duplicat
 
 Architecture Reviewer, Test Reviewer, and UX Reviewer.
 
+## MME-0058 — Rich GFM footnote identifier rename baseline
+
+### Goal
+
+Let hosts rename one safely representable GFM footnote identifier and every matching semantic reference from Rich mode without collisions, partial repair, hidden state, or unrelated Markdown rewrites.
+
+### Scope
+
+- Add a reusable `@momentarise/md-rich-prosemirror` helper that renames one unique editable footnote definition and every matching semantic reference in one history transaction.
+- Match identifiers with the parser's normalization rules while preserving exact source spelling outside the identifier tokens being changed.
+- Validate the requested identifier with the same safe-identifier contract used by parsing, editing eligibility, and insertion.
+- Reject missing definitions, duplicate/ambiguous definitions, invalid identifiers, normalized collisions, stale source, and any unmappable reference or definition before mutation.
+- Rewrite only the identifier token inside each matching `[^identifier]` reference and the matching definition prefix; preserve definition body, indentation, spacing, line endings, and all unrelated bytes exactly.
+- Keep Markdown as the only durable rename state; ProseMirror attributes and command metadata remain derived.
+- Expose truthful identifier/reason metadata for host command handling without requiring demo-only persistence logic.
+- Add runtime browser proof for multi-reference rename, single-step undo/redo, Source visibility, save truth, and constrained-width containment; queue final product/taste review for Andrew's end-of-run block.
+
+### Acceptance criteria
+
+- Renaming a supported unique definition updates that definition and every normalized matching semantic reference to one valid GFM identifier.
+- The definition body and exact prefix whitespace/indentation survive; only old identifier-token ranges and any explicitly appended insertion metadata change.
+- A requested identifier that is invalid or collides with another reference/definition refuses truthfully and leaves source/history/save state unchanged.
+- Missing, duplicate, stale, partially unmappable, complex, nested, malformed, or source-only definitions never receive a partial rename.
+- LF and CRLF documents retain their original line-ending convention and unrelated bytes, including unknown HTML/directive syntax.
+- One undo reverts all renamed tokens as one user action; redo restores them; Save Engine/autosave hashes and persisted content remain truthful.
+- Public helper exports are intentional, package-owned, minimally documented, and covered by the public API audit.
+- Browser verification captures renamed Rich, resulting Source, and constrained-width states with multiple references.
+
+### Test-first plan
+
+- RED: add focused rename tests that fail because no reusable `renameRichFootnoteIdentifier` export exists.
+- RED: prove normalized multi-reference rename, exact definition-prefix preservation, collision/invalid/missing/duplicate refusal, and no partial mutation.
+- RED: prove hostile surrounding syntax identity, LF/CRLF behavior, one-step undo/redo, and save truth.
+- RED: add host-command metadata and browser runtime checks for renamed Rich/Source state.
+
+### Manual verification
+
+- Start the reference demo with one supported definition referenced multiple times, select/target that definition, and invoke the reusable rename path.
+- Confirm every matching Rich reference and the definition label update together, undo once, redo once, save, then switch to Source and inspect exact GFM Markdown.
+- Repeat in a constrained viewport and capture artifacts under `docs/internal/visual-checks/MME-0058/`.
+
+### Visual impact
+
+Semantic Rich references and their editable definition label can display a renamed identifier together. This slice proves the resulting state and host command path; final rename entry-point placement, input flow, wording, focus transfer, and visual density remain queued for Andrew's end-of-run review block.
+
+### Implementation notes
+
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-editor/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-surface/src/index.ts`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `fixtures/020-gfm-footnotes`, `fixtures/022-simple-footnote-editing`, `tests/parser-foundation.test.mjs`, `tests/rich-footnote-editing.test.mjs`, `tests/rich-footnote-insertion.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/rich-commands.test.mjs`, `tests/save-engine.test.mjs`, and the MME-0056/MME-0057 build-log and visual artifacts.
+
+Reuse the semantic reference/definition nodes, parser normalization, source ranges, and insertion baseline materialization already established by MME-0041/MME-0056/MME-0057. Validate every affected source token before creating the single transaction; never rename a safe subset while leaving another matching reference stale. Keep all ProseMirror behavior inside `@momentarise/md-rich-prosemirror`.
+
+Do not add automatic repair of missing definitions/references, rich multi-line/multi-block/nested definition editing, definition reorder, hover previews, renderer/backlink redesign, polished rename-dialog UI, or docs-content construction in this slice.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible rename UX/product review is queued for the end-of-run human review block unless identifier or serialization semantics remain unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, and UX Reviewer.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

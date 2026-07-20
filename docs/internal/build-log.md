@@ -5958,3 +5958,24 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0057`; continuation requires promoting the next must-have backlog item before implementation.
+
+## Backlog promotion checkpoint — MME-0058
+
+- Date: 2026-07-20.
+- Context:
+  - `MME-0057` is accepted for code continuation and committed (`dcd5aaa` implementation/status, `cdcccd3` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0057.
+  - Andrew instructed autonomous continuation, issue-scoped commits, separate docs-content ownership, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Change:
+  - Promoted `MME-0058 — Rich GFM footnote identifier rename baseline` from the next explicit baseline footnote gap into normal issue form.
+  - Bounded the slice to one unique definition plus all matching semantic references, normalization-safe collision refusal, exact multi-range source patches, one-step history, save truth, and browser proof.
+  - Kept automatic repair, complex/multiline/nested definition editing, backlink redesign, polished rename-dialog UI, and docs-content work out of scope.
+  - Updated `README.md` current slice and `docs/internal/BACKLOG.md` promotion tracking.
+- Rationale:
+  - MME-0056 made existing simple definitions editable and MME-0057 added safe insertion, but both explicitly left identifier rename/reference repair out of scope.
+  - Atomic identifier rename is the next backlog-order baseline gap and can reuse semantic nodes plus exact source mapping without weakening Markdown durability.
+- Checks run:
+  - `git diff --check` — green before checkpoint commit.
+- Next issue:
+  - `MME-0058 — Rich GFM footnote identifier rename baseline`.

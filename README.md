@@ -71,11 +71,12 @@ Completed slices:
 - MME-0055: Rich GFM table editing baseline, accepted for code continuation after editable top-level tables, targeted Markdown serialization, reusable cell movement, truthful undo/redo/save behavior, real keyboard and constrained-width browser proof, reviewer pass, and full test pass; final table product/taste review is queued for end-of-run review.
 - MME-0056: Rich GFM footnote definition editing baseline, accepted for code continuation after semantic references, editable safe definitions, exact targeted serialization, conservative complex/duplicate fallback, truthful undo/redo/save behavior, browser proof, reviewer pass, and full test pass; final footnote UX/AX review is queued for end-of-run review.
 - MME-0057: Rich GFM footnote insertion baseline, accepted for code continuation after collision-safe reference-plus-definition insertion, exact bounded Markdown materialization, same-paragraph multiple insertion, escaped-source mapping, truthful command diagnostics/history/save behavior, browser proof, reviewer pass, and full test pass; final insertion UX/product review is queued for end-of-run review.
+- MME-0058: Rich GFM footnote identifier rename baseline, promoted as the current executable slice for normalization-safe definition/reference rename, exact multi-range Markdown patches, truthful history/save behavior, and deferred final product review.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- No executable normal issue remains after MME-0057; autonomous continuation must promote the next must-have backlog item before implementation.
+- MME-0058 is the current executable issue after promotion from the next baseline footnote rename gap.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 
@@ -89,7 +90,7 @@ Next planned slices (public framework readiness sequence, 2026-06-09):
 - Phase H — public editor readiness hardening: MME-0040 tables; MME-0041 footnotes/endnotes; MME-0042 core editor interactions; MME-0043 Live Preview foundation; MME-0044 unified open/new/save/status; MME-0045 command and mode UX; MME-0046 HTML preview reading polish; MME-0047 folding polish; MME-0048 docs launch hardening; MME-0049 AX skills/manifests/actions; MME-0050 performance budgets; MME-0051 asset upload contract.
 - Phase I — lightweight and visual source formats: MME-0052 plain text and source-like file support; MME-0053 SVG source reader and sanitized preview.
 - Phase J — media workflow UX: MME-0054 visible asset upload UX and demo provider.
-- Phase K — rich Markdown structures: MME-0055 rich GFM table editing baseline; MME-0056 rich GFM footnote definition editing baseline; MME-0057 rich GFM footnote insertion baseline.
+- Phase K — rich Markdown structures: MME-0055 rich GFM table editing baseline; MME-0056 rich GFM footnote definition editing baseline; MME-0057 rich GFM footnote insertion baseline; MME-0058 rich GFM footnote identifier rename baseline.
 
 See `docs/internal/build-log.md` for the latest completed issue and current progress.
 
