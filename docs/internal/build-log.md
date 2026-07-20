@@ -5746,3 +5746,24 @@
   - Not pushed. Queued final public/product review debt remains; push stays deferred unless Andrew explicitly changes that policy.
 - Next issue:
   - No executable normal issue remains after `MME-0054`; continuation requires promoting the next must-have backlog item before implementation.
+
+## Backlog promotion checkpoint — MME-0055
+
+- Date: 2026-07-20.
+- Context:
+  - `MME-0054` is accepted for code continuation and committed (`2dd6076` implementation/status, `31e578a` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0054.
+  - Andrew instructed autonomous continuation, final visible review as one end-of-run block, and separate ownership for docs content work.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Change:
+  - Promoted `MME-0055 — Rich GFM table editing baseline` from the first remaining baseline/hygiene table gap into normal issue form.
+  - Bounded the slice to existing standard GFM tables, editable cell text, cell navigation, Markdown-safe targeted serialization, malformed fallback, and save truth.
+  - Kept spreadsheet features, table creation UX, advanced row/column menus, and docs-content work out of scope.
+  - Updated `README.md` current slice and `docs/internal/BACKLOG.md` promotion tracking.
+- Rationale:
+  - MME-0040 made tables safe to preserve and render but explicitly left every rich table source-only.
+  - Direct editing of a standard GFM table is the first remaining backlog-order baseline gap for a credible public rich Markdown editor.
+- Checks run:
+  - Pending before commit: `git diff --check`.
+- Next issue:
+  - `MME-0055 — Rich GFM table editing baseline`.

@@ -3049,6 +3049,69 @@ UX Reviewer, Architecture Reviewer, Security Reviewer, and Test Reviewer.
 
 Accepted for code continuation 2026-07-20 after adding a visible Insert image action, slash/paste/drop routing through `session.insertAsset`, localized reusable upload state, a clearly demo-scoped relative-path provider, exact source and rich-position insertion, stale upload rejection, and truthful unavailable/denied/failed/pending/unsafe feedback. Proven by RED race/i18n checks, green targeted tests, real browser event and screenshot verification, `git diff --check`, and full `npm test`. UX/accessibility, architecture/security, and test/preservation reviewer subagents used `gpt-5.3-codex-spark` with `xhigh` reasoning; builder fixed their async race, transfer discovery, i18n, rich mapping, policy-fixture, byte-integrity, and runtime-proof findings, and all three final re-reviews reported no remaining P0-P3 findings. Final upload product/wording review is queued in `docs/internal/BACKLOG.md`; no executable normal issue remains after MME-0054 until the next backlog item is promoted.
 
+## MME-0055 — Rich GFM table editing baseline
+
+### Goal
+
+Make standard GFM pipe tables directly editable in Rich mode without weakening Markdown source preservation or pretending MME is a spreadsheet.
+
+### Scope
+
+- Map safely representable GFM table, row, header-cell, and body-cell nodes into an editable rich table model.
+- Keep malformed, non-standard, or non-representable table-like syntax as the existing opaque/source-only fallback.
+- Support editing existing cell text plus conventional Tab and Shift+Tab cell navigation; Tab from the final cell may add one Markdown-representable row.
+- Serialize a changed rich table back into valid GFM Markdown while limiting replacement to that table's source range and preserving every unrelated source byte.
+- Preserve untouched supported tables byte-for-byte through rich mount and serialize.
+- Expose reusable rich-table commands/helpers through `@momentarise/md-rich-prosemirror`; keep demo wiring thin and package-owned behavior reusable.
+- Add runtime visual proof for editing and navigating a table in the reference demo, with final product/taste review queued for the end-of-run human review block.
+
+### Acceptance criteria
+
+- A supported GFM table mounts as editable rich table nodes instead of the preserved-table fallback.
+- Editing one cell produces valid GFM Markdown, preserves table shape/alignment semantics, and does not rewrite source outside the edited table range.
+- Untouched supported tables remain byte-identical through rich round-trip.
+- Malformed/non-standard table-like syntax remains opaque, visibly source-only, and byte-identical.
+- Tab and Shift+Tab navigate cells predictably; final-cell Tab behavior cannot create a non-Markdown table shape.
+- Source/Rich switching, undo/redo, Save Engine hashes, and autosave remain truthful after a table edit.
+- Automated tests cover supported editing, untouched identity, malformed fallback, navigation, targeted serialization, and save truth.
+- Browser verification captures the editable table state and a completed cell edit at desktop and constrained widths.
+
+### Test-first plan
+
+- RED: add rich table tests proving a supported GFM table currently mounts as `unsupported_block` instead of editable table nodes.
+- RED: add a cell-edit and targeted-serialization test proving only the table source range may change.
+- RED: add Tab/Shift+Tab navigation and final-cell behavior tests.
+- RED: add malformed-table regression proof so expanded table support cannot absorb opaque syntax.
+
+### Manual verification
+
+- Start the reference demo, open the standard table fixture, switch to Rich, edit a cell, navigate with Tab/Shift+Tab, undo/redo, switch to Source, and confirm valid Markdown plus truthful dirty/save state.
+- Capture desktop and constrained-width artifacts under `docs/internal/visual-checks/MME-0055/`.
+
+### Visual impact
+
+Supported GFM tables become real editable rich tables. Malformed/non-standard tables retain the existing preserved-source fallback. Final table styling and product taste review remains queued for Andrew's end-of-run review block.
+
+### Implementation notes
+
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/package.json`, `apps/md-demo/src/main.ts`, `fixtures/004-gfm-table`, `fixtures/019-gfm-table-variants`, `tests/rich-roundtrip-fidelity.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/rich-core-interactions.test.mjs`, `tests/rich-commands.test.mjs`, and the MME-0040 visual/test artifacts.
+
+Prefer the established ProseMirror table primitives when their license and package boundary fit the repository. Do not hand-roll table selection/navigation behavior that a proven library already provides. Keep view-engine dependencies in `@momentarise/md-rich-prosemirror`; no ProseMirror dependency may enter core/model/service packages.
+
+Do not add merged cells, column resizing, spreadsheet formulas, CSV/spreadsheet paste, sorting/filtering, drag-reorder UI, full row/column menus, table creation UX, or arbitrary block content inside cells in this slice.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible table UX/product review is queued for the end-of-run human review block unless a dependency, license, or Markdown-serialization decision becomes unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, and UX Reviewer.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

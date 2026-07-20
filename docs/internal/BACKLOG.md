@@ -258,6 +258,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - `MME-0052 — Plain text and lightweight source file support`.
 - `MME-0053 — SVG source reader and sanitized preview`.
 - `MME-0054 — Visible asset upload UX and demo provider`.
+- `MME-0055 — Rich GFM table editing baseline`.
 
 - Editor live preview parity.
 - Toolbar/slash/menu final UX.
@@ -268,7 +269,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - Payload CMS plugin/integration.
 - Document status/save truth UI.
 - Footnotes/endnotes preservation, rendering, backlink navigation, and editing UX.
-- Table rendering and rich table editing UX.
+- Table rendering and first rich table editing baseline promoted as `MME-0040` and `MME-0055`; advanced spreadsheet-like table UX remains backlog.
 - Inline slash AI prompt surface.
 - LiteLLM / OpenAI-compatible AI provider adapter.
 - Dedicated issue promoted: `MME-0028.5 — Inline AI prompt surface and usable writing flow`.
