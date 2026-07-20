@@ -1783,6 +1783,74 @@ h1 {
   box-shadow: inset 0 0 0 2px var(--mme-color-focus-ring);
 }
 
+.ProseMirror [data-mme-footnote-reference="true"] {
+  margin-inline: 1px;
+  color: var(--mme-color-accent);
+  font-family: var(--mme-font-family-mono);
+  font-size: 0.72em;
+  font-weight: 650;
+  line-height: 1;
+  vertical-align: super;
+}
+
+.ProseMirror [data-mme-footnote-definition="true"] {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  margin: 0 0 0.62em;
+  padding: 8px 10px;
+  border-left: 2px solid var(--mme-color-border-strong);
+  background: var(--mme-color-surface-muted);
+}
+
+.ProseMirror [data-mme-footnote-definition="true"]:focus-within {
+  border-left-color: var(--mme-color-accent);
+  box-shadow: 0 0 0 1px var(--mme-color-focus-ring);
+}
+
+.ProseMirror [data-mme-footnote-marker="true"] {
+  color: var(--mme-color-text-muted);
+  font-family: var(--mme-font-family-mono);
+  font-size: 0.82em;
+  font-weight: 650;
+  user-select: none;
+}
+
+.ProseMirror [data-mme-footnote-marker="true"]::before {
+  content: attr(data-mme-footnote-marker-label);
+}
+
+.ProseMirror [data-mme-footnote-body="true"] {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ProseMirror [data-mme-preserved-footnote="true"] {
+  margin: 0 0 0.84em;
+  border: 1px dashed var(--mme-color-border-strong);
+  background: var(--mme-color-surface-muted);
+}
+
+.ProseMirror [data-mme-preserved-footnote-label="true"] {
+  padding: 9px 12px 0;
+  color: var(--mme-color-text-muted);
+  font-family: var(--mme-font-family-ui);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.ProseMirror [data-mme-preserved-footnote-source="true"] {
+  margin: 0;
+  padding-top: 8px;
+  border: 0;
+  background: transparent;
+}
+
+.ProseMirror pre[data-unsupported="true"][data-mme-preserved-footnote-source="true"]::before {
+  content: none;
+}
+
 .ProseMirror hr {
   margin: 1.65em 0;
   border: 0;

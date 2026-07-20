@@ -257,11 +257,21 @@ export interface ReplaceRichTableCellTextOptions extends SelectRichTableCellOpti
   readonly text: string;
 }
 
+export interface SelectRichFootnoteDefinitionOptions {
+  readonly identifier: string;
+}
+
+export interface ReplaceRichFootnoteDefinitionTextOptions extends SelectRichFootnoteDefinitionOptions {
+  readonly text: string;
+}
+
 export type MomentariseRichSchema = Schema<
   | "blockquote"
   | "bullet_list"
   | "code_block"
   | "doc"
+  | "footnote_definition"
+  | "footnote_reference"
   | "hard_break"
   | "heading"
   | "horizontal_rule"
@@ -528,6 +538,48 @@ export function replaceRichTableCellText(
   };
 }
 
+export function selectRichFootnoteDefinition(
+  state: RichMarkdownState,
+  options: SelectRichFootnoteDefinitionOptions
+): RichMarkdownState {
+  const location = findRichFootnoteDefinitionLocation(state.editorState.doc, options.identifier);
+  if (!location) {
+    throw new RangeError(`Could not find editable rich footnote definition: ${options.identifier}.`);
+  }
+  const from = location.position + 1;
+  const to = from + location.node.content.size;
+  const selection = from < to
+    ? TextSelection.create(state.editorState.doc, from, to)
+    : TextSelection.near(state.editorState.doc.resolve(from));
+  return {
+    ...state,
+    editorState: state.editorState.apply(state.editorState.tr.setSelection(selection))
+  };
+}
+
+export function replaceRichFootnoteDefinitionText(
+  state: RichMarkdownState,
+  options: ReplaceRichFootnoteDefinitionTextOptions
+): RichMarkdownState {
+  const location = findRichFootnoteDefinitionLocation(state.editorState.doc, options.identifier);
+  if (!location) {
+    throw new RangeError(`Could not find editable rich footnote definition: ${options.identifier}.`);
+  }
+  const text = options.text.replace(/[\r\n]+/g, " ");
+  const from = location.position + 1;
+  const to = from + location.node.content.size;
+  let transaction = state.editorState.tr.replaceWith(
+    from,
+    to,
+    text ? state.schema.text(text) : Fragment.empty
+  );
+  transaction = transaction.setSelection(TextSelection.near(transaction.doc.resolve(from + text.length)));
+  return {
+    ...state,
+    editorState: state.editorState.apply(transaction)
+  };
+}
+
 export function filterRichMarkdownCommands(query: string): readonly RichMarkdownCommand[] {
   const normalized = normalizeCommandQuery(query);
   if (!normalized) {
@@ -639,6 +691,29 @@ interface RichTableCellLocation extends RichTableCellCoordinates {
   readonly cell: ProseMirrorNode;
   readonly cellPosition: number;
   readonly contentPosition: number;
+}
+
+interface RichFootnoteDefinitionLocation {
+  readonly node: ProseMirrorNode;
+  readonly position: number;
+}
+
+function findRichFootnoteDefinitionLocation(
+  doc: ProseMirrorNode,
+  identifier: string
+): RichFootnoteDefinitionLocation | null {
+  const normalizedIdentifier = normalizeFootnoteIdentifier(identifier);
+  let result: RichFootnoteDefinitionLocation | null = null;
+  doc.forEach((node, offset) => {
+    if (
+      !result &&
+      node.type.name === "footnote_definition" &&
+      normalizeFootnoteIdentifier(stringAttribute(node.attrs.identifier) ?? "") === normalizedIdentifier
+    ) {
+      result = { node, position: offset };
+    }
+  });
+  return result;
 }
 
 function findRichTable(doc: ProseMirrorNode, tableIndex: number): RichTableLocation | null {
@@ -1522,7 +1597,7 @@ function finalTopLevelBlockRange(state: EditorState): RichTopLevelBlockRange | n
 
 function isFinalParagraphInsertionBlock(node: ProseMirrorNode): boolean {
   return (
-    ["blockquote", "code_block", "horizontal_rule", "table", "unsupported_block"].includes(node.type.name) ||
+    ["blockquote", "code_block", "footnote_definition", "horizontal_rule", "table", "unsupported_block"].includes(node.type.name) ||
     isImageOnlyParagraph(node)
   );
 }
@@ -1782,6 +1857,18 @@ function proseMirrorBlockToMomentariseNode(
       });
     case "table":
       return proseMirrorTableToMomentariseNode(node, nextId);
+    case "footnote_definition":
+      return knownNode(
+        nextId,
+        "block",
+        "footnoteDefinition",
+        [knownNode(nextId, "block", "paragraph", proseMirrorInlineChildrenToMomentariseNodes(node, nextId))],
+        {
+          identifier: stringAttribute(node.attrs.identifier) ?? "",
+          label: stringAttribute(node.attrs.label) ?? stringAttribute(node.attrs.identifier) ?? "",
+          prefix: stringAttribute(node.attrs.prefix) ?? ""
+        }
+      );
     case "horizontal_rule":
       return knownNode(nextId, "block", "thematicBreak", []);
     case "unsupported_block":
@@ -1863,6 +1950,15 @@ function proseMirrorInlineNodeToMomentariseNodes(
         alt: stringAttribute(node.attrs.alt) ?? "",
         title: stringAttribute(node.attrs.title),
         url: stringAttribute(node.attrs.src) ?? ""
+      })
+    ];
+  }
+  if (node.type.name === "footnote_reference") {
+    return [
+      knownNode(nextId, "inline", "footnoteReference", [], {
+        identifier: stringAttribute(node.attrs.identifier) ?? "",
+        label: stringAttribute(node.attrs.label) ?? stringAttribute(node.attrs.identifier) ?? "",
+        raw: stringAttribute(node.attrs.raw) ?? ""
       })
     ];
   }
@@ -2050,12 +2146,38 @@ function richTopLevelBlockPairs(
   schema: MomentariseRichSchema
 ): readonly RichTopLevelBlockPair[] {
   const source = parseResult.snapshot.content;
-  return filterRichRootNodes(parseResult.document.root.children ?? [])
-    .filter((node) => node.type !== "yaml" && node.type !== "yamlFrontmatter")
-    .map((node) => ({
-      model: node,
-      pm: blockNodeToProseMirror(node, schema, source)
-    }));
+  const nodes = filterRichRootNodes(parseResult.document.root.children ?? []).filter(
+    (node) => node.type !== "yaml" && node.type !== "yamlFrontmatter"
+  );
+  const footnoteDefinitionCounts = countFootnoteDefinitions(nodes);
+  return nodes.map((node) => ({
+    model: node,
+    pm: blockNodeToProseMirror(node, schema, source, true, footnoteDefinitionCounts)
+  }));
+}
+
+function countFootnoteDefinitions(nodes: readonly MomentariseNode[]): ReadonlyMap<string, number> {
+  const counts = new Map<string, number>();
+  const visit = (node: MomentariseNode): void => {
+    if (node.kind === "opaque") {
+      return;
+    }
+    if (node.type === "footnoteDefinition") {
+      const identifier = normalizeFootnoteIdentifier(
+        stringAttribute(node.attributes?.identifier) ?? stringAttribute(node.attributes?.label) ?? ""
+      );
+      if (identifier) {
+        counts.set(identifier, (counts.get(identifier) ?? 0) + 1);
+      }
+    }
+    for (const child of node.children ?? []) {
+      visit(child);
+    }
+  };
+  for (const node of nodes) {
+    visit(node);
+  }
+  return counts;
 }
 
 function filterRichRootNodes(nodes: readonly MomentariseNode[]): readonly MomentariseNode[] {
@@ -3737,6 +3859,95 @@ const richNodes: Record<string, NodeSpec> = {
       ];
     }
   },
+  footnote_definition: {
+    attrs: {
+      identifier: { default: "" },
+      label: { default: "" },
+      prefix: { default: "" }
+    },
+    content: "inline*",
+    defining: true,
+    group: "block",
+    parseDOM: [
+      {
+        tag: '[data-mme-footnote-definition="true"]',
+        getAttrs: (element) =>
+          element instanceof HTMLElement
+            ? {
+                identifier: element.dataset.mmeFootnoteIdentifier ?? "",
+                label: element.dataset.mmeFootnoteLabel ?? element.dataset.mmeFootnoteIdentifier ?? "",
+                prefix: element.dataset.mmeFootnotePrefix ?? ""
+              }
+            : false
+      }
+    ],
+    toDOM: (node) => {
+      const identifier = stringAttribute(node.attrs.identifier) ?? "";
+      const label = stringAttribute(node.attrs.label) ?? identifier;
+      const prefix = stringAttribute(node.attrs.prefix) ?? `[^${label}]: `;
+      return [
+        "div",
+        {
+          "aria-label": `Footnote ${label}`,
+          "data-mme-footnote-definition": "true",
+          "data-mme-footnote-identifier": identifier,
+          "data-mme-footnote-label": label,
+          "data-mme-footnote-prefix": prefix,
+          role: "doc-footnote"
+        },
+        [
+          "span",
+          {
+            "aria-hidden": "true",
+            contenteditable: "false",
+            "data-mme-footnote-marker": "true",
+            "data-mme-footnote-marker-label": `[^${label}]:`
+          }
+        ],
+        ["span", { "data-mme-footnote-body": "true" }, 0]
+      ];
+    }
+  },
+  footnote_reference: {
+    atom: true,
+    attrs: {
+      identifier: { default: "" },
+      label: { default: "" },
+      raw: { default: "" }
+    },
+    group: "inline",
+    inline: true,
+    parseDOM: [
+      {
+        tag: '[data-mme-footnote-reference="true"]',
+        getAttrs: (element) =>
+          element instanceof HTMLElement
+            ? {
+                identifier: element.dataset.mmeFootnoteIdentifier ?? "",
+                label: element.dataset.mmeFootnoteLabel ?? element.dataset.mmeFootnoteIdentifier ?? "",
+                raw: element.dataset.mmeFootnoteRaw ?? element.textContent ?? ""
+              }
+            : false
+      }
+    ],
+    selectable: true,
+    toDOM: (node) => {
+      const identifier = stringAttribute(node.attrs.identifier) ?? "";
+      const label = stringAttribute(node.attrs.label) ?? identifier;
+      const raw = stringAttribute(node.attrs.raw) ?? `[^${label}]`;
+      return [
+        "sup",
+        {
+          "aria-label": `Footnote reference ${label}`,
+          "data-mme-footnote-identifier": identifier,
+          "data-mme-footnote-label": label,
+          "data-mme-footnote-raw": raw,
+          "data-mme-footnote-reference": "true"
+        },
+        raw
+      ];
+    }
+  },
   image: {
     attrs: {
       alt: { default: "" },
@@ -3896,7 +4107,8 @@ function blockNodeToProseMirror(
   node: MomentariseNode,
   schema: MomentariseRichSchema,
   source: string,
-  allowRichTable = true
+  allowTopLevelRichStructures = true,
+  footnoteDefinitionCounts: ReadonlyMap<string, number> = new Map()
 ): ProseMirrorNode | null {
   if (node.kind === "opaque") {
     return unsupportedNodeToProseMirror(node, schema, source);
@@ -3926,15 +4138,78 @@ function blockNodeToProseMirror(
     case "list":
       return listNodeToProseMirror(node, schema, source);
     case "table":
-      return allowRichTable
+      return allowTopLevelRichStructures
         ? tableNodeToProseMirror(node, schema, source) ?? unsupportedNodeToProseMirror(node, schema, source)
         : unsupportedNodeToProseMirror(node, schema, source);
+    case "footnoteDefinition":
+      return allowTopLevelRichStructures
+        ? footnoteDefinitionToProseMirror(node, schema, source, footnoteDefinitionCounts) ??
+            unsupportedNodeToProseMirror(node, schema, source)
+        : unsupportedNodeToProseMirror(node, schema, source);
     default:
-      // Closed whitelist: anything the rich subset cannot represent (footnotes,
-      // definitions, raw HTML, ...) is preserved as raw source in an
+      // Closed whitelist: anything the rich subset cannot represent (complex
+      // footnotes, raw HTML, ...) is preserved as raw source in an
       // unsupported block. It must never be flattened into an editable paragraph.
       return unsupportedNodeToProseMirror(node, schema, source);
   }
+}
+
+function footnoteDefinitionToProseMirror(
+  node: KnownNode,
+  schema: MomentariseRichSchema,
+  source: string,
+  footnoteDefinitionCounts: ReadonlyMap<string, number>
+): ProseMirrorNode | null {
+  const identifier = stringAttribute(node.attributes?.identifier) ?? stringAttribute(node.attributes?.label);
+  const label = stringAttribute(node.attributes?.label) ?? identifier;
+  const normalizedIdentifier = normalizeFootnoteIdentifier(identifier ?? "");
+  const raw = rawFromRange(node, source);
+  const prefixMatch = raw.match(/^([ \t]{0,3}\[\^([^\]\r\n]+)\]:[ \t]*)([\s\S]*)$/);
+  const paragraph = node.children?.[0];
+  if (
+    !identifier ||
+    !label ||
+    !isSafeFootnoteIdentifier(identifier) ||
+    footnoteDefinitionCounts.get(normalizedIdentifier) !== 1 ||
+    !prefixMatch ||
+    normalizeFootnoteIdentifier(prefixMatch[2] ?? "") !== normalizedIdentifier ||
+    /[\r\n]/.test(raw) ||
+    node.children?.length !== 1 ||
+    !paragraph ||
+    paragraph.kind === "opaque" ||
+    paragraph.type !== "paragraph" ||
+    !(paragraph.children ?? []).every(isRepresentableRichFootnoteInlineNode)
+  ) {
+    return null;
+  }
+  return schema.nodes.footnote_definition!.create(
+    {
+      identifier,
+      label,
+      prefix: prefixMatch[1]
+    },
+    inlineChildrenToProseMirror(paragraph.children ?? [], schema, source)
+  );
+}
+
+function isRepresentableRichFootnoteInlineNode(node: MomentariseNode): boolean {
+  if (node.kind === "opaque") {
+    return false;
+  }
+  if (["text", "inlineCode"].includes(node.type)) {
+    return true;
+  }
+  if (node.type === "footnoteReference") {
+    const identifier = stringAttribute(node.attributes?.identifier) ?? stringAttribute(node.attributes?.label);
+    return Boolean(identifier && isSafeFootnoteIdentifier(identifier));
+  }
+  if (!["emphasis", "strong", "strikethrough", "link"].includes(node.type)) {
+    return false;
+  }
+  if (node.type === "link" && !isSafeUrl(stringAttribute(node.attributes?.url))) {
+    return false;
+  }
+  return (node.children ?? []).every(isRepresentableRichFootnoteInlineNode);
 }
 
 type TableAlignment = "center" | "left" | "right" | null;
@@ -4066,8 +4341,23 @@ function inlineNodeToProseMirror(
     return [schema.text(stringAttribute(node.attributes?.value) ?? rawFromRange(node, source), marks)];
   }
   if (node.type === "footnoteReference") {
-    const referenceText = footnoteReferenceText(node, source);
-    return referenceText ? [schema.text(referenceText, marks)] : [];
+    const identifier = stringAttribute(node.attributes?.identifier) ?? stringAttribute(node.attributes?.label);
+    const label = stringAttribute(node.attributes?.label) ?? identifier;
+    const raw = footnoteReferenceText(node, source);
+    if (!identifier || !label || !raw || !isSafeFootnoteIdentifier(identifier)) {
+      return raw ? [schema.text(raw, marks)] : [];
+    }
+    return [
+      schema.nodes.footnote_reference!.create(
+        {
+          identifier,
+          label,
+          raw
+        },
+        null,
+        marks
+      )
+    ];
   }
   if (node.type === "inlineCode") {
     return [
@@ -4121,6 +4411,14 @@ function footnoteReferenceText(node: MomentariseNode, source: string): string {
   return identifier ? `[^${identifier}]` : "";
 }
 
+function normalizeFootnoteIdentifier(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function isSafeFootnoteIdentifier(value: string): boolean {
+  return value.trim().length > 0 && !/[\[\]\r\n]/.test(value);
+}
+
 function unsupportedNodeToProseMirror(
   node: MomentariseNode,
   schema: MomentariseRichSchema,
@@ -4168,6 +4466,8 @@ function serializeBlock(node: ProseMirrorNode, indentLevel: number): string {
       return serializeListItem(node, indentLevel, Boolean(node.attrs.checked) ? "- [x]" : "- [ ]");
     case "table":
       return serializeRichTable(node);
+    case "footnote_definition":
+      return `${stringAttribute(node.attrs.prefix) ?? `[^${stringAttribute(node.attrs.label) ?? stringAttribute(node.attrs.identifier) ?? ""}]: `}${serializeInline(node)}`.trimEnd();
     case "horizontal_rule":
       return "---";
     case "unsupported_block":
@@ -4271,6 +4571,11 @@ function serializeInline(node: ProseMirrorNode): string {
       const src = stringAttribute(child.attrs.src) ?? "";
       const title = escapeMarkdownTitle(stringAttribute(child.attrs.title));
       parts.push(title ? `![${alt}](${src} "${title}")` : `![${alt}](${src})`);
+      return;
+    }
+    if (child.type.name === "footnote_reference") {
+      const label = stringAttribute(child.attrs.label) ?? stringAttribute(child.attrs.identifier) ?? "";
+      parts.push(stringAttribute(child.attrs.raw) ?? `[^${label}]`);
     }
   });
   return parts.join("");

@@ -3120,6 +3120,8 @@ Accepted for code continuation 2026-07-20 after adding editable standard top-lev
 
 ## MME-0056 — Rich GFM footnote definition editing baseline
 
+Accepted for code continuation 2026-07-20 after adding semantic rich footnote references, editable unique top-level single-line definitions, exact prefix and targeted source-range serialization, recursive duplicate exclusion, and explicit source-only fallbacks for multi-line, multi-block, nested, unsafe, duplicate, and malformed definitions. Reusable selection/replacement helpers, CRLF preservation, undo/redo, post-undo save truth, public API/docs updates, real browser input, Source/Rich switching, and desktop/constrained visual proof are covered. Architecture/security, preservation/test, and UX/accessibility reviewers used `gpt-5.3-codex-spark` with `xhigh` reasoning; builder fixed identifier-normalization, prefix-fidelity, and nested-duplicate findings, and all final reviews reported no remaining P0-P3 findings. Final footnote label density, reference semantics/navigation, keyboard focus treatment, fallback wording, and product taste remain queued for Andrew's end-of-run review block. No executable normal issue remains after MME-0056 until the next backlog item is promoted.
+
 ### Goal
 
 Make safely representable existing GFM footnote definitions directly editable in Rich mode while preserving references, complex definitions, and unrelated Markdown exactly.

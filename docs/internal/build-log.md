@@ -5841,3 +5841,49 @@
   - `git diff --check` — green before checkpoint commit.
 - Next issue:
   - `MME-0056 — Rich GFM footnote definition editing baseline`.
+
+## MME-0056 — Rich GFM footnote definition editing baseline
+
+- Date: 2026-07-20.
+- Previous issue status:
+  - `MME-0055` accepted for code continuation and committed (`c0e2092` implementation/status, `d943e12` evidence).
+  - `MME-0056` was promoted from backlog and committed in checkpoint `9f2d217`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short`, and the parser, core, rich-package, demo, fixture, serializer, renderer, and save files named by the issue.
+- RED proof before implementation:
+  - Added `fixtures/022-simple-footnote-editing/` and `tests/rich-footnote-editing.test.mjs`, registered `test:rich-footnote-editing`, and confirmed the first run failed with `Missing MME-0056 rich footnote export: replaceRichFootnoteDefinitionText`.
+- Change:
+  - Added semantic `footnote_reference` inline atoms that retain identifier, label, and exact original Markdown spelling.
+  - Added editable `footnote_definition` rich blocks for unique top-level single-line definitions with representable inline content.
+  - Added `selectRichFootnoteDefinition` and `replaceRichFootnoteDefinitionText` public helpers plus intentional API audit entries and package/public docs.
+  - Added synthetic footnote definition/reference serialization in `@momentarise/md-format`, preserving exact definition prefix indentation, label case, spacing, source line endings, and untouched source bytes.
+  - Kept multi-line, multi-block, nested, unsafe-HTML, unsafe-link, duplicate including nested duplicate, malformed, and non-representable definitions in explicit source-only fallback blocks.
+  - Unified identifier normalization across parser diagnostics and rich eligibility; recursive duplicate counting prevents a top-level definition becoming editable when the same identifier exists in a nested container.
+  - Added demo test hooks and responsive semantic styling without moving ProseMirror behavior into core/model/service packages.
+  - Updated the public roadmap, generated `llms-full.txt`, generated AX artifacts, fixture corpus index, and final human review queue.
+- Visual impact:
+  - Safe simple definitions render as quiet editable labeled blocks; references render as compact semantic superscripts.
+  - Complex definitions remain visible source-only blocks with explicit Source-mode guidance.
+  - Artifacts: `docs/internal/visual-checks/MME-0056/footnote-editable-desktop.png`, `footnote-edited-desktop.png`, and `footnote-edited-constrained.png`.
+  - Real Chrome input replaced the full definition body, retained the generated identifier marker, exercised undo/redo and save, switched back to Source, and proved desktop/390px nonblank containment. Artifact inspection caught and fixed native marker-text deletion and duplicate fallback-caption styling before acceptance.
+- Checks run:
+  - `npm run test:rich-footnote-editing` — RED before implementation, then green after implementation and every reviewer fix.
+  - `npm run test:rich-fidelity`, `npm run test:rich-targeted-serialization`, `npm run test:public-api`, `npm run test:rich-security`, `npm run test:parser`, `npm run test:fixtures`, `npm run test:docs`, `npm run test:llms-sync`, and `npm run test:agent-artifacts` — green.
+  - `npm run visual:mme-0056` — sandbox Chrome first aborted with `SIGABRT`; permissioned local Chrome reruns passed and refreshed all three artifacts after visual fixes.
+  - `npm test` — green after final implementation/reviewer fixes; existing Vite chunk-size warning only.
+  - `curl -I http://127.0.0.1:5174/` — `HTTP/1.1 200 OK`.
+  - `git diff --check` — pending immediately before commit.
+- Reviewer result:
+  - Architecture/security reviewer `Gibbs`, preservation/test reviewer `Kuhn`, and UX/accessibility reviewer `Hooke` used `gpt-5.3-codex-spark` with `xhigh` reasoning and edited no source.
+  - Builder fixed the parser/rich whitespace-normalization mismatch, incorrect prefix-regex capture validation, weak outside-range assertion, missing post-undo save proof, and top-level-only duplicate count immediately.
+  - All three final reviews reported no remaining P0-P3 findings.
+- Residual risks:
+  - Identifier rename, insertion, automatic reference repair, rich multi-line/multi-block/nested editing, reorder, hover preview, and backlink redesign remain out of scope.
+  - Final label density, semantic reference/navigation expectations, keyboard-only focus treatment, fallback wording, and product taste are queued in `docs/internal/BACKLOG.md` for Andrew's end-of-run review block.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Pending issue-scoped implementation/status commit; evidence hash will be appended after commit.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0056`; continuation requires promoting the next must-have backlog item before implementation.

@@ -23,6 +23,7 @@ MME V0 focuses on framework credibility: preservation, source/rich editing, trut
 - Policy gates AI and sensitive file access.
 - React and Theia paths prove host integration.
 - Asset upload contracts let hosts insert Markdown image references from paste/drop/import flows without making MME own storage.
+- Standard top-level GFM tables and simple unique single-line footnote definitions have preservation-first Rich editing baselines.
 
 ## Near-Term Public Readiness
 
@@ -35,7 +36,7 @@ MME V0 focuses on framework credibility: preservation, source/rich editing, trut
 
 - VS Code and desktop adapter paths.
 - Mobile and tablet input pass.
-- Table and footnote editing.
+- Complex, nested, and structural table and footnote editing.
 - Live preview parity.
 - CMS and publishing integrations.
 

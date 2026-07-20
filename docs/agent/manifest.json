@@ -26,7 +26,7 @@
       "packages/md-surface/package.json",
       "packages/md-theme/package.json"
     ],
-    "inputHash": "506bebf8a7babc0411625f78d26db184936b04e73ae369326da7d550423b7c63"
+    "inputHash": "9dae198c66bceb1426182abdc17213f3ea7600521ff1a769aa83b81b92bd1c03"
   },
   "actionsPath": "docs/agent/actions.json",
   "skills": [

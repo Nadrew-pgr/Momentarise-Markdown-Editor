@@ -24,6 +24,7 @@ updated: 2026-07-20
 - input rules;
 - list and todo editing;
 - standard GFM table editing and cell navigation;
+- simple GFM footnote definition editing;
 - folding;
 - block affordance helpers;
 - source-to-rich and rich-to-source selection mapping for host commands.
@@ -39,6 +40,14 @@ Safely representable rectangular top-level GFM pipe tables mount as rich table n
 Hosts can use `selectRichTableCell`, `moveRichTableCell`, `richTableCellCoordinates`, and `replaceRichTableCellText` for coordinate-based table actions. Tab and Shift+Tab use the same reusable movement behavior; Tab from the final cell adds one rectangular Markdown-representable row.
 
 Nested, malformed, non-standard, or non-representable table-like syntax stays in the preserved source-only fallback until MME can rewrite that exact nested range without touching container syntax.
+
+## Footnote Editing
+
+Unique top-level single-line GFM definitions with representable inline content mount as semantic editable blocks. Their references remain semantic inline nodes and retain their original Markdown spelling.
+
+Hosts can use `selectRichFootnoteDefinition` to select an existing body by identifier and `replaceRichFootnoteDefinitionText` to replace it with single-line text. Changed definitions serialize through their original source range; unrelated Markdown and line endings remain untouched.
+
+Multi-line, multi-block, nested, duplicate, malformed, unsafe, or otherwise non-representable definitions stay in the visible source-only fallback. Identifier rename, new definition insertion, and automatic reference repair are not part of this baseline.
 
 ## Related Docs
 

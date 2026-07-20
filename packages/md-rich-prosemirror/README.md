@@ -16,6 +16,13 @@ ProseMirror rich-mode bridge for Momentarise Markdown Editor.
 
 Standard rectangular top-level GFM pipe tables mount as editable ProseMirror table nodes. Nested, malformed, or non-representable table-like syntax remains an opaque source-only block until its source range can be rewritten without touching container syntax.
 
+## Rich footnote helpers
+
+- `selectRichFootnoteDefinition` selects the body of one supported existing definition by identifier.
+- `replaceRichFootnoteDefinitionText` replaces that definition body with Markdown-representable single-line text.
+
+Unique top-level single-line GFM definitions with representable inline content mount as editable semantic blocks. References remain semantic inline atoms and retain their original Markdown spelling. Multi-line, nested, duplicate, malformed, unsafe, or otherwise non-representable definitions remain visible source-only fallbacks.
+
 ## Release metadata
 
 - Release status: experimental

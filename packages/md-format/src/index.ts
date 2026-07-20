@@ -452,11 +452,35 @@ function serializeMomentariseBlock(
       return serializeMomentariseListItem(node, source, indentLevel, markerForMomentariseListItem(node, false, 1));
     case "table":
       return serializeMomentariseTable(node, source);
+    case "footnoteDefinition":
+      return node.sourceRange
+        ? rawFromRange(node, source).trimEnd()
+        : serializeMomentariseFootnoteDefinition(node, source, indentLevel);
     case "thematicBreak":
       return "---";
     default:
       return rawFromRange(node, source).trimEnd();
   }
+}
+
+function serializeMomentariseFootnoteDefinition(
+  node: KnownNode,
+  source: string,
+  indentLevel: number
+): string {
+  const identifier =
+    stringAttribute(node.attributes?.label) ?? stringAttribute(node.attributes?.identifier);
+  if (!identifier || !isSafeFootnoteIdentifier(identifier)) {
+    return rawFromRange(node, source).trimEnd();
+  }
+  const prefixCandidate = stringAttribute(node.attributes?.prefix);
+  const prefixMatch = prefixCandidate?.match(/^[ \t]{0,3}\[\^([^\]\r\n]+)\]:[ \t]*$/);
+  const prefix = prefixMatch?.[1] === identifier && prefixCandidate ? prefixCandidate : `[^${identifier}]: `;
+  const body = (node.children ?? [])
+    .map((child) => serializeMomentariseBlock(child, source, indentLevel))
+    .join("\n\n")
+    .replace(/\r?\n/g, "\n    ");
+  return `${prefix}${body}`.trimEnd();
 }
 
 type TableAlignment = "center" | "left" | "right" | null;
@@ -614,9 +638,22 @@ function serializeMomentariseInline(node: MomentariseNode, source: string): stri
       const title = stringAttribute(node.attributes?.title);
       return title ? `![${escapeMarkdownLabel(alt)}](${url} "${escapeMarkdownTitle(title)}")` : `![${escapeMarkdownLabel(alt)}](${url})`;
     }
+    case "footnoteReference": {
+      const raw = stringAttribute(node.attributes?.raw);
+      if (raw) {
+        return raw;
+      }
+      const identifier =
+        stringAttribute(node.attributes?.label) ?? stringAttribute(node.attributes?.identifier);
+      return identifier && isSafeFootnoteIdentifier(identifier) ? `[^${identifier}]` : "";
+    }
     default:
       return node.children ? serializeMomentariseInlineList(node.children, source) : rawFromRange(node, source);
   }
+}
+
+function isSafeFootnoteIdentifier(value: string): boolean {
+  return value.trim().length > 0 && !/[\[\]\r\n]/.test(value);
 }
 
 function rawFromRange(node: MomentariseNode, source: string): string {
@@ -1498,7 +1535,7 @@ function collectMalformedFootnoteLikeLines(
 }
 
 function normalizeFootnoteIdentifier(identifier: string): string {
-  return identifier.trim().toLowerCase();
+  return identifier.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
 function sourceLines(source: string): ReadonlyArray<{ readonly end: number; readonly start: number; readonly text: string }> {

@@ -90,6 +90,7 @@ import {
   richTopLevelBlockRanges,
   runRichMarkdownCommand,
   serializeRichMarkdownState,
+  selectRichFootnoteDefinition,
   selectRichTableCell,
   setCurrentCodeBlockInfo,
   sourceRangeForRichRange,
@@ -2336,6 +2337,14 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
       throw new Error("Rich editor is not mounted.");
     }
     richState = selectRichTableCell(richState, { columnIndex, rowIndex });
+    richEditor.updateState(richState.editorState);
+    richEditor.focus();
+  },
+  selectRichFootnoteDefinitionForTest(identifier: string) {
+    if (!richEditor) {
+      throw new Error("Rich editor is not mounted.");
+    }
+    richState = selectRichFootnoteDefinition(richState, { identifier });
     richEditor.updateState(richState.editorState);
     richEditor.focus();
   },
@@ -6308,6 +6317,7 @@ declare global {
       runRichCommand: (commandId: RichCommandId, options?: ApplyRichMarkdownCommandOptions) => void;
       reorderRichBlocksForTest: (fromIndex: number, toIndex: number, placement?: "after" | "before") => string | null;
       selectFinalRichBlockForTest: () => void;
+      selectRichFootnoteDefinitionForTest: (identifier: string) => void;
       selectRichTableCellForTest: (rowIndex: number, columnIndex: number) => void;
       selectRichTextForTest: (text: string) => void;
       saveAsWritableMarkdownFileForTest: (fileName?: string) => Promise<void>;
