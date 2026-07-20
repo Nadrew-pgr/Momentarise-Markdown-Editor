@@ -3185,6 +3185,73 @@ Do not add identifier rename, automatic reference repair, new footnote insertion
 
 Architecture Reviewer, Test Reviewer, and UX Reviewer.
 
+## MME-0057 — Rich GFM footnote insertion baseline
+
+### Goal
+
+Let users insert a new Markdown-native footnote reference and matching simple definition from Rich mode without full-document serialization, identifier collisions, or hidden non-Markdown state.
+
+### Scope
+
+- Add a reusable `@momentarise/md-rich-prosemirror` command/helper that inserts one semantic footnote reference at a safely mappable rich selection and one matching top-level single-line definition.
+- Allocate a deterministic collision-free identifier from an optional preferred identifier or a documented default, using the same normalization rules as parser diagnostics and rich-definition eligibility.
+- Insert only valid GFM `[^identifier]` and `[^identifier]: body` source syntax; keep Markdown as the only durable footnote state.
+- Apply the insertion as bounded source patches for the reference position and document-end definition, preserving every unrelated byte and the document line-ending convention.
+- Reject unsupported selections, duplicate/colliding identifiers, unsafe/non-representable initial body content, stale documents, and unmappable rich positions without mutating source.
+- Expose the command through the existing package-owned command surface and reference demo with localized accessible state.
+- Keep existing complex, nested, duplicate, malformed, and non-representable definitions source-only.
+- Add runtime browser proof for keyboard-first insertion, source visibility, undo/redo, save truth, and constrained-width containment; queue final product/taste review for Andrew's end-of-run block.
+
+### Acceptance criteria
+
+- Inserting a footnote from a supported rich text selection creates one semantic reference and one matching top-level simple definition using valid GFM Markdown.
+- Generated identifiers are deterministic, normalization-aware, and never collide with existing references or definitions.
+- A caller-supplied invalid or colliding preferred identifier produces a truthful non-mutating result.
+- Only the reference insertion point and appended definition region change; all pre-existing source bytes remain exact.
+- LF and CRLF documents retain their line-ending convention, including the appended definition separator.
+- Unsupported or unmappable selections fail safely and leave source, history, dirty state, and save hashes unchanged.
+- One undo removes both inserted source regions as one user action; redo restores them; Save Engine and autosave remain truthful.
+- Slash/command invocation is keyboard reachable, localized, and does not depend on demo-only document mutation.
+- Public helper exports are intentional, package-owned, documented, and covered by the public API audit.
+- Browser verification captures pre-insertion, inserted Rich, resulting Source, and constrained-width states.
+
+### Test-first plan
+
+- RED: add focused rich-footnote insertion tests that fail because no reusable insertion export exists.
+- RED: prove deterministic identifier allocation, normalization-aware collision handling, and invalid preferred-identifier rejection.
+- RED: prove two-range targeted insertion, unrelated-byte identity, LF/CRLF behavior, single-step undo/redo, and save truth.
+- RED: add command-surface/demo tests for keyboard invocation plus unmappable/stale non-mutation.
+
+### Manual verification
+
+- Start the reference demo, place the caret in a normal rich paragraph, invoke Insert footnote from the command surface, and confirm one reference plus one editable definition appears.
+- Undo once, redo once, save, switch to Source, and confirm valid GFM Markdown plus truthful clean/dirty state.
+- Repeat in a constrained viewport and capture artifacts under `docs/internal/visual-checks/MME-0057/`.
+
+### Visual impact
+
+The command surface gains an Insert footnote action and Rich mode gains the inserted semantic reference/definition state. Final action placement, generated-label wording, focus transfer, and visual density review remain queued for Andrew's end-of-run review block.
+
+### Implementation notes
+
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-surface/src/index.ts`, `packages/md-extension-registry/src/index.ts`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `fixtures/020-gfm-footnotes`, `fixtures/022-simple-footnote-editing`, `tests/rich-footnote-editing.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/rich-commands.test.mjs`, `tests/demo-commands.test.mjs`, `tests/save-engine.test.mjs`, and the MME-0056 build-log/visual artifacts.
+
+Reuse the parser/rich identifier normalization and source-position mapping already established by MME-0041/MME-0056. Treat reference-plus-definition insertion as one history transaction even though serialization touches two bounded source regions. Keep ProseMirror behavior isolated to `@momentarise/md-rich-prosemirror`; no view-engine dependency may enter core/model/save/policy packages.
+
+Do not add identifier rename, automatic repair of missing references or duplicate definitions, rich multi-line/multi-block/nested definition editing, definition reorder, hover previews, renderer/backlink redesign, or docs-content construction in this slice.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible footnote insertion UX/product review is queued for the end-of-run human review block unless identifier or serialization semantics remain unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, and UX Reviewer.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

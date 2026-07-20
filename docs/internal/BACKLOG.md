@@ -37,7 +37,7 @@ Tags: `baseline/hygiene`, `markdown`, `navigation`, `round-trip`
 - Support backlink navigation in rendered views.
 - Keep source mode fallback for editing unusual footnote syntax.
 - Future rich editing should include insertion and edit affordances without hiding the Markdown source model.
-- First rich editing slice for existing simple definitions promoted as `MME-0056`; insertion, identifier rename, and complex definition editing remain backlog.
+- First rich editing slice for existing simple definitions promoted as `MME-0056`; new footnote insertion is promoted as `MME-0057`; identifier rename and complex definition editing remain backlog.
 - Tests must include real footnote fixtures and parser/source/rich round-trip proof before claiming coverage.
 
 ### Core Markdown Blocks
@@ -197,6 +197,7 @@ Tags: `public-release`, `human-review`, `ui`, `ax`
 - MME-0054 visible asset upload UX review: review Insert image placement, slash/paste/drop discoverability, success/error/pending feedback, demo-provider wording, local `./assets/...` references, and whether a real first-party example provider is required before public launch.
 - MME-0055 rich table product review: review cell density, alignment presentation, Tab/Shift+Tab feel, selected-cell focus treatment, final-row insertion, wide-table horizontal scrolling, malformed/nested fallback wording, constrained layout, and whether advanced row/column actions should be promoted before public launch.
 - MME-0056 rich footnote product/AX review: review definition label density, semantic reference presentation, dedicated reference role/navigation expectations, keyboard-only focus treatment, preserved complex-definition wording, constrained layout, and whether insertion/rename/multi-block editing should be promoted before public launch.
+- MME-0057 rich footnote insertion review: review command placement and naming, deterministic generated identifiers, focus transfer between reference and definition, keyboard flow, source visibility, constrained layout, and whether identifier rename should be promoted next.
 - Future visible/UI/HITL slices in this autonomous run should be added here instead of blocking code continuation, per the 2026-07-19 human instruction to review visible work in one final block.
 
 - Visible asset upload UX and demo provider follow-up for image paste/drop, building on the promoted MME-0051 provider contract while keeping real storage host-owned. First visible upload UX slice promoted as `MME-0054`.
@@ -263,6 +264,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - `MME-0054 — Visible asset upload UX and demo provider`.
 - `MME-0055 — Rich GFM table editing baseline`.
 - `MME-0056 — Rich GFM footnote definition editing baseline`.
+- `MME-0057 — Rich GFM footnote insertion baseline`.
 
 - Editor live preview parity.
 - Toolbar/slash/menu final UX.
@@ -273,7 +275,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - Payload CMS plugin/integration.
 - Document status/save truth UI.
 - Footnotes/endnotes preservation, rendering, backlink navigation, and editing UX.
-- First rich footnote definition editing baseline promoted as `MME-0056`; insertion, rename, and complex definitions remain future splits.
+- First rich footnote definition editing baseline promoted as `MME-0056`; insertion is promoted as `MME-0057`; rename and complex definitions remain future splits.
 - Table rendering and first rich table editing baseline promoted as `MME-0040` and `MME-0055`; advanced spreadsheet-like table UX remains backlog.
 - Nested GFM table rich editing after nested-range serialization can replace only table bytes inside blockquotes/lists; MME-0055 keeps these tables source-only instead of rewriting container syntax.
 - Inline slash AI prompt surface.

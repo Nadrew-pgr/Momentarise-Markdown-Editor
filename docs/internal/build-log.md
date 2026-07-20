@@ -5467,7 +5467,7 @@
   - Asset upload/image paste/drop is a serious Markdown editor gap and a reusable framework contract slice, not content-doc polish.
   - The slice is bounded to host-owned provider contracts and source-preserving Markdown image insertion; real storage providers, product drag/drop UI, media library, and image optimization stay out of scope.
 - Checks run:
-  - Pending before commit: `git diff --check`.
+  - `git diff --check` — green before checkpoint commit.
 - Next issue:
   - `MME-0051 — Asset upload provider contract and image paste/drop preservation`.
 
@@ -5838,7 +5838,7 @@
   - MME-0041 made footnotes safe to preserve and render but explicitly left definitions source-only in Rich mode.
   - Existing simple-definition editing is the next backlog-order baseline gap after table editing and can be implemented without changing the durable Markdown contract.
 - Checks run:
-  - `git diff --check` — green before checkpoint commit.
+  - Pending before commit: `git diff --check`.
 - Next issue:
   - `MME-0056 — Rich GFM footnote definition editing baseline`.
 
@@ -5887,3 +5887,24 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0056`; continuation requires promoting the next must-have backlog item before implementation.
+
+## Backlog promotion checkpoint — MME-0057
+
+- Date: 2026-07-20.
+- Context:
+  - `MME-0056` is accepted for code continuation and committed (`0134bf9` implementation/status, `f3e828a` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0056.
+  - Andrew instructed autonomous continuation, issue-scoped commits, separate docs-content ownership, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Change:
+  - Promoted `MME-0057 — Rich GFM footnote insertion baseline` from the next baseline/hygiene footnote gap into normal issue form.
+  - Bounded the slice to collision-safe reference-plus-definition insertion, two-range source patches, one-step history, command-surface access, save truth, and browser proof.
+  - Kept identifier rename, automatic repair, complex/multiline/nested definition editing, backlink redesign, and docs-content work out of scope.
+  - Updated `README.md` current slice and `docs/internal/BACKLOG.md` promotion/review tracking.
+- Rationale:
+  - MME-0056 made existing simple definitions editable but intentionally left new footnote insertion out of scope.
+  - New footnote insertion is the next backlog-order baseline gap and can reuse semantic references plus targeted serialization without weakening Markdown durability.
+- Checks run:
+  - `git diff --check` — green before checkpoint commit.
+- Next issue:
+  - `MME-0057 — Rich GFM footnote insertion baseline`.
