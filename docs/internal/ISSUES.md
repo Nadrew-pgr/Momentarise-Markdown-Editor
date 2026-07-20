@@ -3234,7 +3234,7 @@ The command surface gains an Insert footnote action and Rich mode gains the inse
 
 ### Implementation notes
 
-Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-surface/src/index.ts`, `packages/md-extension-registry/src/index.ts`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `fixtures/020-gfm-footnotes`, `fixtures/022-simple-footnote-editing`, `tests/rich-footnote-editing.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/rich-commands.test.mjs`, `tests/demo-commands.test.mjs`, `tests/save-engine.test.mjs`, and the MME-0056 build-log/visual artifacts.
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-editor/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-surface/src/index.ts`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `fixtures/020-gfm-footnotes`, `fixtures/022-simple-footnote-editing`, `tests/extension-registry.test.mjs`, `tests/rich-footnote-editing.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/rich-commands.test.mjs`, `tests/demo-slash-toolbar-baseline.test.mjs`, `tests/save-engine.test.mjs`, and the MME-0056 build-log/visual artifacts.
 
 Reuse the parser/rich identifier normalization and source-position mapping already established by MME-0041/MME-0056. Treat reference-plus-definition insertion as one history transaction even though serialization touches two bounded source regions. Keep ProseMirror behavior isolated to `@momentarise/md-rich-prosemirror`; no view-engine dependency may enter core/model/save/policy packages.
 

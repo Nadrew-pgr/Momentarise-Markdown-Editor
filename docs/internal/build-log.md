@@ -5906,5 +5906,6 @@
   - New footnote insertion is the next backlog-order baseline gap and can reuse semantic references plus targeted serialization without weakening Markdown durability.
 - Checks run:
   - `git diff --check` — green before checkpoint commit.
+  - Fresh implementation-file validation corrected two stale path guesses to the real `packages/md-editor/src/index.ts`, `tests/extension-registry.test.mjs`, and `tests/demo-slash-toolbar-baseline.test.mjs` paths before RED work.
 - Next issue:
   - `MME-0057 — Rich GFM footnote insertion baseline`.
