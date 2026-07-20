@@ -6023,7 +6023,7 @@
   - The internal `footnoteInsertionBaseSource` field now also anchors identifier token mutations; its name is legacy MME-0057 terminology, but changing the public state shape was not required for this slice.
   - Existing demo bundle-size warning remains outside this issue.
 - Commit status:
-  - Pending issue-scoped implementation/status commit.
+  - Issue-scoped implementation/status commit created: `5e77068` (`feat: add rich footnote identifier rename`).
 - Push status:
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
