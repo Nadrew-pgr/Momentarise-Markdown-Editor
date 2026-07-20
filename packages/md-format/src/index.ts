@@ -125,6 +125,7 @@ type MdastLikeNode = {
   readonly start?: number | null;
   readonly identifier?: string | null;
   readonly label?: string | null;
+  readonly align?: readonly ("center" | "left" | "right" | null)[];
 };
 
 export function createMarkdownAstParser(): MarkdownParser {
@@ -449,10 +450,74 @@ function serializeMomentariseBlock(
       return serializeMomentariseList(node, source, indentLevel);
     case "listItem":
       return serializeMomentariseListItem(node, source, indentLevel, markerForMomentariseListItem(node, false, 1));
+    case "table":
+      return serializeMomentariseTable(node, source);
     case "thematicBreak":
       return "---";
     default:
       return rawFromRange(node, source).trimEnd();
+  }
+}
+
+type TableAlignment = "center" | "left" | "right" | null;
+
+function serializeMomentariseTable(node: KnownNode, source: string): string {
+  const rows = (node.children ?? []).filter(
+    (child): child is KnownNode => child.kind !== "opaque" && child.type === "tableRow"
+  );
+  const width = rows.reduce((maximum, row) => Math.max(maximum, tableCells(row).length), 0);
+  if (rows.length === 0 || width === 0) {
+    return rawFromRange(node, source).trimEnd();
+  }
+
+  const renderedRows = rows.map((row) => serializeMomentariseTableRow(row, source, width));
+  const delimiter = `| ${Array.from({ length: width }, (_, index) =>
+    tableDelimiterForAlignment(tableAlignment(node, index))
+  ).join(" | ")} |`;
+  return [renderedRows[0]!, delimiter, ...renderedRows.slice(1)].join("\n");
+}
+
+function serializeMomentariseTableRow(node: KnownNode, source: string, width: number): string {
+  const cells = tableCells(node);
+  return `| ${Array.from({ length: width }, (_, index) =>
+    cells[index] ? serializeMomentariseTableCell(cells[index]!, source) : ""
+  ).join(" | ")} |`;
+}
+
+function tableCells(node: KnownNode): KnownNode[] {
+  return (node.children ?? []).filter(
+    (child): child is KnownNode => child.kind !== "opaque" && child.type === "tableCell"
+  );
+}
+
+function serializeMomentariseTableCell(node: KnownNode, source: string): string {
+  const value = (node.children ?? [])
+    .map((child) => serializeMomentariseInline(child, source))
+    .join("")
+    .replace(/\r?\n/g, " ")
+    .trim();
+  return value.replace(/\|/g, "\\|");
+}
+
+function tableAlignment(node: KnownNode, index: number): TableAlignment {
+  const alignments = node.attributes?.align;
+  if (!Array.isArray(alignments)) {
+    return null;
+  }
+  const alignment = alignments[index];
+  return alignment === "center" || alignment === "left" || alignment === "right" ? alignment : null;
+}
+
+function tableDelimiterForAlignment(alignment: TableAlignment): string {
+  switch (alignment) {
+    case "center":
+      return ":---:";
+    case "left":
+      return ":---";
+    case "right":
+      return "---:";
+    default:
+      return "---";
   }
 }
 
@@ -785,7 +850,7 @@ function mapMdastNode(node: MdastLikeNode, source: string, id: string): Momentar
 }
 
 function attributesForMdastNode(node: MdastLikeNode): NodeAttributes | null {
-  const attributes: Record<string, string | number | boolean | null> = {};
+  const attributes: Record<string, NodeAttributeValue> = {};
 
   if (node.type === "heading" && typeof node.depth === "number") {
     attributes.depth = node.depth;
@@ -831,6 +896,9 @@ function attributesForMdastNode(node: MdastLikeNode): NodeAttributes | null {
     if (node.label) {
       attributes.label = node.label;
     }
+  }
+  if (node.type === "table" && Array.isArray(node.align)) {
+    attributes.align = node.align.map((alignment) => alignment ?? null);
   }
 
   return Object.keys(attributes).length > 0 ? attributes : null;

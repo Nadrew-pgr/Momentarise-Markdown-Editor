@@ -5767,3 +5767,56 @@
   - Pending before commit: `git diff --check`.
 - Next issue:
   - `MME-0055 — Rich GFM table editing baseline`.
+
+## MME-0055 — Rich GFM table editing baseline
+
+- Date: 2026-07-20.
+- Previous issue status:
+  - `MME-0054` accepted for code continuation and committed (`2dd6076` implementation/status, `31e578a` evidence).
+  - `MME-0055` was promoted from backlog into normal issue form and committed in checkpoint `dfc90c7`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short`, and the parser, serializer, rich-package, demo, fixture, test, and public-package files named by the issue.
+- RED proof before implementation:
+  - Added `tests/rich-table-editing.test.mjs`, registered `test:rich-table-editing`, and confirmed the first run failed with `Missing MME-0055 rich table export: replaceRichTableCellText` while supported tables still used the opaque fallback.
+- Change:
+  - Captured GFM table alignment in `@momentarise/md-format` and added normalized table/row/cell serialization with escaped pipe content.
+  - Added `prosemirror-tables` `1.8.5` as an MIT-licensed rich-package peer/dev dependency; no ProseMirror table dependency entered core, model, save, policy, or adapter packages.
+  - Added editable table/header/body schema nodes plus `selectRichTableCell`, `moveRichTableCell`, `richTableCellCoordinates`, and `replaceRichTableCellText` reusable APIs.
+  - Added Tab/Shift+Tab navigation, Markdown-safe final-cell row insertion, row-alignment inheritance, real CellSelection state, and existing history integration.
+  - Limited changed serialization to one top-level table source range, preserved CRLF, and retained untouched tables byte-for-byte.
+  - Kept malformed, non-representable, and nested tables explicit source-only fallbacks until nested-range serialization can replace only nested table bytes.
+  - Added responsive table styling, horizontal reachability for wide tables, host and selected-cell keyboard focus indicators, demo runtime hooks, package docs, approved public API changes, generated LLM/AX artifacts, and the deferred human review queue entry.
+- Visual impact:
+  - Supported top-level tables are real rich tables; malformed and nested table syntax remains visibly preserved/source-only.
+  - Artifacts: `docs/internal/visual-checks/MME-0055/table-editable-desktop.png`, `table-edited-desktop.png`, `table-edited-constrained.png`, and `table-wide-constrained.png`.
+  - Automated Chrome proof uses real CDP keyboard events for Tab, Shift+Tab, undo, and redo; it also proves final-row insertion/undo, source/rich identity, selected-cell focus styling, constrained rendering, wide-table overflow, and horizontal end reachability.
+  - Manual artifact inspection found nonblank readable tables with no incoherent overlap or clipping. Final density, styling, and product taste review remains queued for Andrew's end-of-run review block.
+- Checks run:
+  - `npm run test:rich-table-editing` — RED before implementation, then green after package behavior and reviewer fixes.
+  - `npm run test:rich-fidelity` — green.
+  - `npm run test:rich-targeted-serialization` — green.
+  - `npm run test:rich-core-interactions` — green.
+  - `npm run test:rich-commands` — green.
+  - `npm run test:parser` and `npm run test:serializer` — green.
+  - `npm run test:public-api` — green after approving and documenting intentional table helper exports.
+  - `npm run test:docs`, `npm run test:llms-sync`, and `npm run test:agent-artifacts` — green.
+  - `node --check scripts/visual-check-mme0055.mjs` — green.
+  - `npm run visual:mme-0055` — sandbox Chrome first failed with `SIGABRT`; rerun with required local Chrome permission passed and saved all four artifacts.
+  - `npm test` — green after final reviewer fixes; existing Vite chunk-size warning only.
+  - `git diff --check` — green immediately before commit.
+- Manual/dev-server verification:
+  - Restarted reference demo at `http://127.0.0.1:5174/` using `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`.
+- Reviewer result:
+  - Architecture/security reviewer `Carson`, test/preservation reviewer `James`, and UX/accessibility reviewer `Linnaeus` used `gpt-5.3-codex-spark` with `xhigh` reasoning. An earlier architecture reviewer exhausted context and was replaced without accepting its incomplete result.
+  - Initial findings covered nested table coordinate/serialization safety, truthful Save Engine options/hash proof, real keyboard delivery, false dirty state from navigation, wide-table reachability, and focus visibility.
+  - Builder fixed every actionable finding immediately. All three final re-reviews reported no remaining P0-P3 findings.
+- Residual risks:
+  - Nested tables stay source-only until nested-range serialization exists.
+  - Merged cells, resizing, formulas, sorting/filtering, spreadsheet paste, drag reordering, table creation UX, and advanced row/column menus remain out of scope.
+  - Final table density, alignment presentation, keyboard feel, focus treatment, fallback wording, wide/constrained layout, and advanced-action priority are queued in `docs/internal/BACKLOG.md` for Andrew's final review block.
+- Commit status:
+  - Pending issue-scoped implementation/status commit after `git diff --check`.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0055`; continuation requires promoting the next must-have backlog item before implementation.

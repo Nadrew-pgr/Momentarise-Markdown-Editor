@@ -194,6 +194,7 @@ Tags: `public-release`, `human-review`, `ui`, `ax`
 - MME-0052 lightweight source UX review: review `.txt/.log/.json/.yaml/.toml` open/import/save wording, source-only mode labeling, unsupported-file rejection wording, properties/diagnostics copy, and whether syntax-specific previews or validation should be promoted before public launch.
 - MME-0053 SVG artifact preview review: review `.svg` open/import/save wording, Source/Preview mode labeling, sanitized-preview details, visible preview chrome, and whether sanitizer warnings are understandable enough before public launch.
 - MME-0054 visible asset upload UX review: review Insert image placement, slash/paste/drop discoverability, success/error/pending feedback, demo-provider wording, local `./assets/...` references, and whether a real first-party example provider is required before public launch.
+- MME-0055 rich table product review: review cell density, alignment presentation, Tab/Shift+Tab feel, selected-cell focus treatment, final-row insertion, wide-table horizontal scrolling, malformed/nested fallback wording, constrained layout, and whether advanced row/column actions should be promoted before public launch.
 - Future visible/UI/HITL slices in this autonomous run should be added here instead of blocking code continuation, per the 2026-07-19 human instruction to review visible work in one final block.
 
 - Visible asset upload UX and demo provider follow-up for image paste/drop, building on the promoted MME-0051 provider contract while keeping real storage host-owned. First visible upload UX slice promoted as `MME-0054`.
@@ -270,6 +271,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - Document status/save truth UI.
 - Footnotes/endnotes preservation, rendering, backlink navigation, and editing UX.
 - Table rendering and first rich table editing baseline promoted as `MME-0040` and `MME-0055`; advanced spreadsheet-like table UX remains backlog.
+- Nested GFM table rich editing after nested-range serialization can replace only table bytes inside blockquotes/lists; MME-0055 keeps these tables source-only instead of rewriting container syntax.
 - Inline slash AI prompt surface.
 - LiteLLM / OpenAI-compatible AI provider adapter.
 - Dedicated issue promoted: `MME-0028.5 — Inline AI prompt surface and usable writing flow`.

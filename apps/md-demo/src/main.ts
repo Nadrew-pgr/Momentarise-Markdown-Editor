@@ -90,6 +90,7 @@ import {
   richTopLevelBlockRanges,
   runRichMarkdownCommand,
   serializeRichMarkdownState,
+  selectRichTableCell,
   setCurrentCodeBlockInfo,
   sourceRangeForRichRange,
   toggleRichFold,
@@ -2330,6 +2331,14 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
     setRichSelectionForText(text);
     renderSelectionBubbleToolbar();
   },
+  selectRichTableCellForTest(rowIndex: number, columnIndex: number) {
+    if (!richEditor) {
+      throw new Error("Rich editor is not mounted.");
+    }
+    richState = selectRichTableCell(richState, { columnIndex, rowIndex });
+    richEditor.updateState(richState.editorState);
+    richEditor.focus();
+  },
   selectFinalRichBlockForTest() {
     selectFinalRichBlockForTest();
   },
@@ -2649,8 +2658,8 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   typeRichTextForTest(text: string) {
     typeRichTextForTest(text);
   },
-  pressRichKeyForTest(key: string) {
-    pressRichKeyForTest(key);
+  pressRichKeyForTest(key: string, modifiers = {}) {
+    pressRichKeyForTest(key, modifiers);
   },
   openSlashMenuForTest(query: string) {
     openSlashMenuForTest(query);
@@ -5111,32 +5120,24 @@ function typeRichTextForTest(text: string): void {
   }
 }
 
-function pressRichKeyForTest(key: string): void {
+function pressRichKeyForTest(
+  key: string,
+  modifiers: { readonly altKey?: boolean; readonly ctrlKey?: boolean; readonly metaKey?: boolean; readonly shiftKey?: boolean } = {}
+): void {
   if (!richEditor) {
     throw new Error("Rich editor is not mounted.");
   }
-  const event = {
+  richEditor.focus();
+  const event = new KeyboardEvent("keydown", {
+    altKey: modifiers.altKey ?? false,
+    bubbles: true,
+    cancelable: true,
+    ctrlKey: modifiers.ctrlKey ?? false,
     key,
-    preventDefault() {},
-    stopPropagation() {}
-  } as KeyboardEvent;
-  for (const plugin of richEditor.state.plugins) {
-    const handler = plugin.props.handleKeyDown;
-    if (!handler) {
-      continue;
-    }
-    if (handler.call(plugin, richEditor, event)) {
-      break;
-    }
-  }
-  richState = {
-    ...richState,
-    editorState: richEditor.state
-  };
-  richChanged = true;
-  syncRichMarkdownToSource("rich edit");
-  renderRichBlockControls();
-  updateSlashMenuFromRichState();
+    metaKey: modifiers.metaKey ?? false,
+    shiftKey: modifiers.shiftKey ?? false
+  });
+  richEditor.dom.dispatchEvent(event);
   if (!inlineAiPromptState.open) {
     richEditor.focus();
   }
@@ -6298,12 +6299,16 @@ declare global {
       openFindReplaceForTest: (query?: string) => void;
       openInlineAiPromptForTest: (actionId?: ReferenceAiActionId) => void;
       openSlashMenuForTest: (query: string) => void;
-      pressRichKeyForTest: (key: string) => void;
+      pressRichKeyForTest: (
+        key: string,
+        modifiers?: { readonly altKey?: boolean; readonly ctrlKey?: boolean; readonly metaKey?: boolean; readonly shiftKey?: boolean }
+      ) => void;
       replaceActiveFindMatchForTest: (replacement: string) => void;
       replaceAllFindMatchesForTest: (query: string, replacement: string) => void;
       runRichCommand: (commandId: RichCommandId, options?: ApplyRichMarkdownCommandOptions) => void;
       reorderRichBlocksForTest: (fromIndex: number, toIndex: number, placement?: "after" | "before") => string | null;
       selectFinalRichBlockForTest: () => void;
+      selectRichTableCellForTest: (rowIndex: number, columnIndex: number) => void;
       selectRichTextForTest: (text: string) => void;
       saveAsWritableMarkdownFileForTest: (fileName?: string) => Promise<void>;
       showRealFileOpenUnavailableForTest: () => void;

@@ -3057,7 +3057,8 @@ Make standard GFM pipe tables directly editable in Rich mode without weakening M
 
 ### Scope
 
-- Map safely representable GFM table, row, header-cell, and body-cell nodes into an editable rich table model.
+- Map safely representable top-level GFM table, row, header-cell, and body-cell nodes into an editable rich table model.
+- Keep nested tables source-only until nested-range serialization can replace only table bytes without rewriting blockquote/list container syntax.
 - Keep malformed, non-standard, or non-representable table-like syntax as the existing opaque/source-only fallback.
 - Support editing existing cell text plus conventional Tab and Shift+Tab cell navigation; Tab from the final cell may add one Markdown-representable row.
 - Serialize a changed rich table back into valid GFM Markdown while limiting replacement to that table's source range and preserving every unrelated source byte.
@@ -3067,7 +3068,8 @@ Make standard GFM pipe tables directly editable in Rich mode without weakening M
 
 ### Acceptance criteria
 
-- A supported GFM table mounts as editable rich table nodes instead of the preserved-table fallback.
+- A supported top-level GFM table mounts as editable rich table nodes instead of the preserved-table fallback.
+- Nested tables remain an explicit byte-identical source-only fallback.
 - Editing one cell produces valid GFM Markdown, preserves table shape/alignment semantics, and does not rewrite source outside the edited table range.
 - Untouched supported tables remain byte-identical through rich round-trip.
 - Malformed/non-standard table-like syntax remains opaque, visibly source-only, and byte-identical.
@@ -3111,6 +3113,10 @@ Do not add merged cells, column resizing, spreadsheet formulas, CSV/spreadsheet 
 ### Reviewer
 
 Architecture Reviewer, Test Reviewer, and UX Reviewer.
+
+### Status: completed
+
+Accepted for code continuation 2026-07-20 after adding editable standard top-level GFM tables, reusable cell selection/movement/edit helpers, table-range-only Markdown serialization, untouched-byte identity, CRLF preservation, malformed/nested source-only fallback, Markdown-safe final-row insertion, truthful undo/redo/save behavior, and real browser keyboard/focus/constrained-width proof. `prosemirror-tables` is isolated to the rich package and uses its MIT license. Architecture/security, test/preservation, and UX/accessibility reviewer subagents used `gpt-5.3-codex-spark` with `xhigh` reasoning; builder fixed their nested-range boundary, save-proof, keyboard-event, false-dirty, responsive-overflow, and focus-indicator findings, and all final re-reviews reported no remaining P0-P3 findings. Final table UX/product review is queued in `docs/internal/BACKLOG.md`; nested table editing and advanced spreadsheet-like controls remain future work.
 
 ## MME-BACKLOG — Future split candidates
 

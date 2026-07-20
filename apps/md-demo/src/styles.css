@@ -1268,8 +1268,14 @@ h1 {
 }
 
 .rich-editor-host {
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior-x: contain;
   background: var(--mme-color-bg);
+}
+
+.rich-editor-host:focus-within {
+  box-shadow: inset 0 0 0 2px var(--mme-color-focus-ring);
 }
 
 .markdown-read-host {
@@ -1728,6 +1734,53 @@ h1 {
 
 .ProseMirror blockquote p:last-child {
   margin-bottom: 0;
+}
+
+.ProseMirror table {
+  width: max-content;
+  min-width: 100%;
+  margin: 0 0 1em;
+  border-collapse: collapse;
+  table-layout: auto;
+  white-space: normal;
+}
+
+.ProseMirror th,
+.ProseMirror td {
+  position: relative;
+  min-width: 72px;
+  padding: 9px 11px;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--mme-color-border-strong);
+  vertical-align: top;
+}
+
+.ProseMirror th {
+  background: var(--mme-color-surface-muted);
+  font-family: var(--mme-font-family-ui);
+  font-size: 0.88em;
+  font-weight: 650;
+}
+
+.ProseMirror td {
+  background: var(--mme-color-surface);
+}
+
+.ProseMirror th p,
+.ProseMirror td p {
+  margin: 0;
+}
+
+.ProseMirror .selectedCell::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: var(--mme-color-accent-soft);
+  pointer-events: none;
+}
+
+.ProseMirror:focus-visible .selectedCell::after {
+  box-shadow: inset 0 0 0 2px var(--mme-color-focus-ring);
 }
 
 .ProseMirror hr {
@@ -2407,7 +2460,7 @@ h1 {
   }
 
   .rich-block-affordance {
-    left: -40px;
+    left: -44px;
   }
 
   .editor-host .cm-content {

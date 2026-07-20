@@ -43,6 +43,7 @@
     "prosemirror-keymap": "^1.2.3",
     "prosemirror-model": "^1.25.4",
     "prosemirror-state": "^1.4.4",
+    "prosemirror-tables": "^1.8.5",
     "prosemirror-transform": "^1.10.5"
   },
   "devDependencies": {
@@ -51,6 +52,7 @@
     "prosemirror-keymap": "^1.2.3",
     "prosemirror-model": "^1.25.4",
     "prosemirror-state": "^1.4.4",
+    "prosemirror-tables": "^1.8.5",
     "prosemirror-transform": "^1.10.5"
   },
   "momentarise": {

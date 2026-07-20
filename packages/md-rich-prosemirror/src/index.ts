@@ -27,6 +27,7 @@ import { history, redo, undo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
 import { Fragment, Mark, Node as ProseMirrorNode, Schema, type DOMOutputSpec, type MarkSpec, type NodeSpec, type ResolvedPos } from "prosemirror-model";
 import { EditorState, NodeSelection, Plugin, PluginKey, Selection, TextSelection, type Transaction } from "prosemirror-state";
+import { addRowAfter, CellSelection, goToNextCell, tableEditing, tableNodes } from "prosemirror-tables";
 
 export interface MomentariseRichProseMirrorContract {
   readonly packageName: "@momentarise/md-rich-prosemirror";
@@ -240,6 +241,22 @@ export interface RichMarkdownState {
   readonly source: string;
 }
 
+export interface RichTableCellCoordinates {
+  readonly columnIndex: number;
+  readonly rowIndex: number;
+  readonly tableIndex: number;
+}
+
+export interface SelectRichTableCellOptions {
+  readonly columnIndex: number;
+  readonly rowIndex: number;
+  readonly tableIndex?: number;
+}
+
+export interface ReplaceRichTableCellTextOptions extends SelectRichTableCellOptions {
+  readonly text: string;
+}
+
 export type MomentariseRichSchema = Schema<
   | "blockquote"
   | "bullet_list"
@@ -252,6 +269,10 @@ export type MomentariseRichSchema = Schema<
   | "list_item"
   | "ordered_list"
   | "paragraph"
+  | "table"
+  | "table_cell"
+  | "table_header"
+  | "table_row"
   | "text"
   | "todo_item"
   | "unsupported_block",
@@ -390,6 +411,7 @@ export function createMomentariseRichPlugins(preferences: MomentariseRichPrefere
   if (!normalized.keymapDelegateToHost && normalized.keymapProfile !== "delegate") {
     plugins.push(keymap(baseKeymap));
   }
+  plugins.push(tableEditing());
   return plugins;
 }
 
@@ -437,6 +459,75 @@ export function reconfigureRichPlugins(
   };
 }
 
+export function richTableCellCoordinates(state: RichMarkdownState): RichTableCellCoordinates | null {
+  return richTableCellCoordinatesInEditorState(state.editorState);
+}
+
+export function selectRichTableCell(
+  state: RichMarkdownState,
+  options: SelectRichTableCellOptions
+): RichMarkdownState {
+  const location = findRichTableCellLocation(state.editorState.doc, options);
+  if (!location) {
+    throw new RangeError(
+      `Could not find rich table cell ${options.tableIndex ?? 0}:${options.rowIndex}:${options.columnIndex}.`
+    );
+  }
+  const transaction = state.editorState.tr.setSelection(
+    new CellSelection(state.editorState.doc.resolve(location.cellPosition))
+  );
+  return {
+    ...state,
+    editorState: state.editorState.apply(transaction)
+  };
+}
+
+export function moveRichTableCell(
+  state: RichMarkdownState,
+  direction: "next" | "previous"
+): RichMarkdownState {
+  let editorState = state.editorState;
+  const command = direction === "next" ? moveToNextRichTableCellCommand : goToNextCell(-1);
+  if (!command(editorState, (transaction) => {
+    editorState = editorState.apply(transaction);
+  })) {
+    return state;
+  }
+  return {
+    ...state,
+    editorState
+  };
+}
+
+export function replaceRichTableCellText(
+  state: RichMarkdownState,
+  options: ReplaceRichTableCellTextOptions
+): RichMarkdownState {
+  const location = findRichTableCellLocation(state.editorState.doc, options);
+  if (!location) {
+    throw new RangeError(
+      `Could not find rich table cell ${options.tableIndex ?? 0}:${options.rowIndex}:${options.columnIndex}.`
+    );
+  }
+  const text = options.text.replace(/\r?\n/g, " ");
+  const paragraph = location.cell.firstChild;
+  if (!paragraph || paragraph.type !== state.schema.nodes.paragraph) {
+    throw new Error("Rich table cells must contain exactly one paragraph.");
+  }
+  const from = location.contentPosition;
+  const to = from + paragraph.content.size;
+  let transaction = state.editorState.tr.replaceWith(
+    from,
+    to,
+    text ? state.schema.text(text) : Fragment.empty
+  );
+  transaction = transaction.setSelection(TextSelection.near(transaction.doc.resolve(from + text.length)));
+  return {
+    ...state,
+    editorState: state.editorState.apply(transaction)
+  };
+}
+
 export function filterRichMarkdownCommands(query: string): readonly RichMarkdownCommand[] {
   const normalized = normalizeCommandQuery(query);
   if (!normalized) {
@@ -466,10 +557,205 @@ function createRichKeymapPlugins(preferences: Required<MomentariseRichPreference
       ArrowRight: chainCommands(insertParagraphAfterFinalBlockCommand, exitCodeBlockAtEndCommand),
       Backspace: liftOrMergeListItemAtStartCommand,
       Enter: chainCommands(exitCodeBlockOnFinalBlankLineCommand, newlineInCode, splitListItemCommand, createParagraphNear, liftEmptyBlock, splitBlock),
-      Tab: sinkListItemCommand,
-      "Shift-Tab": liftListItemCommand
+      Tab: chainCommands(moveToNextRichTableCellCommand, sinkListItemCommand),
+      "Shift-Tab": chainCommands(goToNextCell(-1), liftListItemCommand)
     })
   ];
+}
+
+function moveToNextRichTableCellCommand(
+  state: EditorState,
+  dispatch?: (transaction: Transaction) => void
+): boolean {
+  const moveNext = goToNextCell(1);
+  if (moveNext(state, dispatch)) {
+    return true;
+  }
+  const coordinates = richTableCellCoordinatesInEditorState(state);
+  const table = coordinates ? findRichTable(state.doc, coordinates.tableIndex) : null;
+  if (
+    !coordinates ||
+    !table ||
+    coordinates.rowIndex !== table.node.childCount - 1 ||
+    coordinates.columnIndex !== table.node.lastChild!.childCount - 1
+  ) {
+    return false;
+  }
+  if (!dispatch) {
+    return true;
+  }
+
+  const rowTransactions: Transaction[] = [];
+  if (!addRowAfter(state, (transaction) => {
+    rowTransactions.push(transaction);
+  })) {
+    return false;
+  }
+  const rowTransaction = rowTransactions[0];
+  if (!rowTransaction) {
+    return false;
+  }
+  let transaction = rowTransaction;
+  const appendedTable = findRichTable(transaction.doc, coordinates.tableIndex);
+  const headerRow = appendedTable?.node.firstChild;
+  const appendedRow = appendedTable?.node.child(coordinates.rowIndex + 1);
+  if (headerRow && appendedRow) {
+    for (let columnIndex = 0; columnIndex < appendedRow.childCount; columnIndex += 1) {
+      const location = findRichTableCellLocation(transaction.doc, {
+        columnIndex,
+        rowIndex: coordinates.rowIndex + 1,
+        tableIndex: coordinates.tableIndex
+      });
+      if (!location) {
+        continue;
+      }
+      transaction = transaction.setNodeMarkup(location.cellPosition, state.schema.nodes.table_cell, {
+        ...location.cell.attrs,
+        alignment: normalizeTableAlignment(headerRow.child(columnIndex).attrs.alignment)
+      });
+    }
+  }
+  const nextLocation = findRichTableCellLocation(transaction.doc, {
+    columnIndex: 0,
+    rowIndex: coordinates.rowIndex + 1,
+    tableIndex: coordinates.tableIndex
+  });
+  if (nextLocation) {
+    transaction = transaction
+      .setSelection(TextSelection.near(transaction.doc.resolve(nextLocation.contentPosition)))
+      .scrollIntoView();
+  }
+  dispatch(transaction);
+  return true;
+}
+
+interface RichTableLocation {
+  readonly node: ProseMirrorNode;
+  readonly position: number;
+  readonly tableIndex: number;
+}
+
+interface RichTableCellLocation extends RichTableCellCoordinates {
+  readonly cell: ProseMirrorNode;
+  readonly cellPosition: number;
+  readonly contentPosition: number;
+}
+
+function findRichTable(doc: ProseMirrorNode, tableIndex: number): RichTableLocation | null {
+  let currentTableIndex = 0;
+  let result: RichTableLocation | null = null;
+  doc.forEach((node, offset) => {
+    if (result || node.type.name !== "table") {
+      return;
+    }
+    if (currentTableIndex === tableIndex) {
+      result = { node, position: offset, tableIndex };
+      return;
+    }
+    currentTableIndex += 1;
+  });
+  return result;
+}
+
+function findRichTableCellLocation(
+  doc: ProseMirrorNode,
+  options: SelectRichTableCellOptions
+): RichTableCellLocation | null {
+  const table = findRichTable(doc, options.tableIndex ?? 0);
+  if (!table || options.rowIndex < 0 || options.rowIndex >= table.node.childCount) {
+    return null;
+  }
+  const row = table.node.child(options.rowIndex);
+  if (options.columnIndex < 0 || options.columnIndex >= row.childCount) {
+    return null;
+  }
+  let rowOffset = 0;
+  for (let index = 0; index < options.rowIndex; index += 1) {
+    rowOffset += table.node.child(index).nodeSize;
+  }
+  let cellOffset = 0;
+  for (let index = 0; index < options.columnIndex; index += 1) {
+    cellOffset += row.child(index).nodeSize;
+  }
+  const cell = row.child(options.columnIndex);
+  const cellPosition = table.position + 2 + rowOffset + cellOffset;
+  return {
+    cell,
+    cellPosition,
+    columnIndex: options.columnIndex,
+    contentPosition: cellPosition + 2,
+    rowIndex: options.rowIndex,
+    tableIndex: table.tableIndex
+  };
+}
+
+function richTableCellCoordinatesInEditorState(state: EditorState): RichTableCellCoordinates | null {
+  const selection = state.selection as Selection & { readonly $anchorCell?: ResolvedPos };
+  const position = selection.$anchorCell ?? state.selection.$from;
+  return richTableCellCoordinatesForResolvedPosition(state.doc, position);
+}
+
+function richTableCellCoordinatesForResolvedPosition(
+  doc: ProseMirrorNode,
+  position: ResolvedPos
+): RichTableCellCoordinates | null {
+  const boundaryCoordinates = richTableCellCoordinatesAtPosition(doc, position.pos);
+  if (boundaryCoordinates) {
+    return boundaryCoordinates;
+  }
+  for (let depth = position.depth; depth > 0; depth -= 1) {
+    const role = position.node(depth).type.spec.tableRole;
+    if (role !== "cell" && role !== "header_cell") {
+      continue;
+    }
+    const tableDepth = depth - 2;
+    if (tableDepth <= 0) {
+      return null;
+    }
+    const tablePosition = position.before(tableDepth);
+    let tableIndex = 0;
+    doc.forEach((node, offset) => {
+      if (node.type.name === "table" && offset < tablePosition) {
+        tableIndex += 1;
+      }
+    });
+    return {
+      columnIndex: position.index(depth - 1),
+      rowIndex: position.index(depth - 2),
+      tableIndex
+    };
+  }
+  return null;
+}
+
+function richTableCellCoordinatesAtPosition(
+  doc: ProseMirrorNode,
+  position: number
+): RichTableCellCoordinates | null {
+  let tableIndex = 0;
+  let result: RichTableCellCoordinates | null = null;
+  doc.forEach((table, tableOffset) => {
+    if (result || table.type.name !== "table") {
+      return;
+    }
+    let rowOffset = 0;
+    table.forEach((row, _rowOffset, rowIndex) => {
+      let cellOffset = 0;
+      row.forEach((cell, _cellOffset, columnIndex) => {
+        if (tableOffset + 2 + rowOffset + cellOffset === position) {
+          result = { columnIndex, rowIndex, tableIndex };
+        }
+        cellOffset += cell.nodeSize;
+      });
+      rowOffset += row.nodeSize;
+    });
+    tableIndex += 1;
+  });
+  return result;
+}
+
+function normalizeTableAlignment(value: unknown): TableAlignment {
+  return value === "center" || value === "left" || value === "right" ? value : null;
 }
 
 function normalizeRichPreferences(preferences: MomentariseRichPreferences = {}): Required<MomentariseRichPreferences> {
@@ -1236,7 +1522,7 @@ function finalTopLevelBlockRange(state: EditorState): RichTopLevelBlockRange | n
 
 function isFinalParagraphInsertionBlock(node: ProseMirrorNode): boolean {
   return (
-    ["blockquote", "code_block", "horizontal_rule", "unsupported_block"].includes(node.type.name) ||
+    ["blockquote", "code_block", "horizontal_rule", "table", "unsupported_block"].includes(node.type.name) ||
     isImageOnlyParagraph(node)
   );
 }
@@ -1372,10 +1658,11 @@ function serializeRichMarkdownContent(state: RichMarkdownState): string {
       lastOriginalIndex = originalIndex;
     } else {
       const originalIndex = aligned.kind === "replaced" ? aligned.pairIndex : -1;
-      const text = serializeReconstructedProseMirrorBlock(aligned.block);
+      let text = serializeReconstructedProseMirrorBlock(aligned.block);
       let separator: string;
       if (originalIndex >= 0) {
         const range = pairs[originalIndex]!.model.sourceRange!;
+        text = applySourceLineEnding(text, source.slice(range.start.offset, range.end.offset));
         if (segments.length === 0) {
           separator = originalIndex === 0 ? source.slice(0, range.start.offset) : fallbackPrefix;
         } else if (lastOriginalIndex >= 0 && originalIndex === lastOriginalIndex + 1) {
@@ -1387,6 +1674,7 @@ function serializeRichMarkdownContent(state: RichMarkdownState): string {
         // so the next untouched neighbor can reuse the original gap-after.
         lastOriginalIndex = originalIndex;
       } else {
+        text = applySourceLineEnding(text, source);
         separator = segments.length === 0 ? fallbackPrefix : "\n\n";
       }
       segments.push(separator + text);
@@ -1400,6 +1688,10 @@ function serializeRichMarkdownContent(state: RichMarkdownState): string {
     content = `${content.trimEnd()}\n`;
   }
   return content;
+}
+
+function applySourceLineEnding(value: string, sourceContext: string): string {
+  return sourceContext.includes("\r\n") ? value.replace(/\r?\n/g, "\r\n") : value;
 }
 
 export function proseMirrorDocToMomentariseNodes(doc: ProseMirrorNode): readonly MomentariseNode[] {
@@ -1488,6 +1780,8 @@ function proseMirrorBlockToMomentariseNode(
       return knownNode(nextId, "block", "listItem", proseMirrorBlockChildrenToMomentariseNodes(node, nextId), {
         checked: Boolean(node.attrs.checked)
       });
+    case "table":
+      return proseMirrorTableToMomentariseNode(node, nextId);
     case "horizontal_rule":
       return knownNode(nextId, "block", "thematicBreak", []);
     case "unsupported_block":
@@ -1501,6 +1795,34 @@ function proseMirrorBlockToMomentariseNode(
         })
       ]);
   }
+}
+
+function proseMirrorTableToMomentariseNode(
+  node: ProseMirrorNode,
+  nextId: () => ReturnType<typeof createNodeId>
+): KnownNode {
+  const rows: MomentariseNode[] = [];
+  node.forEach((row) => {
+    const cells: MomentariseNode[] = [];
+    row.forEach((cell) => {
+      const paragraph = cell.firstChild;
+      cells.push(
+        knownNode(
+          nextId,
+          "block",
+          "tableCell",
+          paragraph ? proseMirrorInlineChildrenToMomentariseNodes(paragraph, nextId) : []
+        )
+      );
+    });
+    rows.push(knownNode(nextId, "block", "tableRow", cells));
+  });
+  const firstRow = node.firstChild;
+  const alignments: TableAlignment[] = [];
+  firstRow?.forEach((cell) => {
+    alignments.push(normalizeTableAlignment(cell.attrs.alignment));
+  });
+  return knownNode(nextId, "block", "table", rows, { align: alignments });
 }
 
 function proseMirrorBlockChildrenToMomentariseNodes(
@@ -2133,6 +2455,23 @@ function selectionCanMovePastFinalBlock(state: EditorState): boolean {
       return state.selection.from >= range.from && state.selection.to <= range.to;
     }
     return false;
+  }
+  const cellSelection = state.selection as Selection & {
+    readonly $anchorCell?: ResolvedPos;
+    readonly $headCell?: ResolvedPos;
+  };
+  if (range.node.type.name === "table" && cellSelection.$anchorCell && cellSelection.$headCell) {
+    const anchor = richTableCellCoordinatesForResolvedPosition(state.doc, cellSelection.$anchorCell);
+    const head = richTableCellCoordinatesForResolvedPosition(state.doc, cellSelection.$headCell);
+    if (!anchor || !head || anchor.tableIndex !== head.tableIndex) {
+      return false;
+    }
+    const lastRow = range.node.childCount - 1;
+    const lastColumn = range.node.lastChild!.childCount - 1;
+    return (
+      (anchor.rowIndex === 0 && anchor.columnIndex === 0 && head.rowIndex === lastRow && head.columnIndex === lastColumn) ||
+      (head.rowIndex === 0 && head.columnIndex === 0 && anchor.rowIndex === lastRow && anchor.columnIndex === lastColumn)
+    );
   }
   if (!(state.selection instanceof TextSelection) || !state.selection.empty) {
     return false;
@@ -3244,10 +3583,37 @@ function currentBlockText(state: EditorState): string {
   return currentBlockRange(state)?.node.textContent.trim() ?? "";
 }
 
+const richTableNodes = tableNodes({
+  cellAttributes: {
+    alignment: {
+      default: null,
+      getFromDOM(element) {
+        return normalizeTableAlignment(element.getAttribute("data-mme-table-align") ?? element.style.textAlign);
+      },
+      setDOMAttr(value, attributes) {
+        const alignment = normalizeTableAlignment(value);
+        if (!alignment) {
+          return;
+        }
+        attributes["data-mme-table-align"] = alignment;
+        attributes.style = `${typeof attributes.style === "string" ? `${attributes.style}; ` : ""}text-align: ${alignment}`;
+      },
+      validate(value) {
+        if (value !== null && !normalizeTableAlignment(value)) {
+          throw new RangeError(`Invalid table alignment: ${String(value)}.`);
+        }
+      }
+    }
+  },
+  cellContent: "paragraph",
+  tableGroup: "block"
+});
+
 const richNodes: Record<string, NodeSpec> = {
   doc: {
     content: "block+"
   },
+  ...richTableNodes,
   paragraph: {
     content: "inline*",
     group: "block",
@@ -3529,7 +3895,8 @@ const richMarks: Record<string, MarkSpec> = {
 function blockNodeToProseMirror(
   node: MomentariseNode,
   schema: MomentariseRichSchema,
-  source: string
+  source: string,
+  allowRichTable = true
 ): ProseMirrorNode | null {
   if (node.kind === "opaque") {
     return unsupportedNodeToProseMirror(node, schema, source);
@@ -3558,12 +3925,83 @@ function blockNodeToProseMirror(
       );
     case "list":
       return listNodeToProseMirror(node, schema, source);
+    case "table":
+      return allowRichTable
+        ? tableNodeToProseMirror(node, schema, source) ?? unsupportedNodeToProseMirror(node, schema, source)
+        : unsupportedNodeToProseMirror(node, schema, source);
     default:
-      // Closed whitelist: anything the rich subset cannot represent (tables,
-      // footnotes, definitions, raw HTML, ...) is preserved as raw source in an
+      // Closed whitelist: anything the rich subset cannot represent (footnotes,
+      // definitions, raw HTML, ...) is preserved as raw source in an
       // unsupported block. It must never be flattened into an editable paragraph.
       return unsupportedNodeToProseMirror(node, schema, source);
   }
+}
+
+type TableAlignment = "center" | "left" | "right" | null;
+
+function tableNodeToProseMirror(
+  node: KnownNode,
+  schema: MomentariseRichSchema,
+  source: string
+): ProseMirrorNode | null {
+  const rows = (node.children ?? []).filter(
+    (child): child is KnownNode => child.kind !== "opaque" && child.type === "tableRow"
+  );
+  const width = rows[0] ? richTableCells(rows[0]).length : 0;
+  if (
+    rows.length === 0 ||
+    width === 0 ||
+    rows.length !== (node.children ?? []).length ||
+    rows.some(
+      (row) => richTableCells(row).length !== width || richTableCells(row).length !== (row.children ?? []).length
+    )
+  ) {
+    return null;
+  }
+  const alignments = modelTableAlignments(node, width);
+  const tableRows: ProseMirrorNode[] = [];
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+    const cells = richTableCells(rows[rowIndex]!);
+    const tableCells: ProseMirrorNode[] = [];
+    for (let columnIndex = 0; columnIndex < cells.length; columnIndex += 1) {
+      const cell = cells[columnIndex]!;
+      if (!(cell.children ?? []).every(isRepresentableRichTableInlineNode)) {
+        return null;
+      }
+      const paragraph = schema.nodes.paragraph.create(
+        null,
+        inlineChildrenToProseMirror(cell.children ?? [], schema, source)
+      );
+      const cellType = rowIndex === 0 ? schema.nodes.table_header : schema.nodes.table_cell;
+      tableCells.push(cellType.create({ alignment: alignments[columnIndex] }, paragraph));
+    }
+    tableRows.push(schema.nodes.table_row.create(null, tableCells));
+  }
+  return schema.nodes.table.create(null, tableRows);
+}
+
+function richTableCells(node: KnownNode): KnownNode[] {
+  return (node.children ?? []).filter(
+    (child): child is KnownNode => child.kind !== "opaque" && child.type === "tableCell"
+  );
+}
+
+function isRepresentableRichTableInlineNode(node: MomentariseNode): boolean {
+  if (node.kind === "opaque") {
+    return false;
+  }
+  if (["text", "inlineCode", "image", "break", "lineBreak"].includes(node.type)) {
+    return true;
+  }
+  if (!["emphasis", "strong", "strikethrough", "link"].includes(node.type)) {
+    return false;
+  }
+  return (node.children ?? []).every(isRepresentableRichTableInlineNode);
+}
+
+function modelTableAlignments(node: KnownNode, width: number): readonly TableAlignment[] {
+  const alignments = Array.isArray(node.attributes?.align) ? node.attributes.align : [];
+  return Array.from({ length: width }, (_, index) => normalizeTableAlignment(alignments[index]));
 }
 
 function listNodeToProseMirror(node: KnownNode, schema: MomentariseRichSchema, source: string): ProseMirrorNode {
@@ -3598,7 +4036,7 @@ function blockChildrenToProseMirror(
   source: string
 ): ProseMirrorNode[] {
   return children
-    .map((child) => blockNodeToProseMirror(child, schema, source))
+    .map((child) => blockNodeToProseMirror(child, schema, source, false))
     .filter((child): child is ProseMirrorNode => Boolean(child));
 }
 
@@ -3728,12 +4166,51 @@ function serializeBlock(node: ProseMirrorNode, indentLevel: number): string {
       return serializeListItem(node, indentLevel, "-");
     case "todo_item":
       return serializeListItem(node, indentLevel, Boolean(node.attrs.checked) ? "- [x]" : "- [ ]");
+    case "table":
+      return serializeRichTable(node);
     case "horizontal_rule":
       return "---";
     case "unsupported_block":
       return String(node.attrs.raw ?? "").trimEnd();
     default:
       return node.textContent;
+  }
+}
+
+function serializeRichTable(node: ProseMirrorNode): string {
+  const rows: string[] = [];
+  const firstRow = node.firstChild;
+  node.forEach((row) => {
+    const cells: string[] = [];
+    row.forEach((cell) => {
+      cells.push(escapeRichTableCellMarkdown(cell.firstChild ? serializeInline(cell.firstChild) : ""));
+    });
+    rows.push(`| ${cells.join(" | ")} |`);
+  });
+  if (!firstRow || rows.length === 0) {
+    return "";
+  }
+  const delimiterCells: string[] = [];
+  firstRow.forEach((cell) => {
+    delimiterCells.push(tableDelimiterForAlignment(normalizeTableAlignment(cell.attrs.alignment)));
+  });
+  return [rows[0]!, `| ${delimiterCells.join(" | ")} |`, ...rows.slice(1)].join("\n");
+}
+
+function escapeRichTableCellMarkdown(value: string): string {
+  return value.replace(/\r?\n/g, " ").trim().replace(/\|/g, "\\|");
+}
+
+function tableDelimiterForAlignment(alignment: TableAlignment): string {
+  switch (alignment) {
+    case "center":
+      return ":---:";
+    case "left":
+      return ":---";
+    case "right":
+      return "---:";
+    default:
+      return "---";
   }
 }
 

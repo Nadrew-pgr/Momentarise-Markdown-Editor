@@ -54,25 +54,15 @@ if (!editedOutput.includes("remain intact")) {
   throw new Error(`Edited paragraph text missing from output:\n${editedOutput}`);
 }
 
-// The rich mapper must not flatten unsupported blocks into editable paragraphs.
-// Tables must surface as raw/opaque unsupported blocks in the ProseMirror doc.
+// The rich mapper must mount safely representable GFM tables as table nodes.
 const tableBlockTypes = [];
 tableState.editorState.doc.forEach((node) => {
   tableBlockTypes.push(node.type.name);
 });
-if (!tableBlockTypes.includes("unsupported_block")) {
+if (!tableBlockTypes.includes("table") || tableBlockTypes.includes("unsupported_block")) {
   throw new Error(
-    `GFM table must map to unsupported_block (raw preservation), got top-level types: ${tableBlockTypes.join(", ")}`
+    `Supported GFM table must map to an editable table, got top-level types: ${tableBlockTypes.join(", ")}`
   );
-}
-let tableRaw = null;
-tableState.editorState.doc.forEach((node) => {
-  if (node.type.name === "unsupported_block") {
-    tableRaw = String(node.attrs.raw ?? "");
-  }
-});
-if (!tableRaw || !tableRaw.includes("| :-- | :-: | --: |")) {
-  throw new Error(`unsupported_block must carry the raw table source, got: ${JSON.stringify(tableRaw)}`);
 }
 
 const tableVariantsInput = await readFile(`${fixturesRoot}/019-gfm-table-variants/input.md`, "utf8");
@@ -82,25 +72,15 @@ if (tableVariantsOutput !== tableVariantsInput) {
   throw new Error(`Table variants fixture must rich round-trip byte-for-byte:\n${firstByteDifference(tableVariantsInput, tableVariantsOutput)}`);
 }
 const tableVariantUnsupportedBlocks = topLevelBlocks(tableVariantsState).filter((node) => node.type.name === "unsupported_block");
-const supportedTableFallback = tableVariantUnsupportedBlocks.find((node) =>
-  String(node.attrs.raw ?? "").includes("| Feature | Owner | Status |")
-);
-if (!supportedTableFallback || !/table/i.test(String(supportedTableFallback.attrs.reason ?? ""))) {
-  throw new Error("Supported GFM tables must mount as an explicit preserved-table fallback in rich mode.");
+const supportedTable = topLevelBlocks(tableVariantsState).find((node) => node.type.name === "table");
+if (!supportedTable || supportedTable.firstChild?.firstChild?.type.name !== "table_header") {
+  throw new Error("Supported GFM tables must mount with editable table and header-cell nodes in rich mode.");
 }
 const malformedTableFallback = tableVariantUnsupportedBlocks.find((node) =>
   String(node.attrs.raw ?? "").includes("| broken table-like block | should stay raw |")
 );
 if (!malformedTableFallback || String(malformedTableFallback.attrs.reason ?? "") !== "unsupported table-like syntax") {
   throw new Error("Malformed table-like syntax must mount as an opaque preserved-table fallback in rich mode.");
-}
-const supportedTableDom = supportedTableFallback.type.spec.toDOM?.(supportedTableFallback);
-if (
-  !domSpecContainsAttribute(supportedTableDom, "data-mme-preserved-table", "true") ||
-  !domSpecContainsText(supportedTableDom, "Preserved Markdown table") ||
-  !domSpecContainsText(supportedTableDom, "Edit in Source mode")
-) {
-  throw new Error(`Preserved table fallback DOM must clearly tell users it is source-only.\n${JSON.stringify(supportedTableDom)}`);
 }
 
 const footnoteInput = await readFile(`${fixturesRoot}/020-gfm-footnotes/input.md`, "utf8");
