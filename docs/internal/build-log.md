@@ -6028,3 +6028,24 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0058`; continuation requires promoting the next must-have backlog item before implementation.
+
+## Backlog promotion checkpoint — MME-0059
+
+- Date: 2026-07-20.
+- Context:
+  - `MME-0058` is accepted for code continuation and committed (`5e77068` implementation/status, `7c3b2f1` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0058.
+  - Andrew instructed autonomous continuation, issue-scoped commits, separate docs-content ownership, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Change:
+  - Promoted `MME-0059 — Rich multiline GFM footnote definition editing baseline` from the next explicit baseline footnote gap into normal issue form.
+  - Bounded the slice to unique top-level single-paragraph definitions continued across indented Markdown lines, targeted serialization, one-step history, save truth, and browser proof.
+  - Kept blank-line multi-paragraph, nested-block, nested-container, duplicate, malformed, unsafe, and unmappable definitions source-only.
+  - Updated `README.md` current slice plus `docs/internal/BACKLOG.md` promotion and end-of-run review tracking.
+- Rationale:
+  - MME-0056 made only simple single-line definitions editable; MME-0057/MME-0058 added insertion and rename while explicitly preserving complex definitions as source-only.
+  - Continuation-line definitions are the next bounded backlog-order gap and can extend targeted footnote serialization without mixing in arbitrary nested block semantics.
+- Checks run:
+  - `git diff --check` — green before checkpoint commit.
+- Next issue:
+  - `MME-0059 — Rich multiline GFM footnote definition editing baseline`.

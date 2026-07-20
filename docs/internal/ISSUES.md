@@ -3321,6 +3321,72 @@ Do not add automatic repair of missing definitions/references, rich multi-line/m
 
 Architecture Reviewer, Test Reviewer, and UX Reviewer.
 
+## MME-0059 — Rich multiline GFM footnote definition editing baseline
+
+### Goal
+
+Let users edit safely representable top-level multiline GFM footnote definitions from Rich mode while preserving Markdown structure, source-only fallbacks, history, and save truth.
+
+### Scope
+
+- Extend the rich footnote definition model to represent one unique top-level definition whose body is a single paragraph continued across indented Markdown lines.
+- Preserve the definition identifier, first-line prefix, continuation indentation, line-ending convention, and unrelated source bytes.
+- Map the represented definition back to one bounded source range and serialize edits without a full-document rewrite.
+- Keep blank-line-separated multi-paragraph definitions, nested block constructs, container-nested definitions, duplicates, malformed definitions, unsafe content, and unmappable source in explicit source-only fallback.
+- Keep semantic references, insertion, and identifier rename compatible with the expanded editable definition.
+- Treat each multiline definition edit as one ProseMirror history action and keep Save Engine/autosave hashes truthful.
+- Add runtime browser proof for Rich editing, undo/redo, Source visibility, save truth, fallback visibility, and constrained-width containment.
+- Queue final product/taste review for Andrew's end-of-run human review block.
+
+### Acceptance criteria
+
+- A unique top-level GFM definition with one logical paragraph across indented continuation lines is editable as one semantic Rich definition.
+- Editing its body changes only the bounded definition source range; all surrounding Markdown, unknown syntax, references, and unrelated definitions remain byte-identical.
+- Definition identifier spelling, first-line prefix spacing, continuation indentation, and LF/CRLF convention remain valid and deterministic after serialization.
+- One undo reverts the complete multiline edit; redo restores it; saving persists exactly the Source Markdown shown by the editor.
+- Existing simple-definition editing, insertion, identifier rename, semantic references, and read rendering remain compatible.
+- Blank-line multi-paragraph, nested-block, nested-container, duplicate, malformed, unsafe, stale, or unmappable definitions remain source-only and never receive partial edits.
+- Public exports and schema changes are intentional, package-owned, minimally documented, and covered by API/contract tests.
+- Browser verification captures multiline Rich before/after, resulting Source, complex fallback, and constrained-width states.
+
+### Test-first plan
+
+- RED: add focused multiline-footnote tests that fail because continuation-line definitions are still source-only.
+- RED: prove bounded serialization, indentation/line-ending preservation, hostile surrounding syntax identity, one-step undo/redo, and save truth.
+- RED: prove multi-paragraph/nested/duplicate/malformed/stale definitions refuse safely without partial mutation.
+- RED: prove insertion and identifier rename still work against an editable multiline definition.
+- RED: add browser/runtime checks for multiline Rich editing, Source output, fallback visibility, and constrained layout.
+
+### Manual verification
+
+- Start the reference demo with a supported continuation-line definition and a separate unsupported multi-paragraph definition.
+- Edit the supported definition in Rich mode, undo once, redo once, save, then switch to Source and inspect exact GFM Markdown plus clean state.
+- Confirm the unsupported definition remains visibly source-only, then repeat at constrained width and capture artifacts under `docs/internal/visual-checks/MME-0059/`.
+
+### Visual impact
+
+Supported continuation-line definitions become semantic editable Rich blocks instead of source-only fallback. Unsupported complex forms remain explicit fallback. Final density, continuation-line presentation, fallback wording, focus flow, and constrained-layout taste review remain queued for Andrew's end-of-run review block.
+
+### Implementation notes
+
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-editor/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-surface/src/index.ts`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `fixtures/020-gfm-footnotes`, `fixtures/022-simple-footnote-editing`, `tests/parser-foundation.test.mjs`, `tests/rich-footnote-editing.test.mjs`, `tests/rich-footnote-insertion.test.mjs`, `tests/rich-footnote-rename.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/save-engine.test.mjs`, and the MME-0056/MME-0057/MME-0058 build-log and visual artifacts.
+
+Reuse parser normalization, semantic reference/definition nodes, source-token ranges, targeted source materialization, and conservative eligibility checks established by MME-0041/MME-0056/MME-0057/MME-0058. Keep ProseMirror behavior inside `@momentarise/md-rich-prosemirror`; parser/source concerns stay in `@momentarise/md-format`. No core/model/save/policy package may depend on the view engine.
+
+Do not add blank-line multi-paragraph or nested-block rich editing, nested-container definitions, automatic missing-reference repair, definition reorder, hover previews, renderer/backlink redesign, polished footnote dialogs, or docs-content construction in this slice.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible multiline-footnote UX/product review is queued for the end-of-run human review block unless preservation semantics remain unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, and UX Reviewer.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

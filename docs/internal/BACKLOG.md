@@ -37,7 +37,7 @@ Tags: `baseline/hygiene`, `markdown`, `navigation`, `round-trip`
 - Support backlink navigation in rendered views.
 - Keep source mode fallback for editing unusual footnote syntax.
 - Future rich editing should include insertion and edit affordances without hiding the Markdown source model.
-- First rich editing slice for existing simple definitions promoted as `MME-0056`; new footnote insertion is promoted as `MME-0057`; identifier rename is promoted as `MME-0058`; complex definition editing remains backlog.
+- First rich editing slice for existing simple definitions promoted as `MME-0056`; new footnote insertion is promoted as `MME-0057`; identifier rename is promoted as `MME-0058`; top-level continuation-line editing is promoted as `MME-0059`; blank-line multi-paragraph and nested-block definition editing remain backlog.
 - Tests must include real footnote fixtures and parser/source/rich round-trip proof before claiming coverage.
 
 ### Core Markdown Blocks
@@ -199,6 +199,7 @@ Tags: `public-release`, `human-review`, `ui`, `ax`
 - MME-0056 rich footnote product/AX review: review definition label density, semantic reference presentation, dedicated reference role/navigation expectations, keyboard-only focus treatment, preserved complex-definition wording, constrained layout, and whether insertion/rename/multi-block editing should be promoted before public launch.
 - MME-0057 rich footnote insertion review: review command placement and naming, deterministic generated identifiers, focus transfer between reference and definition, keyboard flow, source visibility, constrained layout, and whether identifier rename should be promoted next.
 - MME-0058 rich footnote rename review: review rename entry-point placement, identifier input/validation wording, multi-reference feedback, focus continuity, Source visibility, constrained layout, and whether complex definition editing should be promoted next.
+- MME-0059 multiline footnote review: review continuation-line presentation, definition density, edit/focus flow, fallback wording for multi-paragraph and nested definitions, Source visibility, and constrained layout.
 - Future visible/UI/HITL slices in this autonomous run should be added here instead of blocking code continuation, per the 2026-07-19 human instruction to review visible work in one final block.
 
 - Visible asset upload UX and demo provider follow-up for image paste/drop, building on the promoted MME-0051 provider contract while keeping real storage host-owned. First visible upload UX slice promoted as `MME-0054`.
@@ -267,6 +268,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - `MME-0056 — Rich GFM footnote definition editing baseline`.
 - `MME-0057 — Rich GFM footnote insertion baseline`.
 - `MME-0058 — Rich GFM footnote identifier rename baseline`.
+- `MME-0059 — Rich multiline GFM footnote definition editing baseline`.
 
 - Editor live preview parity.
 - Toolbar/slash/menu final UX.
@@ -277,7 +279,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - Payload CMS plugin/integration.
 - Document status/save truth UI.
 - Footnotes/endnotes preservation, rendering, backlink navigation, and editing UX.
-- First rich footnote definition editing baseline promoted as `MME-0056`; insertion is promoted as `MME-0057`; identifier rename is promoted as `MME-0058`; complex definitions remain a future split.
+- First rich footnote definition editing baseline promoted as `MME-0056`; insertion is promoted as `MME-0057`; identifier rename is promoted as `MME-0058`; top-level continuation-line editing is promoted as `MME-0059`; blank-line multi-paragraph and nested-block definitions remain future splits.
 - Table rendering and first rich table editing baseline promoted as `MME-0040` and `MME-0055`; advanced spreadsheet-like table UX remains backlog.
 - Nested GFM table rich editing after nested-range serialization can replace only table bytes inside blockquotes/lists; MME-0055 keeps these tables source-only instead of rewriting container syntax.
 - Inline slash AI prompt surface.
