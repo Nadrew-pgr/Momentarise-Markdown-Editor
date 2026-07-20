@@ -5815,7 +5815,7 @@
   - Merged cells, resizing, formulas, sorting/filtering, spreadsheet paste, drag reordering, table creation UX, and advanced row/column menus remain out of scope.
   - Final table density, alignment presentation, keyboard feel, focus treatment, fallback wording, wide/constrained layout, and advanced-action priority are queued in `docs/internal/BACKLOG.md` for Andrew's final review block.
 - Commit status:
-  - Pending issue-scoped implementation/status commit after `git diff --check`.
+  - Issue-scoped implementation/status commit created: `c0e2092` (`feat: add rich markdown table editing`).
 - Push status:
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
