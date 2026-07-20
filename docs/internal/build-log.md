@@ -5882,7 +5882,7 @@
   - Final label density, semantic reference/navigation expectations, keyboard-only focus treatment, fallback wording, and product taste are queued in `docs/internal/BACKLOG.md` for Andrew's end-of-run review block.
   - Existing demo bundle-size warning remains outside this issue.
 - Commit status:
-  - Pending issue-scoped implementation/status commit; evidence hash will be appended after commit.
+  - Issue-scoped implementation/status commit created: `0134bf9` (`feat: add rich markdown footnote editing`).
 - Push status:
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
