@@ -135,6 +135,7 @@
     "moveRichTableCell",
     "proseMirrorDocToMomentariseNodes",
     "reconfigureRichPlugins",
+    "renameRichFootnoteIdentifier",
     "reorderRichTopLevelBlock",
     "reorderRichTopLevelBlockTransaction",
     "replaceFirstRichText",

@@ -21,8 +21,9 @@ Standard rectangular top-level GFM pipe tables mount as editable ProseMirror tab
 - `selectRichFootnoteDefinition` selects the body of one supported existing definition by identifier.
 - `replaceRichFootnoteDefinitionText` replaces that definition body with Markdown-representable single-line text.
 - `insertRichFootnote` inserts one semantic reference plus a collision-safe, single-line definition in one history action.
+- `renameRichFootnoteIdentifier` renames one unique editable definition and every matching semantic reference in one history action, or returns a non-mutating reason when any source token cannot be mapped safely.
 
-Unique top-level single-line GFM definitions with representable inline content mount as editable semantic blocks. References remain semantic inline atoms and retain their original Markdown spelling. New references and definitions use exact source mapping, preserve unrelated Markdown bytes and line endings, and refuse unsupported selections or stale source. Multi-line, nested, duplicate, malformed, unsafe, or otherwise non-representable definitions remain visible source-only fallbacks.
+Unique top-level single-line GFM definitions with representable inline content mount as editable semantic blocks. References remain semantic inline atoms and retain their original Markdown spelling. New and renamed references and definitions use exact source mapping, preserve unrelated Markdown bytes and line endings, and refuse unsupported, ambiguous, colliding, partially mapped, or stale operations. Multi-line, nested, duplicate, malformed, unsafe, or otherwise non-representable definitions remain visible source-only fallbacks.
 
 ## Release metadata
 

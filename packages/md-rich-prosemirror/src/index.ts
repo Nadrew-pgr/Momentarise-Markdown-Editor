@@ -299,6 +299,35 @@ export type RichFootnoteInsertionResult =
       readonly state: RichMarkdownState;
     };
 
+export type RichFootnoteRenameFailureReason =
+  | "ambiguous-identifier"
+  | "identifier-conflict"
+  | "identifier-not-found"
+  | "invalid-identifier"
+  | "mapping-unavailable"
+  | "stale-source";
+
+export interface RenameRichFootnoteIdentifierOptions {
+  readonly identifier: string;
+  readonly nextIdentifier: string;
+}
+
+export type RichFootnoteRenameResult =
+  | {
+      readonly handled: true;
+      readonly identifier: string;
+      readonly previousIdentifier: string;
+      readonly reason: null;
+      readonly state: RichMarkdownState;
+    }
+  | {
+      readonly handled: false;
+      readonly identifier: null;
+      readonly previousIdentifier: null;
+      readonly reason: RichFootnoteRenameFailureReason;
+      readonly state: RichMarkdownState;
+    };
+
 export type MomentariseRichSchema = Schema<
   | "blockquote"
   | "bullet_list"
@@ -670,14 +699,14 @@ export function insertRichFootnote(
 
   const rawReference = `[^${identifier}]`;
   const reference = state.schema.nodes.footnote_reference!.create({
-    identifier,
+    identifier: normalizeFootnoteIdentifier(identifier),
     insertionSourceOffset: baselineSourceOffset,
     label: identifier,
     raw: rawReference
   });
   const definition = state.schema.nodes.footnote_definition!.create(
     {
-      identifier,
+      identifier: normalizeFootnoteIdentifier(identifier),
       inserted: true,
       label: identifier,
       prefix: `[^${identifier}]: `
@@ -705,6 +734,88 @@ function rejectedRichFootnoteInsertion(
   return {
     handled: false,
     identifier: null,
+    reason,
+    state
+  };
+}
+
+export function renameRichFootnoteIdentifier(
+  state: RichMarkdownState,
+  options: RenameRichFootnoteIdentifierOptions
+): RichFootnoteRenameResult {
+  const requestedIdentifier = options.identifier.trim();
+  const nextIdentifier = options.nextIdentifier.trim();
+  if (!isSafeFootnoteIdentifier(requestedIdentifier) || !isSafeFootnoteIdentifier(nextIdentifier)) {
+    return rejectedRichFootnoteRename(state, "invalid-identifier");
+  }
+  if (state.source !== state.parseResult.snapshot.content) {
+    return rejectedRichFootnoteRename(state, "stale-source");
+  }
+
+  const normalizedIdentifier = normalizeFootnoteIdentifier(requestedIdentifier);
+  const normalizedNextIdentifier = normalizeFootnoteIdentifier(nextIdentifier);
+  const materializedSource = materializeInsertedRichFootnotes(state);
+  const currentParseResult = createMarkdownAstFormatter().parse(materializedSource, {
+    dialect: state.parseResult.document.dialect,
+    ...(state.parseResult.snapshot.path ? { path: state.parseResult.snapshot.path } : {})
+  });
+  const occurrences = collectParsedFootnoteOccurrences(currentParseResult.document.root);
+  const currentOccurrences = occurrences.get(normalizedIdentifier);
+  if (!currentOccurrences || currentOccurrences.definitions === 0) {
+    return rejectedRichFootnoteRename(state, "identifier-not-found");
+  }
+  if (currentOccurrences.definitions > 1) {
+    return rejectedRichFootnoteRename(state, "ambiguous-identifier");
+  }
+  if (normalizedNextIdentifier !== normalizedIdentifier && occurrences.has(normalizedNextIdentifier)) {
+    return rejectedRichFootnoteRename(state, "identifier-conflict");
+  }
+
+  const locations = richFootnoteNodeLocations(state.editorState.doc, normalizedIdentifier);
+  const definitions = locations.filter((location) => location.node.type.name === "footnote_definition");
+  const references = locations.filter((location) => location.node.type.name === "footnote_reference");
+  if (
+    definitions.length !== 1 ||
+    currentOccurrences.definitions !== definitions.length ||
+    currentOccurrences.references !== references.length ||
+    locations.some((location) => !hasValidRichFootnoteSourceMapping(state, location.node))
+  ) {
+    return rejectedRichFootnoteRename(state, "mapping-unavailable");
+  }
+
+  const previousIdentifier =
+    stringAttribute(definitions[0]!.node.attrs.label) ??
+    stringAttribute(definitions[0]!.node.attrs.identifier) ??
+    requestedIdentifier;
+  let transaction = state.editorState.tr;
+  for (const location of locations) {
+    const nextAttrs = renamedRichFootnoteNodeAttrs(location.node, nextIdentifier);
+    if (!nextAttrs) {
+      return rejectedRichFootnoteRename(state, "mapping-unavailable");
+    }
+    transaction = transaction.setNodeMarkup(location.position, undefined, nextAttrs);
+  }
+  return {
+    handled: true,
+    identifier: nextIdentifier,
+    previousIdentifier,
+    reason: null,
+    state: {
+      ...state,
+      editorState: state.editorState.apply(transaction),
+      footnoteInsertionBaseSource: state.footnoteInsertionBaseSource ?? state.source
+    }
+  };
+}
+
+function rejectedRichFootnoteRename(
+  state: RichMarkdownState,
+  reason: RichFootnoteRenameFailureReason
+): RichFootnoteRenameResult {
+  return {
+    handled: false,
+    identifier: null,
+    previousIdentifier: null,
     reason,
     state
   };
@@ -828,6 +939,16 @@ interface RichFootnoteDefinitionLocation {
   readonly position: number;
 }
 
+interface RichFootnoteNodeLocation {
+  readonly node: ProseMirrorNode;
+  readonly position: number;
+}
+
+interface ParsedFootnoteOccurrences {
+  definitions: number;
+  references: number;
+}
+
 function findRichFootnoteDefinitionLocation(
   doc: ProseMirrorNode,
   identifier: string
@@ -848,7 +969,15 @@ function findRichFootnoteDefinitionLocation(
 
 function richFootnoteIdentifiers(state: RichMarkdownState): ReadonlySet<string> {
   const identifiers = new Set<string>();
-  collectModelFootnoteIdentifiers(state.parseResult.document.root, identifiers);
+  const materializedSource = materializeInsertedRichFootnotes(state);
+  const currentParseResult =
+    materializedSource === state.source
+      ? state.parseResult
+      : createMarkdownAstFormatter().parse(materializedSource, {
+          dialect: state.parseResult.document.dialect,
+          ...(state.parseResult.snapshot.path ? { path: state.parseResult.snapshot.path } : {})
+        });
+  collectModelFootnoteIdentifiers(currentParseResult.document.root, identifiers);
   state.editorState.doc.descendants((node) => {
     if (!["footnote_definition", "footnote_reference"].includes(node.type.name)) {
       return true;
@@ -860,6 +989,130 @@ function richFootnoteIdentifiers(state: RichMarkdownState): ReadonlySet<string> 
     return true;
   });
   return identifiers;
+}
+
+function collectParsedFootnoteOccurrences(
+  root: MomentariseNode
+): ReadonlyMap<string, ParsedFootnoteOccurrences> {
+  const occurrences = new Map<string, ParsedFootnoteOccurrences>();
+  const visit = (node: MomentariseNode): void => {
+    if (node.kind !== "opaque" && ["footnoteDefinition", "footnoteReference"].includes(node.type)) {
+      const identifier = stringAttribute(node.attributes?.identifier) ?? stringAttribute(node.attributes?.label);
+      if (identifier) {
+        const normalizedIdentifier = normalizeFootnoteIdentifier(identifier);
+        const current = occurrences.get(normalizedIdentifier) ?? { definitions: 0, references: 0 };
+        if (node.type === "footnoteDefinition") {
+          current.definitions += 1;
+        } else {
+          current.references += 1;
+        }
+        occurrences.set(normalizedIdentifier, current);
+      }
+    }
+    for (const child of node.kind === "opaque" ? [] : node.children ?? []) {
+      visit(child);
+    }
+  };
+  visit(root);
+  return occurrences;
+}
+
+function richFootnoteNodeLocations(
+  doc: ProseMirrorNode,
+  normalizedIdentifier: string
+): readonly RichFootnoteNodeLocation[] {
+  const locations: RichFootnoteNodeLocation[] = [];
+  doc.descendants((node, position) => {
+    if (!["footnote_definition", "footnote_reference"].includes(node.type.name)) {
+      return true;
+    }
+    const identifier = stringAttribute(node.attrs.identifier) ?? stringAttribute(node.attrs.label);
+    if (identifier && normalizeFootnoteIdentifier(identifier) === normalizedIdentifier) {
+      locations.push({ node, position });
+    }
+    return true;
+  });
+  return locations;
+}
+
+function hasValidRichFootnoteSourceMapping(state: RichMarkdownState, node: ProseMirrorNode): boolean {
+  const identifier = stringAttribute(node.attrs.identifier);
+  if (!identifier) {
+    return false;
+  }
+  const sourceIdentifierFrom = numberAttribute(node.attrs.sourceIdentifierFrom);
+  const sourceIdentifierTo = numberAttribute(node.attrs.sourceIdentifierTo);
+  const sourceIdentifier = stringAttribute(node.attrs.sourceIdentifier);
+  if (sourceIdentifierFrom !== null || sourceIdentifierTo !== null || sourceIdentifier !== null) {
+    const baseline = state.footnoteInsertionBaseSource ?? state.source;
+    return (
+      sourceIdentifierFrom !== null &&
+      sourceIdentifierTo !== null &&
+      sourceIdentifier !== null &&
+      sourceIdentifierFrom >= 0 &&
+      sourceIdentifierTo > sourceIdentifierFrom &&
+      sourceIdentifierTo <= baseline.length &&
+      baseline.slice(sourceIdentifierFrom, sourceIdentifierTo) === sourceIdentifier
+    );
+  }
+  if (node.type.name === "footnote_reference") {
+    const rawIdentifier = richFootnoteReferenceIdentifier(stringAttribute(node.attrs.raw) ?? "");
+    return (
+      numberAttribute(node.attrs.insertionSourceOffset) !== null &&
+      rawIdentifier !== null &&
+      normalizeFootnoteIdentifier(rawIdentifier) === normalizeFootnoteIdentifier(identifier)
+    );
+  }
+  const prefixIdentifier = richFootnoteDefinitionPrefixIdentifier(stringAttribute(node.attrs.prefix) ?? "");
+  return (
+    node.type.name === "footnote_definition" &&
+    node.attrs.inserted === true &&
+    prefixIdentifier !== null &&
+    normalizeFootnoteIdentifier(prefixIdentifier) === normalizeFootnoteIdentifier(identifier)
+  );
+}
+
+function renamedRichFootnoteNodeAttrs(
+  node: ProseMirrorNode,
+  nextIdentifier: string
+): Readonly<Record<string, unknown>> | null {
+  if (node.type.name === "footnote_reference") {
+    const raw = stringAttribute(node.attrs.raw) ?? "";
+    const rawIdentifier = richFootnoteReferenceIdentifier(raw);
+    const identifier = stringAttribute(node.attrs.label) ?? stringAttribute(node.attrs.identifier);
+    if (!rawIdentifier || !identifier || normalizeFootnoteIdentifier(rawIdentifier) !== normalizeFootnoteIdentifier(identifier)) {
+      return null;
+    }
+    return {
+      ...node.attrs,
+      identifier: normalizeFootnoteIdentifier(nextIdentifier),
+      label: nextIdentifier,
+      raw: `[^${nextIdentifier}]`
+    };
+  }
+  if (node.type.name === "footnote_definition") {
+    const prefix = stringAttribute(node.attrs.prefix) ?? "";
+    const match = prefix.match(/^([ \t]{0,3}\[\^)([^\]\r\n]+)(\]:[ \t]*)$/);
+    const identifier = stringAttribute(node.attrs.label) ?? stringAttribute(node.attrs.identifier);
+    if (!match || !identifier || normalizeFootnoteIdentifier(match[2]!) !== normalizeFootnoteIdentifier(identifier)) {
+      return null;
+    }
+    return {
+      ...node.attrs,
+      identifier: normalizeFootnoteIdentifier(nextIdentifier),
+      label: nextIdentifier,
+      prefix: `${match[1]}${nextIdentifier}${match[3]}`
+    };
+  }
+  return null;
+}
+
+function richFootnoteReferenceIdentifier(raw: string): string | null {
+  return raw.match(/^\[\^([^\]\r\n]+)]$/)?.[1] ?? null;
+}
+
+function richFootnoteDefinitionPrefixIdentifier(prefix: string): string | null {
+  return prefix.match(/^[ \t]{0,3}\[\^([^\]\r\n]+)]:[ \t]*$/)?.[1] ?? null;
 }
 
 function collectModelFootnoteIdentifiers(node: MomentariseNode, identifiers: Set<string>): void {
@@ -1072,18 +1325,20 @@ function footnoteBaselineOffset(state: RichMarkdownState, sourceOffset: number):
   if (materialized === baseline) {
     return sourceOffset <= baseline.length ? sourceOffset : null;
   }
-  let insertedLength = 0;
-  for (const reference of insertedRichFootnoteReferences(state.editorState.doc)) {
-    const markerStart = reference.sourceOffset + insertedLength;
-    const markerEnd = markerStart + reference.raw.length;
-    if (sourceOffset > markerStart && sourceOffset < markerEnd) {
+  let materializedDelta = 0;
+  for (const patch of [...richFootnoteSourcePatches(state)].sort(
+    (first, second) => first.from - second.from || first.position - second.position
+  )) {
+    const patchStart = patch.from + materializedDelta;
+    const patchEnd = patchStart + patch.replacement.length;
+    if (sourceOffset > patchStart && sourceOffset < patchEnd) {
       return null;
     }
-    if (sourceOffset >= markerEnd) {
-      insertedLength += reference.raw.length;
+    if (sourceOffset >= patchEnd) {
+      materializedDelta += patch.replacement.length - (patch.to - patch.from);
     }
   }
-  const baselineOffset = sourceOffset - insertedLength;
+  const baselineOffset = sourceOffset - materializedDelta;
   return baselineOffset >= 0 && baselineOffset <= baseline.length ? baselineOffset : null;
 }
 
@@ -2166,6 +2421,13 @@ interface InsertedRichFootnoteReference {
   readonly sourceOffset: number;
 }
 
+interface RichFootnoteSourcePatch {
+  readonly from: number;
+  readonly position: number;
+  readonly replacement: string;
+  readonly to: number;
+}
+
 function insertedRichFootnoteReferences(doc: ProseMirrorNode): readonly InsertedRichFootnoteReference[] {
   const references: InsertedRichFootnoteReference[] = [];
   doc.descendants((node, position) => {
@@ -2194,22 +2456,61 @@ function insertedRichFootnoteDefinitions(doc: ProseMirrorNode): readonly ProseMi
   return definitions;
 }
 
+function richFootnoteSourcePatches(state: RichMarkdownState): readonly RichFootnoteSourcePatch[] {
+  const baseline = state.footnoteInsertionBaseSource ?? state.source;
+  const patches: RichFootnoteSourcePatch[] = insertedRichFootnoteReferences(state.editorState.doc).map(
+    (reference) => ({
+      from: reference.sourceOffset,
+      position: reference.position,
+      replacement: reference.raw,
+      to: reference.sourceOffset
+    })
+  );
+  state.editorState.doc.descendants((node, position) => {
+    if (!["footnote_definition", "footnote_reference"].includes(node.type.name)) {
+      return true;
+    }
+    const from = numberAttribute(node.attrs.sourceIdentifierFrom);
+    const to = numberAttribute(node.attrs.sourceIdentifierTo);
+    const sourceIdentifier = stringAttribute(node.attrs.sourceIdentifier);
+    const identifier = stringAttribute(node.attrs.label) ?? stringAttribute(node.attrs.identifier);
+    if (
+      from !== null &&
+      to !== null &&
+      sourceIdentifier !== null &&
+      identifier !== null &&
+      from >= 0 &&
+      to > from &&
+      to <= baseline.length &&
+      baseline.slice(from, to) === sourceIdentifier &&
+      identifier !== sourceIdentifier
+    ) {
+      patches.push({ from, position, replacement: identifier, to });
+    }
+    return true;
+  });
+  return patches;
+}
+
 function materializeInsertedRichFootnotes(state: RichMarkdownState): string {
   const baseline = state.footnoteInsertionBaseSource ?? state.source;
-  const references = insertedRichFootnoteReferences(state.editorState.doc);
   const definitions = insertedRichFootnoteDefinitions(state.editorState.doc);
-  if (references.length === 0 && definitions.length === 0) {
+  const patches = richFootnoteSourcePatches(state);
+  if (patches.length === 0 && definitions.length === 0) {
     return baseline;
   }
 
   let content = baseline;
-  for (const reference of [...references].sort(
-    (first, second) => second.sourceOffset - first.sourceOffset || second.position - first.position
+  for (const patch of [...patches].sort(
+    (first, second) =>
+      second.from - first.from ||
+      Number(second.to > second.from) - Number(first.to > first.from) ||
+      second.position - first.position
   )) {
-    if (reference.sourceOffset < 0 || reference.sourceOffset > baseline.length) {
+    if (patch.from < 0 || patch.to < patch.from || patch.to > baseline.length) {
       continue;
     }
-    content = `${content.slice(0, reference.sourceOffset)}${reference.raw}${content.slice(reference.sourceOffset)}`;
+    content = `${content.slice(0, patch.from)}${patch.replacement}${content.slice(patch.to)}`;
   }
 
   const lineEnding = baseline.includes("\r\n") ? "\r\n" : "\n";
@@ -2560,14 +2861,19 @@ function richNodesEquivalent(first: ProseMirrorNode, second: ProseMirrorNode): b
   if (first.eq(second)) {
     return true;
   }
-  return richNodeWithoutInsertionMetadata(first).eq(richNodeWithoutInsertionMetadata(second));
+  return richNodeWithoutSourceMetadata(first).eq(richNodeWithoutSourceMetadata(second));
 }
 
-function richNodeWithoutInsertionMetadata(node: ProseMirrorNode): ProseMirrorNode {
+function richNodeWithoutSourceMetadata(node: ProseMirrorNode): ProseMirrorNode {
   if (node.isText) {
     return node;
   }
   const attrs = { ...node.attrs };
+  if (["footnote_definition", "footnote_reference"].includes(node.type.name)) {
+    attrs.sourceIdentifier = null;
+    attrs.sourceIdentifierFrom = null;
+    attrs.sourceIdentifierTo = null;
+  }
   if (node.type.name === "footnote_reference") {
     attrs.insertionSourceOffset = null;
   }
@@ -2576,7 +2882,7 @@ function richNodeWithoutInsertionMetadata(node: ProseMirrorNode): ProseMirrorNod
   }
   const children: ProseMirrorNode[] = [];
   node.forEach((child) => {
-    children.push(richNodeWithoutInsertionMetadata(child));
+    children.push(richNodeWithoutSourceMetadata(child));
   });
   return node.type.create(attrs, children.length > 0 ? Fragment.fromArray(children) : null, node.marks);
 }
@@ -4358,7 +4664,10 @@ const richNodes: Record<string, NodeSpec> = {
       identifier: { default: "" },
       inserted: { default: false },
       label: { default: "" },
-      prefix: { default: "" }
+      prefix: { default: "" },
+      sourceIdentifier: { default: null },
+      sourceIdentifierFrom: { default: null },
+      sourceIdentifierTo: { default: null }
     },
     content: "inline*",
     defining: true,
@@ -4409,7 +4718,10 @@ const richNodes: Record<string, NodeSpec> = {
       identifier: { default: "" },
       insertionSourceOffset: { default: null },
       label: { default: "" },
-      raw: { default: "" }
+      raw: { default: "" },
+      sourceIdentifier: { default: null },
+      sourceIdentifierFrom: { default: null },
+      sourceIdentifierTo: { default: null }
     },
     group: "inline",
     inline: true,
@@ -4678,11 +4990,16 @@ function footnoteDefinitionToProseMirror(
   ) {
     return null;
   }
+  const identifierOffset = raw.indexOf("[^") + 2;
+  const sourceIdentifierFrom = node.sourceRange!.start.offset + identifierOffset;
   return schema.nodes.footnote_definition!.create(
     {
       identifier,
       label,
-      prefix: prefixMatch[1]
+      prefix: prefixMatch[1],
+      sourceIdentifier: prefixMatch[2],
+      sourceIdentifierFrom,
+      sourceIdentifierTo: sourceIdentifierFrom + prefixMatch[2]!.length
     },
     inlineChildrenToProseMirror(paragraph.children ?? [], schema, source)
   );
@@ -4843,12 +5160,17 @@ function inlineNodeToProseMirror(
     if (!identifier || !label || !raw || !isSafeFootnoteIdentifier(identifier)) {
       return raw ? [schema.text(raw, marks)] : [];
     }
+    const sourceIdentifierFrom = node.sourceRange ? node.sourceRange.start.offset + 2 : null;
+    const sourceIdentifierTo = node.sourceRange ? node.sourceRange.end.offset - 1 : null;
     return [
       schema.nodes.footnote_reference!.create(
         {
           identifier,
           label,
-          raw
+          raw,
+          sourceIdentifier: node.sourceRange ? source.slice(sourceIdentifierFrom!, sourceIdentifierTo!) : null,
+          sourceIdentifierFrom,
+          sourceIdentifierTo
         },
         null,
         marks

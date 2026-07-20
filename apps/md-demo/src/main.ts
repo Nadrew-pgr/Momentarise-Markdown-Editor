@@ -84,6 +84,7 @@ import {
   getRichHeadingFoldItems,
   insertParagraphAfterCurrentBlock,
   reconfigureRichPlugins,
+  renameRichFootnoteIdentifier,
   reorderRichTopLevelBlock,
   richRangeForSourceRange,
   richCommandRegistry,
@@ -2348,6 +2349,31 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
     richEditor.updateState(richState.editorState);
     richEditor.focus();
   },
+  renameRichFootnoteIdentifierForTest(identifier: string, nextIdentifier: string) {
+    if (!richEditor) {
+      throw new Error("Rich editor is not mounted.");
+    }
+    const result = renameRichFootnoteIdentifier(richStateForCommand(), { identifier, nextIdentifier });
+    if (!result.handled) {
+      return {
+        handled: false as const,
+        identifier: null,
+        previousIdentifier: null,
+        reason: result.reason
+      };
+    }
+    richState = result.state;
+    richEditor.updateState(result.state.editorState);
+    richChanged = true;
+    syncRichMarkdownToSource("rich edit");
+    richEditor.focus();
+    return {
+      handled: true as const,
+      identifier: result.identifier,
+      previousIdentifier: result.previousIdentifier,
+      reason: null
+    };
+  },
   selectFinalRichBlockForTest() {
     selectFinalRichBlockForTest();
   },
@@ -4387,18 +4413,22 @@ function createRichFindHighlightPlugin(): Plugin {
 
 function syncRichMarkdownToSource(source: "rich edit" | "mode switch"): void {
   const footnoteInsertionBaseSource = richState.footnoteInsertionBaseSource ?? richState.source;
-  const preserveFootnoteInsertionBaseline = hasInsertedRichFootnoteNodes(richState.editorState.doc);
+  const preserveFootnoteMutationState = hasMaterializedRichFootnoteMutations(richState.editorState.doc);
   const markdown = serializeRichMarkdownState(richState).content;
   const parsedRichState = createRichMarkdownState(markdown, {
     dialect: "momentarise-enhanced",
     preferences: richPreferencesFromReferenceSurface(),
     schema: richState.schema
   });
-  richState = {
-    ...parsedRichState,
-    editorState: richState.editorState,
-    ...(preserveFootnoteInsertionBaseline ? { footnoteInsertionBaseSource } : {})
-  };
+  richState = preserveFootnoteMutationState
+    ? {
+        ...richState,
+        footnoteInsertionBaseSource
+      }
+    : {
+        ...parsedRichState,
+        editorState: richState.editorState
+      };
   replaceEditorDocument(markdown);
   session.setContent(markdown, "rich-view");
   refreshFindMatches();
@@ -4410,19 +4440,27 @@ function syncRichMarkdownToSource(source: "rich edit" | "mode switch"): void {
   }
 }
 
-function hasInsertedRichFootnoteNodes(doc: ProseMirrorNode): boolean {
-  let inserted = false;
+function hasMaterializedRichFootnoteMutations(doc: ProseMirrorNode): boolean {
+  let materialized = false;
   doc.descendants((node) => {
+    const sourceIdentifier = typeof node.attrs.sourceIdentifier === "string" ? node.attrs.sourceIdentifier : null;
+    const identifier =
+      typeof node.attrs.label === "string"
+        ? node.attrs.label
+        : typeof node.attrs.identifier === "string"
+          ? node.attrs.identifier
+          : null;
     if (
       (node.type.name === "footnote_reference" && typeof node.attrs.insertionSourceOffset === "number") ||
-      (node.type.name === "footnote_definition" && node.attrs.inserted === true)
+      (node.type.name === "footnote_definition" && node.attrs.inserted === true) ||
+      (sourceIdentifier !== null && identifier !== null && sourceIdentifier !== identifier)
     ) {
-      inserted = true;
+      materialized = true;
       return false;
     }
-    return !inserted;
+    return !materialized;
   });
-  return inserted;
+  return materialized;
 }
 
 function persistRestorableDocument(): void {
@@ -6349,6 +6387,22 @@ declare global {
       replaceAllFindMatchesForTest: (query: string, replacement: string) => void;
       runRichCommand: (commandId: RichCommandId, options?: ApplyRichMarkdownCommandOptions) => boolean;
       reorderRichBlocksForTest: (fromIndex: number, toIndex: number, placement?: "after" | "before") => string | null;
+      renameRichFootnoteIdentifierForTest: (
+        identifier: string,
+        nextIdentifier: string
+      ) =>
+        | {
+            readonly handled: true;
+            readonly identifier: string;
+            readonly previousIdentifier: string;
+            readonly reason: null;
+          }
+        | {
+            readonly handled: false;
+            readonly identifier: null;
+            readonly previousIdentifier: null;
+            readonly reason: string;
+          };
       selectFinalRichBlockForTest: () => void;
       selectRichFootnoteDefinitionForTest: (identifier: string) => void;
       selectRichTableCellForTest: (rowIndex: number, columnIndex: number) => void;

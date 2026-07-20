@@ -71,12 +71,12 @@ Completed slices:
 - MME-0055: Rich GFM table editing baseline, accepted for code continuation after editable top-level tables, targeted Markdown serialization, reusable cell movement, truthful undo/redo/save behavior, real keyboard and constrained-width browser proof, reviewer pass, and full test pass; final table product/taste review is queued for end-of-run review.
 - MME-0056: Rich GFM footnote definition editing baseline, accepted for code continuation after semantic references, editable safe definitions, exact targeted serialization, conservative complex/duplicate fallback, truthful undo/redo/save behavior, browser proof, reviewer pass, and full test pass; final footnote UX/AX review is queued for end-of-run review.
 - MME-0057: Rich GFM footnote insertion baseline, accepted for code continuation after collision-safe reference-plus-definition insertion, exact bounded Markdown materialization, same-paragraph multiple insertion, escaped-source mapping, truthful command diagnostics/history/save behavior, browser proof, reviewer pass, and full test pass; final insertion UX/product review is queued for end-of-run review.
-- MME-0058: Rich GFM footnote identifier rename baseline, promoted as the current executable slice for normalization-safe definition/reference rename, exact multi-range Markdown patches, truthful history/save behavior, and deferred final product review.
+- MME-0058: Rich GFM footnote identifier rename baseline, accepted for code continuation after atomic normalized definition/reference rename, exact multi-range Markdown patches, conservative refusal states, truthful history/save behavior, browser proof, reviewer/fallback fixes, and full test pass; final rename UX/product review is queued for end-of-run review.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- MME-0058 is the current executable issue after promotion from the next baseline footnote rename gap.
+- No executable normal issue remains after MME-0058; autonomous continuation must promote the next must-have backlog slice before implementation.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

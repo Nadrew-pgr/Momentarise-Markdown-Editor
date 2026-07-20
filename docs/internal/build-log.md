@@ -5979,3 +5979,52 @@
   - `git diff --check` — green before checkpoint commit.
 - Next issue:
   - `MME-0058 — Rich GFM footnote identifier rename baseline`.
+
+## MME-0058 — Rich GFM footnote identifier rename baseline
+
+- Date: 2026-07-20.
+- Previous issue status:
+  - `MME-0057` accepted for code continuation and committed (`dcd5aaa` implementation/status, `cdcccd3` evidence).
+  - `MME-0058` was promoted from backlog and committed in checkpoint `ce07464`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short`, and every parser, core, editor, rich-package, surface, demo, fixture, test, and save file named by the issue.
+- RED proof before implementation:
+  - Added `tests/rich-footnote-rename.test.mjs`, registered `test:rich-footnote-rename`, and confirmed the first run failed with `Missing MME-0058 rich footnote rename export: renameRichFootnoteIdentifier`.
+- Change:
+  - Added public `renameRichFootnoteIdentifier` with typed success metadata and non-mutating missing, ambiguous, collision, invalid, stale, and mapping-unavailable reasons.
+  - Renames one unique editable definition plus every normalized matching semantic reference in one ProseMirror history transaction.
+  - Added derived source-identifier token ranges to semantic reference/definition nodes and materializes only those ranges against the preserved Markdown baseline.
+  - Generalized insertion materialization so rename patches and inserted references share descending source patches without shifting later offsets incorrectly.
+  - Preserves requested identifier spelling in source labels while keeping normalized semantic identifiers aligned with parser behavior.
+  - Rejects duplicate, complex, nested, partially unmappable, missing, invalid, colliding, and stale targets before applying any node step.
+  - Preserves definition body, prefix spacing, indentation, LF/CRLF, unknown HTML, malformed and unrelated source bytes exactly.
+  - Keeps insertion identifier allocation authoritative from current materialized Markdown, allowing a renamed-away identifier to be reused truthfully.
+  - Added demo host-path proof without adding a premature polished rename dialog; final entry-point/input UX remains deferred.
+  - Documented the intentional package export and approved it in the public API audit.
+- Visual impact:
+  - Semantic Rich references and their editable definition marker display the renamed identifier together.
+  - Artifacts: `docs/internal/visual-checks/MME-0058/footnote-renamed-rich-desktop.png`, `footnote-renamed-source-desktop.png`, and `footnote-renamed-rich-constrained.png`.
+  - Real Chrome CDP proof renames two references plus one definition, checks truthful dirty state, performs one-step undo/redo, saves to clean disk truth, switches to exact Source Markdown, and proves 390px containment.
+  - Builder inspected all three artifacts: nonblank, readable, contained, and without incoherent overlap. Final entry-point placement, wording, focus flow, and product taste remain queued for Andrew's end-of-run review block.
+- Checks run:
+  - `npm run test:rich-footnote-rename` — RED first, then green after implementation and reviewer/fallback fixes.
+  - `node tests/rich-footnote-editing.test.mjs`, `node tests/rich-footnote-insertion.test.mjs`, `node tests/rich-targeted-serialization.test.mjs`, and `node tests/public-api-report.test.mjs` — green on final code.
+  - `npm run visual:mme-0058` — sandbox Chrome first exited before CDP; permissioned local Chrome reruns passed and refreshed all three artifacts.
+  - `npm test` — green on final code; existing Vite chunk-size warning only.
+  - `curl -I http://127.0.0.1:5174/` — `HTTP/1.1 200 OK` after server restart.
+  - `git diff --check` — pending immediately before commit.
+- Reviewer result:
+  - Three inspect-only code reviewers were requested with `gpt-5.3-codex-spark` and `xhigh` reasoning as required. Two hit the Spark usage limit and returned no findings; no other model was substituted.
+  - Preservation/test reviewer `Kierkegaard` found one P2 stale identifier-allocation bug and one P3 missing regression. Builder changed allocation to inspect current materialized Markdown and added rename-then-reuse proof immediately.
+  - Documented fallback self-review covered architecture, preservation, API/security, and host integration after Spark capacity became unavailable. It found parser-normalized identifier versus exact source-label drift for uppercase/spaced IDs; builder separated semantic IDs from source labels and added exact CRLF/spelling proof. No remaining P0-P3 finding was found in the corrected diff.
+- Residual risks:
+  - Polished rename entry-point/input UI, inline validation copy, focus transfer, and multi-reference feedback remain out of scope and queued in `docs/internal/BACKLOG.md`.
+  - Complex, multiline, nested, duplicate, malformed, and source-only definitions still refuse rename conservatively.
+  - The internal `footnoteInsertionBaseSource` field now also anchors identifier token mutations; its name is legacy MME-0057 terminology, but changing the public state shape was not required for this slice.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Pending issue-scoped implementation/status commit.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0058`; continuation requires promoting the next must-have backlog item before implementation.
