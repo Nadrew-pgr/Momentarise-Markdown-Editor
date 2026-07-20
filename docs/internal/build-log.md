@@ -5741,7 +5741,7 @@
   - The demo provider intentionally proves reference insertion only; it does not persist image bytes.
   - Existing demo bundle-size warning remains outside this issue.
 - Commit status:
-  - Pending issue-scoped implementation/status commit.
+  - Issue-scoped implementation/status commit created: `2dd6076` (`feat: add visible asset upload ux`).
 - Push status:
   - Not pushed. Queued final public/product review debt remains; push stays deferred unless Andrew explicitly changes that policy.
 - Next issue:
