@@ -1827,7 +1827,7 @@ h1 {
   white-space: pre-wrap;
 }
 
-.ProseMirror [data-mme-footnote-body="true"] > :is(p, ul, ol) {
+.ProseMirror [data-mme-footnote-body="true"] > :is(p, ul, ol, blockquote) {
   margin: 0 0 0.58em;
 }
 
@@ -1835,7 +1835,7 @@ h1 {
   padding-left: 20px;
 }
 
-.ProseMirror [data-mme-footnote-body="true"] > :is(p, ul, ol):last-child {
+.ProseMirror [data-mme-footnote-body="true"] > :is(p, ul, ol, blockquote):last-child {
   margin-bottom: 0;
 }
 

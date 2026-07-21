@@ -9,10 +9,11 @@ const source = await readFile("fixtures/028-loose-list-footnote-editing/input.md
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
 
-assertEqual(definitions.length, 3, "safe loose bullet, task, and ordered definitions must be editable");
+assertEqual(definitions.length, 4, "safe loose bullet, task, ordered, and quoted definitions must be editable");
 const bulletDefinition = definitions.find((node) => node.attrs.identifier === "loose-bullets");
 const taskDefinition = definitions.find((node) => node.attrs.identifier === "loose-task");
 const orderedDefinition = definitions.find((node) => node.attrs.identifier === "loose-ordered");
+const quoteDefinition = definitions.find((node) => node.attrs.identifier === "quoted-child");
 
 const bulletList = bulletDefinition?.child(1);
 assertEqual(bulletList?.type.name, "bullet_list", "loose bullet list is semantic");
@@ -35,6 +36,11 @@ assertEqual(orderedList?.attrs.loose, true, "ordered spread is semantic");
 assertEqual(orderedParent?.childCount, 3, "ordered item exposes two paragraphs and one nested list");
 assertEqual(orderedParent?.child(2).type.name, "ordered_list", "safe nested list remains semantic");
 assertEqual(orderedParent?.child(2).attrs.order, 7, "nested ordered start remains semantic");
+assertEqual(
+  quoteDefinition?.child(1).child(0).child(1).type.name,
+  "blockquote",
+  "safe loose-item quote now mounts semantically"
+);
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched loose-list document identity");
 assertNoExactSourceMetadataInDom(orderedDefinition);
 
@@ -79,7 +85,6 @@ for (const preserved of [
 const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block");
 for (const marker of [
   "[^multiple-nested]:",
-  "[^quoted-child]:",
   "[^code-child]:",
   "[^raw-child]:",
   "[^table-child]:",

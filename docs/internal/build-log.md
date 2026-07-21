@@ -6458,3 +6458,46 @@
   - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0065" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before checkpoint commit.
 - Next issue:
   - `MME-0065 — Rich blockquote GFM footnote definition editing baseline`.
+
+## MME-0065 — Rich blockquote GFM footnote definition editing baseline
+
+- Date: 2026-07-21.
+- Previous issue status:
+  - `MME-0064` accepted for code continuation and committed (`7e590a9` implementation/status, `6b2ebb3` evidence).
+  - `MME-0065` was promoted from backlog and committed in checkpoint `94dd18c`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, clean `git status --short`, and every parser/model/editor/rich/demo/fixture/test/save file named by the issue.
+- RED proof before implementation:
+  - Added `fixtures/029-blockquote-footnote-editing/` and `tests/rich-footnote-blockquotes.test.mjs`, then confirmed `npm run test:rich-footnote-blockquotes` failed because all three safe top-level/list/task quotes remained source-only: `expected 3, got 0`.
+- Change:
+  - Extended package-owned footnote content to include semantic blockquotes through a closed source-aware mapper. A safe quote must have an exact source range, contain one or more direct paragraph children only, and use already-safe inline children; Obsidian-style callouts are rejected from source before mounting.
+  - Allowed at most one recursively safe list or one safe paragraph-only blockquote after the required first paragraph in a standard/task list item. Multiple containers, nested quotes, callouts, quote-contained lists/code/tables/raw HTML, arbitrary children, nested containers, duplicates, malformed, unsafe, stale, invalid-indent, and unmappable definitions remain whole source-only fallbacks.
+  - Added deterministic blockquote serialization that reconstructs changed quote children with valid `>` markers and quoted blank separators while preserving untouched sibling definition children, references, unknown syntax, prefix spacing, ordered starts, loose/task state, unrelated Markdown, and LF/CRLF behavior.
+  - Added fixture 029, focused semantic/edit/reparse/history/selection/rename/save/CRLF/fallback-atomicity tests, intentional fixture 025-028 expectation updates now that their safe quotes mount semantically, package docs, root test registration, quote spacing, and runtime browser proof.
+- Visual impact:
+  - Safe top-level, standard-list, and task-list paragraph-only quotes render as semantic Rich content. Unsupported callouts, nested quotes, and quotes containing arbitrary block children remain explicit preserved-source cards.
+  - Artifacts: `docs/internal/visual-checks/MME-0065/footnote-blockquote-rich-desktop.png`, `footnote-blockquote-edited-desktop.png`, `footnote-blockquote-saved-desktop.png`, `footnote-blockquote-unsupported-desktop.png`, `footnote-blockquote-constrained.png`, and `footnote-blockquote-source-desktop.png`.
+  - Permissioned headless Chrome proof loads fixture 029, verifies three semantic definitions and eight fallbacks, quote/list/task hierarchy, ordered start, accessible task controls, metadata privacy, exact untouched identity, real edit plus undo/redo, exact saved disk content, accessible unsupported fallbacks, 390px containment, and exact Source-mode content.
+  - Builder inspected all six captures. Desktop hierarchy, quote separation, task controls, fallback cards, and Source output are readable; constrained content remains contained. Deep narrow text wraps densely, the floating diagnostics chip overlaps lower content, and the dominant full-editor blue focus outline remains visible. These are queued for final human review.
+- Checks run:
+  - `npm run test:rich-footnote-blockquotes` — RED first (`expected 3, got 0`), then green after semantic source-aware quote conversion and deterministic serialization.
+  - All MME-0056 through MME-0065 footnote regressions, parser, targeted serialization, rich commands/input rules/core interactions, Save Engine, contracts, architecture, public API, rich security, fixture corpus, round-trip, rich fidelity, and demo tests — green.
+  - `npm run visual:mme-0065` — green with six browser artifacts and all runtime assertions passing against `http://127.0.0.1:5174/`.
+  - Final `npm test` — green end-to-end, including performance, architecture, security, preservation, every footnote/list regression, fixture corpus, CLI, AX artifacts, packages, demo, adapters, Vite build, and 42-page Next.js docs build; existing Vite chunk-size warning only.
+  - `git diff --check` — green before closeout.
+- Reviewer result:
+  - Required inspect-only code review used exactly `gpt-5.3-codex-spark` with `xhigh` reasoning. Agent `019f8494-dc20-76c0-865a-dc678064bc82` could not run because that model's usage limit is exhausted until 2026-07-26 14:48; no substitute code-review model was used.
+  - Documented fallback self-review covered schema closure, source-aware callout rejection, paragraph-only quote validation, exact identity, bounded reconstruction, quoted blank separators, list/task/ordered/loose shape, CRLF, unsupported-definition atomicity, history/selection/rename/save truth, DOM metadata privacy, package boundaries, focused tests, full regressions, and browser assertions.
+  - No remaining P0-P3 issue was found.
+- Residual risks:
+  - Nested quotes, callouts, quote-contained lists/code/tables/raw HTML, multiple containers, arbitrary children, nested containers, duplicates, malformed definitions, unsafe content, stale source, inconsistent indentation, and unmappable forms remain source-only by design.
+  - Intentionally changed quotes normalize markers and required quoted blank separators; untouched definition-child bytes remain exact.
+  - Existing generic structural commands may create a new unsupported quote/code shape. Structural insertion, deletion, reorder, and arbitrary quote-child editing require a dedicated future slice; this issue only makes pre-existing safely representable quotes editable and keeps pre-existing unsupported definitions atomic.
+  - Final quote spacing, marker density, nested hierarchy, task control flow, fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, deep narrow wrapping, and constrained layout are queued in `docs/internal/BACKLOG.md`.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Issue-scoped implementation/status commit pending closeout.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0065`. Continuation requires promoting the next unblocked must-have backlog item before implementation.

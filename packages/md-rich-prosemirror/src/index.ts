@@ -4690,7 +4690,7 @@ const richNodes: Record<string, NodeSpec> = {
       sourceIdentifierFrom: { default: null },
       sourceIdentifierTo: { default: null }
     },
-    content: "paragraph (paragraph | bullet_list | ordered_list)*",
+    content: "paragraph (paragraph | bullet_list | ordered_list | blockquote)*",
     defining: true,
     group: "block",
     parseDOM: [
@@ -5006,21 +5006,11 @@ function footnoteDefinitionToProseMirror(
     blocks.length === 0 ||
     blocks[0]?.kind === "opaque" ||
     blocks[0]?.type !== "paragraph" ||
-    blocks.some((block) => !isRepresentableRichFootnoteBlock(block))
+    blocks.some((block) => !isRepresentableRichFootnoteBlock(block, source))
   ) {
     return null;
   }
-  const blockNodes = blocks.map((block) => {
-    if (block.kind === "opaque") {
-      throw new Error("Opaque footnote blocks must be rejected before rich conversion.");
-    }
-    return block.type === "paragraph"
-      ? schema.nodes.paragraph!.create(
-          null,
-          inlineChildrenToProseMirror(block.children ?? [], schema, source)
-        )
-      : listNodeToProseMirror(block, schema, source);
-  });
+  const blockNodes = blocks.map((block) => richFootnoteBlockToProseMirror(block, schema, source));
   const raw = rawFromRange(node, source);
   const identifierOffset = raw.indexOf("[^") + 2;
   const sourceIdentifierFrom = node.sourceRange!.start.offset + identifierOffset;
@@ -5156,28 +5146,79 @@ function richFootnoteBlockFingerprint(node: ProseMirrorNode): string {
   return JSON.stringify(node.toJSON());
 }
 
-function isRepresentableRichFootnoteBlock(node: MomentariseNode): boolean {
+function richFootnoteBlockToProseMirror(
+  node: MomentariseNode,
+  schema: MomentariseRichSchema,
+  source: string
+): ProseMirrorNode {
+  if (node.kind === "opaque") {
+    throw new Error("Opaque footnote blocks must be rejected before rich conversion.");
+  }
+  if (node.type === "paragraph") {
+    return schema.nodes.paragraph!.create(
+      null,
+      inlineChildrenToProseMirror(node.children ?? [], schema, source)
+    );
+  }
+  if (node.type === "list") {
+    return listNodeToProseMirror(node, schema, source);
+  }
+  if (node.type === "blockquote") {
+    return schema.nodes.blockquote!.create(
+      null,
+      (node.children ?? []).map((child) => {
+        if (child.kind === "opaque" || child.type !== "paragraph") {
+          throw new Error("Non-paragraph quote children must be rejected before rich conversion.");
+        }
+        return schema.nodes.paragraph!.create(
+          null,
+          inlineChildrenToProseMirror(child.children ?? [], schema, source)
+        );
+      })
+    );
+  }
+  throw new Error(`Unsupported rich footnote block reached conversion: ${node.type}.`);
+}
+
+function isRepresentableRichFootnoteBlock(node: MomentariseNode, source: string): boolean {
   if (node.kind === "opaque") {
     return false;
   }
   if (node.type === "paragraph") {
     return (node.children ?? []).every(isRepresentableRichFootnoteInlineNode);
   }
-  if (node.type !== "list") {
-    return false;
+  if (node.type === "list") {
+    return isRepresentableRichFootnoteList(node, source);
   }
-  return isRepresentableRichFootnoteList(node);
+  return node.type === "blockquote" && isRepresentableRichFootnoteBlockquote(node, source);
 }
 
-function isRepresentableRichFootnoteList(node: MomentariseNode): boolean {
+function isRepresentableRichFootnoteBlockquote(node: MomentariseNode, source: string): boolean {
+  if (node.kind === "opaque" || node.type !== "blockquote" || !node.sourceRange) {
+    return false;
+  }
+  const raw = rawFromRange(node, source);
+  if (/^[ \t]*>[ \t]*\[![^\]\r\n]+\]/i.test(raw)) {
+    return false;
+  }
+  const blocks = node.children ?? [];
+  return blocks.length > 0 && blocks.every(
+    (block) =>
+      block.kind !== "opaque" &&
+      block.type === "paragraph" &&
+      (block.children ?? []).every(isRepresentableRichFootnoteInlineNode)
+  );
+}
+
+function isRepresentableRichFootnoteList(node: MomentariseNode, source: string): boolean {
   if (node.kind === "opaque" || node.type !== "list") {
     return false;
   }
   const items = node.children ?? [];
-  return items.length > 0 && items.every(isRepresentableRichFootnoteListItem);
+  return items.length > 0 && items.every((item) => isRepresentableRichFootnoteListItem(item, source));
 }
 
-function isRepresentableRichFootnoteListItem(item: MomentariseNode): boolean {
+function isRepresentableRichFootnoteListItem(item: MomentariseNode, source: string): boolean {
   if (item.kind === "opaque" || item.type !== "listItem") {
     return false;
   }
@@ -5194,7 +5235,7 @@ function isRepresentableRichFootnoteListItem(item: MomentariseNode): boolean {
   ) {
     return false;
   }
-  let nestedListCount = 0;
+  let containerCount = 0;
   return itemBlocks.slice(1).every((block) => {
     if (block.kind === "opaque") {
       return false;
@@ -5202,11 +5243,15 @@ function isRepresentableRichFootnoteListItem(item: MomentariseNode): boolean {
     if (block.type === "paragraph") {
       return (block.children ?? []).every(isRepresentableRichFootnoteInlineNode);
     }
-    if (block.type !== "list") {
-      return false;
+    if (block.type === "list") {
+      containerCount += 1;
+      return containerCount <= 1 && isRepresentableRichFootnoteList(block, source);
     }
-    nestedListCount += 1;
-    return nestedListCount <= 1 && isRepresentableRichFootnoteList(block);
+    if (block.type === "blockquote") {
+      containerCount += 1;
+      return containerCount <= 1 && isRepresentableRichFootnoteBlockquote(block, source);
+    }
+    return false;
   });
 }
 
@@ -5478,10 +5523,7 @@ function serializeBlock(node: ProseMirrorNode, indentLevel: number): string {
     case "paragraph":
       return serializeInline(node);
     case "blockquote":
-      return serializeBlockList(node, indentLevel)
-        .split("\n")
-        .map((line) => (line.trim() ? `> ${line}` : ">"))
-        .join("\n");
+      return serializeBlockquote(node, indentLevel);
     case "code_block": {
       const language = stringAttribute(node.attrs.language) ?? "";
       const meta = stringAttribute(node.attrs.meta);
@@ -5507,6 +5549,19 @@ function serializeBlock(node: ProseMirrorNode, indentLevel: number): string {
     default:
       return node.textContent;
   }
+}
+
+function serializeBlockquote(node: ProseMirrorNode, indentLevel: number): string {
+  const blocks: string[] = [];
+  node.forEach((child) => {
+    blocks.push(
+      serializeBlock(child, indentLevel)
+        .split("\n")
+        .map((line) => (line.trim() ? `> ${line}` : ">"))
+        .join("\n")
+    );
+  });
+  return blocks.join("\n>\n");
 }
 
 function serializeRichFootnoteDefinition(node: ProseMirrorNode): string {
