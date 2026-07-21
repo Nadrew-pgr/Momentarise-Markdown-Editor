@@ -9,15 +9,21 @@ const source = await readFile("fixtures/025-list-block-footnote-editing/input.md
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
 
-assertEqual(definitions.length, 2, "safe bullet and ordered-list definitions must be editable");
+assertEqual(definitions.length, 3, "safe flat and nested list definitions must be editable");
 const stepsDefinition = definitions.find((node) => node.attrs.identifier === "steps");
 const orderedDefinition = definitions.find((node) => node.attrs.identifier === "ordered");
+const nestedDefinition = definitions.find((node) => node.attrs.identifier === "nested-list");
 assertEqual(stepsDefinition?.childCount, 3, "paragraph, bullet list, and closing paragraph child blocks");
 assertEqual(stepsDefinition?.child(1).type.name, "bullet_list", "safe bullet list uses semantic list node");
 assertEqual(stepsDefinition?.child(1).childCount, 3, "all bullet items remain editable");
 assertEqual(stepsDefinition?.child(1).child(1).childCount, 1, "safe bullet item has one paragraph");
 assertEqual(orderedDefinition?.child(1).type.name, "ordered_list", "safe ordered list uses semantic list node");
 assertEqual(orderedDefinition?.child(1).attrs.order, 3, "ordered-list start value remains semantic");
+assertEqual(
+  nestedDefinition?.child(1).child(0).child(1).type.name,
+  "bullet_list",
+  "safe nested list now uses semantic list nodes"
+);
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched list-footnote document identity");
 assertNoExactSourceMetadataInDom(stepsDefinition);
 
@@ -47,7 +53,6 @@ assertEqual(
 
 const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block");
 for (const marker of [
-  "[^nested-list]:",
   "[^task-list]:",
   "[^loose-item]:",
   "[^quoted]:",

@@ -6257,3 +6257,49 @@
   - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0062" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before promotion commit.
 - Next issue:
   - `MME-0062 — Rich nested-list GFM footnote definition editing baseline`.
+
+## MME-0062 — Rich nested-list GFM footnote definition editing baseline
+
+- Date: 2026-07-21.
+- Previous issue status:
+  - `MME-0061` accepted for code continuation and committed (`d3f6b74` implementation/status, `9b54887` evidence).
+  - `MME-0062` was promoted from backlog and committed in checkpoint `f790389`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, clean `git status --short`, and every parser/model/editor/rich/demo/fixture/test/save file named by the issue.
+- RED proof before implementation:
+  - Added `fixtures/026-nested-list-footnote-editing/` and `tests/rich-footnote-nested-lists.test.mjs`, then confirmed the first build/test run failed because both safe nested-list definitions remained source-only: `expected 2, got 0`.
+- Change:
+  - Generalized the closed footnote list validator to accept one safe paragraph plus at most one recursively safe standard bullet or ordered list per item. Tasks, loose/multi-paragraph items, multiple nested children, quotes, arbitrary blocks, raw HTML, nested containers, duplicates, malformed, stale, and unmappable definitions remain source-only.
+  - Separated footnote container indentation from valid internal nested-list indentation. Layout now derives the container indent from the exact inter-block separator and verifies every continued list line retains that prefix while allowing parser-owned internal nesting.
+  - Unchanged definition children retain exact source. Editing one deep item reconstructs only its containing top-level list child, preserving definition prefix spacing, sibling child bytes, unknown syntax, unrelated document bytes, list hierarchy, representable ordered starts, and LF/CRLF behavior.
+  - Existing single-line, continuation-line, multi-paragraph, flat-list, definition selection/replacement, insertion, identifier rename, semantic references, one-step history, and Save Engine/autosave behavior remain compatible.
+  - Added fixture 026 plus expectations, focused nested bullet/ordered/fallback/history/save tests, intentional fixture 025 expectation updates, package contract documentation, root test registration, and browser proof.
+- Visual impact:
+  - Supported nested bullet and ordered hierarchies render as semantic editable lists inside footnote definitions; task, loose, multi-child, quoted, unsafe, and nested-container forms remain explicit preserved-source cards.
+  - Artifacts: `docs/internal/visual-checks/MME-0062/footnote-nested-list-rich-desktop.png`, `footnote-nested-list-edited-desktop.png`, `footnote-nested-list-unsupported-desktop.png`, `footnote-nested-list-source-desktop.png`, and `footnote-nested-list-constrained.png`.
+  - Permissioned headless Chrome proof loads the real fixture, verifies three nested bullet and ordered levels plus six fallbacks, edits one deepest item, proves exact Markdown identity, performs undo/redo, saves to clean disk truth, switches to Source, and verifies 390px containment.
+  - Builder inspected all five captures. Hierarchy is readable and contained. Existing dominant full-editor blue focus outline plus technical-diagnostics overlap at narrow width remain recorded in the final human review queue.
+- Checks run:
+  - `npm run test:rich-footnote-nested-lists` — RED first, then green after implementation.
+  - `npm run test:rich-footnote-list-blocks`, `npm run test:rich-footnote-multiparagraph`, `npm run test:rich-footnote-multiline`, `npm run test:rich-footnote-editing`, `npm run test:rich-targeted-serialization`, `npm run test:rich-list-editing`, `npm run test:fixtures`, and `npm run test:roundtrip` — green after intentional legacy expectation updates.
+  - `npm run visual:mme-0062` — first run exposed an over-specific DOM selector; builder replaced it with explicit semantic list counts/start assertions, and the permissioned Chrome rerun passed all runtime checks and captured all five states.
+  - Final `npm test` — green end-to-end, including architecture, security, preservation, all footnote/list regressions, performance 10/10, CLI fixture corpus, docs/Next.js, AX artifacts, packages, demo, adapters, and builds; existing Vite chunk-size warning only.
+  - `curl -I http://127.0.0.1:5174/` — `HTTP/1.1 200 OK`; live demo remained available.
+  - `git diff --check` — green before closeout.
+- Reviewer result:
+  - Preservation/serialization and fallback/tests/API inspect-only reviewers were requested with `gpt-5.3-codex-spark` and `xhigh` reasoning as required. Both hit the Spark usage limit until 2026-07-26 and returned no findings; no substitute code-review model was used.
+  - Documented fallback self-review covered schema integrity, recursive whitelist closure, exact source-layout mapping, bounded reconstruction, ordered/bullet semantics, CRLF/container indentation, task/loose/multi-child/unsafe refusal, history/save truth, DOM metadata privacy, package boundaries, focused tests, full regressions, and browser assertions.
+  - No remaining P0-P3 issue was found.
+- Residual risks:
+  - Tasks, loose/multi-paragraph items, multiple nested list children, arbitrary blocks, nested containers, duplicates, malformed definitions, unsafe content, stale source, and unmappable forms remain source-only by design.
+  - Tight nested ordered lists can preserve representable starts; CommonMark requires a loose layout for many non-`1` nested starts, and those loose forms intentionally remain source-only.
+  - Intentionally changed list blocks use deterministic `-` markers or ordered numbering; untouched list-child bytes remain exact.
+  - Structural Tab/Shift+Tab, insertion, deletion, reorder, and marker-style preservation remain out of scope.
+  - Final hierarchy readability, marker density, deep-item editing flow, definition spacing, fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, and constrained layout are queued in `docs/internal/BACKLOG.md`.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Issue-scoped implementation/status commit pending immediately after final docs/alignment checks.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0062`; continuation requires promoting the next unblocked must-have backlog item before implementation.

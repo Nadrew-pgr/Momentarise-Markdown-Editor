@@ -5066,12 +5066,6 @@ function richFootnoteDefinitionLayout(
     return null;
   }
 
-  const blockSources = blockRanges.map((range) => source.slice(range.start.offset, range.end.offset));
-  const blockContinuationIndents = blockSources.map(richFootnoteBlockContinuationIndent);
-  if (blockContinuationIndents.some((indent) => indent === null)) {
-    return null;
-  }
-
   const blockSeparators: string[] = [];
   for (let index = 1; index < blockRanges.length; index += 1) {
     const previous = blockRanges[index - 1]!;
@@ -5081,6 +5075,21 @@ function richFootnoteDefinitionLayout(
       return null;
     }
     blockSeparators.push(separator);
+  }
+
+  const blockSources = blockRanges.map((range) => source.slice(range.start.offset, range.end.offset));
+  const blockContinuationIndents = blockSources.map((raw, index) => {
+    const block = blocks[index];
+    if (block?.kind !== "opaque" && block?.type === "list" && index > 0) {
+      const containerIndent = richFootnoteBlockSeparatorIndent(blockSeparators[index - 1]!);
+      return containerIndent && richFootnoteListBlockHasContainerIndent(raw, containerIndent)
+        ? containerIndent
+        : null;
+    }
+    return richFootnoteBlockContinuationIndent(raw);
+  });
+  if (blockContinuationIndents.some((indent) => indent === null)) {
+    return null;
   }
 
   return {
@@ -5112,8 +5121,21 @@ function richFootnoteBlockContinuationIndent(raw: string): string | null {
 }
 
 function isSafeRichFootnoteBlockSeparator(value: string): boolean {
+  return richFootnoteBlockSeparatorIndent(value) !== null;
+}
+
+function richFootnoteBlockSeparatorIndent(value: string): string | null {
   const match = value.match(/^(?:[ \t]*(?:\r\n|\n)){2,}([ \t]+)$/);
-  return Boolean(match && isSafeRichFootnoteContinuationIndent(match[1] ?? ""));
+  const indent = match?.[1] ?? "";
+  return isSafeRichFootnoteContinuationIndent(indent) ? indent : null;
+}
+
+function richFootnoteListBlockHasContainerIndent(raw: string, containerIndent: string): boolean {
+  const lines = raw.split(/\r?\n/);
+  return Boolean(
+    lines[0] &&
+    lines.slice(1).every((line) => line.startsWith(containerIndent) && /\S/.test(line.slice(containerIndent.length)))
+  );
 }
 
 function isSafeRichFootnoteContinuationIndent(value: string): boolean {
@@ -5134,6 +5156,13 @@ function isRepresentableRichFootnoteBlock(node: MomentariseNode): boolean {
   if (node.type !== "list") {
     return false;
   }
+  return isRepresentableRichFootnoteList(node);
+}
+
+function isRepresentableRichFootnoteList(node: MomentariseNode): boolean {
+  if (node.kind === "opaque" || node.type !== "list") {
+    return false;
+  }
   const items = node.children ?? [];
   return items.length > 0 && items.every((item) => {
     if (
@@ -5145,11 +5174,13 @@ function isRepresentableRichFootnoteBlock(node: MomentariseNode): boolean {
     }
     const itemBlocks = item.children ?? [];
     const paragraph = itemBlocks[0];
+    const nestedList = itemBlocks[1];
     return (
-      itemBlocks.length === 1 &&
+      (itemBlocks.length === 1 || itemBlocks.length === 2) &&
       paragraph?.kind !== "opaque" &&
       paragraph?.type === "paragraph" &&
-      (paragraph.children ?? []).every(isRepresentableRichFootnoteInlineNode)
+      (paragraph.children ?? []).every(isRepresentableRichFootnoteInlineNode) &&
+      (itemBlocks.length === 1 || Boolean(nestedList && isRepresentableRichFootnoteList(nestedList)))
     );
   });
 }

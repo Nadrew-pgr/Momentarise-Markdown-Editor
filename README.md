@@ -75,12 +75,12 @@ Completed slices:
 - MME-0059: Rich multiline GFM footnote definition editing baseline, accepted for code continuation after safe continuation-line editing, exact indentation/line-ending preservation, conservative complex fallback, truthful history/save behavior, browser proof, fallback review, and full test pass; final multiline footnote UX/product review is queued for end-of-run review.
 - MME-0060: Rich multi-paragraph GFM footnote definition editing baseline, accepted for code continuation after semantic paragraph editing, exact per-paragraph preservation, conservative nested-block fallback, truthful history/save behavior, browser proof, fallback review, and full test pass; final multi-paragraph footnote product review is queued for end-of-run review.
 - MME-0061: Rich list-block GFM footnote definition editing baseline, accepted for code continuation after semantic bullet/ordered list children, exact unchanged-child preservation, bounded changed-list reconstruction, conservative complex-list fallback, truthful history/save behavior, browser proof, fallback review, and full test pass; final list-footnote product review is queued for end-of-run review.
-- MME-0062: Rich nested-list GFM footnote definition editing baseline, promoted as the current executable slice for safe recursively nested bullet/ordered list text editing with bounded parent-list reconstruction and conservative task/loose-item fallback.
+- MME-0062: Rich nested-list GFM footnote definition editing baseline, accepted for code continuation after recursively safe nested bullet/ordered list editing, exact bounded list-child reconstruction, conservative task/loose/unsafe fallback, truthful history/save behavior, browser proof, fallback review, and full test pass; final nested-list footnote product review is queued for end-of-run review.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- MME-0062 is the current executable issue: add safe nested bullet/ordered list text editing inside unique top-level GFM footnote definitions while preserving task, loose-item, unsafe, and arbitrary nested forms as source-only fallback.
+- No executable normal issue remains after MME-0062; autonomous continuation must promote the next unblocked must-have backlog item before implementation.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 
