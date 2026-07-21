@@ -6080,7 +6080,7 @@
   - `npm run visual:mme-0059` — sandbox Chrome first exited with `SIGABRT`; permissioned Chrome reruns passed and refreshed all four artifacts after final serializer fixes.
   - `npm run test:performance-budgets` — green, 10/10 operations. One earlier full-suite run exceeded two timing budgets under transient host load; immediate detailed and standalone reruns passed without source or budget changes.
   - `npm test` — green end-to-end on final code, including performance, public API, security, docs, LLM/agent artifact sync, package/demo/docs builds; existing Vite chunk-size warning only.
-  - `git diff --check` — pending immediately before commit.
+  - `git diff --check` — green immediately before commit.
 - Reviewer result:
   - Two inspect-only code reviewers were requested with `gpt-5.3-codex-spark` and `xhigh` reasoning as required. Both hit the Spark usage limit and returned no findings; no other code-review model was substituted.
   - Documented fallback self-review covered package boundaries, preservation, source mapping, CRLF, indentation, history/save truth, tests, docs/API truth, accessibility, and browser proof.
@@ -6091,7 +6091,7 @@
   - Final continuation-line presentation, definition density, edit/focus flow, fallback wording, Source visibility, and constrained layout are queued in `docs/internal/BACKLOG.md`.
   - Existing demo bundle-size warning and timing-budget sensitivity under heavy host load remain outside this issue.
 - Commit status:
-  - Issue-scoped implementation/status commit pending.
+  - Issue-scoped implementation/status commit created: `7418d8e` (`feat: add rich multiline footnote editing`).
 - Push status:
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
