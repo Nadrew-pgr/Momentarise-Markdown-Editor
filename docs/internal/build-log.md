@@ -6562,7 +6562,7 @@
   - Final code density, language/meta visibility, nested hierarchy, focus flow, fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, code scrolling, deep narrow wrapping, and constrained layout are queued in `docs/internal/BACKLOG.md`.
   - Existing demo bundle-size warning remains outside this issue.
 - Commit status:
-  - Issue-scoped implementation/status commit pending closeout.
+  - Issue-scoped implementation/status commit created: `cb1b625` (`feat: add rich fenced-code footnote editing`).
 - Push status:
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
