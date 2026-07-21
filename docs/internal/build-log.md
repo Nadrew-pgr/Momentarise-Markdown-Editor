@@ -6149,7 +6149,8 @@
   - `npm run test:docs`, `npm run test:llms-sync`, and `npm run test:agent-artifacts` — green after generated artifact refresh.
   - `npm run visual:mme-0060` — sandbox Chrome first exited before CDP; permissioned local Chrome passed and captured all four required states.
   - `npm test` — green end-to-end on final code, including architecture, security, preservation, full footnote regressions, performance 10/10, docs/Next.js, AX artifacts, packages, demo, adapters, and builds; existing Vite chunk-size warning only.
-  - `git diff --check` — pending immediately before commit.
+  - `curl -I http://127.0.0.1:5174/` — `HTTP/1.1 200 OK`; the live demo remained available.
+  - `npm run test:alignment`, `node scripts/docs-lint.mjs`, and `git diff --check` — green immediately before commit.
 - Reviewer result:
   - Architecture/preservation and test/security inspect-only reviewers were requested with `gpt-5.3-codex-spark` and `xhigh` reasoning as required. Both hit the Spark usage limit until 2026-07-26 and returned no findings; no substitute code-review model was used.
   - Documented fallback self-review covered schema integrity, source-layout mapping, exact sibling preservation, CRLF/indentation, nested/unsafe refusal, history/save truth, DOM security/privacy, package boundaries, docs/API truth, and browser assertions.
