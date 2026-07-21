@@ -9,13 +9,14 @@ const source = await readFile("fixtures/028-loose-list-footnote-editing/input.md
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
 
-assertEqual(definitions.length, 6, "safe loose bullet, task, ordered, quoted, indented-code, and table definitions must be editable");
+assertEqual(definitions.length, 7, "safe loose bullet, task, ordered, quoted, code, table, and callout definitions must be editable");
 const bulletDefinition = definitions.find((node) => node.attrs.identifier === "loose-bullets");
 const taskDefinition = definitions.find((node) => node.attrs.identifier === "loose-task");
 const orderedDefinition = definitions.find((node) => node.attrs.identifier === "loose-ordered");
 const quoteDefinition = definitions.find((node) => node.attrs.identifier === "quoted-child");
 const codeDefinition = definitions.find((node) => node.attrs.identifier === "code-child");
 const tableDefinition = definitions.find((node) => node.attrs.identifier === "table-child");
+const calloutDefinition = definitions.find((node) => node.attrs.identifier === "callout-child");
 
 const bulletList = bulletDefinition?.child(1);
 assertEqual(bulletList?.type.name, "bullet_list", "loose bullet list is semantic");
@@ -52,6 +53,11 @@ assertEqual(
   codeDefinition?.child(1).child(0).child(1).type.name,
   "code_block",
   "safe loose-item indented code now mounts semantically"
+);
+assertEqual(
+  calloutDefinition?.child(1).child(0).child(1).type.name,
+  "callout",
+  "safe loose-item callout now mounts semantically"
 );
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched loose-list document identity");
 assertNoExactSourceMetadataInDom(orderedDefinition);
@@ -98,7 +104,6 @@ const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block")
 for (const marker of [
   "[^multiple-nested]:",
   "[^raw-child]:",
-  "[^callout-child]:",
   "[^nested-container]:"
 ]) {
   const fallback = fallbacks.find((node) => String(node.attrs.raw ?? "").includes(marker));

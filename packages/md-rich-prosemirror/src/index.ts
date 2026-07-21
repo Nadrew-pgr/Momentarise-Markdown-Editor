@@ -331,6 +331,7 @@ export type RichFootnoteRenameResult =
 export type MomentariseRichSchema = Schema<
   | "blockquote"
   | "bullet_list"
+  | "callout"
   | "code_block"
   | "doc"
   | "footnote_definition"
@@ -2627,6 +2628,8 @@ function proseMirrorBlockToMomentariseNode(
       return knownNode(nextId, "block", "paragraph", proseMirrorInlineChildrenToMomentariseNodes(node, nextId));
     case "blockquote":
       return knownNode(nextId, "block", "blockquote", proseMirrorBlockChildrenToMomentariseNodes(node, nextId));
+    case "callout":
+      return proseMirrorCalloutToMomentariseNode(node, nextId);
     case "code_block":
       return knownNode(nextId, "block", "codeFence", [], {
         language: stringAttribute(node.attrs.language),
@@ -2676,6 +2679,28 @@ function proseMirrorBlockToMomentariseNode(
         })
       ]);
   }
+}
+
+function proseMirrorCalloutToMomentariseNode(
+  node: ProseMirrorNode,
+  nextId: () => ReturnType<typeof createNodeId>
+): KnownNode {
+  const calloutType = normalizeCalloutType(node.attrs.calloutType) ?? "NOTE";
+  const fold = normalizeCalloutFold(node.attrs.fold) ?? "";
+  const title = normalizeCalloutTitle(node.attrs.title);
+  const header = `[!${calloutType}]${fold}${title ? ` ${title}` : ""}\n`;
+  const body = proseMirrorBlockChildrenToMomentariseNodes(node, nextId);
+  const first = body[0];
+  if (!first || first.kind === "opaque" || first.type !== "paragraph") {
+    return knownNode(nextId, "block", "blockquote", body);
+  }
+  const firstWithHeader = knownNode(
+    nextId,
+    "block",
+    "paragraph",
+    [knownNode(nextId, "inline", "text", [], { value: header }), ...(first.children ?? [])]
+  );
+  return knownNode(nextId, "block", "blockquote", [firstWithHeader, ...body.slice(1)]);
 }
 
 function proseMirrorTableToMomentariseNode(
@@ -4575,6 +4600,58 @@ const richNodes: Record<string, NodeSpec> = {
     parseDOM: [{ tag: "blockquote" }],
     toDOM: () => ["blockquote", 0]
   },
+  callout: {
+    attrs: {
+      calloutType: { default: "NOTE" },
+      fold: { default: null },
+      title: { default: null }
+    },
+    content: "paragraph+",
+    defining: true,
+    group: "block",
+    parseDOM: [
+      {
+        contentElement: '[data-mme-callout-body="true"]',
+        tag: '[data-mme-callout="true"]',
+        getAttrs: (element) =>
+          element instanceof HTMLElement
+            ? {
+                calloutType: normalizeCalloutType(element.dataset.mmeCalloutType) ?? "NOTE",
+                fold: normalizeCalloutFold(element.dataset.mmeCalloutFold),
+                title: normalizeCalloutTitle(element.dataset.mmeCalloutTitle)
+              }
+            : false
+      }
+    ],
+    toDOM: (node) => {
+      const calloutType = normalizeCalloutType(node.attrs.calloutType) ?? "NOTE";
+      const fold = normalizeCalloutFold(node.attrs.fold);
+      const title = normalizeCalloutTitle(node.attrs.title);
+      const visibleTitle = title ?? calloutType;
+      return [
+        "aside",
+        {
+          "aria-label": `${calloutType} callout${title ? `: ${title}` : ""}`,
+          "data-mme-callout": "true",
+          "data-mme-callout-fold": fold ?? "none",
+          "data-mme-callout-title": title ?? "",
+          "data-mme-callout-type": calloutType,
+          role: "note"
+        },
+        [
+          "div",
+          {
+            "aria-hidden": "true",
+            contenteditable: "false",
+            "data-mme-callout-header": "true"
+          },
+          ["span", { "data-mme-callout-marker": "true" }, `[!${calloutType}]${fold ?? ""}`],
+          ["span", { "data-mme-callout-title-label": "true" }, visibleTitle]
+        ],
+        ["div", { "data-mme-callout-body": "true" }, 0]
+      ];
+    }
+  },
   horizontal_rule: {
     group: "block",
     parseDOM: [{ tag: "hr" }],
@@ -4709,7 +4786,7 @@ const richNodes: Record<string, NodeSpec> = {
       sourceIdentifierFrom: { default: null },
       sourceIdentifierTo: { default: null }
     },
-    content: "paragraph (paragraph | bullet_list | ordered_list | blockquote | code_block | table)*",
+    content: "paragraph (paragraph | bullet_list | ordered_list | blockquote | callout | code_block | table)*",
     defining: true,
     group: "block",
     parseDOM: [
@@ -5259,6 +5336,31 @@ function richFootnoteBlockToProseMirror(
     return richFootnoteListToProseMirror(node, schema, source);
   }
   if (node.type === "blockquote") {
+    const callout = richFootnoteCallout(node, source);
+    if (callout) {
+      const paragraphs = (node.children ?? []).map((child) => {
+        if (child.kind === "opaque" || child.type !== "paragraph") {
+          throw new Error("Non-paragraph callout children must be rejected before rich conversion.");
+        }
+        return schema.nodes.paragraph!.create(
+          null,
+          inlineChildrenToProseMirror(child.children ?? [], schema, source)
+        );
+      });
+      const first = paragraphs[0]!;
+      const firstBody = first.content.cut(callout.bodyOffset);
+      if (firstBody.size === 0) {
+        throw new Error("Header-only callouts must be rejected before rich conversion.");
+      }
+      return schema.nodes.callout!.create(
+        {
+          calloutType: callout.calloutType,
+          fold: callout.fold,
+          title: callout.title
+        },
+        [schema.nodes.paragraph!.create(null, firstBody), ...paragraphs.slice(1)]
+      );
+    }
     return schema.nodes.blockquote!.create(
       null,
       (node.children ?? []).map((child) => {
@@ -5375,17 +5477,84 @@ function isRepresentableRichFootnoteBlockquote(node: MomentariseNode, source: st
   if (node.kind === "opaque" || node.type !== "blockquote" || !node.sourceRange) {
     return false;
   }
-  const raw = rawFromRange(node, source);
-  if (/^[ \t]*>[ \t]*\[![^\]\r\n]+\]/i.test(raw)) {
-    return false;
+  if (richFootnoteCallout(node, source)) {
+    return true;
   }
   const blocks = node.children ?? [];
+  const raw = rawFromRange(node, source);
+  if (/^[ \t]*>[ \t]*\[!/i.test(raw)) {
+    return false;
+  }
   return blocks.length > 0 && blocks.every(
     (block) =>
       block.kind !== "opaque" &&
       block.type === "paragraph" &&
       isRepresentableRichFootnoteParagraph(block)
   );
+}
+
+interface RichFootnoteCallout {
+  readonly bodyOffset: number;
+  readonly calloutType: string;
+  readonly fold: "+" | "-" | null;
+  readonly title: string | null;
+}
+
+function richFootnoteCallout(node: MomentariseNode, source: string): RichFootnoteCallout | null {
+  if (node.kind === "opaque" || node.type !== "blockquote" || !node.sourceRange) {
+    return null;
+  }
+  const blocks = node.children ?? [];
+  if (
+    blocks.length === 0 ||
+    !blocks.every(
+      (block) =>
+        block.kind !== "opaque" &&
+        block.type === "paragraph" &&
+        isRepresentableRichFootnoteParagraph(block)
+    )
+  ) {
+    return null;
+  }
+  const first = blocks[0];
+  if (!first || first.kind === "opaque" || first.type !== "paragraph") {
+    return null;
+  }
+  const text = inlineTextContent(first);
+  const lineBreakMatch = /\r?\n/.exec(text);
+  const lineBreak = lineBreakMatch?.index ?? -1;
+  const bodyOffset = lineBreak + (lineBreakMatch?.[0].length ?? 0);
+  if (lineBreak < 0 || !/\S/.test(text.slice(bodyOffset))) {
+    return null;
+  }
+  const header = text.slice(0, lineBreak);
+  const match = header.match(/^\[!([A-Z][A-Z0-9_-]{0,63})\]([+-]?)(?: ([^\r\n]+))?$/);
+  if (!match) {
+    return null;
+  }
+  const calloutType = normalizeCalloutType(match[1]);
+  const fold = normalizeCalloutFold(match[2]);
+  const title = normalizeCalloutTitle(match[3]);
+  if (!calloutType || (match[3] !== undefined && title !== match[3])) {
+    return null;
+  }
+  const firstInline = first.children?.[0];
+  const firstInlineText = firstInline?.kind !== "opaque" && firstInline?.type === "text"
+    ? stringAttribute(firstInline.attributes?.value)
+    : null;
+  if (!firstInlineText?.startsWith(`${header}${lineBreakMatch![0]}`)) {
+    return null;
+  }
+  const firstRawLine = rawFromRange(node, source).split(/\r?\n/, 1)[0];
+  if (firstRawLine !== `> ${header}`) {
+    return null;
+  }
+  return {
+    bodyOffset,
+    calloutType,
+    fold,
+    title
+  };
 }
 
 function isRepresentableRichFootnoteList(node: MomentariseNode, source: string): boolean {
@@ -5744,6 +5913,8 @@ function serializeBlock(node: ProseMirrorNode, indentLevel: number): string {
       return serializeInline(node);
     case "blockquote":
       return serializeBlockquote(node, indentLevel);
+    case "callout":
+      return serializeCallout(node);
     case "code_block": {
       return serializeCodeBlock(node);
     }
@@ -5809,6 +5980,23 @@ function serializeBlockquote(node: ProseMirrorNode, indentLevel: number): string
     );
   });
   return blocks.join("\n>\n");
+}
+
+function serializeCallout(node: ProseMirrorNode): string {
+  const calloutType = normalizeCalloutType(node.attrs.calloutType) ?? "NOTE";
+  const fold = normalizeCalloutFold(node.attrs.fold) ?? "";
+  const title = normalizeCalloutTitle(node.attrs.title);
+  const header = `> [!${calloutType}]${fold}${title ? ` ${title}` : ""}`;
+  const blocks: string[] = [];
+  node.forEach((child) => {
+    blocks.push(
+      serializeBlock(child, 0)
+        .split("\n")
+        .map((line) => (line.trim() ? `> ${line}` : ">"))
+        .join("\n")
+    );
+  });
+  return [header, blocks.join("\n>\n")].filter(Boolean).join("\n");
 }
 
 function serializeRichFootnoteDefinition(node: ProseMirrorNode): string {
@@ -6025,6 +6213,22 @@ function rawFromRange(node: MomentariseNode, source: string): string {
 
 function stringAttribute(value: NodeAttributeValue | undefined): string | null {
   return typeof value === "string" ? value : null;
+}
+
+function normalizeCalloutType(value: unknown): string | null {
+  return typeof value === "string" && /^[A-Z][A-Z0-9_-]{0,63}$/.test(value) ? value : null;
+}
+
+function normalizeCalloutFold(value: unknown): "+" | "-" | null {
+  return value === "+" || value === "-" ? value : null;
+}
+
+function normalizeCalloutTitle(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const title = value.trim();
+  return title && !/[\r\n]/.test(title) ? title : null;
 }
 
 function numberAttribute(value: unknown): number | null {

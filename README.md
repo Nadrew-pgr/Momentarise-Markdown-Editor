@@ -82,12 +82,12 @@ Completed slices:
 - MME-0066: Rich fenced-code GFM footnote definition editing baseline, accepted for code continuation after semantic top-level/list/task fence editing, collision-proof reconstruction, inert code proof, conservative indented-code/mixed-container/arbitrary-child fallback, truthful history/save behavior, real browser proof, fallback review, and full test pass; final fenced-code-footnote product review is queued for end-of-run review.
 - MME-0067: Rich indented-code GFM footnote definition editing baseline, accepted for code continuation after semantic top-level/list/task editing, deterministic indented reconstruction, inert content and truthful fence-control proof, conservative noncanonical/mixed-container fallback, real browser proof, fallback review, and full test pass; final indented-code-footnote product review is queued for end-of-run review.
 - MME-0068: Rich table GFM footnote definition editing baseline, accepted for code continuation after semantic top-level/list/task table editing, recursive table command reuse, exact untouched-source retention, bounded deterministic reconstruction, conservative malformed/unsafe/mixed-container fallback, real browser proof, fallback review, and full test pass; final table-footnote product review is queued for end-of-run review.
-- MME-0069: Rich Obsidian callout footnote definition editing baseline, promoted after parser/source-range feasibility proved safe paragraph-only callouts at top-level/list/task depth can receive a package-owned semantic Rich node without changing core or parser contracts.
+- MME-0069: Rich Obsidian callout footnote definition editing baseline, accepted for code continuation after semantic top-level/list/task callout body editing, non-editable accessible type/title/fold headers, exact untouched-source retention, bounded deterministic reconstruction, conservative malformed/nested/unsafe/mixed-container fallback, real browser proof, fallback review, and full test pass; final callout-footnote product review is queued for end-of-run review.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- MME-0069 is the current executable issue. Implementation starts from a committed promotion checkpoint and a fresh pre-issue plan.
+- No executable normal issue remains after MME-0069. The next must-have candidate requires a separate strict promotion from the remaining raw-HTML/arbitrary nested-block backlog.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

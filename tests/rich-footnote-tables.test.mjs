@@ -7,6 +7,8 @@ const history = await import("prosemirror-history");
 const source = await readFile("fixtures/032-table-footnote-editing/input.md", "utf8");
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
+const calloutDefinition = definitions.find((node) => node.attrs.identifier === "callout-child");
+assertEqual(calloutDefinition?.child(1).type.name, "callout", "safe callout remains semantic");
 
 for (const identifier of ["table-top", "table-list", "table-task", "table-wide"]) {
   if (!definitions.some((node) => node.attrs.identifier === identifier)) {
@@ -241,7 +243,6 @@ for (const marker of [
   "[^quote-table]:",
   "[^mixed-containers]:",
   "[^unsafe-cell]:",
-  "[^callout-child]:",
   "[^raw-child]:",
   "[^nested-container]:"
 ]) {

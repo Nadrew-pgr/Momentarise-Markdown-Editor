@@ -8,12 +8,13 @@ const source = await readFile("fixtures/030-fenced-code-footnote-editing/input.m
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
 
-assertEqual(definitions.length, 5, "safe fenced, indented-code, and table definitions must be editable");
+assertEqual(definitions.length, 6, "safe fenced, indented-code, table, and callout definitions must be editable");
 const topDefinition = definitions.find((node) => node.attrs.identifier === "code-top");
 const listDefinition = definitions.find((node) => node.attrs.identifier === "code-list");
 const taskDefinition = definitions.find((node) => node.attrs.identifier === "code-task");
 const indentedDefinition = definitions.find((node) => node.attrs.identifier === "indented-code");
 const tableDefinition = definitions.find((node) => node.attrs.identifier === "table-child");
+const calloutDefinition = definitions.find((node) => node.attrs.identifier === "callout-child");
 
 const topCode = topDefinition?.child(1);
 assertEqual(topCode?.type.name, "code_block", "top-level fence is semantic");
@@ -40,6 +41,7 @@ assertEqual(taskItem?.child(1).attrs.meta, "title=`task`", "tilde fence backtick
 assertIncludes(taskItem?.child(1).textContent ?? "", "<script>", "script syntax remains inert code text");
 assertEqual(indentedDefinition?.child(1).type.name, "code_block", "safe indented code now mounts semantically");
 assertEqual(tableDefinition?.child(1).type.name, "table", "safe table now mounts semantically");
+assertEqual(calloutDefinition?.child(1).type.name, "callout", "safe callout now mounts semantically");
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched fenced-code document identity");
 assertNoExactSourceMetadataInDom(topDefinition);
 
@@ -101,7 +103,6 @@ const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block")
 for (const marker of [
   "[^quote-code]:",
   "[^mixed-containers]:",
-  "[^callout-child]:",
   "[^raw-child]:",
   "[^nested-container]:"
 ]) {

@@ -6736,3 +6736,47 @@
   - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0069" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before checkpoint commit.
 - Next issue:
   - `MME-0069 — Rich Obsidian callout footnote definition editing baseline`.
+
+## MME-0069 — Rich Obsidian callout footnote definition editing baseline
+
+- Date: 2026-07-21.
+- Previous issue status:
+  - `MME-0068` accepted for code continuation and committed (`f1fd75f` implementation/status, `68d5b45` evidence).
+  - `MME-0069` was promoted and committed in checkpoint `b71d015`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, clean `git status --short`, and every parser/model/editor/rich/demo/fixture/test/save file named by the issue.
+- RED proof before implementation:
+  - Added `fixtures/033-callout-footnote-editing/` and `tests/rich-footnote-callouts.test.mjs`, registered the focused/root test command, then confirmed `npm run test:rich-footnote-callouts` failed because safe callout definitions remained source-only: `Safe callout definition must be editable: callout-top.`
+- Change:
+  - Added a package-owned semantic ProseMirror `callout` node only for safe paragraph-only callouts inside unique supported footnote definitions, including one callout child in safe standard/task list items. Existing top-level opaque callouts and the raw callout command remain source-only.
+  - Kept callout type, optional plain title, and optional `+`/`-` fold marker in semantic attrs and a non-editable accessible header; only body paragraphs are editable. DOM parsing targets the explicit body element so rendered header text cannot become document content.
+  - Preserved exact untouched callout and sibling-child bytes. Changed bodies reconstruct only their bounded callout or containing top-level list child while retaining definition prefix, outer indentation, loose state, ordered starts, task state, inline marks, LF/CRLF, references, unknown syntax, and unrelated Markdown.
+  - Kept marker-only, malformed type/fold, nested callouts/quotes, callout lists/raw HTML, mixed multiple containers, duplicates, nested-container definitions, unsafe content, stale source, invalid indentation, and unmappable forms whole source-only.
+  - Added focused semantics, header/body separation, real DOM serialize/parse, edit, reparse-shape, history, rename/selection/replacement, CRLF, fallback atomicity, metadata privacy, command compatibility, existing top-level callout compatibility, and Save Engine tests. Updated prior fixture expectations, package docs, root test registration, token-only demo styling, and a full browser harness.
+- Visual impact:
+  - Three supported definitions render semantic callout blocks at top-level, ordered-list, and task-list depth; nine unsupported definitions remain explicit preserved-source cards.
+  - Artifacts: `docs/internal/visual-checks/MME-0069/footnote-callouts-rich-desktop.png`, `footnote-callouts-edited-desktop.png`, `footnote-callouts-saved-desktop.png`, `footnote-callouts-unsupported-desktop.png`, `footnote-callouts-constrained.png`, and `footnote-callouts-source-desktop.png`.
+  - Permissioned Chrome proof loads the real fixture, verifies accessible/non-editable header metadata, edits a nested callout body, proves undo/redo, saves exact disk truth, checks inert unsafe content and absent source-metadata leakage, switches to exact Source, and verifies 390 px containment without page overflow.
+  - Builder inspected Rich, edited, fallback, and constrained captures. Callout hierarchy, marker/title/fold presentation, and containment are readable. Existing dominant full-editor blue focus outline plus diagnostics-chip overlap at narrow width remain queued for final human review.
+- Checks run:
+  - `npm run test:rich-footnote-callouts` — RED first, then green after implementation; green again after DOM-reparse review fix.
+  - Prior loose-list, blockquote, fenced-code, indented-code, table, and task-list footnote regressions — green after intentionally updating old safe-callout expectations.
+  - Architecture, fixtures, round-trip, rich security, rich package, targeted serialization, demo Rich baseline, and `npm run build:demo` — green.
+  - `npm run visual:mme-0069` — sandboxed Chrome startup was blocked before app execution; the permissioned rerun passed and captured all six states.
+  - Final `npm test` — green end-to-end with `test:rich-footnote-callouts` visibly executed, performance 10/10, every preservation/security/save regression, Vite demo build, and 42-page Next.js docs build; existing Vite chunk-size warning only.
+  - `git diff --check` — green before closeout.
+- Reviewer result:
+  - Exact inspect-only `gpt-5.3-codex-spark` with `xhigh` reasoning was retried and hit its usage limit until 2026-07-26 14:48. No substitute code-review model was used.
+  - Documented fallback self-review covered schema closure, strict marker/type/fold/title recognition, body offsets across LF/CRLF, DOM parse boundaries, exact untouched source, bounded changed-child reconstruction, hierarchy reparse, ordered/task/loose semantics, unsafe/fallback atomicity, history/save truth, metadata privacy, package boundaries, focused/root tests, full regressions, and browser assertions.
+  - Fallback review found and fixed one P2 DOM-reparse gap: the callout parse rule needed an explicit body `contentElement`, otherwise visible non-editable header text could be parsed as editable content. A real `jsdom` serialize/parse regression now proves body-only content. No remaining P0-P3 issue was found after the corrected focused and full passes.
+- Residual risks:
+  - Existing top-level opaque callouts, callout creation/header controls, nested callouts/quotes, list/code/table/raw-HTML callout bodies, multiple container children, duplicates, nested containers, stale source, invalid indentation, and unmappable forms remain source-only by design.
+  - Intentionally changed callouts normalize quote markers and paragraph separators to deterministic valid Markdown; untouched callout bytes remain exact.
+  - Final callout density, marker/header treatment, nested hierarchy, focus flow, fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, deep narrow wrapping, and constrained layout are queued in `docs/internal/BACKLOG.md`.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Issue-scoped implementation/status commit pending after closeout validation.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0069`. The next unblocked must-have candidate is a separately promoted safe raw-HTML/arbitrary nested-block footnote slice, subject to fresh parser/security feasibility proof.

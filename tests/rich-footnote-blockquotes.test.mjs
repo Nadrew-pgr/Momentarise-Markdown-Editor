@@ -8,10 +8,11 @@ const source = await readFile("fixtures/029-blockquote-footnote-editing/input.md
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
 
-assertEqual(definitions.length, 3, "safe top-level, ordered-item, and task-item quotes must be editable");
+assertEqual(definitions.length, 4, "safe top-level, ordered-item, task-item quotes, and callout must be editable");
 const topDefinition = definitions.find((node) => node.attrs.identifier === "quote-top");
 const listDefinition = definitions.find((node) => node.attrs.identifier === "quote-list");
 const taskDefinition = definitions.find((node) => node.attrs.identifier === "quote-task");
+const calloutDefinition = definitions.find((node) => node.attrs.identifier === "callout");
 
 assertEqual(topDefinition?.child(1).type.name, "blockquote", "top-level quote is semantic");
 assertEqual(topDefinition?.child(1).childCount, 2, "top-level quote exposes both paragraphs");
@@ -31,6 +32,7 @@ assertEqual(taskItem?.type.name, "todo_item", "task quote item is semantic");
 assertEqual(taskItem?.attrs.checked, false, "task checked state remains semantic");
 assertEqual(taskItem?.attrs.loose, true, "task quote item remains loose");
 assertEqual(taskItem?.child(1).type.name, "blockquote", "task item quote is semantic");
+assertEqual(calloutDefinition?.child(1).type.name, "callout", "safe callout remains semantic");
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched blockquote document identity");
 assertNoExactSourceMetadataInDom(topDefinition);
 
@@ -99,7 +101,6 @@ for (const preserved of [
 const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block");
 for (const marker of [
   "[^nested-quote]:",
-  "[^callout]:",
   "[^quote-list-child]:",
   "[^quote-code-child]:",
   "[^quote-table-child]:",
@@ -112,7 +113,7 @@ for (const marker of [
     throw new Error(`Expected explicit source-only footnote fallback for ${marker}.`);
   }
 }
-for (const fallbackText of ["Outer quote paragraph", "Preserve callout body"]) {
+for (const fallbackText of ["Outer quote paragraph"]) {
   let rejected = false;
   try {
     rich.replaceFirstRichText(state, fallbackText, `Edited ${fallbackText}`);
