@@ -615,8 +615,8 @@ export function selectRichFootnoteDefinition(
   if (!location) {
     throw new RangeError(`Could not find editable rich footnote definition: ${options.identifier}.`);
   }
-  const from = location.position + 1;
-  const to = from + location.node.content.size;
+  const from = location.position + 2;
+  const to = location.position + location.node.nodeSize - 2;
   const selection = from < to
     ? TextSelection.create(state.editorState.doc, from, to)
     : TextSelection.near(state.editorState.doc.resolve(from));
@@ -637,12 +637,16 @@ export function replaceRichFootnoteDefinitionText(
   const text = options.text.replace(/[\r\n]+/g, " ");
   const from = location.position + 1;
   const to = from + location.node.content.size;
+  const paragraph = state.schema.nodes.paragraph!.create(
+    null,
+    text ? state.schema.text(text) : null
+  );
   let transaction = state.editorState.tr.replaceWith(
     from,
     to,
-    text ? state.schema.text(text) : Fragment.empty
+    paragraph
   );
-  transaction = transaction.setSelection(TextSelection.near(transaction.doc.resolve(from + text.length)));
+  transaction = transaction.setSelection(TextSelection.near(transaction.doc.resolve(from + text.length + 1)));
   return {
     ...state,
     editorState: state.editorState.apply(transaction)
@@ -711,7 +715,7 @@ export function insertRichFootnote(
       label: identifier,
       prefix: `[^${identifier}]: `
     },
-    text ? state.schema.text(text) : null
+    state.schema.nodes.paragraph!.create(null, text ? state.schema.text(text) : null)
   );
   let transaction = state.editorState.tr.replaceSelectionWith(reference, false);
   transaction = transaction.insert(transaction.doc.content.size, definition).scrollIntoView();
@@ -2633,7 +2637,7 @@ function proseMirrorBlockToMomentariseNode(
         nextId,
         "block",
         "footnoteDefinition",
-        [knownNode(nextId, "block", "paragraph", proseMirrorInlineChildrenToMomentariseNodes(node, nextId))],
+        proseMirrorBlockChildrenToMomentariseNodes(node, nextId),
         {
           identifier: stringAttribute(node.attrs.identifier) ?? "",
           label: stringAttribute(node.attrs.label) ?? stringAttribute(node.attrs.identifier) ?? "",
@@ -4669,12 +4673,16 @@ const richNodes: Record<string, NodeSpec> = {
       identifier: { default: "" },
       inserted: { default: false },
       label: { default: "" },
+      paragraphContinuationIndents: { default: "[]" },
+      paragraphFingerprints: { default: "[]" },
+      paragraphSeparators: { default: "[]" },
+      paragraphSources: { default: "[]" },
       prefix: { default: "" },
       sourceIdentifier: { default: null },
       sourceIdentifierFrom: { default: null },
       sourceIdentifierTo: { default: null }
     },
-    content: "inline*",
+    content: "paragraph+",
     defining: true,
     group: "block",
     parseDOM: [
@@ -4715,7 +4723,7 @@ const richNodes: Record<string, NodeSpec> = {
             "data-mme-footnote-marker-label": `[^${label}]:`
           }
         ],
-        ["span", { "data-mme-footnote-body": "true" }, 0]
+        ["div", { "data-mme-footnote-body": "true" }, 0]
       ];
     }
   },
@@ -4978,9 +4986,8 @@ function footnoteDefinitionToProseMirror(
   const identifier = stringAttribute(node.attributes?.identifier) ?? stringAttribute(node.attributes?.label);
   const label = stringAttribute(node.attributes?.label) ?? identifier;
   const normalizedIdentifier = normalizeFootnoteIdentifier(identifier ?? "");
-  const raw = rawFromRange(node, source);
-  const layout = richFootnoteDefinitionLayout(raw);
-  const paragraph = node.children?.[0];
+  const paragraphs = node.children ?? [];
+  const layout = richFootnoteDefinitionLayout(node, source);
   if (
     !identifier ||
     !label ||
@@ -4988,14 +4995,26 @@ function footnoteDefinitionToProseMirror(
     footnoteDefinitionCounts.get(normalizedIdentifier) !== 1 ||
     !layout ||
     normalizeFootnoteIdentifier(layout.sourceIdentifier) !== normalizedIdentifier ||
-    node.children?.length !== 1 ||
-    !paragraph ||
-    paragraph.kind === "opaque" ||
-    paragraph.type !== "paragraph" ||
-    !(paragraph.children ?? []).every(isRepresentableRichFootnoteInlineNode)
+    paragraphs.length === 0 ||
+    paragraphs.some(
+      (paragraph) =>
+        paragraph.kind === "opaque" ||
+        paragraph.type !== "paragraph" ||
+        !(paragraph.children ?? []).every(isRepresentableRichFootnoteInlineNode)
+    )
   ) {
     return null;
   }
+  const paragraphNodes = paragraphs.map((paragraph) => {
+    if (paragraph.kind === "opaque") {
+      throw new Error("Opaque footnote paragraphs must be rejected before rich conversion.");
+    }
+    return schema.nodes.paragraph!.create(
+      null,
+      inlineChildrenToProseMirror(paragraph.children ?? [], schema, source)
+    );
+  });
+  const raw = rawFromRange(node, source);
   const identifierOffset = raw.indexOf("[^") + 2;
   const sourceIdentifierFrom = node.sourceRange!.start.offset + identifierOffset;
   return schema.nodes.footnote_definition!.create(
@@ -5003,53 +5022,107 @@ function footnoteDefinitionToProseMirror(
       identifier,
       label,
       prefix: layout.prefix,
-      continuationIndent: layout.continuationIndent,
+      continuationIndent: layout.paragraphContinuationIndents[0] ?? "",
+      paragraphContinuationIndents: JSON.stringify(layout.paragraphContinuationIndents),
+      paragraphFingerprints: JSON.stringify(paragraphNodes.map(richFootnoteParagraphFingerprint)),
+      paragraphSeparators: JSON.stringify(layout.paragraphSeparators),
+      paragraphSources: JSON.stringify(layout.paragraphSources),
       sourceIdentifier: layout.sourceIdentifier,
       sourceIdentifierFrom,
       sourceIdentifierTo: sourceIdentifierFrom + layout.sourceIdentifier.length
     },
-    inlineChildrenToProseMirror(paragraph.children ?? [], schema, source)
+    paragraphNodes
   );
 }
 
 interface RichFootnoteDefinitionLayout {
-  readonly continuationIndent: string;
+  readonly paragraphContinuationIndents: readonly string[];
+  readonly paragraphSeparators: readonly string[];
+  readonly paragraphSources: readonly string[];
   readonly prefix: string;
   readonly sourceIdentifier: string;
 }
 
-function richFootnoteDefinitionLayout(raw: string): RichFootnoteDefinitionLayout | null {
-  const prefixMatch = raw.match(/^([ \t]{0,3}\[\^([^\]\r\n]+)\]:[ \t]*)([\s\S]*)$/);
+function richFootnoteDefinitionLayout(
+  node: KnownNode,
+  source: string
+): RichFootnoteDefinitionLayout | null {
+  const sourceRange = node.sourceRange;
+  const paragraphs = node.children ?? [];
+  if (!sourceRange || paragraphs.length === 0 || paragraphs.some((paragraph) => !paragraph.sourceRange)) {
+    return null;
+  }
+
+  const paragraphRanges = paragraphs.map((paragraph) => paragraph.sourceRange!);
+  if (
+    paragraphRanges[0]!.start.offset < sourceRange.start.offset ||
+    paragraphRanges.at(-1)!.end.offset > sourceRange.end.offset
+  ) {
+    return null;
+  }
+
+  const prefix = source.slice(sourceRange.start.offset, paragraphRanges[0]!.start.offset);
+  const prefixMatch = prefix.match(/^([ \t]{0,3}\[\^([^\]\r\n]+)\]:[ \t]*)$/);
   if (!prefixMatch) {
     return null;
   }
-  const body = prefixMatch[3] ?? "";
-  if (!/[\r\n]/.test(body)) {
-    return {
-      continuationIndent: "",
-      prefix: prefixMatch[1]!,
-      sourceIdentifier: prefixMatch[2]!
-    };
+
+  const paragraphSources = paragraphRanges.map((range) => source.slice(range.start.offset, range.end.offset));
+  const paragraphContinuationIndents = paragraphSources.map(richFootnoteParagraphContinuationIndent);
+  if (paragraphContinuationIndents.some((indent) => indent === null)) {
+    return null;
   }
 
-  const lines = body.split(/\r?\n/);
-  if (!lines[0] || lines.length < 2) {
+  const paragraphSeparators: string[] = [];
+  for (let index = 1; index < paragraphRanges.length; index += 1) {
+    const previous = paragraphRanges[index - 1]!;
+    const current = paragraphRanges[index]!;
+    const separator = source.slice(previous.end.offset, current.start.offset);
+    if (!isSafeRichFootnoteParagraphSeparator(separator)) {
+      return null;
+    }
+    paragraphSeparators.push(separator);
+  }
+
+  return {
+    paragraphContinuationIndents: paragraphContinuationIndents as readonly string[],
+    paragraphSeparators,
+    paragraphSources,
+    prefix,
+    sourceIdentifier: prefixMatch[2]!
+  };
+}
+
+function richFootnoteParagraphContinuationIndent(raw: string): string | null {
+  const lines = raw.split(/\r?\n/);
+  if (lines.length === 1) {
+    return "";
+  }
+  if (!lines[0]) {
     return null;
   }
   const continuationMatches = lines.slice(1).map((line) => line.match(/^([ \t]+)(\S[\s\S]*)$/));
   const continuationIndent = continuationMatches[0]?.[1] ?? "";
   if (
-    !continuationIndent ||
-    !/^(?: {4,}|\t+)/.test(continuationIndent) ||
+    !isSafeRichFootnoteContinuationIndent(continuationIndent) ||
     continuationMatches.some((match) => !match || match[1] !== continuationIndent)
   ) {
     return null;
   }
-  return {
-    continuationIndent,
-    prefix: prefixMatch[1]!,
-    sourceIdentifier: prefixMatch[2]!
-  };
+  return continuationIndent;
+}
+
+function isSafeRichFootnoteParagraphSeparator(value: string): boolean {
+  const match = value.match(/^(?:[ \t]*(?:\r\n|\n)){2,}([ \t]+)$/);
+  return Boolean(match && isSafeRichFootnoteContinuationIndent(match[1] ?? ""));
+}
+
+function isSafeRichFootnoteContinuationIndent(value: string): boolean {
+  return /^(?: {4,}|\t+)$/.test(value);
+}
+
+function richFootnoteParagraphFingerprint(node: ProseMirrorNode): string {
+  return JSON.stringify(node.toJSON());
 }
 
 function isRepresentableRichFootnoteInlineNode(node: MomentariseNode): boolean {
@@ -5345,9 +5418,53 @@ function serializeBlock(node: ProseMirrorNode, indentLevel: number): string {
 function serializeRichFootnoteDefinition(node: ProseMirrorNode): string {
   const prefix = stringAttribute(node.attrs.prefix) ??
     `[^${stringAttribute(node.attrs.label) ?? stringAttribute(node.attrs.identifier) ?? ""}]: `;
-  const continuationIndent = stringAttribute(node.attrs.continuationIndent) || "    ";
-  const body = serializeInline(node).replace(/\r?\n/g, `\n${continuationIndent}`);
-  return `${prefix}${body}`.trimEnd();
+  const paragraphs: ProseMirrorNode[] = [];
+  node.forEach((paragraph) => {
+    paragraphs.push(paragraph);
+  });
+  const continuationIndents = parseRichFootnoteStringArray(node.attrs.paragraphContinuationIndents);
+  const fingerprints = parseRichFootnoteStringArray(node.attrs.paragraphFingerprints);
+  const separators = parseRichFootnoteStringArray(node.attrs.paragraphSeparators);
+  const sources = parseRichFootnoteStringArray(node.attrs.paragraphSources);
+  const hasCompleteSourceLayout =
+    continuationIndents.length === paragraphs.length &&
+    fingerprints.length === paragraphs.length &&
+    sources.length === paragraphs.length &&
+    separators.length === Math.max(0, paragraphs.length - 1);
+  const parts: string[] = [];
+
+  paragraphs.forEach((paragraph, index) => {
+    const unchangedSource =
+      hasCompleteSourceLayout && fingerprints[index] === richFootnoteParagraphFingerprint(paragraph)
+        ? sources[index]
+        : null;
+    const continuationIndent =
+      (hasCompleteSourceLayout ? continuationIndents[index] : null) ||
+      (index === 0 ? stringAttribute(node.attrs.continuationIndent) : null) ||
+      "    ";
+    const body = unchangedSource ?? serializeInline(paragraph).replace(/\r?\n/g, `\n${continuationIndent}`);
+    const separator = index === 0
+      ? prefix
+      : hasCompleteSourceLayout
+        ? separators[index - 1]!
+        : "\n\n    ";
+    parts.push(`${separator}${body}`);
+  });
+
+  return parts.join("");
+}
+
+function parseRichFootnoteStringArray(value: NodeAttributeValue | undefined): readonly string[] {
+  const serialized = stringAttribute(value);
+  if (!serialized) {
+    return [];
+  }
+  try {
+    const parsed: unknown = JSON.parse(serialized);
+    return Array.isArray(parsed) && parsed.every((entry) => typeof entry === "string") ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 function serializeRichTable(node: ProseMirrorNode): string {

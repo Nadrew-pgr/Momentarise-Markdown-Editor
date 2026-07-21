@@ -200,7 +200,7 @@ Tags: `public-release`, `human-review`, `ui`, `ax`
 - MME-0057 rich footnote insertion review: review command placement and naming, deterministic generated identifiers, focus transfer between reference and definition, keyboard flow, source visibility, constrained layout, and whether identifier rename should be promoted next.
 - MME-0058 rich footnote rename review: review rename entry-point placement, identifier input/validation wording, multi-reference feedback, focus continuity, Source visibility, constrained layout, and whether complex definition editing should be promoted next.
 - MME-0059 multiline footnote review: review continuation-line presentation, definition density, edit/focus flow, fallback wording for multi-paragraph and nested definitions, Source visibility, and constrained layout.
-- MME-0060 multi-paragraph footnote review: review paragraph spacing, definition density, edit/focus flow, nested-block fallback wording, Source visibility, and constrained layout.
+- MME-0060 multi-paragraph footnote review: review paragraph spacing, definition density, edit/focus flow, nested-block fallback wording, Source visibility, constrained layout, the dominant full-editor blue focus outline, and the floating technical-diagnostics chip overlapping narrow content.
 - Future visible/UI/HITL slices in this autonomous run should be added here instead of blocking code continuation, per the 2026-07-19 human instruction to review visible work in one final block.
 
 - Visible asset upload UX and demo provider follow-up for image paste/drop, building on the promoted MME-0051 provider contract while keeping real storage host-owned. First visible upload UX slice promoted as `MME-0054`.

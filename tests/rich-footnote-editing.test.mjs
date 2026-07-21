@@ -14,7 +14,7 @@ const source = await readFile("fixtures/022-simple-footnote-editing/input.md", "
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 
 const rootTypes = topLevelNodes(state).map((node) => node.type.name);
-assertEqual(rootTypes.filter((type) => type === "footnote_definition").length, 2, "safe single-line and continuation definitions must be editable");
+assertEqual(rootTypes.filter((type) => type === "footnote_definition").length, 3, "safe single-line, continuation, and multi-paragraph definitions must be editable");
 assertEqual(countNodeType(state.editorState.doc, "footnote_reference"), 3, "footnote references must remain semantic rich nodes");
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched footnote document must remain byte-identical");
 
@@ -33,7 +33,6 @@ assertDomAttribute(reference, "data-mme-footnote-reference", "true");
 
 const fallbacks = topLevelNodes(state).filter((node) => node.type.name === "unsupported_block");
 for (const preserved of [
-  "[^multi]: First definition paragraph stays source-only.",
   "[^unsafe]: Unsafe definition keeps raw HTML",
   "[^duplicate]: First duplicate definition stays source-only.",
   "[^duplicate]: Second duplicate definition stays source-only.",
@@ -46,7 +45,7 @@ for (const preserved of [
 }
 
 const selected = rich.selectRichFootnoteDefinition(state, { identifier: "simple" });
-assertEqual(selected.editorState.selection.$from.parent.type.name, "footnote_definition", "definition helper selection parent");
+assertEqual(selected.editorState.selection.$from.parent.type.name, "paragraph", "definition helper selection parent");
 assertEqual(selected.editorState.selection.from < selected.editorState.selection.to, true, "definition helper must select body text");
 assertRangeError(
   () => rich.selectRichFootnoteDefinition(state, { identifier: "missing" }),

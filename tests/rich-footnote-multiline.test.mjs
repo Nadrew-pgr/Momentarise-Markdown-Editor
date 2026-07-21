@@ -8,7 +8,7 @@ const { TextSelection } = await import("prosemirror-state");
 const source = await readFile("fixtures/023-multiline-footnote-editing/input.md", "utf8");
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
-assertEqual(definitions.length, 1, "one safe continuation definition must be editable");
+assertEqual(definitions.length, 2, "safe continuation and multi-paragraph definitions must be editable");
 assertEqual(definitions[0]?.attrs.identifier, "long", "continuation definition identifier");
 assertEqual(definitions[0]?.attrs.continuationIndent, "    ", "continuation indentation metadata");
 assertIncludes(definitions[0]?.textContent ?? "", "First definition line stays.\nSecond definition line", "logical multiline body");
@@ -29,7 +29,7 @@ for (const preserved of [
 }
 
 const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block");
-for (const preserved of ["[^multi]:", "[^nested]:", "[^unsafe]:"]) {
+for (const preserved of ["[^nested]:", "[^unsafe]:"]) {
   if (!fallbacks.some((node) => String(node.attrs.raw ?? "").includes(preserved))) {
     throw new Error(`Expected source-only fallback for ${preserved}.`);
   }

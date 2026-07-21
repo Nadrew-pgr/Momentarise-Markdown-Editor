@@ -24,7 +24,7 @@ updated: 2026-07-21
 - input rules;
 - list and todo editing;
 - standard GFM table editing and cell navigation;
-- GFM footnote definition editing, including safe continuation lines;
+- GFM footnote definition editing, including safe continuation lines and plain multi-paragraph bodies;
 - collision-safe GFM footnote insertion;
 - exact identifier rename across one definition and its references;
 - folding;
@@ -45,11 +45,11 @@ Nested, malformed, non-standard, or non-representable table-like syntax stays in
 
 ## Footnote Editing
 
-Unique top-level GFM definitions with representable inline content mount as semantic editable blocks. Supported definitions can be single-line or one paragraph continued across consistently indented source lines. Their references remain semantic inline nodes and retain their original Markdown spelling.
+Unique top-level GFM definitions with representable inline content mount as semantic editable blocks. Supported definitions can be single-line, one paragraph continued across consistently indented source lines, or multiple plain paragraphs separated by valid indented blank-line structure. Their references remain semantic inline nodes and retain their original Markdown spelling.
 
 Hosts can use `selectRichFootnoteDefinition` to select an existing body by identifier, `replaceRichFootnoteDefinitionText` to replace it with single-line text, `insertRichFootnote` to insert one reference plus its matching definition in a single history action, and `renameRichFootnoteIdentifier` to rename one definition plus every matching semantic reference. Changed, inserted, and renamed definitions serialize through exact source mappings; unrelated Markdown and line endings remain untouched.
 
-Insertion allocates collision-safe identifiers, accepts an explicit unused identifier, and refuses non-collapsed or unsupported selections, non-representable bodies, and stale source mappings. Rename refuses collisions, duplicates, unsafe identifiers, partially mapped references, and stale source mappings without mutating the document. Multi-paragraph, nested, duplicate, malformed, unsafe, inconsistently indented, or otherwise non-representable definitions stay in the visible source-only fallback.
+Insertion allocates collision-safe identifiers, accepts an explicit unused identifier, and refuses non-collapsed or unsupported selections, non-representable bodies, and stale source mappings. Rename refuses collisions, duplicates, unsafe identifiers, partially mapped references, and stale source mappings without mutating the document. Editing one supported paragraph preserves untouched sibling paragraph source exactly. Nested-block, nested-container, duplicate, malformed, unsafe, inconsistently indented, or otherwise non-representable definitions stay in the visible source-only fallback.
 
 ## Related Docs
 

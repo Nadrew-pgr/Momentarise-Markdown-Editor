@@ -5872,7 +5872,8 @@
   - `npm run visual:mme-0056` — sandbox Chrome first aborted with `SIGABRT`; permissioned local Chrome reruns passed and refreshed all three artifacts after visual fixes.
   - `npm test` — green after final implementation/reviewer fixes; existing Vite chunk-size warning only.
   - `curl -I http://127.0.0.1:5174/` — `HTTP/1.1 200 OK`.
-  - `git diff --check` — pending immediately before commit.
+  - `curl -I http://127.0.0.1:5174/` — `HTTP/1.1 200 OK`; the live demo remains available.
+  - `npm run test:alignment`, `node scripts/docs-lint.mjs`, and `git diff --check` — green immediately before commit.
 - Reviewer result:
   - Architecture/security reviewer `Gibbs`, preservation/test reviewer `Kuhn`, and UX/accessibility reviewer `Hooke` used `gpt-5.3-codex-spark` with `xhigh` reasoning and edited no source.
   - Builder fixed the parser/rich whitespace-normalization mismatch, incorrect prefix-regex capture validation, weak outside-range assertion, missing post-undo save proof, and top-level-only duplicate count immediately.
@@ -6117,3 +6118,51 @@
   - `npm run test:alignment`, `node scripts/docs-lint.mjs`, and `git diff --check` — green before checkpoint commit.
 - Next issue:
   - `MME-0060 — Rich multi-paragraph GFM footnote definition editing baseline`.
+
+## MME-0060 — Rich multi-paragraph GFM footnote definition editing baseline
+
+- Date: 2026-07-21.
+- Previous issue status:
+  - `MME-0059` accepted for code continuation and committed (`7418d8e` implementation/status, `e88674a` evidence).
+  - `MME-0060` was promoted from backlog and committed in checkpoint `3e145ee`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, clean `git status --short`, and every parser/model/editor/rich/demo/fixture/test/save file named by the issue.
+- RED proof before implementation:
+  - Added `fixtures/024-multiparagraph-footnote-editing/` and `tests/rich-footnote-multiparagraph.test.mjs`, registered `test:rich-footnote-multiparagraph`, and confirmed the first run failed because the safe definition remained source-only: `expected 1, got 0`.
+- Change:
+  - Package-owned `footnote_definition` nodes now contain one or more ProseMirror paragraph children instead of flat inline content, keeping existing single-line and continuation definitions compatible while enabling plain multi-paragraph bodies.
+  - Eligibility remains conservative: one unique safe top-level definition; only known paragraph children; representable safe inline content; exact marker prefix and source ranges; valid four-or-more-space or tab continuation indentation; valid blank-line paragraph separators.
+  - Stored internal paragraph fingerprints, exact source fragments, separators, and continuation indents let targeted reconstruction preserve unchanged sibling paragraphs byte-for-byte while canonically serializing only the edited paragraph inside the bounded definition range.
+  - Exact-source metadata stays in ProseMirror state only and is deliberately omitted from rendered DOM/clipboard attributes; reparsed DOM uses canonical safe fallback metadata.
+  - Nested lists, container-nested definitions, raw HTML, duplicate, malformed, stale, and unmappable definitions remain explicit source-only fallbacks and reject rename/mutation without partial state changes.
+  - Selection, whole-body replacement, insertion, identifier rename, semantic references, one-step history, CRLF/five-space indentation, and Save Engine/autosave truth remain compatible.
+  - Added paragraph spacing for the semantic definition body, fixture 024, focused and legacy-regression tests, minimal package/public docs truth, regenerated `llms-full.txt`, and regenerated AX manifests/actions.
+- Visual impact:
+  - Supported plain multi-paragraph definitions render as one labeled semantic Rich block with visible paragraph rhythm; nested-block, nested-container, and unsafe forms stay visibly source-only.
+  - Artifacts: `docs/internal/visual-checks/MME-0060/footnote-multiparagraph-rich-desktop.png`, `footnote-multiparagraph-edited-desktop.png`, `footnote-multiparagraph-source-desktop.png`, and `footnote-multiparagraph-constrained.png`.
+  - Permissioned headless Chrome proof loads the real fixture, verifies three paragraph children and three fallbacks, edits paragraph two, proves exact Markdown identity, performs undo/redo, saves to clean disk truth, switches to Source, and verifies 390px nonblank containment.
+  - Builder inspected all four captures. Feature content is readable and contained. Existing dominant full-editor focus outline plus technical-diagnostics overlap at narrow width are recorded in the final human review queue rather than expanded into this serializer issue.
+- Checks run:
+  - `npm run test:rich-footnote-multiparagraph` — RED first, then green after implementation and fallback-review hardening.
+  - `npm run test:rich-footnote-editing`, `npm run test:rich-footnote-insertion`, `npm run test:rich-footnote-rename`, `npm run test:rich-footnote-multiline`, and `npm run test:rich-targeted-serialization` — green after intentional legacy expectation updates.
+  - `npm run test:rich-security`, `npm run test:rich-prosemirror`, `npm run test:rich-fidelity`, `npm run test:rich-core-interactions`, `npm run test:rich-commands`, `npm run test:demo-rich`, `npm run test:demo-rich-ux`, and `npm run test:public-api` — green.
+  - `npm run test:docs`, `npm run test:llms-sync`, and `npm run test:agent-artifacts` — green after generated artifact refresh.
+  - `npm run visual:mme-0060` — sandbox Chrome first exited before CDP; permissioned local Chrome passed and captured all four required states.
+  - `npm test` — green end-to-end on final code, including architecture, security, preservation, full footnote regressions, performance 10/10, docs/Next.js, AX artifacts, packages, demo, adapters, and builds; existing Vite chunk-size warning only.
+  - `git diff --check` — pending immediately before commit.
+- Reviewer result:
+  - Architecture/preservation and test/security inspect-only reviewers were requested with `gpt-5.3-codex-spark` and `xhigh` reasoning as required. Both hit the Spark usage limit until 2026-07-26 and returned no findings; no substitute code-review model was used.
+  - Documented fallback self-review covered schema integrity, source-layout mapping, exact sibling preservation, CRLF/indentation, nested/unsafe refusal, history/save truth, DOM security/privacy, package boundaries, docs/API truth, and browser assertions.
+  - Fallback review found one source-metadata exposure risk: exact paragraph sources were initially emitted as DOM data attributes. Builder removed those attributes so metadata remains internal to editor state, reran focused/security/full tests, and found no remaining P0-P3 issue.
+- Residual risks:
+  - Nested-list, blockquote, code-block, table, callout, raw-HTML, container-nested, duplicate, malformed, and other arbitrary block definitions remain source-only by design.
+  - Editing a paragraph canonically serializes that changed paragraph; untouched sibling paragraphs retain exact stored source. Structural paragraph-count changes remain bounded to the definition but may canonically reconstruct that complete definition.
+  - Exact paragraph source/fingerprint metadata adds bounded ProseMirror-state memory proportional to supported footnote definition size; the 10k-line performance suite remains green.
+  - Final paragraph spacing, definition density, fallback wording, focus treatment, Source visibility, full-editor focus outline, technical-diagnostics placement, and constrained-layout taste are queued in `docs/internal/BACKLOG.md`.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Issue-scoped implementation/status commit pending.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0060`; continuation requires promoting the next must-have backlog item before implementation.

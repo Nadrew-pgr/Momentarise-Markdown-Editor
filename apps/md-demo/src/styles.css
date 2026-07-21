@@ -1797,7 +1797,7 @@ h1 {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 8px;
-  align-items: baseline;
+  align-items: start;
   margin: 0 0 0.62em;
   padding: 8px 10px;
   border-left: 2px solid var(--mme-color-border-strong);
@@ -1825,6 +1825,14 @@ h1 {
   min-width: 0;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+.ProseMirror [data-mme-footnote-body="true"] > p {
+  margin: 0 0 0.58em;
+}
+
+.ProseMirror [data-mme-footnote-body="true"] > p:last-child {
+  margin-bottom: 0;
 }
 
 .ProseMirror [data-mme-preserved-footnote="true"] {
