@@ -6231,7 +6231,7 @@
   - Final list indentation, marker density, item editing/selection flow, definition spacing, fallback wording, Source visibility, full-editor focus outline, technical-diagnostics placement, and constrained layout are queued in `docs/internal/BACKLOG.md`.
   - Existing demo bundle-size warning remains outside this issue.
 - Commit status:
-  - Pending issue-scoped implementation/status commit after final diff checks.
+  - Issue-scoped implementation/status commit created: `d3f6b74` (`feat: add rich list-block footnote editing`).
 - Push status:
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
