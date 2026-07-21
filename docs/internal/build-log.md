@@ -6639,3 +6639,28 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0067`. The next unblocked must-have candidate is a separately promoted safe nested-table footnote editing slice; callout and raw-HTML children remain later conservative splits.
+
+## Backlog promotion checkpoint — MME-0068
+
+- Date: 2026-07-21.
+- Context:
+  - `MME-0067` is accepted for code continuation and committed (`a3cb41b` implementation/status, `c72dd8a` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0067.
+  - Andrew instructed autonomous continuation, must-haves first, strict issue formatting, issue-scoped commits, no docs-content work in this agent, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Feasibility proof:
+  - Direct local parser probes confirm safe GFM tables inside top-level footnote definitions and standard/task list items map to rectangular `table`/`tableRow`/`tableCell` nodes with exact nested source ranges and parser-owned alignment semantics.
+  - Existing `@momentarise/md-rich-prosemirror` table nodes, `prosemirror-tables` behavior, deterministic GFM table serializer, footnote child layouts/fingerprints, bounded list/task reconstruction, and Save Engine path can carry the slice without core/parser/public-contract changes.
+- Change:
+  - Promoted `MME-0068 — Rich table GFM footnote definition editing baseline` from the next explicit footnote/core-block gap into normal issue form.
+  - Bounded the slice to safe rectangular tables as top-level definition children or one container child inside safe standard/task list items.
+  - Required exact untouched bytes, bounded changed-child reconstruction, valid deterministic GFM output, same-shape reparse, reusable table keyboard behavior, truthful history/save state, and conservative whole-definition fallback for quote-contained, mixed-container, malformed/non-rectangular, unsafe, stale, invalid-indent, raw-HTML/callout, and arbitrary-child forms.
+  - Updated `README.md` current slice plus `docs/internal/BACKLOG.md` promotion tracking.
+- Rationale:
+  - Table blocks are the next explicit footnote/core-block backlog item after indented code.
+  - Parser feasibility and existing table/footnote infrastructure provide a bounded package-owned path without weakening Markdown durability.
+- Checks run:
+  - Direct `@momentarise/md-format` parser probes for top-level, ordered-list, and task-list table definitions — green with exact nested source ranges and expected semantic hierarchy.
+  - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0068" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before checkpoint commit.
+- Next issue:
+  - `MME-0068 — Rich table GFM footnote definition editing baseline`.

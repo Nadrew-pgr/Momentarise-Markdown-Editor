@@ -37,7 +37,7 @@ Tags: `baseline/hygiene`, `markdown`, `navigation`, `round-trip`
 - Support backlink navigation in rendered views.
 - Keep source mode fallback for editing unusual footnote syntax.
 - Future rich editing should include insertion and edit affordances without hiding the Markdown source model.
-- First rich editing slice for existing simple definitions promoted as `MME-0056`; new footnote insertion is promoted as `MME-0057`; identifier rename is promoted as `MME-0058`; top-level continuation-line editing is promoted as `MME-0059`; top-level multi-paragraph editing is promoted as `MME-0060`; standard list-block editing is promoted as `MME-0061`; nested standard list editing is promoted as `MME-0062`; task-list editing is promoted as `MME-0063`; loose/list-spread and multi-paragraph list items are promoted as `MME-0064`; safe paragraph-only blockquotes are promoted as `MME-0065`; safe fenced code blocks are promoted as `MME-0066`; safe indented code blocks are promoted as `MME-0067`; table, callout, raw-HTML, and other arbitrary nested blocks remain backlog.
+- First rich editing slice for existing simple definitions promoted as `MME-0056`; new footnote insertion is promoted as `MME-0057`; identifier rename is promoted as `MME-0058`; top-level continuation-line editing is promoted as `MME-0059`; top-level multi-paragraph editing is promoted as `MME-0060`; standard list-block editing is promoted as `MME-0061`; nested standard list editing is promoted as `MME-0062`; task-list editing is promoted as `MME-0063`; loose/list-spread and multi-paragraph list items are promoted as `MME-0064`; safe paragraph-only blockquotes are promoted as `MME-0065`; safe fenced code blocks are promoted as `MME-0066`; safe indented code blocks are promoted as `MME-0067`; safe table blocks are promoted as `MME-0068`; callout, raw-HTML, and other arbitrary nested blocks remain backlog.
 - Tests must include real footnote fixtures and parser/source/rich round-trip proof before claiming coverage.
 
 ### Core Markdown Blocks
@@ -286,6 +286,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - `MME-0065 — Rich blockquote GFM footnote definition editing baseline`.
 - `MME-0066 — Rich fenced-code GFM footnote definition editing baseline`.
 - `MME-0067 — Rich indented-code GFM footnote definition editing baseline`.
+- `MME-0068 — Rich table GFM footnote definition editing baseline`.
 
 - Editor live preview parity.
 - Toolbar/slash/menu final UX.
@@ -296,9 +297,9 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - Payload CMS plugin/integration.
 - Document status/save truth UI.
 - Footnotes/endnotes preservation, rendering, backlink navigation, and editing UX.
-- First rich footnote definition editing baseline promoted as `MME-0056`; insertion is promoted as `MME-0057`; identifier rename is promoted as `MME-0058`; top-level continuation-line editing is promoted as `MME-0059`; top-level multi-paragraph editing is promoted as `MME-0060`; standard list-block editing is promoted as `MME-0061`; nested standard lists are promoted as `MME-0062`; task lists are promoted as `MME-0063`; loose/list-spread and multi-paragraph list items are promoted as `MME-0064`; safe paragraph-only blockquotes are promoted as `MME-0065`; safe fenced code blocks are promoted as `MME-0066`; safe indented code blocks are promoted as `MME-0067`; table, callout, raw-HTML, and other arbitrary nested blocks remain future splits.
+- First rich footnote definition editing baseline promoted as `MME-0056`; insertion is promoted as `MME-0057`; identifier rename is promoted as `MME-0058`; top-level continuation-line editing is promoted as `MME-0059`; top-level multi-paragraph editing is promoted as `MME-0060`; standard list-block editing is promoted as `MME-0061`; nested standard lists are promoted as `MME-0062`; task lists are promoted as `MME-0063`; loose/list-spread and multi-paragraph list items are promoted as `MME-0064`; safe paragraph-only blockquotes are promoted as `MME-0065`; safe fenced code blocks are promoted as `MME-0066`; safe indented code blocks are promoted as `MME-0067`; safe table blocks are promoted as `MME-0068`; callout, raw-HTML, and other arbitrary nested blocks remain future splits.
 - Table rendering and first rich table editing baseline promoted as `MME-0040` and `MME-0055`; advanced spreadsheet-like table UX remains backlog.
-- Nested GFM table rich editing after nested-range serialization can replace only table bytes inside blockquotes/lists; MME-0055 keeps these tables source-only instead of rewriting container syntax.
+- Nested GFM table rich editing requires container-specific bounded serialization. MME-0068 covers the safe footnote-definition and standard/task-list subset; blockquote-contained and other generic nested tables remain source-only instead of rewriting container syntax.
 - Inline slash AI prompt surface.
 - LiteLLM / OpenAI-compatible AI provider adapter.
 - Dedicated issue promoted: `MME-0028.5 — Inline AI prompt surface and usable writing flow`.

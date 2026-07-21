@@ -4042,6 +4042,90 @@ Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer.
 
 - None. MME-0066 established source-aware fenced-code discrimination, inert rich code nodes, collision-safe serialization, safe list/task containment, bounded reconstruction, history/save truth, and browser proof; parser feasibility confirms indented code already arrives as a source-ranged plain-text code node without widening the public model contract.
 
+## MME-0068 — Rich table GFM footnote definition editing baseline
+
+### Goal
+
+Let users edit safely representable GFM pipe tables inside unique top-level footnote definitions, including one table child inside a safe standard or task list item, while preserving table semantics, hierarchy, unrelated Markdown, source-only fallbacks, history, and save truth.
+
+### Scope
+
+- Extend safe semantic footnote definition children to accept rectangular parser-recognized GFM tables whose cells are already representable by the existing rich table model.
+- Allow one safe table as the single container child after the required first paragraph in a standard or task list item; additional safe paragraphs remain allowed around it.
+- Support top-level definition tables plus tables nested inside recursively safe bullet/ordered standard/task items without admitting arbitrary block children.
+- Reuse the existing ProseMirror table, row, header-cell, body-cell, alignment, navigation, selection, and final-row behavior from MME-0055; do not create a second table implementation.
+- Preserve untouched table bytes, definition identifier, first-line prefix, outer footnote/list indentation, line endings, unchanged sibling definition-child bytes, references, unknown syntax, and unrelated document bytes.
+- Reconstruct only the containing top-level definition child or list child when a table changes; emit deterministic valid GFM pipe-table Markdown and require reparsing to the same paragraph/table/list/task hierarchy.
+- Preserve table shape and alignment semantics plus representable inline cell content; reject non-rectangular, malformed, unsafe, stale, or unmappable table structures atomically.
+- Keep simple, continuation-line, top-level multi-paragraph, tight/loose standard/task list, nested-list, blockquote, fenced-code, indented-code, insertion, whole-body replacement, definition selection, semantic references, identifier rename, and top-level table behavior compatible.
+- Keep quote-contained tables, list items combining a table with another container child, callouts, raw HTML, and other arbitrary block children source-only.
+- Keep container-nested definitions, duplicates, malformed definitions, unsafe content, invalid/inconsistent outer indentation, stale source, and unmappable ranges in explicit whole-definition source-only fallback.
+- Treat one cell edit, cell navigation, or Markdown-safe final-row insertion through established table commands as truthful ProseMirror history and Save Engine state.
+- Add runtime browser proof for top-level and list/task-nested table editing, keyboard navigation, undo/redo, exact Source output, save truth, unsupported fallback visibility, horizontal overflow, and constrained-width containment.
+- Queue final table-in-footnote product/taste review for Andrew's end-of-run human review block.
+
+### Acceptance criteria
+
+- Unique top-level definitions containing safe rectangular GFM tables, including one table child inside safe standard/task list items, mount as semantic editable Rich definitions.
+- Untouched supported definitions serialize byte-for-byte; source/layout state remains package-owned and exact source/fingerprint metadata remains absent from rendered DOM attributes.
+- Editing one cell reconstructs only its bounded containing definition child or list child; unchanged definition children and unrelated source ranges remain byte-identical.
+- Reconstructed Markdown remains a valid rectangular GFM table, retains alignment semantics, representable inline content, standard/task hierarchy, checked state, ordered starts, list looseness, definition prefix spelling/spacing, outer indentation, and LF/CRLF convention, and reparses to the same semantic shape.
+- Existing table selection, Tab/Shift+Tab navigation, and final-cell row behavior remain reusable inside supported definitions without creating invalid Markdown or false dirty state.
+- One undo reverts one table edit; redo restores it; saving persists exactly the Source Markdown shown by the editor.
+- Existing footnote and top-level table tests remain green; unsupported quote-contained, mixed-container, malformed/non-rectangular, raw-HTML/callout/arbitrary-child, duplicate, unsafe, stale, invalid-indent, or unmappable definitions remain source-only and never receive partial edits.
+- Schema, eligibility, serializer, table commands, and source mapping stay inside `@momentarise/md-rich-prosemirror`, remain host-independent, and pass API/architecture/security gates.
+- Browser verification captures supported Rich tables before/after changes, exact resulting Source, one unsupported fallback, desktop horizontal reachability, and constrained-width states.
+- `docs/internal/build-log.md` records RED/GREEN evidence, visual impact, reviewer or fallback result, tests, residual risks, commit, push status, and next issue.
+
+### Test-first plan
+
+- RED: add a real table-footnote fixture and focused test that fails because safe table definitions remain source-only.
+- RED: prove top-level and list/task-nested table semantics, cell edits, alignment/shape retention, exact sibling-child preservation, ordered starts, loose spacing, LF/CRLF, one-step undo/redo, save truth, and no full-document rewrite.
+- RED: prove changed output reparses to the same paragraph/table/list/task hierarchy and established selection/navigation/final-row behavior works inside definitions.
+- RED: prove quote-contained tables, mixed table-plus-list/quote/code items, malformed/non-rectangular tables, callouts, raw HTML, nested containers, duplicates, unsafe, stale, invalid-indent, and unmappable forms refuse atomically.
+- RED: prove prior footnote definition, insertion, rename, multiline, multi-paragraph, list, nested-list, task-list, loose-list, blockquote, fenced-code, indented-code, and top-level table behavior remains compatible.
+- RED: add browser/runtime assertions for cell editing/navigation, Source output, fallback visibility, save truth, horizontal reachability, and constrained containment.
+- GREEN: generalize only safe table eligibility/conversion plus bounded table serialization, reusing existing table nodes, parser source ranges, child fingerprints, loose-list state, and footnote materialization.
+- REFACTOR: centralize table conversion/fingerprinting for top-level and footnote use without exposing source bytes through DOM or broadening arbitrary block support.
+
+### Manual verification
+
+- Start the reference demo with supported top-level/list/task table definitions plus quote-contained/mixed-container unsupported definitions.
+- Edit cells in Rich mode, navigate with Tab/Shift+Tab, undo/redo, save, then switch to Source and inspect exact valid nested GFM Markdown plus clean state.
+- Confirm unsupported definitions remain visibly source-only, verify horizontal table reachability, then repeat at constrained width and capture artifacts under `docs/internal/visual-checks/MME-0068/`.
+
+### Visual impact
+
+Supported GFM tables become semantic Rich table content inside footnote definitions and safe list/task items. Unsupported quote-contained, malformed, mixed-container, and arbitrary children remain explicit preserved-source fallbacks. Final density, nested hierarchy, cell focus, keyboard feel, fallback wording, horizontal overflow, and constrained-layout taste review remain queued for Andrew's end-of-run review block.
+
+### Implementation notes
+
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-editor/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-rich-prosemirror/package.json`, `packages/md-surface/src/index.ts`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `fixtures/004-gfm-table`, `fixtures/019-gfm-table-variants`, `fixtures/020-gfm-footnotes`, `fixtures/022-simple-footnote-editing`, `fixtures/025-list-block-footnote-editing`, `fixtures/026-nested-list-footnote-editing`, `fixtures/027-task-list-footnote-editing`, `fixtures/028-loose-list-footnote-editing`, `fixtures/029-blockquote-footnote-editing`, `fixtures/030-fenced-code-footnote-editing`, `fixtures/031-indented-code-footnote-editing`, `tests/parser-foundation.test.mjs`, `tests/rich-table-editing.test.mjs`, `tests/rich-prosemirror-package.test.mjs`, `tests/rich-commands.test.mjs`, `tests/rich-core-interactions.test.mjs`, every `tests/rich-footnote-*.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/save-engine.test.mjs`, `scripts/visual-check-mme0067.mjs`, and the MME-0055 through MME-0067 build-log/visual artifacts.
+
+Reuse the existing table ProseMirror nodes, `prosemirror-tables` behavior, parser-owned table/row/cell ranges and alignments, semantic footnote references/definitions, exact top-level definition-child source layout, child fingerprints, source-derived loose state, targeted source materialization, and conservative eligibility checks. Keep nested-table eligibility and reconstruction inside `@momentarise/md-rich-prosemirror`; do not add ProseMirror concepts to core/model/save/policy packages. Preserve untouched table bytes exactly and normalize only intentionally changed table content to deterministic valid GFM Markdown.
+
+### Out of scope
+
+- Quote-contained tables, multiple container children per list item, callouts, raw HTML, malformed/non-rectangular tables, or generic arbitrary-block editing inside footnotes.
+- Table creation commands, row/column menus, alignment UI, merged cells, resizing, formulas, sorting/filtering, CSV/spreadsheet paste, drag reordering, structural footnote block insertion/deletion/reordering, or original pipe-spacing preservation for intentionally changed tables.
+- Container-nested definitions, definition reorder, missing-reference repair, hover previews, backlink redesign, polished footnote dialogs, task DOM redesign, top-level table UX redesign, or docs-content construction.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible table-in-footnote UX/product review is queued for the end-of-run human review block unless table range/hierarchy preservation remains unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer.
+
+### Blocked by
+
+- None. MME-0055 established the rich table model, Markdown-safe serializer, navigation, final-row behavior, and targeted table serialization; MME-0061 through MME-0067 established safe footnote/list/task child mapping, exact child-source retention, bounded reconstruction, history/save truth, and browser proof. Direct parser feasibility confirms top-level/list/task tables expose exact nested source ranges without widening public model contracts.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.
