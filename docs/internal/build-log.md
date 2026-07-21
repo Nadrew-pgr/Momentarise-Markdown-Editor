@@ -6710,3 +6710,29 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0068`. The next unblocked must-have candidate is a separately promoted safe callout-footnote editing slice; raw-HTML and other arbitrary nested blocks remain later conservative splits.
+
+## Backlog promotion checkpoint — MME-0069
+
+- Date: 2026-07-21.
+- Context:
+  - `MME-0068` is accepted for code continuation and committed (`f1fd75f` implementation/status, `68d5b45` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0068.
+  - Andrew instructed autonomous continuation, must-haves first, strict issue formatting, issue-scoped commits, no docs-content work in this agent, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Feasibility proof:
+  - Direct `@momentarise/md-format` probes confirm Obsidian callouts inside top-level footnote definitions and ordered/task list items remain exact source-ranged `blockquote` model nodes.
+  - Safe marker type, optional fold marker, plain title, paragraph body, container indentation, and child hierarchy are recoverable from parser-owned source ranges without changing core/parser/public contracts.
+  - Existing rich blockquote nodes, exact footnote child layouts/fingerprints, standard/task list reconstruction, targeted source materialization, history, and Save Engine paths can carry a dedicated package-owned semantic callout node.
+- Change:
+  - Promoted `MME-0069 — Rich Obsidian callout footnote definition editing baseline` into normal issue form.
+  - Bounded the slice to paragraph-only callout bodies at top-level definition depth or as one container child inside safe standard/task list items.
+  - Required semantic non-editable type/title/fold header plus editable body, exact untouched bytes, bounded changed-child reconstruction, same-shape reparse, truthful history/save state, accessible/tokenized browser proof, and conservative whole-definition fallback for marker-only, malformed, nested, arbitrary-child, mixed-container, raw-HTML, duplicate, unsafe, stale, invalid-indent, and unmappable forms.
+  - Updated `README.md` current slice and `docs/internal/BACKLOG.md` promotion tracking.
+- Rationale:
+  - Callouts are the next explicit footnote/core-block backlog item after safe tables and are a named rich V0 subset when feasible.
+  - Parser/source-range feasibility gives a bounded derived-view path; raw HTML remains a later higher-risk split.
+- Checks run:
+  - Direct parser probes for top-level, ordered-list, and task-list callout definitions — green with exact nested source ranges, marker/fold/title text, and expected hierarchy.
+  - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0069" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before checkpoint commit.
+- Next issue:
+  - `MME-0069 — Rich Obsidian callout footnote definition editing baseline`.

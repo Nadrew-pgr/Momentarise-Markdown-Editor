@@ -4128,6 +4128,88 @@ Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer.
 
 Accepted for code continuation 2026-07-21 after adding semantic top-level and standard/task-list table children to unique safe footnote definitions, recursive reuse of established table selection/navigation/final-row commands, exact untouched-source retention, bounded deterministic table or list-child reconstruction, alignment/shape/ordered-start/task-state/prefix/indent/LF/CRLF preservation, conservative quote/mixed-container/malformed/unsafe/duplicate/stale/unmappable refusal, truthful history/save state, package docs, real browser proof, fallback review, and full test pass. The requested exact `gpt-5.3-codex-spark` reviewer at `xhigh` reasoning hit its usage limit until 2026-07-26 and no substitute model was used; documented fallback review found and fixed missing root-CI registration for the focused test, then found no remaining P0-P3 issue. Final table density, hierarchy, keyboard feel, focus treatment, changed-table normalization, fallback wording, Source visibility, horizontal reachability, full-editor focus outline, diagnostics-chip placement, and constrained-layout taste remain queued for Andrew's end-of-run review block. No executable normal issue remains after MME-0068 until the next backlog item is promoted.
 
+## MME-0069 — Rich Obsidian callout footnote definition editing baseline
+
+### Goal
+
+Let users edit safely representable paragraph-only Obsidian callout bodies inside unique top-level footnote definitions, including one callout child inside a safe standard or task list item, while keeping callout type/title/fold semantics, Markdown source, hierarchy, unsupported fallbacks, history, and save truth intact.
+
+### Scope
+
+- Add a package-owned semantic ProseMirror callout node for safe Obsidian-style `> [!TYPE]` blocks inside Rich footnote definitions; do not change the public core model or parser AST contract.
+- Recognize callouts only from exact source-ranged blockquotes with one safe marker line, a safe type token, optional `+`/`-` fold marker, an optional plain title, and one or more paragraph-only body lines/paragraphs.
+- Render the type/title/fold header as non-editable semantic callout chrome while keeping body paragraphs editable and keyboard reachable; title/type/fold controls remain a later slice.
+- Support top-level definition callouts plus one callout as the single container child after the required first paragraph in recursively safe bullet/ordered standard/task items; additional safe paragraphs remain allowed around it.
+- Preserve untouched callout bytes, marker spelling/case, fold marker, title, quote spacing, definition identifier/prefix, outer footnote/list indentation, line endings, unchanged sibling definition-child bytes, references, unknown syntax, and unrelated document bytes.
+- Reconstruct only the bounded containing callout child or top-level list child when callout body text changes; emit deterministic valid Obsidian callout Markdown and require reparsing to the same paragraph/callout/list/task hierarchy.
+- Keep plain paragraph-only blockquotes, fenced/indented code, tables, lists/tasks, simple/multiline/multi-paragraph definitions, insertion, whole-body replacement, definition selection, semantic references, identifier rename, history, and Save Engine behavior compatible.
+- Keep marker-only callouts, unsafe/malformed type/title/fold syntax, nested callouts/quotes, callouts containing lists/code/tables/raw HTML, mixed multiple-container list items, raw HTML, and arbitrary block children source-only.
+- Keep container-nested definitions, duplicates, malformed definitions, unsafe content, invalid/inconsistent outer indentation, stale source, and unmappable ranges in explicit whole-definition source-only fallback.
+- Add runtime browser proof for supported top-level/list/task callout body editing, semantic header/accessibility, undo/redo, exact Source output, save truth, unsupported fallback visibility, and constrained-width containment.
+- Queue final callout-in-footnote product/taste review for Andrew's end-of-run human review block.
+
+### Acceptance criteria
+
+- Unique top-level definitions containing safe paragraph-only Obsidian callouts, including one callout child inside safe standard/task list items, mount as semantic editable Rich definitions.
+- Callout type, optional plain title, and optional fold marker are represented as package-owned semantic node attributes and visible non-editable header content; body paragraphs remain editable without exposing exact source/fingerprint metadata through rendered DOM attributes.
+- Untouched supported definitions serialize byte-for-byte. Editing one body paragraph reconstructs only its bounded callout or containing list child; unchanged definition children and unrelated source ranges remain byte-identical.
+- Reconstructed Markdown retains valid `> [!TYPE]` syntax, fold state, title, paragraph boundaries, representable inline body content, standard/task hierarchy, checked state, ordered starts, list looseness, definition prefix spelling/spacing, outer indentation, and LF/CRLF convention, and reparses to the same semantic shape.
+- One undo reverts one callout-body edit; redo restores it; saving persists exactly the Source Markdown shown by the editor.
+- Existing plain blockquote and every prior footnote/table/code regression remain green; unsupported nested/arbitrary/malformed/unsafe/duplicate/stale/invalid-indent/unmappable callouts remain whole source-only and never receive partial edits.
+- Schema, callout-source recognition, eligibility, conversion, serializer, and source mapping stay inside `@momentarise/md-rich-prosemirror`, remain host-independent, and pass API/architecture/security gates.
+- Semantic callout DOM has an appropriate labelled region/aside boundary, keeps the header out of the editing surface, uses injected/tokenized styling in the demo, and remains readable at constrained width.
+- Browser verification captures supported Rich callouts before/after changes, exact resulting Source, one unsupported fallback, save truth, and constrained-width states.
+- `docs/internal/build-log.md` records RED/GREEN evidence, visual impact, reviewer or fallback result, tests, residual risks, commit, push status, and next issue.
+
+### Test-first plan
+
+- RED: add a real callout-footnote fixture and focused test that fails because safe callout definitions remain source-only.
+- RED: prove top-level and list/task-nested semantic callout attrs/body content, exact untouched identity, bounded body edits, title/type/fold retention, paragraph boundaries, ordered starts, loose/task state, LF/CRLF, one-step undo/redo, save truth, and no full-document rewrite.
+- RED: prove changed output reparses to the same paragraph/callout/list/task hierarchy and semantic header metadata remains outside editable body content.
+- RED: prove marker-only, malformed type/fold/title, nested callout/quote, list/code/table/raw-HTML children, mixed multiple-container items, nested containers, duplicates, unsafe, stale, invalid-indent, and unmappable forms refuse atomically.
+- RED: prove prior footnote definition, insertion, rename, multiline, multi-paragraph, list, nested-list, task-list, loose-list, blockquote, fenced-code, indented-code, table, and generic callout-command fallback behavior remains compatible.
+- RED: add browser/runtime assertions for semantic header/body separation, real body editing, exact Source output, fallback visibility, save truth, and constrained containment.
+- GREEN: add only the package-owned callout node, exact source recognizer, safe paragraph-body mapper, and bounded callout serializer needed for the fixture.
+- REFACTOR: centralize callout parsing/fingerprinting so type/title/fold/body semantics are not duplicated across eligibility, conversion, serialization, and visual proof.
+
+### Manual verification
+
+- Start the reference demo with supported top-level/list/task callout definitions plus nested/arbitrary/malformed unsupported definitions.
+- Edit body text in Rich mode, inspect the non-editable type/title/fold header, undo/redo, save, then switch to Source and inspect exact valid nested callout Markdown plus clean state.
+- Confirm unsupported definitions remain visibly source-only, then repeat at constrained width and capture artifacts under `docs/internal/visual-checks/MME-0069/`.
+
+### Visual impact
+
+Supported Obsidian callouts become semantic labelled Rich blocks inside footnote definitions and safe list/task items, with a non-editable type/title header and editable paragraph body. Unsupported nested, malformed, mixed-container, raw-HTML, and arbitrary children remain explicit preserved-source fallbacks. Final density, icon/header treatment, nested hierarchy, focus flow, fallback wording, and constrained-layout taste review remain queued for Andrew's end-of-run review block.
+
+### Implementation notes
+
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-editor/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-rich-prosemirror/package.json`, `packages/md-surface/src/index.ts`, `packages/md-theme/src/index.ts`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `fixtures/006-blockquote`, `fixtures/007-obsidian-callout`, `fixtures/020-gfm-footnotes`, `fixtures/022-simple-footnote-editing`, `fixtures/025-list-block-footnote-editing`, `fixtures/026-nested-list-footnote-editing`, `fixtures/027-task-list-footnote-editing`, `fixtures/028-loose-list-footnote-editing`, `fixtures/029-blockquote-footnote-editing`, `fixtures/030-fenced-code-footnote-editing`, `fixtures/031-indented-code-footnote-editing`, `fixtures/032-table-footnote-editing`, `tests/parser-foundation.test.mjs`, `tests/rich-commands.test.mjs`, `tests/rich-input-rules.test.mjs`, `tests/rich-core-interactions.test.mjs`, every `tests/rich-footnote-*.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/save-engine.test.mjs`, `scripts/visual-check-mme0068.mjs`, and the MME-0055 through MME-0068 build-log/visual artifacts.
+
+Current parser feasibility shows safe callouts remain source-ranged `blockquote` model nodes whose first paragraph starts with the exact marker/title line, including inside ordered/task list items. Reuse parser-owned child order/ranges, exact footnote child layouts/fingerprints, list/task reconstruction, targeted source materialization, and conservative closed eligibility. Keep callout semantics in `@momentarise/md-rich-prosemirror`; do not add ProseMirror concepts or Obsidian-specific persistence state to core/model/save/policy packages. The callout header is semantic derived-view state, while untouched source bytes remain authoritative.
+
+### Out of scope
+
+- Editing callout type/title/fold controls, creating callouts through a new semantic command, converting existing top-level opaque callouts, nested callouts/quotes, callout children containing lists/code/tables/raw HTML, multiple container children, or generic arbitrary-block editing inside footnotes.
+- Callout icon registry, color/type theme system, custom callout aliases, collapse interaction, drag/drop, structural footnote block insertion/deletion/reordering, or original quote-spacing preservation for intentionally changed callouts.
+- Raw-HTML rich editing, container-nested definitions, definition reorder, missing-reference repair, hover previews, backlink redesign, polished footnote dialogs, task DOM redesign, or docs-content construction.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible callout-footnote UX/product review is queued for the end-of-run human review block unless source recognition, body/header separation, or bounded reconstruction remains unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer.
+
+### Blocked by
+
+- None. MME-0065 established safe paragraph-only quote mapping and bounded reconstruction; MME-0061 through MME-0068 established recursive standard/task container admission, exact child-source retention, history/save truth, and browser proof. Direct parser feasibility confirms top-level/list/task callouts expose exact source-ranged blockquotes with recoverable marker/type/fold/title/body semantics without widening public parser contracts.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.
