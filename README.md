@@ -75,11 +75,12 @@ Completed slices:
 - MME-0059: Rich multiline GFM footnote definition editing baseline, accepted for code continuation after safe continuation-line editing, exact indentation/line-ending preservation, conservative complex fallback, truthful history/save behavior, browser proof, fallback review, and full test pass; final multiline footnote UX/product review is queued for end-of-run review.
 - MME-0060: Rich multi-paragraph GFM footnote definition editing baseline, accepted for code continuation after semantic paragraph editing, exact per-paragraph preservation, conservative nested-block fallback, truthful history/save behavior, browser proof, fallback review, and full test pass; final multi-paragraph footnote product review is queued for end-of-run review.
 - MME-0061: Rich list-block GFM footnote definition editing baseline, accepted for code continuation after semantic bullet/ordered list children, exact unchanged-child preservation, bounded changed-list reconstruction, conservative complex-list fallback, truthful history/save behavior, browser proof, fallback review, and full test pass; final list-footnote product review is queued for end-of-run review.
+- MME-0062: Rich nested-list GFM footnote definition editing baseline, promoted as the current executable slice for safe recursively nested bullet/ordered list text editing with bounded parent-list reconstruction and conservative task/loose-item fallback.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- No executable normal issue remains after MME-0061. Autonomous continuation requires promoting the next unblocked must-have backlog item before implementation.
+- MME-0062 is the current executable issue: add safe nested bullet/ordered list text editing inside unique top-level GFM footnote definitions while preserving task, loose-item, unsafe, and arbitrary nested forms as source-only fallback.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 
@@ -93,7 +94,7 @@ Next planned slices (public framework readiness sequence, 2026-06-09):
 - Phase H — public editor readiness hardening: MME-0040 tables; MME-0041 footnotes/endnotes; MME-0042 core editor interactions; MME-0043 Live Preview foundation; MME-0044 unified open/new/save/status; MME-0045 command and mode UX; MME-0046 HTML preview reading polish; MME-0047 folding polish; MME-0048 docs launch hardening; MME-0049 AX skills/manifests/actions; MME-0050 performance budgets; MME-0051 asset upload contract.
 - Phase I — lightweight and visual source formats: MME-0052 plain text and source-like file support; MME-0053 SVG source reader and sanitized preview.
 - Phase J — media workflow UX: MME-0054 visible asset upload UX and demo provider.
-- Phase K — rich Markdown structures: MME-0055 rich GFM table editing baseline; MME-0056 rich GFM footnote definition editing baseline; MME-0057 rich GFM footnote insertion baseline; MME-0058 rich GFM footnote identifier rename baseline; MME-0059 rich multiline GFM footnote definition editing baseline; MME-0060 rich multi-paragraph GFM footnote definition editing baseline; MME-0061 rich list-block GFM footnote definition editing baseline.
+- Phase K — rich Markdown structures: MME-0055 rich GFM table editing baseline; MME-0056 rich GFM footnote definition editing baseline; MME-0057 rich GFM footnote insertion baseline; MME-0058 rich GFM footnote identifier rename baseline; MME-0059 rich multiline GFM footnote definition editing baseline; MME-0060 rich multi-paragraph GFM footnote definition editing baseline; MME-0061 rich list-block GFM footnote definition editing baseline; MME-0062 rich nested-list GFM footnote definition editing baseline.
 
 See `docs/internal/build-log.md` for the latest completed issue and current progress.
 

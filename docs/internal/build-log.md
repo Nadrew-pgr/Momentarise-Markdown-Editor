@@ -6236,3 +6236,24 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0061`; continuation requires promoting the next unblocked must-have backlog item before implementation.
+
+## Backlog promotion checkpoint — MME-0062
+
+- Date: 2026-07-21.
+- Context:
+  - `MME-0061` is accepted for code continuation and committed (`d3f6b74` implementation/status, `9b54887` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0061.
+  - Andrew instructed autonomous continuation, must-haves first, issue-scoped commits, separate docs-content ownership, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Change:
+  - Promoted `MME-0062 — Rich nested-list GFM footnote definition editing baseline` from the next explicit baseline/hygiene footnote gap into normal issue form.
+  - Bounded the slice to nested bullet/ordered list text editing where each item has one paragraph plus at most one recursively safe nested list.
+  - Kept tasks, loose/multi-paragraph items, multiple nested child blocks, arbitrary nested blocks, structural indent/outdent, nested containers, duplicates, malformed, unsafe, stale, and unmappable forms source-only or out of scope.
+  - Updated `README.md` current slice plus `docs/internal/BACKLOG.md` promotion and end-of-run review tracking.
+- Rationale:
+  - MME-0061 made flat standard list blocks safely editable while explicitly leaving nested lists, tasks, and other nested blocks source-only.
+  - Nested standard lists are the next backlog-order baseline gap and can reuse recursive package-owned list nodes plus bounded top-level definition-child reconstruction without mixing in task semantics or arbitrary block editing.
+- Checks run:
+  - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0062" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before promotion commit.
+- Next issue:
+  - `MME-0062 — Rich nested-list GFM footnote definition editing baseline`.
