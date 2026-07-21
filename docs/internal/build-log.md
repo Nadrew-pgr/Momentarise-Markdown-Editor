@@ -6437,3 +6437,24 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0064`. The next unblocked must-have candidate is a separately promoted safe blockquote-content footnote editing slice; code/block/table/callout/raw-HTML children remain later conservative splits.
+
+## Backlog promotion checkpoint — MME-0065
+
+- Date: 2026-07-21.
+- Context:
+  - `MME-0064` is accepted for code continuation and committed (`7e590a9` implementation/status, `6b2ebb3` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0064.
+  - Andrew instructed autonomous continuation, must-haves first, strict issue formatting, issue-scoped commits, no docs-content work in this agent, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Change:
+  - Promoted `MME-0065 — Rich blockquote GFM footnote definition editing baseline` from the next conservative arbitrary-block gap into normal issue form.
+  - Bounded the slice to paragraph-only blockquotes as top-level definition children or one container child inside safe standard/task list items.
+  - Kept nested quotes, callouts, quote-contained lists/code/tables/raw HTML, mixed multiple-container items, structural mutation, nested containers, duplicates, malformed, unsafe, stale, invalid-indent, and unmappable forms source-only or out of scope.
+  - Updated `README.md` current slice plus `docs/internal/BACKLOG.md` promotion and end-of-run review tracking.
+- Rationale:
+  - MME-0064 made safe loose multi-paragraph list items editable while explicitly leaving arbitrary child blocks source-only.
+  - Standard blockquotes are the next core Markdown block in backlog order and can reuse package-owned quote nodes, exact child layout, source-derived loose state, and bounded reconstruction without admitting executable or structurally complex content.
+- Checks run:
+  - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0065" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before checkpoint commit.
+- Next issue:
+  - `MME-0065 — Rich blockquote GFM footnote definition editing baseline`.

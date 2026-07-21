@@ -3791,6 +3791,90 @@ Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer.
 
 - None. MME-0063 established safe mixed task/standard hierarchy, structural-marker indentation, bounded list-child reconstruction, accessible task toggles, history/save truth, and browser proof required by this slice.
 
+## MME-0065 — Rich blockquote GFM footnote definition editing baseline
+
+### Goal
+
+Let users edit safely representable paragraph-only blockquotes inside unique top-level GFM footnote definitions, including one quote child inside a safe standard or task list item, while preserving quote/blank-line semantics, hierarchy, unrelated Markdown, source-only fallbacks, history, and save truth.
+
+### Scope
+
+- Extend safe semantic footnote definition children to accept blockquotes containing one or more representable paragraphs.
+- Allow one safe paragraph-only blockquote as the single container child after the required first paragraph in a standard or task list item; additional safe paragraphs remain allowed around it.
+- Support top-level definition blockquotes plus blockquotes nested one level inside safe bullet/ordered standard/task items without admitting nested quotes or arbitrary block children.
+- Reject Obsidian-style callout markers atomically so `> [!TYPE]` remains source-only until a dedicated callout contract exists.
+- Preserve paragraph boundaries through deterministic `>` blank quote lines when a changed blockquote is reconstructed.
+- Preserve list/item loose state, checked state, representable ordered starts, definition identifier, first-line prefix, outer footnote indentation, line endings, unchanged sibling definition-child bytes, references, unknown syntax, and unrelated document bytes.
+- Reconstruct only the containing top-level definition child or list child when quoted text changes; require reconstructed Markdown to reparse to the same paragraph/blockquote/list/task hierarchy.
+- Keep simple, continuation-line, top-level multi-paragraph, tight/loose standard/task list, nested list, insertion, whole-body replacement, definition selection, semantic references, and identifier rename behavior compatible.
+- Keep nested blockquotes, callouts, blockquotes containing lists/code/tables/raw HTML, list items combining a quote with another container child, and other arbitrary block children source-only.
+- Keep container-nested definitions, duplicates, malformed definitions, unsafe content, stale source, invalid/inconsistent indentation, and unmappable ranges in explicit whole-definition source-only fallback.
+- Treat one quoted-paragraph edit as one ProseMirror history action and keep Save Engine/autosave hashes truthful.
+- Add runtime browser proof for top-level and list-nested blockquote editing, undo/redo, exact Source output, save truth, unsupported fallback visibility, and constrained-width containment.
+- Queue final blockquote-footnote product/taste review for Andrew's end-of-run human review block.
+
+### Acceptance criteria
+
+- Unique top-level definitions containing safe paragraph-only blockquotes, including one quote child inside safe standard/task list items, mount as semantic editable Rich definitions.
+- Untouched supported definitions serialize byte-for-byte; quote/list spacing state remains package-owned and exact child-source metadata remains absent from rendered DOM attributes.
+- Editing one quoted paragraph reconstructs only its bounded containing definition child or list child; unchanged definition children and unrelated source ranges remain byte-identical.
+- Reconstructed Markdown retains required `>` paragraph separators, list looseness, standard/task hierarchy, checked state, ordered starts, definition prefix spelling/spacing, outer indentation, and LF/CRLF convention, and reparses to the same semantic shape.
+- One undo reverts one quote edit; redo restores it; saving persists exactly the Source Markdown shown by the editor.
+- Existing single-line, continuation-line, multi-paragraph, tight/loose list, nested list, task list, insertion, selection/replacement, identifier rename, semantic-reference, and read-rendering tests remain green.
+- Nested quotes, callouts, quote children containing lists/code/tables/raw HTML, mixed multiple-container list items, nested-container, duplicate, malformed, unsafe, stale, invalid-indent, or unmappable definitions remain source-only and never receive partial edits.
+- Schema, layout classification, serializer, and source mapping stay inside `@momentarise/md-rich-prosemirror`, remain host-independent, and pass API/architecture/security gates.
+- Browser verification captures supported Rich quotes before/after text changes, exact resulting Source, at least one callout/arbitrary-child fallback, and constrained-width states.
+- `docs/internal/build-log.md` records RED/GREEN evidence, visual impact, reviewer or fallback result, tests, residual risks, commit, push status, and next issue.
+
+### Test-first plan
+
+- RED: add a real blockquote-footnote fixture and focused test that fails because safe paragraph-only quote definitions remain source-only.
+- RED: prove top-level and list/task-nested quote semantics, multiple quoted paragraphs, deep quote editing, exact sibling-child preservation, ordered starts, loose spacing, LF/CRLF, one-step undo/redo, save truth, and no full-document rewrite.
+- RED: prove changed output reparses to the same paragraph/blockquote/list/task hierarchy with valid `>` blank-line separation.
+- RED: prove nested quotes, callouts, quote-contained lists/code/tables/raw HTML, mixed quote-plus-list items, nested containers, duplicates, malformed, unsafe, stale, invalid-indent, and unmappable forms refuse atomically.
+- RED: prove prior footnote definition, insertion, rename, multiline, multi-paragraph, list, nested-list, task-list, and loose-list behavior remains compatible.
+- RED: add browser/runtime assertions for quote editing, Source output, fallback visibility, save truth, accessibility role, and constrained containment.
+- GREEN: generalize only safe quote eligibility/conversion plus deterministic paragraph separation, reusing existing blockquote nodes, parser source ranges, child fingerprints, loose-list state, and bounded footnote serialization.
+- REFACTOR: isolate paragraph-only quote validation and quote serialization without exposing source bytes through DOM or broadening arbitrary block support.
+
+### Manual verification
+
+- Start the reference demo with supported top-level/list/task paragraph-only quotes and separate callout/nested/arbitrary-child unsupported definitions.
+- Edit a later quoted paragraph in Rich mode, undo/redo, save, then switch to Source and inspect exact valid blockquote Markdown plus clean state.
+- Confirm unsupported definitions remain visibly source-only, then repeat at constrained width and capture artifacts under `docs/internal/visual-checks/MME-0065/`.
+
+### Visual impact
+
+Supported paragraph-only blockquotes become semantic Rich content inside footnote definitions and safe list/task items. Unsupported callouts, nested quotes, and arbitrary quote children remain explicit preserved-source fallbacks. Final quote spacing, marker density, nested hierarchy, focus flow, fallback wording, and constrained-layout taste review remain queued for Andrew's end-of-run review block.
+
+### Implementation notes
+
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-editor/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-surface/src/index.ts`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `fixtures/006-blockquote`, `fixtures/007-obsidian-callout`, `fixtures/020-gfm-footnotes`, `fixtures/022-simple-footnote-editing`, `fixtures/023-multiline-footnote-editing`, `fixtures/024-multiparagraph-footnote-editing`, `fixtures/025-list-block-footnote-editing`, `fixtures/026-nested-list-footnote-editing`, `fixtures/027-task-list-footnote-editing`, `fixtures/028-loose-list-footnote-editing`, `tests/parser-foundation.test.mjs`, `tests/rich-commands.test.mjs`, `tests/rich-input-rules.test.mjs`, `tests/rich-core-interactions.test.mjs`, `tests/rich-footnote-editing.test.mjs`, `tests/rich-footnote-insertion.test.mjs`, `tests/rich-footnote-rename.test.mjs`, `tests/rich-footnote-multiline.test.mjs`, `tests/rich-footnote-multiparagraph.test.mjs`, `tests/rich-footnote-list-blocks.test.mjs`, `tests/rich-footnote-nested-lists.test.mjs`, `tests/rich-footnote-task-lists.test.mjs`, `tests/rich-footnote-loose-lists.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/save-engine.test.mjs`, and the MME-0056 through MME-0064 build-log/visual artifacts.
+
+Reuse the existing blockquote ProseMirror node, parser-owned child order/source ranges, semantic footnote references/definitions, exact top-level definition-child source layout, child fingerprints, source-derived loose state, targeted source materialization, and conservative eligibility checks. Keep quote eligibility and reconstruction inside `@momentarise/md-rich-prosemirror`; do not add ProseMirror concepts to core/model/save/policy packages. Reject callouts by source/model semantics rather than treating every blockquote as editable.
+
+### Out of scope
+
+- Nested blockquotes, callouts, quote-contained lists/code/tables/raw HTML, multiple container children per list item, or generic arbitrary-block editing inside footnotes.
+- New quote insertion commands, structural list/quote insertion/deletion/reordering, Tab/Shift+Tab redesign, or original quote-marker spacing preservation for intentionally changed containing blocks.
+- Container-nested definitions, definition reorder, missing-reference repair, hover previews, backlink redesign, polished footnote dialogs, task DOM redesign, or docs-content construction.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible blockquote-footnote UX/product review is queued for the end-of-run human review block unless quote hierarchy preservation remains unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer.
+
+### Blocked by
+
+- None. MME-0064 established source-derived loose spacing, safe multi-paragraph/list/task hierarchy, bounded reconstruction, history/save truth, and browser proof required by this slice.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.
