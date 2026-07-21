@@ -1969,6 +1969,18 @@ h1 {
   font-size: inherit;
 }
 
+.ProseMirror pre[data-mme-raw-html-block="true"] {
+  min-width: 0;
+  border-left: 3px solid var(--mme-color-accent);
+  white-space: pre;
+}
+
+.ProseMirror pre[data-mme-raw-html-block="true"] code {
+  display: block;
+  min-width: max-content;
+  white-space: pre;
+}
+
 .ProseMirror pre[data-unsupported="true"] {
   position: relative;
   padding-top: 30px;

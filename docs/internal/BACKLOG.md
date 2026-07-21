@@ -211,7 +211,7 @@ Tags: `public-release`, `human-review`, `ui`, `ax`
 - MME-0067 indented-code-footnote review: implementation accepted for code continuation; review code-block density, top-level/list/task hierarchy, multiline editing/focus flow, deterministic four-space normalization after edits, fenced/table/mixed-container fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, code horizontal scrolling, deep narrow-width wrapping, and constrained layout.
 - MME-0068 table-footnote review: implementation accepted for code continuation; review table density, top-level/list/task hierarchy, cell editing and Tab/Shift+Tab flow, selected-cell focus treatment, final-row insertion, deterministic changed-table normalization, quote/malformed/unsafe/mixed-container fallback wording, Source visibility, horizontal reachability, the observed full-editor blue focus outline, the observed diagnostics-chip overlap at constrained width, deep narrow-width wrapping, and constrained layout.
 - MME-0069 callout-footnote review: implementation accepted for code continuation; review callout density, marker/type/title/fold header treatment, top-level/list/task hierarchy, body-only editing and focus flow, deterministic changed-callout normalization, malformed/nested/list/raw-HTML/mixed-container fallback wording, Source visibility, the observed full-editor blue focus outline, the observed diagnostics-chip overlap at constrained width, deep narrow-width wrapping, and constrained layout.
-- MME-0070 raw-HTML-footnote review: review code-like source readability, top-level/list/task hierarchy, literal-versus-preview clarity, script/event-handler inertness messaging, edit/focus flow, horizontal scrolling, inline/overlapping/nested/mixed fallback wording, Source visibility, and constrained layout.
+- MME-0070 raw-HTML-footnote review: implementation accepted for code continuation; review code-like source readability, top-level/list/task hierarchy, literal-versus-preview clarity, script/event-handler inertness messaging, edit/focus flow, horizontal scrolling, inline/overlapping/nested/mixed fallback wording, Source visibility, the observed dominant full-editor blue focus outline, the observed diagnostics-chip overlap at constrained width, deep narrow-width wrapping, and constrained layout.
 - Future visible/UI/HITL slices in this autonomous run should be added here instead of blocking code continuation, per the 2026-07-19 human instruction to review visible work in one final block.
 
 - Visible asset upload UX and demo provider follow-up for image paste/drop, building on the promoted MME-0051 provider contract while keeping real storage host-owned. First visible upload UX slice promoted as `MME-0054`.
@@ -291,6 +291,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - `MME-0067 — Rich indented-code GFM footnote definition editing baseline`.
 - `MME-0068 — Rich table GFM footnote definition editing baseline`.
 - `MME-0069 — Rich Obsidian callout footnote definition editing baseline`.
+- `MME-0070 — Rich inert raw-HTML footnote block editing baseline`.
 
 - Editor live preview parity.
 - Toolbar/slash/menu final UX.

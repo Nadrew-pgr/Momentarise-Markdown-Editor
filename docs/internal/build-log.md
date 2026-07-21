@@ -6805,3 +6805,48 @@
   - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0070" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before checkpoint commit.
 - Next issue:
   - `MME-0070 — Rich inert raw-HTML footnote block editing baseline`.
+
+## MME-0070 — Rich inert raw-HTML footnote block editing baseline
+
+- Date: 2026-07-21.
+- Previous issue status:
+  - `MME-0069` accepted for code continuation and committed (`1af2464` implementation/status, `2339d9d` evidence).
+  - `MME-0070` was promoted and committed in checkpoint `1cd1706`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, clean `git status --short`, and every parser/model/editor/rich/render/preview/surface/theme/demo/fixture/test/save file named by the issue.
+- RED proof before implementation:
+  - Added `fixtures/034-raw-html-footnote-editing/` and `tests/rich-footnote-raw-html.test.mjs`, then confirmed `npm run test:rich-footnote-raw-html` failed because the first safe block-HTML definition remained source-only: `Safe raw-HTML definition must be editable: html-top.`
+- Change:
+  - Added a package-owned `raw_html_block` ProseMirror node whose payload exists only as editable literal text inside a labelled code-like `<pre><code>` surface. Raw tags, attributes, scripts, styles, URLs, event handlers, and custom elements never become editor DOM or node attributes.
+  - Added strict eligibility for exact source-ranged opaque nodes whose reason is `raw HTML`, raw bytes equal the parser-owned source slice, outer continuation indentation is recoverable, and `parse5` confirms exactly one paired closed root consuming the complete deindented payload.
+  - Admitted one eligible raw-HTML child at top-level definition depth or as the single container child in safe standard/task list items. Existing exact child-source fingerprints, bounded definition/list reconstruction, and line-ending materialization preserve untouched bytes and limit changed output to the owned range.
+  - Added deterministic literal serialization and outer footnote/list indentation reapplication. Top-level, ordered-list, task-list, ordered-start, loose state, checked state, definition prefix, comments, quoting, inner whitespace, LF/CRLF, selection/replacement, identifier rename, undo/redo, and Save Engine truth are covered.
+  - Kept inline, paragraph-like, malformed/unclosed, parser-overlapping, quote-contained, mixed-container, multiple-root/container, duplicate, nested-container, generic top-level raw HTML, stale, and unmappable forms source-only. Existing renderer and sandboxed preview policy are unchanged.
+  - Added direct `parse5` `^7.3.0` dependency to `@momentarise/md-rich-prosemirror` (MIT), fixture 034, focused DOM/security/preservation tests, intentional prior-fixture expectation updates, package docs, root test registration, token-only demo styling, and a six-state browser harness.
+- Visual impact:
+  - Supported raw HTML appears as literal code-like editable source inside semantic footnote/list/task hierarchy. Hostile payload text is visible but inert. Unsupported forms remain explicit preserved-source cards.
+  - Artifacts: `docs/internal/visual-checks/MME-0070/footnote-raw-html-rich-desktop.png`, `footnote-raw-html-edited-desktop.png`, `footnote-raw-html-saved-desktop.png`, `footnote-raw-html-unsupported-desktop.png`, `footnote-raw-html-constrained.png`, and `footnote-raw-html-source-desktop.png`.
+  - Permissioned headless Chrome proof loads fixture 034 at `http://127.0.0.1:5174/`, verifies three semantic definitions, ordered/task structure, zero payload-created active DOM, literal hostile text, real edit plus undo/redo, exact saved disk content, accessible unsupported fallbacks, 390px containment, and exact Source-mode content.
+  - Builder inspected all six frames. Desktop hierarchy, literal HTML blocks, task state, fallbacks, and Source output are readable; long HTML remains horizontally contained. The existing full-editor blue focus outline, diagnostics-chip overlap, and deep narrow wrapping remain visible and queued for final human review.
+- Checks run:
+  - `npm run test:rich-footnote-raw-html` — RED first, then green after strict source-range/root validation, inert conversion, and bounded serialization.
+  - All MME-0056 through MME-0070 footnote regressions, targeted serialization, rich package/security, Save Engine, contracts, architecture, public API, publishability, release engineering, fixture corpus, parser, round-trip, HTML renderer, HTML preview, and `git diff --check` — green.
+  - `npm run visual:mme-0070` — sandboxed Chrome launch failed before CDP as expected; the permissioned run passed and captured all six current states.
+  - Final `npm test` — green end-to-end, including performance, architecture, security, preservation, every footnote/list/code/table/callout/HTML regression, fixture corpus, CLI, AX artifacts, packages, demo, adapters, Vite build, and 42-page Next.js docs build; existing Vite chunk-size warning only.
+- Reviewer result:
+  - Required inspect-only code review used exactly `gpt-5.3-codex-spark` with `xhigh` reasoning. Agent `019f851d-74e9-7a62-a1c8-df407c841375` could not run because that model's usage limit is exhausted until 2026-07-26 14:48; no substitute code-review model was used.
+  - Documented fallback self-review covered exact parser-range ownership, opaque-reason discrimination, paired-root validation, comment/whitespace behavior, outer-indent recovery, top/list/task admission closure, one-container limit, literal DOM construction and reparse, script/event/style/custom-element inertness, exact untouched identity, bounded changed serialization, LF/CRLF, ordered/task/loose state, unsupported-definition atomicity, history/selection/rename/save truth, DOM metadata privacy, package dependency/license/boundaries, focused tests, full regressions, and browser assertions.
+  - No remaining P0-P3 issue was found.
+- Residual risks:
+  - Eligibility intentionally accepts only one paired closed HTML root with exact source ownership. Void-only fragments, outer comments, multiple roots, inline/paragraph-like HTML, quote/callout-contained HTML, mixed containers, generic top-level HTML, malformed/overlapping ranges, duplicates, nested containers, stale state, invalid indentation, and otherwise unmappable forms remain source-only.
+  - Edited HTML is literal source truth and is not validated continuously. A later remount can conservatively return malformed or no-longer-block HTML to source-only representation.
+  - Intentionally changed outer container indentation may normalize deterministically; untouched raw HTML and surrounding Markdown remain byte-exact.
+  - Syntax highlighting, HTML completion/linting/formatting, element editing, live Rich activation, structural insertion/deletion/reorder, inline HTML editing, arbitrary nested blocks, and generic opaque-block editing remain future slices.
+  - Final code-source density, hierarchy, literal-versus-preview clarity, edit/focus flow, fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, horizontal scrolling, deep narrow wrapping, and constrained layout are queued in `docs/internal/BACKLOG.md`.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Issue-scoped implementation/status commit pending; no commit blocker.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0070`. The next backlog candidate requires a fresh feasibility proof and strict promotion before implementation; inline HTML and other arbitrary nested blocks remain unpromoted future splits.

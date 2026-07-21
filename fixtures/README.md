@@ -35,6 +35,16 @@ Fixtures are intentionally synthetic and sanitized. They must not contain privat
 22. `022-simple-footnote-editing`: editable safe definitions plus multi-block, unsafe, duplicate, and malformed source-only cases.
 23. `023-multiline-footnote-editing`: one editable single-paragraph continuation definition plus multi-block, nested, unsafe, and unknown-syntax preservation cases.
 24. `024-multiparagraph-footnote-editing`: one editable plain multi-paragraph definition plus nested-block, nested-container, unsafe, and exact-source preservation cases.
+25. `025-list-block-footnote-editing`: safe standard-list footnote children plus bounded list reconstruction and fallbacks.
+26. `026-nested-list-footnote-editing`: recursively safe standard nested-list footnote children.
+27. `027-task-list-footnote-editing`: safe task-list footnote children and checked-state preservation.
+28. `028-loose-list-footnote-editing`: loose multi-paragraph standard/task items plus supported nested children.
+29. `029-blockquote-footnote-editing`: paragraph-only blockquote footnote children and conservative quote fallbacks.
+30. `030-fenced-code-footnote-editing`: inert fenced-code footnote children and collision-safe reconstruction.
+31. `031-indented-code-footnote-editing`: canonical indented-code footnote children and deterministic indentation.
+32. `032-table-footnote-editing`: rectangular GFM table footnote children at top/list/task depth.
+33. `033-callout-footnote-editing`: paragraph-only Obsidian callout footnote children with semantic headers.
+34. `034-raw-html-footnote-editing`: inert parser-owned block-HTML source editing with hostile-payload DOM proof.
 
 ## Use
 

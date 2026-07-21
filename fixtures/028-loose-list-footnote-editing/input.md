@@ -55,7 +55,7 @@ Neighbor <x-unknown keep="exact">syntax</x-unknown> stays byte-exact.
 
           const unsafe = true;
 
-[^raw-child]: Raw child stays source-only.
+[^raw-child]: Raw child is editable inert source.
 
     - Parent before raw HTML.
 

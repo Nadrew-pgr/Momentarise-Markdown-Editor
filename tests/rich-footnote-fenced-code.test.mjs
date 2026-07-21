@@ -8,13 +8,14 @@ const source = await readFile("fixtures/030-fenced-code-footnote-editing/input.m
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
 
-assertEqual(definitions.length, 6, "safe fenced, indented-code, table, and callout definitions must be editable");
+assertEqual(definitions.length, 7, "safe fenced, indented-code, table, callout, and raw-HTML definitions must be editable");
 const topDefinition = definitions.find((node) => node.attrs.identifier === "code-top");
 const listDefinition = definitions.find((node) => node.attrs.identifier === "code-list");
 const taskDefinition = definitions.find((node) => node.attrs.identifier === "code-task");
 const indentedDefinition = definitions.find((node) => node.attrs.identifier === "indented-code");
 const tableDefinition = definitions.find((node) => node.attrs.identifier === "table-child");
 const calloutDefinition = definitions.find((node) => node.attrs.identifier === "callout-child");
+const rawHtmlDefinition = definitions.find((node) => node.attrs.identifier === "raw-child");
 
 const topCode = topDefinition?.child(1);
 assertEqual(topCode?.type.name, "code_block", "top-level fence is semantic");
@@ -42,6 +43,7 @@ assertIncludes(taskItem?.child(1).textContent ?? "", "<script>", "script syntax 
 assertEqual(indentedDefinition?.child(1).type.name, "code_block", "safe indented code now mounts semantically");
 assertEqual(tableDefinition?.child(1).type.name, "table", "safe table now mounts semantically");
 assertEqual(calloutDefinition?.child(1).type.name, "callout", "safe callout now mounts semantically");
+assertEqual(rawHtmlDefinition?.child(1).type.name, "raw_html_block", "safe raw HTML now mounts as inert source");
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched fenced-code document identity");
 assertNoExactSourceMetadataInDom(topDefinition);
 
@@ -103,7 +105,6 @@ const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block")
 for (const marker of [
   "[^quote-code]:",
   "[^mixed-containers]:",
-  "[^raw-child]:",
   "[^nested-container]:"
 ]) {
   const fallback = fallbacks.find((node) => String(node.attrs.raw ?? "").includes(marker));

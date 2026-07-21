@@ -63,7 +63,7 @@ Neighbor <x-unknown keep="exact">syntax</x-unknown> stays byte-exact.
     > [!NOTE] Preserve callout
     > Preserve callout body.
 
-[^raw-child]: Unsafe raw HTML stays source-only.
+[^raw-child]: Unsafe raw HTML stays inert source.
 
     <section onclick="boom()">Preserve raw source.</section>
 

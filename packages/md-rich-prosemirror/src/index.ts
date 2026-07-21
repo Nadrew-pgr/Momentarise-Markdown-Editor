@@ -28,6 +28,7 @@ import { keymap } from "prosemirror-keymap";
 import { Fragment, Mark, Node as ProseMirrorNode, Schema, type DOMOutputSpec, type MarkSpec, type NodeSpec, type ResolvedPos } from "prosemirror-model";
 import { EditorState, NodeSelection, Plugin, PluginKey, Selection, TextSelection, type Transaction } from "prosemirror-state";
 import { addRowAfter, CellSelection, goToNextCell, tableEditing, tableNodes } from "prosemirror-tables";
+import { parseFragment } from "parse5";
 
 export interface MomentariseRichProseMirrorContract {
   readonly packageName: "@momentarise/md-rich-prosemirror";
@@ -4652,6 +4653,29 @@ const richNodes: Record<string, NodeSpec> = {
       ];
     }
   },
+  raw_html_block: {
+    code: true,
+    content: "text*",
+    defining: true,
+    group: "block",
+    marks: "",
+    parseDOM: [
+      {
+        contentElement: '[data-mme-raw-html-source="true"]',
+        preserveWhitespace: "full",
+        tag: 'pre[data-mme-raw-html-block="true"]'
+      }
+    ],
+    toDOM: () => [
+      "pre",
+      {
+        "aria-label": "Raw HTML source block",
+        "data-mme-raw-html-block": "true",
+        role: "region"
+      },
+      ["code", { "data-mme-raw-html-source": "true" }, 0]
+    ]
+  },
   horizontal_rule: {
     group: "block",
     parseDOM: [{ tag: "hr" }],
@@ -4786,7 +4810,7 @@ const richNodes: Record<string, NodeSpec> = {
       sourceIdentifierFrom: { default: null },
       sourceIdentifierTo: { default: null }
     },
-    content: "paragraph (paragraph | bullet_list | ordered_list | blockquote | callout | code_block | table)*",
+    content: "paragraph (paragraph | bullet_list | ordered_list | blockquote | callout | code_block | raw_html_block | table)*",
     defining: true,
     group: "block",
     parseDOM: [
@@ -5174,13 +5198,16 @@ function richFootnoteDefinitionLayout(
   const blockSources = blockRanges.map((range) => source.slice(range.start.offset, range.end.offset));
   const blockContinuationIndents = blockSources.map((raw, index) => {
     const block = blocks[index];
-    if (block?.kind !== "opaque" && block?.type === "list" && index > 0) {
+    if (block?.kind === "opaque") {
+      return richFootnoteRawHtml(block, source)?.continuationIndent ?? null;
+    }
+    if (block?.type === "list" && index > 0) {
       const containerIndent = richFootnoteBlockSeparatorIndent(blockSeparators[index - 1]!);
       return containerIndent && richFootnoteListBlockHasContainerIndent(raw, containerIndent)
         ? containerIndent
         : null;
     }
-    if (block?.kind !== "opaque" && block?.type === "codeFence") {
+    if (block?.type === "codeFence") {
       return richFootnoteCodeBlockContinuationIndent(block, source);
     }
     return richFootnoteBlockContinuationIndent(raw);
@@ -5324,7 +5351,11 @@ function richFootnoteBlockToProseMirror(
   source: string
 ): ProseMirrorNode {
   if (node.kind === "opaque") {
-    throw new Error("Opaque footnote blocks must be rejected before rich conversion.");
+    const html = richFootnoteRawHtml(node, source);
+    if (!html) {
+      throw new Error("Unsupported opaque footnote blocks must be rejected before rich conversion.");
+    }
+    return schema.nodes.raw_html_block!.create(null, textNode(schema, html.value));
   }
   if (node.type === "paragraph") {
     return schema.nodes.paragraph!.create(
@@ -5432,7 +5463,7 @@ function richFootnoteListItemToProseMirror(
 
 function isRepresentableRichFootnoteBlock(node: MomentariseNode, source: string): boolean {
   if (node.kind === "opaque") {
-    return false;
+    return richFootnoteRawHtml(node, source) !== null;
   }
   if (node.type === "paragraph") {
     return isRepresentableRichFootnoteParagraph(node);
@@ -5585,7 +5616,8 @@ function isRepresentableRichFootnoteListItem(item: MomentariseNode, source: stri
   let containerCount = 0;
   return itemBlocks.slice(1).every((block) => {
     if (block.kind === "opaque") {
-      return false;
+      containerCount += 1;
+      return containerCount <= 1 && richFootnoteRawHtml(block, source) !== null;
     }
     if (block.type === "paragraph") {
       return isRepresentableRichFootnoteParagraph(block);
@@ -5608,6 +5640,73 @@ function isRepresentableRichFootnoteListItem(item: MomentariseNode, source: stri
     }
     return false;
   });
+}
+
+interface RichFootnoteRawHtml {
+  readonly continuationIndent: string;
+  readonly value: string;
+}
+
+interface ParsedHtmlNodeLocation {
+  readonly endOffset: number;
+  readonly endTag?: unknown;
+  readonly startOffset: number;
+}
+
+interface ParsedHtmlNode {
+  readonly nodeName: string;
+  readonly sourceCodeLocation?: ParsedHtmlNodeLocation;
+  readonly tagName?: string;
+  readonly value?: string;
+}
+
+function richFootnoteRawHtml(node: MomentariseNode, source: string): RichFootnoteRawHtml | null {
+  if (
+    node.kind !== "opaque" ||
+    node.reason !== "raw HTML" ||
+    !node.sourceRange ||
+    node.raw !== source.slice(node.sourceRange.start.offset, node.sourceRange.end.offset)
+  ) {
+    return null;
+  }
+  const outerWidth = node.sourceRange.start.column - 1;
+  if (!Number.isSafeInteger(outerWidth) || outerWidth < 4) {
+    return null;
+  }
+  const continuationIndent = " ".repeat(outerWidth);
+  const lines = node.raw.split(/\r?\n/);
+  if (!lines[0]?.startsWith("<")) {
+    return null;
+  }
+  const deindented = [lines[0]];
+  for (const line of lines.slice(1)) {
+    if (!line.startsWith(continuationIndent)) {
+      return null;
+    }
+    deindented.push(line.slice(continuationIndent.length));
+  }
+  const value = deindented.join("\n");
+  return isSingleClosedHtmlRoot(value) ? { continuationIndent, value } : null;
+}
+
+function isSingleClosedHtmlRoot(value: string): boolean {
+  const fragment = parseFragment(value, {
+    sourceCodeLocationInfo: true
+  }) as unknown as { readonly childNodes: readonly ParsedHtmlNode[] };
+  const roots = fragment.childNodes.filter(
+    (node) => node.nodeName !== "#text" || /\S/.test(node.value ?? "")
+  );
+  if (roots.length !== 1) {
+    return false;
+  }
+  const root = roots[0];
+  const location = root?.sourceCodeLocation;
+  return Boolean(
+    root?.tagName &&
+    location?.endTag &&
+    location.startOffset === 0 &&
+    location.endOffset === value.length
+  );
 }
 
 function isRepresentableRichFootnoteTable(node: MomentariseNode): node is KnownNode {
@@ -5915,6 +6014,8 @@ function serializeBlock(node: ProseMirrorNode, indentLevel: number): string {
       return serializeBlockquote(node, indentLevel);
     case "callout":
       return serializeCallout(node);
+    case "raw_html_block":
+      return node.textContent;
     case "code_block": {
       return serializeCodeBlock(node);
     }
