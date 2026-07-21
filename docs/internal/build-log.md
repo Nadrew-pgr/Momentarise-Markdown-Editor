@@ -6366,7 +6366,7 @@
   - Final task hierarchy readability, control density, deep-item flow, definition spacing, fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, and constrained layout are queued in `docs/internal/BACKLOG.md`.
   - Existing demo bundle-size warning remains outside this issue.
 - Commit status:
-  - Pending issue-scoped implementation/status commit; the evidence follow-up will record its hash.
+  - Issue-scoped implementation/status commit created: `3939bae` (`feat: add rich task-list footnote editing`).
 - Push status:
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
