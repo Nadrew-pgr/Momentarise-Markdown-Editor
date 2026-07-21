@@ -9,9 +9,10 @@ const source = await readFile("fixtures/026-nested-list-footnote-editing/input.m
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
 
-assertEqual(definitions.length, 2, "safe nested bullet and ordered definitions must be editable");
+assertEqual(definitions.length, 3, "safe nested bullet, ordered, and task definitions must be editable");
 const bulletDefinition = definitions.find((node) => node.attrs.identifier === "nested-bullets");
 const orderedDefinition = definitions.find((node) => node.attrs.identifier === "nested-ordered");
+const taskDefinition = definitions.find((node) => node.attrs.identifier === "task-nested");
 const bulletList = bulletDefinition?.child(1);
 const bulletChildList = bulletList?.child(0).child(1);
 const bulletGrandchildList = bulletChildList?.child(0).child(1);
@@ -28,6 +29,16 @@ assertEqual(orderedList?.attrs.order, 3, "top-level ordered start remains semant
 assertEqual(orderedChildList?.type.name, "ordered_list", "nested ordered child is semantic");
 assertEqual(orderedChildList?.attrs.order, 1, "nested ordered start remains semantic");
 assertEqual(orderedGrandchildList?.attrs.order, 1, "deep ordered start remains semantic");
+assertEqual(
+  taskDefinition?.child(1).child(0).child(1).child(0).type.name,
+  "todo_item",
+  "safe nested task now uses semantic todo node"
+);
+assertEqual(
+  taskDefinition?.child(1).child(0).child(1).child(0).attrs.checked,
+  false,
+  "nested unchecked task state is semantic"
+);
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched nested-list document identity");
 assertNoExactSourceMetadataInDom(bulletDefinition);
 
@@ -59,7 +70,6 @@ for (const preserved of [
 
 const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block");
 for (const marker of [
-  "[^task-nested]:",
   "[^loose-nested]:",
   "[^multiple-nested]:",
   "[^quoted-nested]:",

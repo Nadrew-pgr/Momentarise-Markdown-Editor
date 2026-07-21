@@ -6324,3 +6324,50 @@
   - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0063" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before checkpoint commit.
 - Next issue:
   - `MME-0063 — Rich task-list GFM footnote definition editing baseline`.
+
+## MME-0063 — Rich task-list GFM footnote definition editing baseline
+
+- Date: 2026-07-21.
+- Previous issue status:
+  - `MME-0062` accepted for code continuation and committed (`efa107f` implementation/status, `53855d9` evidence).
+  - `MME-0063` was promoted from backlog and committed in checkpoint `0ef57e3`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, clean `git status --short`, and every parser/model/editor/rich/demo/fixture/test/save file named by the issue.
+- RED proof before implementation:
+  - Added `fixtures/027-task-list-footnote-editing/` and `tests/rich-footnote-task-lists.test.mjs`, then confirmed `npm run test:rich-footnote-task-lists` failed because all three safe task-list definitions remained source-only: `expected 3, got 0`.
+- Change:
+  - Generalized the closed recursive footnote-list item validator to accept parser-owned boolean task state while retaining the one-safe-paragraph plus zero-or-one-safe-list-child shape. Loose/multi-paragraph items, multiple nested children, quotes, arbitrary blocks, raw HTML, nested containers, duplicates, malformed, stale, inconsistent, and unmappable definitions remain whole source-only fallbacks.
+  - Reused package-owned `todo_item` nodes, checked state, native button labels/pressed state, pointer/Enter/Space handling, and bounded definition-child source mapping. No host, core, parser, save, policy, or React dependency was added.
+  - RED proof then exposed a serializer defect: using the full `- [ ]` marker width for nested child indentation caused a task child list to reparse as paragraph text. The serializer now derives child indentation from the structural bullet or ordered marker, preserving task hierarchy after text edits and state toggles.
+  - `selectRichFootnoteDefinition` now uses `TextSelection.between` so definitions ending in list content select valid inline endpoints without ProseMirror warnings.
+  - Untouched task definitions remain byte-exact. Editing one deep task or toggling one state reconstructs only its containing top-level list child while preserving references, unknown syntax, sibling definition children, unrelated Markdown, representable ordered starts, prefix spacing, outer indentation, and LF/CRLF behavior.
+  - Added fixture 027 plus expectations, focused task semantics/text/toggle/history/save/fallback/CRLF tests, intentional fixture 025/026 expectation updates, prior list regression updates, package docs, root test registration, and runtime browser proof.
+- Visual impact:
+  - Safe flat, nested, mixed standard/task, bullet, and ordered task lists render as editable semantic footnote content with native checked/unchecked controls. Loose, multi-child, quoted, unsafe, and nested-container forms remain explicit preserved-source cards.
+  - Artifacts: `docs/internal/visual-checks/MME-0063/footnote-task-list-rich-desktop.png`, `footnote-task-list-toggled-desktop.png`, `footnote-task-list-saved-desktop.png`, `footnote-task-list-unsupported-desktop.png`, `footnote-task-list-source-desktop.png`, and `footnote-task-list-constrained.png`.
+  - Permissioned headless Chrome proof loads the real fixture, verifies seven semantic task controls across three definitions plus five fallbacks, edits one deep item, toggles it by real pointer and keyboard input, checks accessible state, proves one-step undo/redo, saves exact Source truth, and verifies 390px containment.
+  - Builder inspected all six captures. Desktop hierarchy and controls are readable. Narrow content remains contained but deeply nested labels wrap densely; the floating diagnostics chip crowds the lower edge. Both remain queued for final human review.
+- Checks run:
+  - `npm run test:rich-footnote-task-lists` — RED first (`expected 3, got 0`), then green after implementation and the task-child indentation fix.
+  - Focused parser, fixture, all MME-0056 through MME-0063 footnote regressions, targeted serialization, list/core interaction, save, contract, architecture, public API, and rich-security tests — green.
+  - `npm run visual:mme-0063` — initial sandboxed Chrome launch correctly failed; permissioned run then exposed coordinate-free synthetic click and focus-sensitive undo weaknesses in the harness. Real CDP pointer coordinates plus editor refocus fixed the proof; final run passed and captured all six states.
+  - Initial full `npm test` reached one performance timing miss under concurrent reviewer/test load: `findReplaceLargeDocument` measured 6192 ms against 5000 ms while 9/10 operations passed. Isolated `npm run test:performance-budgets` then passed 10/10 at 2475 ms for that operation.
+  - Final isolated `npm test` — green end-to-end, including performance 10/10, architecture, security, preservation, every footnote/list regression, fixture corpus, CLI, AX artifacts, packages, demo, adapters, Vite build, and 42-page Next.js docs build; existing Vite chunk-size warning only.
+  - `git diff --check` — green before closeout.
+- Reviewer result:
+  - Architecture/preservation and tests/security/accessibility inspect-only reviewers were requested with exactly `gpt-5.3-codex-spark` and `xhigh` reasoning. Both hit the Spark usage limit until 2026-07-26 and returned no findings; no substitute code-review model was used.
+  - Documented fallback self-review covered recursive eligibility closure, task-state typing, list hierarchy reparse, structural-marker indentation, exact unchanged-source retention, bounded changed-child reconstruction, ordered/bullet/task semantics, CRLF/container indentation, fallback atomicity, selection endpoints, history/save truth, DOM metadata privacy, accessible control state, package boundaries, focused tests, full regressions, and browser assertions.
+  - No remaining P0-P3 issue was found.
+- Residual risks:
+  - Loose/multi-paragraph items, multiple nested list children, arbitrary blocks, nested containers, duplicates, malformed definitions, unsafe content, stale source, inconsistent indentation, and unmappable forms remain source-only by design.
+  - Intentionally changed task-list blocks use deterministic lowercase `[x]`, `-` markers, and ordered numbering; untouched child bytes remain exact. Original marker style/case preservation remains out of scope.
+  - The shared `todo_item` DOM remains the existing package-owned block/control structure used by both standalone and list-contained tasks. A dedicated semantic-list DOM audit remains appropriate before 1.0, but this issue adds no new DOM contract and proves native button labeling, pressed state, focus, pointer, and keyboard behavior.
+  - Structural task insertion, deletion, reorder, Tab/Shift+Tab redesign, loose items, and arbitrary nested blocks remain future slices.
+  - Final task hierarchy readability, control density, deep-item flow, definition spacing, fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, and constrained layout are queued in `docs/internal/BACKLOG.md`.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Pending issue-scoped implementation/status commit; the evidence follow-up will record its hash.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0063`. The next unblocked must-have backlog candidate is a separately promoted loose or multi-paragraph list-item footnote editing slice.

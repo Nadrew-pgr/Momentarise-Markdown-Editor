@@ -618,7 +618,7 @@ export function selectRichFootnoteDefinition(
   const from = location.position + 2;
   const to = location.position + location.node.nodeSize - 2;
   const selection = from < to
-    ? TextSelection.create(state.editorState.doc, from, to)
+    ? TextSelection.between(state.editorState.doc.resolve(from), state.editorState.doc.resolve(to))
     : TextSelection.near(state.editorState.doc.resolve(from));
   return {
     ...state,
@@ -5164,25 +5164,27 @@ function isRepresentableRichFootnoteList(node: MomentariseNode): boolean {
     return false;
   }
   const items = node.children ?? [];
-  return items.length > 0 && items.every((item) => {
-    if (
-      item.kind === "opaque" ||
-      item.type !== "listItem" ||
-      typeof item.attributes?.checked === "boolean"
-    ) {
-      return false;
-    }
-    const itemBlocks = item.children ?? [];
-    const paragraph = itemBlocks[0];
-    const nestedList = itemBlocks[1];
-    return (
-      (itemBlocks.length === 1 || itemBlocks.length === 2) &&
-      paragraph?.kind !== "opaque" &&
-      paragraph?.type === "paragraph" &&
-      (paragraph.children ?? []).every(isRepresentableRichFootnoteInlineNode) &&
-      (itemBlocks.length === 1 || Boolean(nestedList && isRepresentableRichFootnoteList(nestedList)))
-    );
-  });
+  return items.length > 0 && items.every(isRepresentableRichFootnoteListItem);
+}
+
+function isRepresentableRichFootnoteListItem(item: MomentariseNode): boolean {
+  if (item.kind === "opaque" || item.type !== "listItem") {
+    return false;
+  }
+  const checked = item.attributes?.checked;
+  if (checked !== undefined && typeof checked !== "boolean") {
+    return false;
+  }
+  const itemBlocks = item.children ?? [];
+  const paragraph = itemBlocks[0];
+  const nestedList = itemBlocks[1];
+  return (
+    (itemBlocks.length === 1 || itemBlocks.length === 2) &&
+    paragraph?.kind !== "opaque" &&
+    paragraph?.type === "paragraph" &&
+    (paragraph.children ?? []).every(isRepresentableRichFootnoteInlineNode) &&
+    (itemBlocks.length === 1 || Boolean(nestedList && isRepresentableRichFootnoteList(nestedList)))
+  );
 }
 
 function isRepresentableRichFootnoteInlineNode(node: MomentariseNode): boolean {
@@ -5595,7 +5597,10 @@ function serializeListItem(node: ProseMirrorNode, indentLevel: number, marker: s
   const lines = [`${indentation}${marker} ${firstText}`.trimEnd()];
   for (const child of rest) {
     const childIsList = ["bullet_list", "ordered_list"].includes(child.type.name);
-    const childIndentation = childIsList ? `${indentation}${" ".repeat(marker.length + 1)}` : `${indentation}  `;
+    const structuralMarker = marker.replace(/\s+\[[ xX]\]$/, "");
+    const childIndentation = childIsList
+      ? `${indentation}${" ".repeat(structuralMarker.length + 1)}`
+      : `${indentation}  `;
     lines.push(
       serializeBlock(child, childIsList ? 0 : indentLevel + 1)
         .split("\n")
