@@ -6845,7 +6845,7 @@
   - Final code-source density, hierarchy, literal-versus-preview clarity, edit/focus flow, fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, horizontal scrolling, deep narrow wrapping, and constrained layout are queued in `docs/internal/BACKLOG.md`.
   - Existing demo bundle-size warning remains outside this issue.
 - Commit status:
-  - Issue-scoped implementation/status commit pending; no commit blocker.
+  - Issue-scoped implementation/status commit created: `4e5142f` (`feat: add inert raw-html footnote editing`).
 - Push status:
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
