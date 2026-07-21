@@ -65,6 +65,38 @@ if (!malformedTableOpaque || !malformedTableOpaque.raw.includes("| broken table-
   throw new Error("Malformed table-like syntax must be carried as opaque raw Markdown.");
 }
 
+const tableFootnotes = findFixture("032-table-footnote-editing");
+const tableFootnoteDefinitions = collectNodesByType(tableFootnotes.result.document.root, "footnoteDefinition");
+for (const identifier of ["table-top", "table-list", "table-task", "table-wide"]) {
+  const definition = tableFootnoteDefinitions.find((node) => node.attributes?.identifier === identifier);
+  const nestedTables = definition ? collectNodesByType(definition, "table") : [];
+  if (nestedTables.length !== 1 || !nestedTables[0]?.sourceRange) {
+    throw new Error(`Expected one source-ranged table in footnote definition ${identifier}.`);
+  }
+}
+const malformedTableFootnoteSource = [
+  "Before[^bad].",
+  "",
+  "[^bad]: Intro.",
+  "",
+  "    | A | B |",
+  "    | --- |",
+  "    | one | two |",
+  ""
+].join("\n");
+const malformedTableFootnote = parser.parse(malformedTableFootnoteSource, {
+  dialect: "momentarise-enhanced"
+});
+const redundantTableFallback = (malformedTableFootnote.document.root.children ?? []).find(
+  (node) => node.kind === "opaque" && node.reason === "unsupported table-like syntax"
+);
+if (redundantTableFallback) {
+  throw new Error("Malformed table-like text enclosed by a footnote must not be duplicated as root opaque source.");
+}
+if (malformedTableFootnote.snapshot.content !== malformedTableFootnoteSource) {
+  throw new Error("Malformed table-footnote parser snapshot must preserve exact source.");
+}
+
 const footnotes = findFixture("020-gfm-footnotes");
 const footnoteReference = findNodeByType(footnotes.result.document.root, "footnoteReference");
 if (footnoteReference.kind !== "inline" || footnoteReference.attributes?.identifier !== "first") {
@@ -180,6 +212,13 @@ function collectOpaqueNodes(node) {
     return [node];
   }
   return (node.children ?? []).flatMap((child) => collectOpaqueNodes(child));
+}
+
+function collectNodesByType(node, type) {
+  const nodes = node.type === type ? [node] : [];
+  return node.kind === "opaque"
+    ? nodes
+    : [...nodes, ...(node.children ?? []).flatMap((child) => collectNodesByType(child, type))];
 }
 
 function findNodeByType(node, type, predicate = () => true) {

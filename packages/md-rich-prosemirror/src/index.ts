@@ -1349,15 +1349,19 @@ function footnoteBaselineOffset(state: RichMarkdownState, sourceOffset: number):
 function findRichTable(doc: ProseMirrorNode, tableIndex: number): RichTableLocation | null {
   let currentTableIndex = 0;
   let result: RichTableLocation | null = null;
-  doc.forEach((node, offset) => {
-    if (result || node.type.name !== "table") {
-      return;
+  doc.descendants((node, position) => {
+    if (result) {
+      return false;
+    }
+    if (node.type.name !== "table") {
+      return true;
     }
     if (currentTableIndex === tableIndex) {
-      result = { node, position: offset, tableIndex };
-      return;
+      result = { node, position, tableIndex };
+      return false;
     }
     currentTableIndex += 1;
+    return false;
   });
   return result;
 }
@@ -1419,10 +1423,14 @@ function richTableCellCoordinatesForResolvedPosition(
     }
     const tablePosition = position.before(tableDepth);
     let tableIndex = 0;
-    doc.forEach((node, offset) => {
-      if (node.type.name === "table" && offset < tablePosition) {
-        tableIndex += 1;
+    doc.descendants((node, nodePosition) => {
+      if (node.type.name === "table") {
+        if (nodePosition < tablePosition) {
+          tableIndex += 1;
+        }
+        return false;
       }
+      return nodePosition < tablePosition;
     });
     return {
       columnIndex: position.index(depth - 1),
@@ -1433,29 +1441,39 @@ function richTableCellCoordinatesForResolvedPosition(
   return null;
 }
 
+function richTableLocations(doc: ProseMirrorNode): readonly RichTableLocation[] {
+  const tables: RichTableLocation[] = [];
+  doc.descendants((node, position) => {
+    if (node.type.name === "table") {
+      tables.push({ node, position, tableIndex: tables.length });
+      return false;
+    }
+    return true;
+  });
+  return tables;
+}
+
 function richTableCellCoordinatesAtPosition(
   doc: ProseMirrorNode,
   position: number
 ): RichTableCellCoordinates | null {
-  let tableIndex = 0;
   let result: RichTableCellCoordinates | null = null;
-  doc.forEach((table, tableOffset) => {
-    if (result || table.type.name !== "table") {
-      return;
-    }
+  for (const table of richTableLocations(doc)) {
     let rowOffset = 0;
-    table.forEach((row, _rowOffset, rowIndex) => {
+    table.node.forEach((row, _rowOffset, rowIndex) => {
       let cellOffset = 0;
       row.forEach((cell, _cellOffset, columnIndex) => {
-        if (tableOffset + 2 + rowOffset + cellOffset === position) {
-          result = { columnIndex, rowIndex, tableIndex };
+        if (table.position + 2 + rowOffset + cellOffset === position) {
+          result = { columnIndex, rowIndex, tableIndex: table.tableIndex };
         }
         cellOffset += cell.nodeSize;
       });
       rowOffset += row.nodeSize;
     });
-    tableIndex += 1;
-  });
+    if (result) {
+      break;
+    }
+  }
   return result;
 }
 
@@ -4691,7 +4709,7 @@ const richNodes: Record<string, NodeSpec> = {
       sourceIdentifierFrom: { default: null },
       sourceIdentifierTo: { default: null }
     },
-    content: "paragraph (paragraph | bullet_list | ordered_list | blockquote | code_block)*",
+    content: "paragraph (paragraph | bullet_list | ordered_list | blockquote | code_block | table)*",
     defining: true,
     group: "block",
     parseDOM: [
@@ -5268,6 +5286,13 @@ function richFootnoteBlockToProseMirror(
       textNode(schema, stringAttribute(node.attributes?.value) ?? "")
     );
   }
+  if (node.type === "table") {
+    const table = tableNodeToProseMirror(node, schema, source);
+    if (!table) {
+      throw new Error("Unmappable footnote table must be rejected before rich conversion.");
+    }
+    return table;
+  }
   throw new Error(`Unsupported rich footnote block reached conversion: ${node.type}.`);
 }
 
@@ -5308,13 +5333,16 @@ function isRepresentableRichFootnoteBlock(node: MomentariseNode, source: string)
     return false;
   }
   if (node.type === "paragraph") {
-    return (node.children ?? []).every(isRepresentableRichFootnoteInlineNode);
+    return isRepresentableRichFootnoteParagraph(node);
   }
   if (node.type === "list") {
     return isRepresentableRichFootnoteList(node, source);
   }
   if (node.type === "blockquote") {
     return isRepresentableRichFootnoteBlockquote(node, source);
+  }
+  if (node.type === "table") {
+    return isRepresentableRichFootnoteTable(node);
   }
   return node.type === "codeFence" && isRepresentableRichFootnoteCodeFence(node, source);
 }
@@ -5356,7 +5384,7 @@ function isRepresentableRichFootnoteBlockquote(node: MomentariseNode, source: st
     (block) =>
       block.kind !== "opaque" &&
       block.type === "paragraph" &&
-      (block.children ?? []).every(isRepresentableRichFootnoteInlineNode)
+      isRepresentableRichFootnoteParagraph(block)
   );
 }
 
@@ -5381,7 +5409,7 @@ function isRepresentableRichFootnoteListItem(item: MomentariseNode, source: stri
   if (
     paragraph?.kind === "opaque" ||
     paragraph?.type !== "paragraph" ||
-    !(paragraph.children ?? []).every(isRepresentableRichFootnoteInlineNode)
+    !isRepresentableRichFootnoteParagraph(paragraph)
   ) {
     return false;
   }
@@ -5391,7 +5419,7 @@ function isRepresentableRichFootnoteListItem(item: MomentariseNode, source: stri
       return false;
     }
     if (block.type === "paragraph") {
-      return (block.children ?? []).every(isRepresentableRichFootnoteInlineNode);
+      return isRepresentableRichFootnoteParagraph(block);
     }
     if (block.type === "list") {
       containerCount += 1;
@@ -5405,8 +5433,16 @@ function isRepresentableRichFootnoteListItem(item: MomentariseNode, source: stri
       containerCount += 1;
       return containerCount <= 1 && isRepresentableRichFootnoteCodeFence(block, source);
     }
+    if (block.type === "table") {
+      containerCount += 1;
+      return containerCount <= 1 && isRepresentableRichFootnoteTable(block);
+    }
     return false;
   });
+}
+
+function isRepresentableRichFootnoteTable(node: MomentariseNode): node is KnownNode {
+  return node.kind !== "opaque" && Boolean(node.sourceRange) && isRepresentableRichTable(node);
 }
 
 function isRepresentableRichFootnoteInlineNode(node: MomentariseNode): boolean {
@@ -5429,6 +5465,25 @@ function isRepresentableRichFootnoteInlineNode(node: MomentariseNode): boolean {
   return (node.children ?? []).every(isRepresentableRichFootnoteInlineNode);
 }
 
+function isRepresentableRichFootnoteParagraph(node: MomentariseNode): boolean {
+  if (node.kind === "opaque" || node.type !== "paragraph") {
+    return false;
+  }
+  return (node.children ?? []).every(isRepresentableRichFootnoteInlineNode) &&
+    !looksLikeUnsupportedRichFootnoteTable(node);
+}
+
+function looksLikeUnsupportedRichFootnoteTable(node: KnownNode): boolean {
+  const lines = (node.children ?? [])
+    .map((child) => inlineTextContent(child))
+    .join("")
+    .split(/\r?\n/);
+  return lines.length >= 2 && lines.every((line) => {
+    const trimmed = line.trim();
+    return trimmed.startsWith("|") && trimmed.slice(1).includes("|");
+  });
+}
+
 type TableAlignment = "center" | "left" | "right" | null;
 
 function tableNodeToProseMirror(
@@ -5436,20 +5491,13 @@ function tableNodeToProseMirror(
   schema: MomentariseRichSchema,
   source: string
 ): ProseMirrorNode | null {
+  if (!isRepresentableRichTable(node)) {
+    return null;
+  }
   const rows = (node.children ?? []).filter(
     (child): child is KnownNode => child.kind !== "opaque" && child.type === "tableRow"
   );
-  const width = rows[0] ? richTableCells(rows[0]).length : 0;
-  if (
-    rows.length === 0 ||
-    width === 0 ||
-    rows.length !== (node.children ?? []).length ||
-    rows.some(
-      (row) => richTableCells(row).length !== width || richTableCells(row).length !== (row.children ?? []).length
-    )
-  ) {
-    return null;
-  }
+  const width = richTableCells(rows[0]!).length;
   const alignments = modelTableAlignments(node, width);
   const tableRows: ProseMirrorNode[] = [];
   for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
@@ -5457,9 +5505,6 @@ function tableNodeToProseMirror(
     const tableCells: ProseMirrorNode[] = [];
     for (let columnIndex = 0; columnIndex < cells.length; columnIndex += 1) {
       const cell = cells[columnIndex]!;
-      if (!(cell.children ?? []).every(isRepresentableRichTableInlineNode)) {
-        return null;
-      }
       const paragraph = schema.nodes.paragraph.create(
         null,
         inlineChildrenToProseMirror(cell.children ?? [], schema, source)
@@ -5470,6 +5515,27 @@ function tableNodeToProseMirror(
     tableRows.push(schema.nodes.table_row.create(null, tableCells));
   }
   return schema.nodes.table.create(null, tableRows);
+}
+
+function isRepresentableRichTable(node: MomentariseNode): node is KnownNode {
+  if (node.kind === "opaque" || node.type !== "table") {
+    return false;
+  }
+  const rows = (node.children ?? []).filter(
+    (child): child is KnownNode => child.kind !== "opaque" && child.type === "tableRow"
+  );
+  const width = rows[0] ? richTableCells(rows[0]).length : 0;
+  return Boolean(
+    rows.length > 0 &&
+    width > 0 &&
+    rows.length === (node.children ?? []).length &&
+    rows.every((row) => {
+      const cells = richTableCells(row);
+      return cells.length === width &&
+        cells.length === (row.children ?? []).length &&
+        cells.every((cell) => (cell.children ?? []).every(isRepresentableRichTableInlineNode));
+    })
+  );
 }
 
 function richTableCells(node: KnownNode): KnownNode[] {

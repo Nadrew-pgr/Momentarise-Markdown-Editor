@@ -174,10 +174,11 @@ export function createMarkdownAstParser(): MarkdownParser {
         mapMdastNode(child, source, `ast-${index}`)
       );
       const supportedTableRanges = collectSourceRangesByType(mappedChildren, "table");
+      const footnoteDefinitionRanges = collectSourceRangesByType(mappedChildren, "footnoteDefinition");
       const footnoteDefinitions = collectFootnoteDefinitionMarkers(source);
       const detectedOpaqueNodes = [
         ...detectOpaqueNodes(source),
-        ...detectUnsupportedTableLikeNodes(source, supportedTableRanges),
+        ...detectUnsupportedTableLikeNodes(source, supportedTableRanges, footnoteDefinitionRanges),
         ...detectUnsupportedFootnoteLikeNodes(source, footnoteDefinitions)
       ].sort((first, second) => first.sourceRange.start.offset - second.sourceRange.start.offset);
       const astOpaqueNodes = collectOpaqueNodesFromList(mappedChildren);
@@ -1306,7 +1307,8 @@ function detectOpaqueNodes(source: string): readonly OpaqueNode[] {
 
 function detectUnsupportedTableLikeNodes(
   source: string,
-  supportedTableRanges: readonly SourceRange[]
+  supportedTableRanges: readonly SourceRange[],
+  footnoteDefinitionRanges: readonly SourceRange[]
 ): readonly OpaqueNode[] {
   const fencedRegions = fencedCodeRegions(source);
   const lines = sourceLines(source);
@@ -1324,7 +1326,14 @@ function detectUnsupportedTableLikeNodes(
     if (runLength >= 2) {
       const first = lines[start]!;
       const last = lines[cursor - 1]!;
-      if (!supportedTableRanges.some((range) => sourceRangeOverlapsOffsets(range, first.start, last.end))) {
+      const contentEnd = last.start + last.text.replace(/\r$/, "").length;
+      const enclosedByFootnote = footnoteDefinitionRanges.some(
+        (range) => range.start.offset <= first.start && range.end.offset >= contentEnd
+      );
+      if (
+        !enclosedByFootnote &&
+        !supportedTableRanges.some((range) => sourceRangeOverlapsOffsets(range, first.start, last.end))
+      ) {
         nodes.push(opaqueNodeFromRaw(source, first.start, last.end, "unsupported table-like syntax", index));
         index += 1;
       }

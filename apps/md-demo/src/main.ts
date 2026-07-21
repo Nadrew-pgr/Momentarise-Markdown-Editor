@@ -2333,11 +2333,11 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
     setRichSelectionForText(text);
     renderSelectionBubbleToolbar();
   },
-  selectRichTableCellForTest(rowIndex: number, columnIndex: number) {
+  selectRichTableCellForTest(rowIndex: number, columnIndex: number, tableIndex = 0) {
     if (!richEditor) {
       throw new Error("Rich editor is not mounted.");
     }
-    richState = selectRichTableCell(richState, { columnIndex, rowIndex });
+    richState = selectRichTableCell(richState, { columnIndex, rowIndex, tableIndex });
     richEditor.updateState(richState.editorState);
     richEditor.focus();
   },
@@ -6405,7 +6405,7 @@ declare global {
           };
       selectFinalRichBlockForTest: () => void;
       selectRichFootnoteDefinitionForTest: (identifier: string) => void;
-      selectRichTableCellForTest: (rowIndex: number, columnIndex: number) => void;
+      selectRichTableCellForTest: (rowIndex: number, columnIndex: number, tableIndex?: number) => void;
       selectRichTextForTest: (text: string) => void;
       saveAsWritableMarkdownFileForTest: (fileName?: string) => Promise<void>;
       showRealFileOpenUnavailableForTest: () => void;

@@ -81,12 +81,12 @@ Completed slices:
 - MME-0065: Rich blockquote GFM footnote definition editing baseline, accepted for code continuation after semantic paragraph-only quote editing at definition/list/task depth, exact bounded reconstruction, conservative callout/nested/arbitrary-child fallback, truthful history/save behavior, real browser proof, fallback review, and full test pass; final blockquote-footnote product review is queued for end-of-run review.
 - MME-0066: Rich fenced-code GFM footnote definition editing baseline, accepted for code continuation after semantic top-level/list/task fence editing, collision-proof reconstruction, inert code proof, conservative indented-code/mixed-container/arbitrary-child fallback, truthful history/save behavior, real browser proof, fallback review, and full test pass; final fenced-code-footnote product review is queued for end-of-run review.
 - MME-0067: Rich indented-code GFM footnote definition editing baseline, accepted for code continuation after semantic top-level/list/task editing, deterministic indented reconstruction, inert content and truthful fence-control proof, conservative noncanonical/mixed-container fallback, real browser proof, fallback review, and full test pass; final indented-code-footnote product review is queued for end-of-run review.
-- MME-0068: Rich table GFM footnote definition editing baseline, promoted after parser-range feasibility proved safe top-level/list/task table mapping can reuse the existing rich table model and bounded footnote serialization without changing core contracts.
+- MME-0068: Rich table GFM footnote definition editing baseline, accepted for code continuation after semantic top-level/list/task table editing, recursive table command reuse, exact untouched-source retention, bounded deterministic reconstruction, conservative malformed/unsafe/mixed-container fallback, real browser proof, fallback review, and full test pass; final table-footnote product review is queued for end-of-run review.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- MME-0068 is the current executable issue. Implementation starts from a committed promotion checkpoint and a fresh pre-issue plan.
+- No executable normal issue remains after MME-0068. The next unblocked must-have candidate is a separately promoted safe callout-footnote editing slice; raw-HTML and other arbitrary nested blocks remain later conservative splits.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

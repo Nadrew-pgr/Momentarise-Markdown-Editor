@@ -6664,3 +6664,49 @@
   - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0068" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before checkpoint commit.
 - Next issue:
   - `MME-0068 — Rich table GFM footnote definition editing baseline`.
+
+## MME-0068 — Rich table GFM footnote definition editing baseline
+
+- Date: 2026-07-21.
+- Previous issue status:
+  - `MME-0067` accepted for code continuation and committed (`a3cb41b` implementation/status, `c72dd8a` evidence).
+  - `MME-0068` was promoted and committed in checkpoint `afdf09d`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, clean `git status --short`, and every parser/model/editor/rich/demo/fixture/test/save file named by the issue.
+- RED proof before implementation:
+  - Added `fixtures/032-table-footnote-editing/` and `tests/rich-footnote-tables.test.mjs`, then confirmed `npm run test:rich-footnote-tables` failed because safe table definitions remained source-only: `Safe table definition must be editable: table-top.`
+  - Expanded RED proof exposed duplicate root opaque output for a malformed table-like run already enclosed by a footnote definition; parser suppression was added without changing the public model.
+- Change:
+  - Extended the closed rich-footnote schema and eligibility whitelist to accept rectangular parser-owned GFM tables at top-level definition depth and as the single container child in safe standard/task list items.
+  - Reused the existing ProseMirror table nodes, alignment model, deterministic GFM serializer, selection, Tab/Shift+Tab movement, and final-row insertion. Table lookup and coordinate helpers now enumerate supported tables in document order at any semantic depth.
+  - Preserved exact untouched table and sibling-child bytes. Changed cells reconstruct only their bounded table or containing top-level list child while retaining definition prefix, outer indentation, loose state, ordered starts, task state, alignments, LF/CRLF, references, unknown syntax, and unrelated Markdown.
+  - Kept quote-contained tables, table-plus-another-container items, malformed/non-rectangular tables, unsafe cells, callouts, raw HTML, nested containers, duplicates, stale source, and unmappable definitions whole source-only. Malformed table-like paragraphs cannot slip through as editable plain paragraphs or duplicate their raw source at root.
+  - Added focused top-level/list/task/wide-table semantics, edit, reparse-shape, navigation, final-row, history, rename/selection/replacement, CRLF, fallback, DOM-metadata, and Save Engine tests; updated prior fixture expectations intentionally; documented the package contract; registered focused and visual scripts in root tooling.
+- Visual impact:
+  - Four supported definitions render semantic tables at top-level, ordered-list, task-list, and wide-table depths; six unsupported definitions remain explicit preserved-source cards.
+  - Artifacts: `docs/internal/visual-checks/MME-0068/footnote-tables-rich-desktop.png`, `footnote-tables-edited-desktop.png`, `footnote-tables-saved-desktop.png`, `footnote-tables-unsupported-desktop.png`, `footnote-tables-constrained.png`, `footnote-tables-wide-constrained.png`, and `footnote-tables-source-desktop.png`.
+  - Permissioned Chrome proof loads the real fixture, edits nested table cells, sends real Tab/Shift+Tab keys, proves undo/redo and task-table final-row insertion/undo, saves exact disk truth, checks inert unsafe content and absent source-metadata leakage, switches to exact Source, and verifies 390 px page containment plus editor-local horizontal reachability to the wide-table end.
+  - Builder inspected all seven captures. Feature hierarchy, table content, fallbacks, Source, and constrained containment are readable. Existing dominant full-editor blue focus outline and diagnostics-chip overlap remain queued for final human review.
+- Checks run:
+  - `npm run test:rich-footnote-tables` — RED first, then green after implementation; green again after root-CI registration fix.
+  - Parser, fixtures, round-trip, top-level table editing, all MME-0056 through MME-0068 footnote regressions, targeted serialization, rich fidelity, Save Engine, contracts, architecture, public API, rich security, docs, LLM sync, AX artifacts, and demo baseline/UX checks — green.
+  - `npm run visual:mme-0068` — first run exposed an over-broad reference/definition selector; definition-specific selectors fixed the proof. Final permissioned run passed and captured all seven states.
+  - First corrected full `npm test` attempt failed while writing the later Vite bundle because the host disk had only about 100 MB free. Removed generated `.next` output and cleared the disposable 3.2 GB npm cache; no source or dependency files were removed.
+  - Final `npm test` — green end-to-end with `test:rich-footnote-tables` visibly executed, performance 10/10, every preservation/security/save regression, Vite demo build, and 42-page Next.js docs build; existing Vite chunk-size warning only.
+  - `git diff --check` — green before closeout.
+- Reviewer result:
+  - Exact inspect-only `gpt-5.3-codex-spark` with `xhigh` reasoning was retried and hit its usage limit until 2026-07-26 14:48. The failed reviewer was closed; no substitute code-review model was used.
+  - Documented fallback self-review covered schema closure, recursive table positions and document-order indices, safe/malformed eligibility, parser opaque-node ownership, exact untouched source, bounded changed-child reconstruction, shape/alignment/hierarchy reparse, ordered/task/loose semantics, LF/CRLF/indentation, unsafe/fallback atomicity, history/save truth, DOM metadata privacy, package boundaries, focused tests, root CI registration, full regressions, and browser assertions.
+  - Fallback review found and fixed one P2 verification gap: `test:rich-footnote-tables` was declared but absent from the root `npm test` chain. No remaining P0-P3 issue was found after the corrected full pass.
+- Residual risks:
+  - Quote-contained and generic nested tables, multiple container children, callouts, raw HTML, malformed/non-rectangular tables, unsafe content, nested containers, duplicates, stale source, invalid indentation, and unmappable forms remain source-only by design.
+  - Intentionally changed tables normalize pipe spacing and delimiters to deterministic valid GFM; untouched table bytes remain exact.
+  - Advanced creation, row/column menus, alignment UI, resizing, merged cells, spreadsheet operations, and structural footnote block mutation remain out of scope.
+  - Final table density, nested hierarchy, keyboard feel, focus treatment, normalization taste, fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, horizontal scrolling, deep narrow wrapping, and constrained layout are queued in `docs/internal/BACKLOG.md`.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Issue-scoped implementation/status commit pending.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0068`. The next unblocked must-have candidate is a separately promoted safe callout-footnote editing slice; raw-HTML and other arbitrary nested blocks remain later conservative splits.

@@ -9,12 +9,13 @@ const source = await readFile("fixtures/028-loose-list-footnote-editing/input.md
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
 
-assertEqual(definitions.length, 5, "safe loose bullet, task, ordered, quoted, and indented-code definitions must be editable");
+assertEqual(definitions.length, 6, "safe loose bullet, task, ordered, quoted, indented-code, and table definitions must be editable");
 const bulletDefinition = definitions.find((node) => node.attrs.identifier === "loose-bullets");
 const taskDefinition = definitions.find((node) => node.attrs.identifier === "loose-task");
 const orderedDefinition = definitions.find((node) => node.attrs.identifier === "loose-ordered");
 const quoteDefinition = definitions.find((node) => node.attrs.identifier === "quoted-child");
 const codeDefinition = definitions.find((node) => node.attrs.identifier === "code-child");
+const tableDefinition = definitions.find((node) => node.attrs.identifier === "table-child");
 
 const bulletList = bulletDefinition?.child(1);
 assertEqual(bulletList?.type.name, "bullet_list", "loose bullet list is semantic");
@@ -41,6 +42,11 @@ assertEqual(
   quoteDefinition?.child(1).child(0).child(1).type.name,
   "blockquote",
   "safe loose-item quote now mounts semantically"
+);
+assertEqual(
+  tableDefinition?.child(1).child(0).child(1).type.name,
+  "table",
+  "safe loose-item table now mounts semantically"
 );
 assertEqual(
   codeDefinition?.child(1).child(0).child(1).type.name,
@@ -92,7 +98,6 @@ const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block")
 for (const marker of [
   "[^multiple-nested]:",
   "[^raw-child]:",
-  "[^table-child]:",
   "[^callout-child]:",
   "[^nested-container]:"
 ]) {

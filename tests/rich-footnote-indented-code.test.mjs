@@ -17,6 +17,7 @@ const topDefinition = definitions.find((node) => node.attrs.identifier === "inde
 const listDefinition = definitions.find((node) => node.attrs.identifier === "indent-list");
 const taskDefinition = definitions.find((node) => node.attrs.identifier === "indent-task");
 const fencedDefinition = definitions.find((node) => node.attrs.identifier === "fenced-existing");
+const tableDefinition = definitions.find((node) => node.attrs.identifier === "table-child");
 
 const topCode = topDefinition?.child(1);
 assertEqual(topCode?.type.name, "code_block", "top-level indented code is semantic");
@@ -42,6 +43,7 @@ assertIncludes(taskItem?.child(1).textContent ?? "", "<script>", "script syntax 
 
 assertEqual(fencedDefinition?.child(1).type.name, "code_block", "existing fenced code remains semantic");
 assertEqual(fencedDefinition?.child(1).attrs.language, "js", "existing fenced code language remains semantic");
+assertEqual(tableDefinition?.child(1).type.name, "table", "safe table now mounts semantically");
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched indented-code document identity");
 assertNoExactSourceMetadataInDom(topDefinition);
 
@@ -111,7 +113,6 @@ const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block")
 for (const marker of [
   "[^quote-code]:",
   "[^mixed-containers]:",
-  "[^table-child]:",
   "[^callout-child]:",
   "[^raw-child]:",
   "[^nested-container]:"
