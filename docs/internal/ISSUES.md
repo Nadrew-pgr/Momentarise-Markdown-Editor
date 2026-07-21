@@ -3958,6 +3958,90 @@ Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer.
 
 - None. MME-0065 established source-aware arbitrary-block refusal, safe list/task/quote hierarchy, bounded reconstruction, history/save truth, and browser proof required by this slice; existing rich code-block nodes already provide inert editable code content plus language/meta attributes.
 
+## MME-0067 — Rich indented-code GFM footnote definition editing baseline
+
+### Goal
+
+Let users edit safely representable indented code blocks inside unique top-level GFM footnote definitions, including one indented-code child inside a safe standard or task list item, while preserving code text, hierarchy, unrelated Markdown, source-only fallbacks, history, and save truth.
+
+### Scope
+
+- Extend safe semantic footnote definition children to accept parser-recognized indented code blocks with plain text content and no language/meta info string.
+- Distinguish indented code from fenced code through source-aware package-owned validation while retaining the shared parser `codeFence` model type and ProseMirror `code_block` node.
+- Allow one safe indented code block as the single container child after the required first paragraph in a standard or task list item; additional safe paragraphs remain allowed around it.
+- Support top-level definition indented code plus indented code nested one level inside recursively safe bullet/ordered standard/task items without admitting arbitrary block children.
+- Preserve untouched indentation bytes, blank code lines, internal code whitespace, definition identifier, first-line prefix, outer footnote indentation, line endings, unchanged sibling definition-child bytes, references, unknown syntax, and unrelated document bytes.
+- Reconstruct only the containing top-level definition child or list child when code text changes; emit deterministic four-space indented Markdown at the code-block layer and require reparsing to the same paragraph/code/list/task hierarchy.
+- Keep code content inert text in DOM/serialization and expose no exact source/fingerprint metadata through rendered DOM attributes.
+- Keep fenced-code, simple, continuation-line, top-level multi-paragraph, tight/loose standard/task list, nested list, blockquote, insertion, whole-body replacement, definition selection, semantic references, and identifier rename behavior compatible.
+- Keep inconsistent or unmappable indented-code layouts, quote-contained code, list items combining code with another container child, tables, callouts, raw HTML, and other arbitrary block children source-only.
+- Keep container-nested definitions, duplicates, malformed definitions, unsafe content, stale source, invalid/inconsistent outer indentation, and unmappable ranges in explicit whole-definition source-only fallback.
+- Treat one code-text edit as one ProseMirror history action and keep Save Engine/autosave hashes truthful.
+- Add runtime browser proof for top-level and list/task-nested indented-code editing, undo/redo, exact Source output, save truth, unsupported fallback visibility, and constrained-width containment.
+- Queue final indented-code-footnote product/taste review for Andrew's end-of-run human review block.
+
+### Acceptance criteria
+
+- Unique top-level definitions containing safe indented code blocks, including one indented-code child inside safe standard/task list items, mount as semantic editable Rich definitions.
+- Untouched supported definitions serialize byte-for-byte; source syntax/layout state remains package-owned and exact source/fingerprint metadata remains absent from rendered DOM attributes.
+- Editing code text reconstructs only its bounded containing definition child or list child; unchanged definition children and unrelated source ranges remain byte-identical.
+- Reconstructed Markdown remains indented code, retains exact code text, blank lines, standard/task hierarchy, checked state, ordered starts, list looseness, definition prefix spelling/spacing, outer indentation, and LF/CRLF convention, and reparses to the same semantic shape.
+- One undo reverts one code edit; redo restores it; saving persists exactly the Source Markdown shown by the editor.
+- Existing single-line, continuation-line, multi-paragraph, tight/loose list, nested list, task list, blockquote, fenced-code, insertion, selection/replacement, identifier rename, semantic-reference, code-block, and read-rendering tests remain green.
+- Fenced code remains handled by MME-0066; quote-contained code, mixed multiple-container list items, table/callout/raw-HTML/arbitrary children, inconsistent or unmappable indented code, nested-container, duplicate, malformed, unsafe, stale, invalid-indent, or unmappable definitions remain source-only and never receive partial edits.
+- Schema, source-syntax discrimination, serializer, and source mapping stay inside `@momentarise/md-rich-prosemirror`, remain host-independent, and pass API/architecture/security gates.
+- Browser verification captures supported Rich indented code before/after changes, exact resulting Source, at least one inconsistent-layout or mixed-container fallback, and constrained-width states.
+- `docs/internal/build-log.md` records RED/GREEN evidence, visual impact, reviewer or fallback result, tests, residual risks, commit, push status, and next issue.
+
+### Test-first plan
+
+- RED: add a real indented-code-footnote fixture and focused test that fails because safe indented-code definitions remain source-only.
+- RED: prove top-level and list/task-nested code semantics, multiline text editing, internal whitespace and blank-line retention, deep edits, exact sibling-child preservation, ordered starts, loose spacing, LF/CRLF, one-step undo/redo, save truth, and no full-document rewrite.
+- RED: prove changed output remains deterministic indented code and reparses to the same paragraph/code/list/task hierarchy.
+- RED: prove inconsistent indentation, quote-contained code, mixed code-plus-list/quote items, tables, callouts, raw HTML, nested containers, duplicates, malformed, unsafe, stale, invalid-indent, and unmappable forms refuse atomically.
+- RED: prove prior footnote definition, insertion, rename, multiline, multi-paragraph, list, nested-list, task-list, loose-list, blockquote, and fenced-code behavior remains compatible.
+- RED: add browser/runtime assertions for code editing, Source output, fallback visibility, save truth, inert code content, and constrained containment.
+- GREEN: generalize only safe indented-code eligibility/conversion plus deterministic indented-code serialization, reusing existing code-block nodes, parser source ranges, child fingerprints, loose-list state, and bounded footnote serialization.
+- REFACTOR: isolate fenced-versus-indented source validation and deterministic code-style serialization without exposing source bytes through DOM or broadening arbitrary block support.
+
+### Manual verification
+
+- Start the reference demo with supported top-level/list/task indented code blocks and separate inconsistent-layout/mixed-container unsupported definitions.
+- Edit multiline code in Rich mode, undo/redo, save, then switch to Source and inspect exact valid indented Markdown plus clean state.
+- Confirm unsupported definitions remain visibly source-only, then repeat at constrained width and capture artifacts under `docs/internal/visual-checks/MME-0067/`.
+
+### Visual impact
+
+Supported indented code blocks become semantic Rich code content inside footnote definitions and safe list/task items. Unsupported inconsistent indentation, quote-contained code, mixed containers, and arbitrary children remain explicit preserved-source fallbacks. Final code density, hierarchy, focus flow, fallback wording, horizontal overflow, and constrained-layout taste review remain queued for Andrew's end-of-run review block.
+
+### Implementation notes
+
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-editor/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-surface/src/index.ts`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `fixtures/005-code-fence-language`, `fixtures/020-gfm-footnotes`, `fixtures/022-simple-footnote-editing`, `fixtures/023-multiline-footnote-editing`, `fixtures/024-multiparagraph-footnote-editing`, `fixtures/025-list-block-footnote-editing`, `fixtures/026-nested-list-footnote-editing`, `fixtures/027-task-list-footnote-editing`, `fixtures/028-loose-list-footnote-editing`, `fixtures/029-blockquote-footnote-editing`, `fixtures/030-fenced-code-footnote-editing`, `tests/parser-foundation.test.mjs`, `tests/rich-prosemirror-package.test.mjs`, `tests/rich-commands.test.mjs`, `tests/rich-input-rules.test.mjs`, `tests/rich-core-interactions.test.mjs`, `tests/rich-footnote-editing.test.mjs`, `tests/rich-footnote-insertion.test.mjs`, `tests/rich-footnote-rename.test.mjs`, `tests/rich-footnote-multiline.test.mjs`, `tests/rich-footnote-multiparagraph.test.mjs`, `tests/rich-footnote-list-blocks.test.mjs`, `tests/rich-footnote-nested-lists.test.mjs`, `tests/rich-footnote-task-lists.test.mjs`, `tests/rich-footnote-loose-lists.test.mjs`, `tests/rich-footnote-blockquotes.test.mjs`, `tests/rich-footnote-fenced-code.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/save-engine.test.mjs`, and the MME-0056 through MME-0066 build-log/visual artifacts.
+
+Reuse the existing code-block ProseMirror node, parser-owned code value plus source ranges, semantic footnote references/definitions, exact top-level definition-child source layout, child fingerprints, source-derived loose state, targeted source materialization, and conservative eligibility checks. Keep source-syntax detection and reconstruction inside `@momentarise/md-rich-prosemirror`; do not add ProseMirror concepts to core/model/save/policy packages. Preserve untouched indentation bytes exactly and normalize only intentionally changed indented code to a valid deterministic four-space code indent at its block layer.
+
+### Out of scope
+
+- Quote-contained code, tables, callouts, raw HTML, multiple container children per list item, inconsistent/unmappable indentation, or generic arbitrary-block editing inside footnotes.
+- New code-block insertion commands, language/meta controls for indented code, code execution, syntax-highlighter integration, structural list/code insertion/deletion/reordering, Tab/Shift+Tab redesign, or original indentation-style preservation for intentionally changed containing blocks.
+- Container-nested definitions, definition reorder, missing-reference repair, hover previews, backlink redesign, polished footnote dialogs, task DOM redesign, or docs-content construction.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible indented-code-footnote UX/product review is queued for the end-of-run human review block unless indentation/hierarchy preservation remains unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer.
+
+### Blocked by
+
+- None. MME-0066 established source-aware fenced-code discrimination, inert rich code nodes, collision-safe serialization, safe list/task containment, bounded reconstruction, history/save truth, and browser proof; parser feasibility confirms indented code already arrives as a source-ranged plain-text code node without widening the public model contract.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

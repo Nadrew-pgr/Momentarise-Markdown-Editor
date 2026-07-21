@@ -6567,3 +6567,27 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0066`. Continuation requires promoting the next unblocked must-have backlog item before implementation.
+
+## Backlog promotion checkpoint — MME-0067
+
+- Date: 2026-07-21.
+- Context:
+  - `MME-0066` is accepted for code continuation and committed (`cb1b625` implementation/status, `ff2f61a` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0066.
+  - Andrew instructed autonomous continuation, must-haves first, strict issue formatting, issue-scoped commits, no docs-content work in this agent, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Feasibility proof:
+  - Current `@momentarise/md-format` output already represents indented code inside a GFM footnote definition as a plain-text `codeFence` model node with an exact source range and no language/meta, while preserving the original source snapshot.
+  - Existing `@momentarise/md-rich-prosemirror` code nodes, bounded footnote child layouts, list/task reconstruction, fingerprints, and Save Engine path can carry the semantic edit without changing core/parser/public contracts.
+- Change:
+  - Promoted `MME-0067 — Rich indented-code GFM footnote definition editing baseline` from the next explicit footnote/core-block gap into normal issue form.
+  - Bounded the slice to source-validated indented code as top-level definition children or one container child inside safe standard/task list items.
+  - Required untouched indentation bytes to remain exact and intentionally changed output to remain valid deterministic indented code; inconsistent/unmappable indentation, quote-contained code, mixed multiple containers, tables, callouts, raw HTML, arbitrary blocks, structural mutation, nested containers, duplicates, malformed, unsafe, stale, and unmappable forms remain source-only or out of scope.
+  - Updated `README.md` current slice plus `docs/internal/BACKLOG.md` promotion and end-of-run review tracking.
+- Rationale:
+  - Indented code is the next explicit footnote/core-block backlog item after fenced code.
+  - Parser feasibility is proven locally, and the source syntax can remain package-owned without weakening Markdown durability or admitting arbitrary children.
+- Checks run:
+  - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0067" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before checkpoint commit.
+- Next issue:
+  - `MME-0067 — Rich indented-code GFM footnote definition editing baseline`.
