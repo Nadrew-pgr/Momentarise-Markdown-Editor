@@ -6850,3 +6850,28 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0070`. The next backlog candidate requires a fresh feasibility proof and strict promotion before implementation; inline HTML and other arbitrary nested blocks remain unpromoted future splits.
+
+## Backlog promotion checkpoint — MME-0071
+
+- Date: 2026-07-21.
+- Context:
+  - `MME-0070` is accepted for code continuation and committed (`4e5142f` implementation/status, `5a33c7c` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0070.
+  - Andrew instructed autonomous continuation, must-haves first, strict issue formatting, issue-scoped commits, no docs-content work in this agent, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Feasibility proof:
+  - Direct `@momentarise/md-format` probes confirm inline HTML tags/comments inside footnote paragraphs map to exact source-ranged opaque children with reason `raw HTML`.
+  - Paired inline fragments also create root-level detected opaque ranges, but those ranges are strictly contained by the owning footnote definition and existing `filterRichRootNodes` removes them before Rich conversion.
+  - Existing inline conversion already renders opaque payload as escaped text. A package-owned source mark can add code-like identity without payload DOM attributes, while exact footnote child fingerprints and bounded paragraph/list/quote/callout serializers preserve untouched bytes and limit changes to owned ranges.
+- Change:
+  - Promoted `MME-0071 — Rich inert inline-HTML footnote paragraph editing baseline` into normal issue form.
+  - Bounded the slice to exact single-line parser-owned inline HTML tags/comments at safe top-level/multi-paragraph/list/task/quote/callout paragraph depth.
+  - Required literal marked text, exact untouched identity, bounded changed-paragraph reconstruction, hostile payload inertness, overlap suppression proof, and conservative whole-definition fallback for Markdown-mark-wrapped, multiline, table-cell, block, duplicate, nested-container, stale, invalid-indent, and unmappable forms.
+  - Updated `README.md` current slice plus `docs/internal/BACKLOG.md` promotion and end-of-run review tracking.
+- Rationale:
+  - Inline HTML is the next explicit footnote/core-block gap after inert block HTML and already has exact parser ownership plus an escaped-text conversion path.
+  - Refusing Markdown-mark-wrapped and multiline tokens keeps changed serialization bounded and deterministic without pretending to support ambiguous nesting.
+- Checks run:
+  - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0071" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before checkpoint commit.
+- Next issue:
+  - `MME-0071 — Rich inert inline-HTML footnote paragraph editing baseline`.
