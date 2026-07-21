@@ -6591,3 +6591,51 @@
   - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0067" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before checkpoint commit.
 - Next issue:
   - `MME-0067 — Rich indented-code GFM footnote definition editing baseline`.
+
+## MME-0067 — Rich indented-code GFM footnote definition editing baseline
+
+- Date: 2026-07-21.
+- Previous issue status:
+  - `MME-0066` accepted for code continuation and committed (`cb1b625` implementation/status, `ff2f61a` evidence).
+  - `MME-0067` was promoted from backlog and committed in checkpoint `009359e`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, clean `git status --short`, and every parser/model/editor/rich/demo/fixture/test/save file named by the issue.
+  - Direct parser feasibility proof confirmed canonical indented code arrives as a plain-text `codeFence` model node with an exact source range, no language/meta, and unchanged source snapshot.
+- RED proof before implementation:
+  - Added `fixtures/031-indented-code-footnote-editing/` and `tests/rich-footnote-indented-code.test.mjs`, then confirmed `npm run test:rich-footnote-indented-code` failed at the first supported identifier because `indent-top` remained source-only.
+- Change:
+  - Extended package-owned rich footnote eligibility to distinguish canonical four-space indented code from fenced code through exact source-range/value validation. Tabs, mixed/noncanonical prefixes, inconsistent outer indentation, missing ranges, and non-string or info-bearing indented candidates remain rejected.
+  - Added a package-owned `code_block.syntax` attribute so semantic indented code remains indented through bounded reconstruction while ordinary/fenced code retains collision-proof fence serialization. Exact source bytes and fingerprints remain outside rendered DOM.
+  - Added a dedicated recursive footnote-list mapper so indented/fenced syntax survives at standard/task list depth without changing generic list behavior or widening core/parser/public contracts.
+  - Added deterministic changed-indented-code serialization: four spaces at the code-block layer, internal leading whitespace retained, blank code lines kept blank, outer footnote/list indentation reapplied by existing bounded serializers, and LF/CRLF convention preserved by targeted materialization.
+  - Hid fence-only language/meta controls for indented code by making `getCurrentCodeBlockInfo` return `null` and `setCurrentCodeBlockInfo` a no-op for `syntax: indented`; browser proof confirms the controls no longer offer changes that cannot persist.
+  - Added fixture 031, focused semantic/edit/reparse/history/selection/rename/save/CRLF/fallback-atomicity/inert-script/control-truth tests, intentional fixture 028/030 expectation updates now that their safe indented code mounts semantically, package docs, root test registration, and runtime browser proof.
+- Visual impact:
+  - Safe top-level, standard-list, and task-list indented code renders as semantic Rich code blocks. Existing fenced code remains semantic. Unsupported quote-contained code, mixed containers, tables, callouts, raw HTML, and nested-container definitions remain explicit preserved-source cards.
+  - Fence-only Language/Meta inputs stay hidden when an indented code block is selected, preventing misleading ignored changes.
+  - Artifacts: `docs/internal/visual-checks/MME-0067/footnote-indented-code-rich-desktop.png`, `footnote-indented-code-edited-desktop.png`, `footnote-indented-code-saved-desktop.png`, `footnote-indented-code-unsupported-desktop.png`, `footnote-indented-code-constrained.png`, and `footnote-indented-code-source-desktop.png`.
+  - Permissioned headless Chrome proof loads fixture 031 at `http://127.0.0.1:5174/`, verifies four semantic definitions, six or more fallbacks, ordered start, accessible task controls, inert script text, metadata privacy, exact untouched identity, real edit plus undo/redo, hidden fence-only controls, exact saved disk content, accessible unsupported fallbacks, 390px containment, and exact Source-mode content.
+  - Builder inspected all six states. Desktop hierarchy, code blocks, task controls, fallback cards, and Source output are readable. Narrow code remains contained through horizontal scrolling. The dominant full-editor blue focus outline, diagnostics-chip overlap, and deep narrow text wrapping remain visible and queued for final human review.
+- Checks run:
+  - `npm run test:rich-footnote-indented-code` — RED first (`Safe indented-code definition must be editable: indent-top.`), then green after source-aware syntax conversion, recursive list mapping, deterministic serialization, and control truthfulness.
+  - All MME-0056 through MME-0067 footnote regressions, rich commands/input rules/core interactions, targeted serialization, Save Engine, contracts, architecture, public API, rich security, fixture corpus, parser, round-trip, rich fidelity, and demo tests — green.
+  - `npm run visual:mme-0067` — green twice; final recapture includes hidden fence-only controls and six current artifacts.
+  - Final `npm test` — green end-to-end, including performance, architecture, security, preservation, every footnote/list/code regression, fixture corpus, CLI, AX artifacts, packages, demo, adapters, Vite build, and 42-page Next.js docs build; existing Vite chunk-size warning only.
+  - `git diff --check` — green before closeout.
+- Reviewer result:
+  - Required inspect-only code review used exactly `gpt-5.3-codex-spark` with `xhigh` reasoning. Agent `019f84be-bd47-7682-a47e-c0f3f3df7ffd` could not run because that model's usage limit is exhausted until 2026-07-26 14:48; no substitute code-review model was used.
+  - Documented fallback self-review covered canonical-space discrimination, mdast source-range/column assumptions, fenced compatibility, code syntax closure, recursive standard/task/nested-list conversion, exact untouched identity, bounded reconstruction, internal/blank whitespace, LF/CRLF, unsupported-definition atomicity, inert DOM text, language/meta control truth, history/selection/rename/save truth, DOM metadata privacy, package boundaries, focused tests, full regressions, and browser assertions.
+  - No remaining P0-P3 issue was found. Visual review identified the initially misleading Language/Meta controls; builder fixed and reverified them before acceptance.
+- Residual risks:
+  - Tab-indented, mixed-indent, noncanonical, quote-contained, mixed multiple-container, table, callout, raw-HTML, arbitrary-child, nested-container, duplicate, malformed, unsafe, stale, and otherwise unmappable definitions remain source-only by design.
+  - Intentionally changed indented code normalizes to four spaces at its code-block layer and keeps blank lines empty; untouched indentation bytes remain exact.
+  - Eligibility relies on current remark/mdast source-range behavior: the first code line starts at the node range while following lines retain absolute container indentation. Fixture 031, list/task depth, CRLF, mixed-indent refusal, parser, and full round-trip tests pin this assumption.
+  - Code insertion, syntax-highlighting, code execution, structural insertion/deletion/reorder, arbitrary block editing, Tab/Shift+Tab redesign, and task DOM redesign remain future slices.
+  - Final code density, nested hierarchy, edit/focus flow, fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, code scrolling, deep narrow wrapping, and constrained layout are queued in `docs/internal/BACKLOG.md`.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Issue-scoped implementation/status commit pending closeout.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0067`. The next unblocked must-have candidate is a separately promoted safe nested-table footnote editing slice; callout and raw-HTML children remain later conservative splits.

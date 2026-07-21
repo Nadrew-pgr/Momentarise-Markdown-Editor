@@ -1625,7 +1625,7 @@ export function toggleCurrentTodoItem(state: RichMarkdownState): RichMarkdownSta
 
 export function getCurrentCodeBlockInfo(state: RichMarkdownState): RichCodeBlockInfo | null {
   const range = currentAncestorBlockRange(state.editorState, "code_block");
-  if (!range) {
+  if (!range || range.node.attrs.syntax === "indented") {
     return null;
   }
   return {
@@ -1639,7 +1639,7 @@ export function setCurrentCodeBlockInfo(
   options: SetRichCodeBlockInfoOptions
 ): RichMarkdownState {
   const range = currentAncestorBlockRange(state.editorState, "code_block");
-  if (!range) {
+  if (!range || range.node.attrs.syntax === "indented") {
     return state;
   }
   const language =
@@ -4578,7 +4578,8 @@ const richNodes: Record<string, NodeSpec> = {
   code_block: {
     attrs: {
       language: { default: null },
-      meta: { default: null }
+      meta: { default: null },
+      syntax: { default: "fenced" }
     },
     code: true,
     content: "text*",
@@ -5085,7 +5086,7 @@ function richFootnoteDefinitionLayout(
         : null;
     }
     if (block?.kind !== "opaque" && block?.type === "codeFence") {
-      return richFootnoteCodeFenceContinuationIndent(raw);
+      return richFootnoteCodeBlockContinuationIndent(block, source);
     }
     return richFootnoteBlockContinuationIndent(raw);
   });
@@ -5144,6 +5145,56 @@ function richFootnoteCodeFenceContinuationIndent(raw: string): string | null {
     : null;
 }
 
+function richFootnoteCodeBlockContinuationIndent(node: MomentariseNode, source: string): string | null {
+  const raw = rawFromRange(node, source);
+  return richFootnoteCodeFenceContinuationIndent(raw) ??
+    richFootnoteIndentedCodeContinuationIndent(node, source);
+}
+
+function richFootnoteIndentedCodeContinuationIndent(
+  node: MomentariseNode,
+  source: string
+): string | null {
+  if (node.kind === "opaque" || node.type !== "codeFence" || !node.sourceRange) {
+    return null;
+  }
+  if (node.attributes?.language !== undefined || node.attributes?.meta !== undefined) {
+    return null;
+  }
+  const value = node.attributes?.value;
+  if (typeof value !== "string") {
+    return null;
+  }
+  const rawLines = rawFromRange(node, source).split(/\r?\n/);
+  const valueLines = value.split(/\r?\n/);
+  if (rawLines.length !== valueLines.length || rawLines.length === 0) {
+    return null;
+  }
+  const outerWidth = node.sourceRange.start.column - 1;
+  if (!Number.isSafeInteger(outerWidth) || outerWidth < 0) {
+    return null;
+  }
+  const outerIndent = " ".repeat(outerWidth);
+  const codeIndent = "    ";
+  if (rawLines[0] !== `${codeIndent}${valueLines[0] ?? ""}`) {
+    return null;
+  }
+  for (let index = 1; index < rawLines.length; index += 1) {
+    const rawLine = rawLines[index] ?? "";
+    const valueLine = valueLines[index] ?? "";
+    if (valueLine.length === 0) {
+      if (!["", outerIndent, `${outerIndent}${codeIndent}`].includes(rawLine)) {
+        return null;
+      }
+      continue;
+    }
+    if (rawLine !== `${outerIndent}${codeIndent}${valueLine}`) {
+      return null;
+    }
+  }
+  return outerIndent;
+}
+
 function isSafeRichFootnoteBlockSeparator(value: string): boolean {
   return richFootnoteBlockSeparatorIndent(value) !== null;
 }
@@ -5187,7 +5238,7 @@ function richFootnoteBlockToProseMirror(
     );
   }
   if (node.type === "list") {
-    return listNodeToProseMirror(node, schema, source);
+    return richFootnoteListToProseMirror(node, schema, source);
   }
   if (node.type === "blockquote") {
     return schema.nodes.blockquote!.create(
@@ -5204,15 +5255,52 @@ function richFootnoteBlockToProseMirror(
     );
   }
   if (node.type === "codeFence") {
+    const syntax = richFootnoteCodeSyntax(node, source);
+    if (!syntax) {
+      throw new Error("Unmappable footnote code must be rejected before rich conversion.");
+    }
     return schema.nodes.code_block!.create(
       {
         language: stringAttribute(node.attributes?.language),
-        meta: stringAttribute(node.attributes?.meta)
+        meta: stringAttribute(node.attributes?.meta),
+        syntax
       },
       textNode(schema, stringAttribute(node.attributes?.value) ?? "")
     );
   }
   throw new Error(`Unsupported rich footnote block reached conversion: ${node.type}.`);
+}
+
+function richFootnoteListToProseMirror(
+  node: MomentariseNode,
+  schema: MomentariseRichSchema,
+  source: string
+): ProseMirrorNode {
+  if (node.kind === "opaque" || node.type !== "list") {
+    throw new Error("Non-list footnote nodes must be rejected before list conversion.");
+  }
+  const items = (node.children ?? []).map((item) =>
+    richFootnoteListItemToProseMirror(item, schema, source)
+  );
+  const loose = richListNodeIsLoose(node, source);
+  return node.attributes?.ordered === true
+    ? schema.nodes.ordered_list!.create({ loose, order: Number(node.attributes.start) || 1 }, items)
+    : schema.nodes.bullet_list!.create({ loose }, items);
+}
+
+function richFootnoteListItemToProseMirror(
+  node: MomentariseNode,
+  schema: MomentariseRichSchema,
+  source: string
+): ProseMirrorNode {
+  if (node.kind === "opaque" || node.type !== "listItem") {
+    throw new Error("Non-list-item footnote nodes must be rejected before item conversion.");
+  }
+  const children = (node.children ?? []).map((child) => richFootnoteBlockToProseMirror(child, schema, source));
+  const attrs = { loose: richListNodeIsLoose(node, source) };
+  return typeof node.attributes?.checked === "boolean"
+    ? schema.nodes.todo_item!.create({ ...attrs, checked: node.attributes.checked }, children)
+    : schema.nodes.list_item!.create(attrs, children);
 }
 
 function isRepresentableRichFootnoteBlock(node: MomentariseNode, source: string): boolean {
@@ -5245,7 +5333,14 @@ function isRepresentableRichFootnoteCodeFence(node: MomentariseNode, source: str
   ) {
     return false;
   }
-  return richFootnoteCodeFenceContinuationIndent(rawFromRange(node, source)) !== null;
+  return richFootnoteCodeSyntax(node, source) !== null;
+}
+
+function richFootnoteCodeSyntax(node: MomentariseNode, source: string): "fenced" | "indented" | null {
+  if (richFootnoteCodeFenceContinuationIndent(rawFromRange(node, source)) !== null) {
+    return "fenced";
+  }
+  return richFootnoteIndentedCodeContinuationIndent(node, source) !== null ? "indented" : null;
 }
 
 function isRepresentableRichFootnoteBlockquote(node: MomentariseNode, source: string): boolean {
@@ -5608,6 +5703,12 @@ function serializeBlock(node: ProseMirrorNode, indentLevel: number): string {
 }
 
 function serializeCodeBlock(node: ProseMirrorNode): string {
+  if (node.attrs.syntax === "indented") {
+    return node.textContent
+      .split(/\r?\n/)
+      .map((line) => (line.length > 0 ? `    ${line}` : ""))
+      .join("\n");
+  }
   const language = stringAttribute(node.attrs.language) ?? "";
   const meta = stringAttribute(node.attrs.meta);
   const info = [language, meta].filter(Boolean).join(" ").replace(/\r?\n/g, " ");

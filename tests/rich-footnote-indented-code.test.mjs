@@ -4,61 +4,76 @@ const rich = await import("../packages/md-rich-prosemirror/dist/index.js");
 const save = await import("../packages/md-save/dist/index.js");
 const history = await import("prosemirror-history");
 
-const source = await readFile("fixtures/030-fenced-code-footnote-editing/input.md", "utf8");
+const source = await readFile("fixtures/031-indented-code-footnote-editing/input.md", "utf8");
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
 
-assertEqual(definitions.length, 4, "safe fenced and indented code definitions must be editable");
-const topDefinition = definitions.find((node) => node.attrs.identifier === "code-top");
-const listDefinition = definitions.find((node) => node.attrs.identifier === "code-list");
-const taskDefinition = definitions.find((node) => node.attrs.identifier === "code-task");
-const indentedDefinition = definitions.find((node) => node.attrs.identifier === "indented-code");
+for (const identifier of ["indent-top", "indent-list", "indent-task"]) {
+  if (!definitions.some((node) => node.attrs.identifier === identifier)) {
+    throw new Error(`Safe indented-code definition must be editable: ${identifier}.`);
+  }
+}
+const topDefinition = definitions.find((node) => node.attrs.identifier === "indent-top");
+const listDefinition = definitions.find((node) => node.attrs.identifier === "indent-list");
+const taskDefinition = definitions.find((node) => node.attrs.identifier === "indent-task");
+const fencedDefinition = definitions.find((node) => node.attrs.identifier === "fenced-existing");
 
 const topCode = topDefinition?.child(1);
-assertEqual(topCode?.type.name, "code_block", "top-level fence is semantic");
-assertEqual(topCode?.attrs.language, "ts", "top-level fence language remains semantic");
-assertEqual(topCode?.attrs.meta, 'title="demo"', "top-level fence meta remains semantic");
-assertIncludes(topCode?.textContent ?? "", "```inner", "shorter body fence run remains code text");
+assertEqual(topCode?.type.name, "code_block", "top-level indented code is semantic");
+assertEqual(topCode?.attrs.language, null, "indented code has no language");
+assertEqual(topCode?.attrs.meta, null, "indented code has no meta");
+assertIncludes(topCode?.textContent ?? "", "    const nestedIndent = true;", "internal code indentation remains text");
+assertIncludes(topCode?.textContent ?? "", "\n\nconst afterBlank = true;", "blank code line remains semantic");
 
 const orderedList = listDefinition?.child(1);
 const orderedItem = orderedList?.child(0);
-assertEqual(orderedList?.type.name, "ordered_list", "ordered code list is semantic");
+assertEqual(orderedList?.type.name, "ordered_list", "ordered indented-code list is semantic");
 assertEqual(orderedList?.attrs.order, 3, "ordered start remains semantic");
-assertEqual(orderedItem?.attrs.loose, true, "ordered code item remains loose");
-assertEqual(orderedItem?.child(1).type.name, "code_block", "ordered item fence is semantic");
-assertEqual(orderedItem?.child(1).attrs.meta, 'title="list"', "ordered fence meta remains semantic");
+assertEqual(orderedItem?.attrs.loose, true, "ordered indented-code item remains loose");
+assertEqual(orderedItem?.child(1).type.name, "code_block", "ordered item indented code is semantic");
 
 const taskList = taskDefinition?.child(1);
 const taskItem = taskList?.child(0);
-assertEqual(taskItem?.type.name, "todo_item", "task code item is semantic");
+assertEqual(taskItem?.type.name, "todo_item", "task indented-code item is semantic");
 assertEqual(taskItem?.attrs.checked, false, "task checked state remains semantic");
-assertEqual(taskItem?.attrs.loose, true, "task code item remains loose");
-assertEqual(taskItem?.child(1).type.name, "code_block", "task item fence is semantic");
-assertEqual(taskItem?.child(1).attrs.language, "bash", "tilde fence language remains semantic");
-assertEqual(taskItem?.child(1).attrs.meta, "title=`task`", "tilde fence backtick meta remains semantic");
+assertEqual(taskItem?.attrs.loose, true, "task indented-code item remains loose");
+assertEqual(taskItem?.child(1).type.name, "code_block", "task item indented code is semantic");
 assertIncludes(taskItem?.child(1).textContent ?? "", "<script>", "script syntax remains inert code text");
-assertEqual(indentedDefinition?.child(1).type.name, "code_block", "safe indented code now mounts semantically");
-assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched fenced-code document identity");
+
+assertEqual(fencedDefinition?.child(1).type.name, "code_block", "existing fenced code remains semantic");
+assertEqual(fencedDefinition?.child(1).attrs.language, "js", "existing fenced code language remains semantic");
+assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched indented-code document identity");
 assertNoExactSourceMetadataInDom(topDefinition);
+
+const selectedIndentedInfo = rich.selectFirstRichText(state, "const editTop = true;");
+assertEqual(rich.getCurrentCodeBlockInfo(selectedIndentedInfo), null, "indented code exposes no fence info controls");
+assertEqual(
+  rich.serializeRichMarkdownState(
+    rich.setCurrentCodeBlockInfo(selectedIndentedInfo, { language: "js", meta: 'title="ignored"' })
+  ).content,
+  source,
+  "indented code rejects non-persistable language/meta changes"
+);
 
 const topEdited = rich.replaceFirstRichText(state, "const editTop = true;", "const editedTop = true;");
 const expectedTopEdit = source.replace("const editTop = true;", "const editedTop = true;");
 const topOutput = rich.serializeRichMarkdownState(topEdited).content;
-assertEqual(topOutput, expectedTopEdit, "top-level code edit changes only bounded fence source");
+assertEqual(topOutput, expectedTopEdit, "top-level code edit changes only bounded indented source");
+assertNotIncludes(topOutput, "```", "changed top-level indented code is not converted to a fence before existing fence");
 assertStableCodeShape(topOutput, "const editedTop = true;", ["footnote_definition", "code_block"]);
 
-const collisionEdited = rich.replaceFirstRichText(
+const multilineEdited = rich.replaceFirstRichText(
   state,
   "const editTop = true;",
-  "const editedTop = true;\n````\nconst afterFenceRun = true;"
+  "const editedTop = true;\n  const keepsLeadingSpaces = true;\n\nconst addedAfterBlank = true;"
 );
-const collisionOutput = rich.serializeRichMarkdownState(collisionEdited).content;
+const multilineOutput = rich.serializeRichMarkdownState(multilineEdited).content;
 assertIncludes(
-  collisionOutput,
-  '`````ts title="demo"\n    const keep = "exact";\n    ```inner\n    const editedTop = true;\n    ````\n    const afterFenceRun = true;\n    `````',
-  "changed code selects fence longer than body marker run"
+  multilineOutput,
+  "        const editedTop = true;\n          const keepsLeadingSpaces = true;\n\n        const addedAfterBlank = true;",
+  "changed top-level code uses deterministic block indentation and retains internal whitespace"
 );
-assertStableCodeShape(collisionOutput, "const afterFenceRun = true;", ["footnote_definition", "code_block"]);
+assertStableCodeShape(multilineOutput, "const addedAfterBlank = true;", ["footnote_definition", "code_block"]);
 
 const listEdited = rich.replaceFirstRichText(state, "const editList = 1;", "const editedList = 2;");
 const expectedListEdit = source.replace("const editList = 1;", "const editedList = 2;");
@@ -72,12 +87,9 @@ assertStableCodeShape(listOutput, "const editedList = 2;", [
 ]);
 
 const taskEdited = rich.replaceFirstRichText(state, 'echo "edit task"', 'echo "edited task"');
+const expectedTaskEdit = source.replace('echo "edit task"', 'echo "edited task"');
 const taskOutput = rich.serializeRichMarkdownState(taskEdited).content;
-assertIncludes(
-  taskOutput,
-  "      ~~~bash title=`task`\n      echo \"edited task\"\n      <script>window.__MME_CODE_RAN__ = true;</script>\n      ~~~",
-  "changed task code uses deterministic tilde fence when info contains backticks"
-);
+assertEqual(taskOutput, expectedTaskEdit, "task-item code edit changes only bounded list child");
 assertStableCodeShape(taskOutput, 'echo "edited task"', [
   "footnote_definition",
   "bullet_list",
@@ -109,7 +121,7 @@ for (const marker of [
     throw new Error(`Expected explicit source-only footnote fallback for ${marker}.`);
   }
 }
-for (const fallbackText of ["const quoted = true;"]) {
+for (const fallbackText of ["const quoted = true;", "const firstContainer = true;"]) {
   let rejected = false;
   try {
     rich.replaceFirstRichText(state, fallbackText, `Edited ${fallbackText}`);
@@ -121,30 +133,30 @@ for (const fallbackText of ["const quoted = true;"]) {
 }
 
 const topUndone = applyEditorCommand(topEdited, history.undo);
-assertEqual(rich.serializeRichMarkdownState(topUndone).content, source, "one undo restores fenced-code source");
+assertEqual(rich.serializeRichMarkdownState(topUndone).content, source, "one undo restores indented-code source");
 const topRedone = applyEditorCommand(topUndone, history.redo);
 assertEqual(rich.serializeRichMarkdownState(topRedone).content, expectedTopEdit, "one redo restores code edit");
 
-const selected = rich.selectRichFootnoteDefinition(state, { identifier: "code-list" });
-assertEqual(selected.editorState.selection.empty, false, "code definition selection remains available");
+const selected = rich.selectRichFootnoteDefinition(state, { identifier: "indent-list" });
+assertEqual(selected.editorState.selection.empty, false, "indented-code definition selection remains available");
 const replaced = rich.replaceRichFootnoteDefinitionText(state, {
-  identifier: "code-top",
-  text: "Whole code definition replaced"
+  identifier: "indent-top",
+  text: "Whole indented-code definition replaced"
 });
 assertIncludes(
   rich.serializeRichMarkdownState(replaced).content,
-  "[^code-top]: Whole code definition replaced",
+  "[^indent-top]: Whole indented-code definition replaced",
   "whole-definition replacement remains compatible"
 );
 const renamed = rich.renameRichFootnoteIdentifier(state, {
-  identifier: "code-task",
-  nextIdentifier: "release-code"
+  identifier: "indent-task",
+  nextIdentifier: "release-indent"
 });
-assertEqual(renamed.handled, true, "code definition rename handled");
+assertEqual(renamed.handled, true, "indented-code definition rename handled");
 assertEqual(
   rich.serializeRichMarkdownState(renamed.state).content,
-  source.replaceAll("[^code-task]", "[^release-code]"),
-  "code definition rename changes identifier tokens only"
+  source.replaceAll("[^indent-task]", "[^release-indent]"),
+  "indented-code definition rename changes identifier tokens only"
 );
 
 const crlfSource = [
@@ -152,21 +164,20 @@ const crlfSource = [
   "",
   "  [^note]:   Code guidance.",
   "",
-  "     ```ts title=crlf",
-  "     const edit = true;",
-  "     ```",
+  "         const edit = true;",
+  "         const keep = true;",
   "",
   "After.",
   ""
 ].join("\r\n");
 const crlfState = rich.createRichMarkdownState(crlfSource, { dialect: "momentarise-enhanced" });
 const crlfDefinition = topLevelNodes(crlfState).find((node) => node.type.name === "footnote_definition");
-assertEqual(crlfDefinition?.child(1).type.name, "code_block", "CRLF code fence mounts semantically");
+assertEqual(crlfDefinition?.child(1).type.name, "code_block", "CRLF indented code mounts semantically");
 const crlfEdited = rich.replaceFirstRichText(crlfState, "const edit = true;", "const edited = true;");
 assertEqual(
   rich.serializeRichMarkdownState(crlfEdited).content,
   crlfSource.replace("const edit = true;", "const edited = true;"),
-  "CRLF, prefix spacing, five-space outer indentation, and fence info survive"
+  "CRLF, prefix spacing, five-space outer indentation, and code indentation survive"
 );
 
 const duplicateSource = [
@@ -174,22 +185,18 @@ const duplicateSource = [
   "",
   "[^dup]: First.",
   "",
-  "    ```js",
-  "    const first = true;",
-  "    ```",
+  "        const first = true;",
   "",
   "[^dup]: Duplicate.",
   "",
-  "    ```js",
-  "    const second = true;",
-  "    ```",
+  "        const second = true;",
   ""
 ].join("\n");
 const duplicateState = rich.createRichMarkdownState(duplicateSource, { dialect: "momentarise-enhanced" });
 assertEqual(
   topLevelNodes(duplicateState).filter((node) => node.type.name === "footnote_definition").length,
   0,
-  "duplicate code definitions remain source-only"
+  "duplicate indented-code definitions remain source-only"
 );
 assertEqual(rich.serializeRichMarkdownState(duplicateState).content, duplicateSource, "duplicate code source identity");
 
@@ -198,16 +205,15 @@ const invalidIndentSource = [
   "",
   "[^bad]: First.",
   "",
-  "    ```js",
-  "\tconst inconsistent = true;",
-  "    ```",
+  "        const first = true;",
+  "\t    const mixedOuterIndent = true;",
   ""
 ].join("\n");
 const invalidIndentState = rich.createRichMarkdownState(invalidIndentSource, { dialect: "momentarise-enhanced" });
 assertEqual(
   topLevelNodes(invalidIndentState).filter((node) => node.type.name === "footnote_definition").length,
   0,
-  "inconsistent code indentation remains source-only"
+  "mixed outer indentation remains source-only"
 );
 assertEqual(
   rich.serializeRichMarkdownState(invalidIndentState).content,
@@ -217,25 +223,25 @@ assertEqual(
 
 const staleState = { ...state, source: "Externally changed source.\n" };
 const staleRename = rich.renameRichFootnoteIdentifier(staleState, {
-  identifier: "code-top",
-  nextIdentifier: "stale-code"
+  identifier: "indent-top",
+  nextIdentifier: "stale-indent"
 });
-assertEqual(staleRename.handled, false, "stale code rename rejected");
-assertEqual(staleRename.reason, "stale-source", "stale code rejection reason");
-assertEqual(staleRename.state, staleState, "stale code rejection does not mutate state");
+assertEqual(staleRename.handled, false, "stale indented-code rename rejected");
+assertEqual(staleRename.reason, "stale-source", "stale indented-code rejection reason");
+assertEqual(staleRename.state, staleState, "stale indented-code rejection does not mutate state");
 
 const saveTarget = save.createMemorySaveTarget({ initialContent: source });
 const saveEngine = save.createSaveEngine({ content: source, target: saveTarget });
 saveEngine.updateContent(listOutput, { now: new Date("2026-07-21T00:00:00.000Z") });
-assertEqual(saveEngine.getState().status, "dirty", "code edit marks save state dirty");
-assertEqual(saveEngine.getState().currentHash, save.hashMarkdownContent(listOutput), "code edit save hash");
+assertEqual(saveEngine.getState().status, "dirty", "indented-code edit marks save state dirty");
+assertEqual(saveEngine.getState().currentHash, save.hashMarkdownContent(listOutput), "indented-code edit save hash");
 const saved = await saveEngine.flush({ reason: "autosave" });
-assertEqual(saved.status, "saved", "code edit autosave status");
-assertEqual(saveTarget.readContent(), expectedListEdit, "code edit autosave content");
+assertEqual(saved.status, "saved", "indented-code edit autosave status");
+assertEqual(saveTarget.readContent(), expectedListEdit, "indented-code edit autosave content");
 
 function assertStableCodeShape(markdown, text, expectedAncestors) {
   const reparsed = rich.createRichMarkdownState(markdown, { dialect: "momentarise-enhanced" });
-  assertEqual(rich.serializeRichMarkdownState(reparsed).content, markdown, "reconstructed fenced-code source is stable");
+  assertEqual(rich.serializeRichMarkdownState(reparsed).content, markdown, "reconstructed indented-code source is stable");
   assertEqual(
     JSON.stringify(textAncestorNames(reparsed, text)),
     JSON.stringify(expectedAncestors),
@@ -299,6 +305,13 @@ function assertNoExactSourceMetadataInDom(node) {
 function assertIncludes(value, expectedValue, label) {
   if (!value.includes(expectedValue)) {
     throw new Error(`${label}: missing ${JSON.stringify(expectedValue)}.\n${value}`);
+  }
+}
+
+function assertNotIncludes(value, unexpectedValue, label) {
+  const beforeExistingFence = value.slice(0, value.indexOf("[^fenced-existing]:"));
+  if (beforeExistingFence.includes(unexpectedValue)) {
+    throw new Error(`${label}: found ${JSON.stringify(unexpectedValue)}.\n${beforeExistingFence}`);
   }
 }
 
