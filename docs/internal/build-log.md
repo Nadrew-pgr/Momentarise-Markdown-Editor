@@ -6298,7 +6298,7 @@
   - Final hierarchy readability, marker density, deep-item editing flow, definition spacing, fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, and constrained layout are queued in `docs/internal/BACKLOG.md`.
   - Existing demo bundle-size warning remains outside this issue.
 - Commit status:
-  - Issue-scoped implementation/status commit pending immediately after final docs/alignment checks.
+  - Issue-scoped implementation/status commit created: `efa107f` (`feat: add rich nested-list footnote editing`).
 - Push status:
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
