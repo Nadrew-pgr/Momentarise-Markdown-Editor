@@ -79,12 +79,12 @@ Completed slices:
 - MME-0063: Rich task-list GFM footnote definition editing baseline, accepted for code continuation after safe flat and recursively nested task-item text/state editing, valid task-child reconstruction, exact bounded source preservation, conservative loose/arbitrary-block fallback, truthful history/save behavior, real browser proof, fallback review, and full test pass; final task-list footnote product review is queued for end-of-run review.
 - MME-0064: Rich loose-list-item GFM footnote definition editing baseline, accepted for code continuation after safe loose/list-spread and multi-paragraph standard/task editing, deterministic blank-line reconstruction, bounded source preservation, conservative arbitrary-block fallback, truthful history/save behavior, real browser proof, fallback review, and full test pass; final loose-list-item footnote product review is queued for end-of-run review.
 - MME-0065: Rich blockquote GFM footnote definition editing baseline, accepted for code continuation after semantic paragraph-only quote editing at definition/list/task depth, exact bounded reconstruction, conservative callout/nested/arbitrary-child fallback, truthful history/save behavior, real browser proof, fallback review, and full test pass; final blockquote-footnote product review is queued for end-of-run review.
-- MME-0066: Rich fenced-code GFM footnote definition editing baseline, promoted as the current executable slice for safe fenced code blocks at definition or list-item depth with conservative indented-code/mixed-container/arbitrary-child fallback.
+- MME-0066: Rich fenced-code GFM footnote definition editing baseline, accepted for code continuation after semantic top-level/list/task fence editing, collision-proof reconstruction, inert code proof, conservative indented-code/mixed-container/arbitrary-child fallback, truthful history/save behavior, real browser proof, fallback review, and full test pass; final fenced-code-footnote product review is queued for end-of-run review.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- MME-0066 is the current executable issue: edit safe fenced code blocks inside unique top-level GFM footnote definitions while keeping indented code, quote-contained code, mixed multiple containers, tables, callouts, raw HTML, and arbitrary children source-only.
+- No executable normal issue remains after MME-0066. Autonomous continuation requires promoting the next unblocked must-have backlog item before implementation.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

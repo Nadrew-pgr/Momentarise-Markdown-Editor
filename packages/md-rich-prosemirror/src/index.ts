@@ -4690,7 +4690,7 @@ const richNodes: Record<string, NodeSpec> = {
       sourceIdentifierFrom: { default: null },
       sourceIdentifierTo: { default: null }
     },
-    content: "paragraph (paragraph | bullet_list | ordered_list | blockquote)*",
+    content: "paragraph (paragraph | bullet_list | ordered_list | blockquote | code_block)*",
     defining: true,
     group: "block",
     parseDOM: [
@@ -5084,6 +5084,9 @@ function richFootnoteDefinitionLayout(
         ? containerIndent
         : null;
     }
+    if (block?.kind !== "opaque" && block?.type === "codeFence") {
+      return richFootnoteCodeFenceContinuationIndent(raw);
+    }
     return richFootnoteBlockContinuationIndent(raw);
   });
   if (blockContinuationIndents.some((indent) => indent === null)) {
@@ -5116,6 +5119,29 @@ function richFootnoteBlockContinuationIndent(raw: string): string | null {
     return null;
   }
   return continuationIndent;
+}
+
+function richFootnoteCodeFenceContinuationIndent(raw: string): string | null {
+  const lines = raw.split(/\r?\n/);
+  const opening = lines[0]?.match(/^([`~]{3,})[^\r\n]*$/);
+  const closing = lines.at(-1)?.match(/^([ \t]+)([`~]{3,})[ \t]*$/);
+  const continuationIndent = closing?.[1] ?? "";
+  const openingFence = opening?.[1] ?? "";
+  const closingFence = closing?.[2] ?? "";
+  if (
+    !openingFence ||
+    !closingFence ||
+    openingFence[0] !== closingFence[0] ||
+    closingFence.length < openingFence.length ||
+    !isSafeRichFootnoteContinuationIndent(continuationIndent)
+  ) {
+    return null;
+  }
+  return lines.slice(1, -1).every(
+    (line) => !/\S/.test(line) || line.startsWith(continuationIndent)
+  )
+    ? continuationIndent
+    : null;
 }
 
 function isSafeRichFootnoteBlockSeparator(value: string): boolean {
@@ -5177,6 +5203,15 @@ function richFootnoteBlockToProseMirror(
       })
     );
   }
+  if (node.type === "codeFence") {
+    return schema.nodes.code_block!.create(
+      {
+        language: stringAttribute(node.attributes?.language),
+        meta: stringAttribute(node.attributes?.meta)
+      },
+      textNode(schema, stringAttribute(node.attributes?.value) ?? "")
+    );
+  }
   throw new Error(`Unsupported rich footnote block reached conversion: ${node.type}.`);
 }
 
@@ -5190,7 +5225,27 @@ function isRepresentableRichFootnoteBlock(node: MomentariseNode, source: string)
   if (node.type === "list") {
     return isRepresentableRichFootnoteList(node, source);
   }
-  return node.type === "blockquote" && isRepresentableRichFootnoteBlockquote(node, source);
+  if (node.type === "blockquote") {
+    return isRepresentableRichFootnoteBlockquote(node, source);
+  }
+  return node.type === "codeFence" && isRepresentableRichFootnoteCodeFence(node, source);
+}
+
+function isRepresentableRichFootnoteCodeFence(node: MomentariseNode, source: string): boolean {
+  if (node.kind === "opaque" || node.type !== "codeFence" || !node.sourceRange) {
+    return false;
+  }
+  const value = node.attributes?.value;
+  const language = node.attributes?.language;
+  const meta = node.attributes?.meta;
+  if (
+    typeof value !== "string" ||
+    (language !== undefined && typeof language !== "string") ||
+    (meta !== undefined && typeof meta !== "string")
+  ) {
+    return false;
+  }
+  return richFootnoteCodeFenceContinuationIndent(rawFromRange(node, source)) !== null;
 }
 
 function isRepresentableRichFootnoteBlockquote(node: MomentariseNode, source: string): boolean {
@@ -5250,6 +5305,10 @@ function isRepresentableRichFootnoteListItem(item: MomentariseNode, source: stri
     if (block.type === "blockquote") {
       containerCount += 1;
       return containerCount <= 1 && isRepresentableRichFootnoteBlockquote(block, source);
+    }
+    if (block.type === "codeFence") {
+      containerCount += 1;
+      return containerCount <= 1 && isRepresentableRichFootnoteCodeFence(block, source);
     }
     return false;
   });
@@ -5525,10 +5584,7 @@ function serializeBlock(node: ProseMirrorNode, indentLevel: number): string {
     case "blockquote":
       return serializeBlockquote(node, indentLevel);
     case "code_block": {
-      const language = stringAttribute(node.attrs.language) ?? "";
-      const meta = stringAttribute(node.attrs.meta);
-      const info = [language, meta].filter(Boolean).join(" ");
-      return `\`\`\`${info}\n${node.textContent}\n\`\`\``;
+      return serializeCodeBlock(node);
     }
     case "bullet_list":
       return serializeList(node, indentLevel, false);
@@ -5549,6 +5605,30 @@ function serializeBlock(node: ProseMirrorNode, indentLevel: number): string {
     default:
       return node.textContent;
   }
+}
+
+function serializeCodeBlock(node: ProseMirrorNode): string {
+  const language = stringAttribute(node.attrs.language) ?? "";
+  const meta = stringAttribute(node.attrs.meta);
+  const info = [language, meta].filter(Boolean).join(" ").replace(/\r?\n/g, " ");
+  const marker = info.includes("`") ? "~" : "`";
+  const fenceLength = Math.max(3, longestCodeFenceRun(node.textContent, marker) + 1);
+  const fence = marker.repeat(fenceLength);
+  const bodyEnding = node.textContent.endsWith("\n") ? "" : "\n";
+  return `${fence}${info}\n${node.textContent}${bodyEnding}${fence}`;
+}
+
+function longestCodeFenceRun(value: string, marker: string): number {
+  let longest = 0;
+  for (const line of value.split(/\r?\n/)) {
+    const match = line.match(new RegExp(`^[ \\t]{0,3}(${escapeRegExp(marker)}+)`));
+    longest = Math.max(longest, match?.[1]?.length ?? 0);
+  }
+  return longest;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function serializeBlockquote(node: ProseMirrorNode, indentLevel: number): string {

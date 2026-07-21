@@ -6522,3 +6522,48 @@
   - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0066" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before checkpoint commit.
 - Next issue:
   - `MME-0066 — Rich fenced-code GFM footnote definition editing baseline`.
+
+## MME-0066 — Rich fenced-code GFM footnote definition editing baseline
+
+- Date: 2026-07-21.
+- Previous issue status:
+  - `MME-0065` accepted for code continuation and committed (`c3a3f31` implementation/status, `145cbc2` evidence).
+  - `MME-0066` was promoted from backlog and committed in checkpoint `e06f5c8`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, clean `git status --short`, and every parser/model/editor/rich/demo/fixture/test/save file named by the issue.
+- RED proof before implementation:
+  - Added `fixtures/030-fenced-code-footnote-editing/` and `tests/rich-footnote-fenced-code.test.mjs`, then confirmed `npm run test:rich-footnote-fenced-code` failed because all three safe top-level/list/task fenced definitions remained source-only: `expected 3, got 0`.
+- Change:
+  - Extended package-owned footnote content to include semantic inert `code_block` children through a closed source-aware fence validator. Eligibility requires a real parser-recognized backtick/tilde opening and matching closing fence, valid outer continuation indentation, string code value, and optional string language/meta; indented code remains rejected even though the parser uses the same `codeFence` model type.
+  - Allowed at most one recursively safe list, safe paragraph-only blockquote, or safe fenced code block after the required first paragraph in a standard/task list item. Multiple containers, quote-contained code, tables, callouts, raw HTML, arbitrary children, nested containers, duplicates, malformed, unsafe, stale, invalid-indent, and unmappable definitions remain whole source-only fallbacks.
+  - Added deterministic code serialization that selects backticks or tildes from info-string constraints and grows the fence beyond body marker runs. Untouched fence marker/length/info/body bytes remain exact; an intentionally changed top-level code or containing list child is reconstructed only inside its bounded definition range while preserving sibling children, references, unknown syntax, prefix spacing, ordered starts, loose/task state, unrelated Markdown, and LF/CRLF behavior.
+  - Hardened generic intentionally reconstructed Rich code output through the same collision-proof serializer, including correct closing placement when code text already ends with a newline and single-line info sanitization. Existing code command/input-rule/core tests remain green.
+  - Added fixture 030, focused semantic/edit/collision/reparse/history/selection/rename/save/CRLF/fallback-atomicity/inert-script tests, package docs, root test registration, footnote code spacing, and runtime browser proof.
+- Visual impact:
+  - Safe top-level, standard-list, and task-list fenced code renders as semantic Rich code blocks. Existing language/meta controls appear when code is selected. Unsupported indented code, quote-contained code, mixed containers, tables, callouts, raw HTML, and nested-container definitions remain explicit preserved-source cards.
+  - Artifacts: `docs/internal/visual-checks/MME-0066/footnote-fenced-code-rich-desktop.png`, `footnote-fenced-code-edited-desktop.png`, `footnote-fenced-code-saved-desktop.png`, `footnote-fenced-code-unsupported-desktop.png`, `footnote-fenced-code-constrained.png`, and `footnote-fenced-code-source-desktop.png`.
+  - Permissioned headless Chrome proof loads fixture 030, verifies three semantic definitions and at least seven fallbacks, code language classes, ordered start, accessible task controls, metadata privacy, inert script text, exact untouched identity, real edit plus undo/redo, exact saved disk content, accessible unsupported fallbacks, 390px containment, and exact Source-mode content.
+  - Builder inspected all six states. Desktop code hierarchy, language/meta controls, task controls, fallback cards, horizontal code containment, and Source output are readable. Narrow content remains contained through code scrolling, but deep text wraps densely, the floating diagnostics chip overlaps lower task content, and the dominant full-editor blue focus outline remains visible. These are queued for final human review.
+- Checks run:
+  - `npm run test:rich-footnote-fenced-code` — RED first (`expected 3, got 0`), then green after source-aware fence conversion and collision-proof serialization. One invalid test assumption was corrected: extra indentation inside code is valid code content; the refusal case now uses a real tab/space outer-container mismatch.
+  - All MME-0056 through MME-0066 footnote regressions, rich commands/input rules/core interactions, targeted serialization, Save Engine, contracts, architecture, public API, rich security, fixture corpus, parser, round-trip, rich fidelity, and demo tests — green.
+  - `npm run visual:mme-0066` — initial sandboxed Chrome launch correctly failed; permissioned runs passed and captured all six states after adding explicit inert-script and tilde-fence proof.
+  - Final `npm test` — green end-to-end, including performance, architecture, security, preservation, every footnote/list/code regression, fixture corpus, CLI, AX artifacts, packages, demo, adapters, Vite build, and 42-page Next.js docs build; existing Vite chunk-size warning only.
+  - `git diff --check` — green before closeout.
+- Reviewer result:
+  - Required inspect-only code review used exactly `gpt-5.3-codex-spark` with `xhigh` reasoning. Agent `019f84a9-9a05-77d3-86e5-5488741b6d90` could not run because that model's usage limit is exhausted until 2026-07-26 14:48; no substitute code-review model was used.
+  - Documented fallback self-review covered fenced-vs-indented source discrimination, matching marker/length checks, arbitrary code indentation, closed list-container admission, exact unchanged identity, bounded reconstruction, collision-proof backtick/tilde selection, trailing-newline handling, language/meta retention, CRLF/container indentation, unsupported-definition atomicity, inert DOM text, history/selection/rename/save truth, DOM metadata privacy, package boundaries, focused tests, full regressions, and browser assertions.
+  - No remaining P0-P3 issue was found.
+- Residual risks:
+  - Indented code, quote-contained code, mixed multiple containers, tables, callouts, raw HTML, arbitrary children, nested containers, duplicates, malformed definitions, unsafe non-code content, stale source, inconsistent outer indentation, and unmappable forms remain source-only by design.
+  - Intentionally changed code normalizes fence marker/length and info spacing; info line endings are collapsed to spaces. Untouched fenced child bytes remain exact.
+  - Fence eligibility derives outer continuation indentation from the closing fence and conservatively refuses mixed tab/space or otherwise unmappable container layouts. Source mode preserves all refused bytes.
+  - Code insertion, language/meta UI redesign, syntax highlighting, execution, structural insertion/deletion/reorder, arbitrary block editing, and task DOM redesign remain future slices.
+  - Final code density, language/meta visibility, nested hierarchy, focus flow, fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, code scrolling, deep narrow wrapping, and constrained layout are queued in `docs/internal/BACKLOG.md`.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Issue-scoped implementation/status commit pending closeout.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0066`. Continuation requires promoting the next unblocked must-have backlog item before implementation.
