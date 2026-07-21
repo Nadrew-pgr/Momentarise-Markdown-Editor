@@ -6432,7 +6432,7 @@
   - Final paragraph spacing, loose-list density, nested hierarchy, task control flow, fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, deep narrow wrapping, and constrained layout are queued in `docs/internal/BACKLOG.md`.
   - Existing demo bundle-size warning remains outside this issue.
 - Commit status:
-  - Issue-scoped implementation/status commit pending; the follow-up evidence commit will record its hash.
+  - Issue-scoped implementation/status commit created: `7e590a9` (`feat: add rich loose-list footnote editing`).
 - Push status:
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
