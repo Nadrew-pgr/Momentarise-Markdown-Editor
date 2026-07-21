@@ -3387,6 +3387,77 @@ Do not add blank-line multi-paragraph or nested-block rich editing, nested-conta
 
 Architecture Reviewer, Test Reviewer, and UX Reviewer.
 
+## MME-0060 — Rich multi-paragraph GFM footnote definition editing baseline
+
+### Goal
+
+Let users edit safely representable top-level multi-paragraph GFM footnote definitions from Rich mode while preserving Markdown paragraph boundaries, source-only fallbacks, history, and save truth.
+
+### Scope
+
+- Extend the rich footnote definition model to represent one unique top-level definition whose body contains two or more plain paragraphs separated by blank Markdown lines.
+- Preserve the definition identifier, first-line prefix, continuation indentation, blank-line structure, line-ending convention, and unrelated source bytes.
+- Map the represented definition back to one bounded source range and serialize paragraph edits without a full-document rewrite.
+- Keep nested block content such as lists, blockquotes, code blocks, tables, callouts, raw HTML, and other non-paragraph structures source-only.
+- Keep container-nested definitions, duplicates, malformed definitions, unsafe content, and unmappable source in explicit source-only fallback.
+- Keep simple definitions, continuation-line definitions, semantic references, insertion, and identifier rename compatible with the expanded editable definition.
+- Treat each multi-paragraph definition edit as one ProseMirror history action and keep Save Engine/autosave hashes truthful.
+- Add runtime browser proof for Rich editing, undo/redo, Source visibility, save truth, fallback visibility, and constrained-width containment.
+- Queue final product/taste review for Andrew's end-of-run human review block.
+
+### Acceptance criteria
+
+- A unique top-level GFM definition with two or more representable paragraph children is editable as one semantic Rich definition.
+- Editing one paragraph changes only the bounded definition source range; all other definition paragraphs, surrounding Markdown, unknown syntax, references, and unrelated definitions remain byte-identical where not intentionally reconstructed inside that edited range.
+- Definition identifier spelling, first-line prefix spacing, continuation indentation, blank-line paragraph separation, and LF/CRLF convention remain valid and deterministic after serialization.
+- One undo reverts the complete paragraph edit; redo restores it; saving persists exactly the Source Markdown shown by the editor.
+- Existing single-line and continuation-line definition editing, insertion, identifier rename, semantic references, and read rendering remain compatible.
+- Nested-block, nested-container, duplicate, malformed, unsafe, stale, or unmappable definitions remain source-only and never receive partial edits.
+- Public exports and schema changes are intentional, package-owned, minimally documented, and covered by API/contract tests.
+- Browser verification captures multi-paragraph Rich before/after, resulting Source, nested-block fallback, and constrained-width states.
+
+### Test-first plan
+
+- RED: add a focused multi-paragraph footnote fixture and tests that fail because the supported definition is still source-only.
+- RED: prove bounded serialization, paragraph separation, indentation/line-ending preservation, hostile surrounding syntax identity, one-step undo/redo, and save truth.
+- RED: prove nested-block, nested-container, duplicate, malformed, unsafe, stale, and unmappable definitions refuse safely without partial mutation.
+- RED: prove simple/continuation editing, insertion, and identifier rename still work against an editable multi-paragraph definition.
+- RED: add browser/runtime checks for multi-paragraph Rich editing, Source output, fallback visibility, and constrained layout.
+
+### Manual verification
+
+- Start the reference demo with a supported multi-paragraph definition and a separate unsupported nested-block definition.
+- Edit the second supported paragraph in Rich mode, undo once, redo once, save, then switch to Source and inspect exact GFM Markdown plus clean state.
+- Confirm the nested-block definition remains visibly source-only, then repeat at constrained width and capture artifacts under `docs/internal/visual-checks/MME-0060/`.
+
+### Visual impact
+
+Supported multi-paragraph definitions become semantic editable Rich blocks instead of source-only fallback. Unsupported nested-block forms remain explicit fallback. Final paragraph spacing, definition density, fallback wording, focus flow, and constrained-layout taste review remain queued for Andrew's end-of-run review block.
+
+### Implementation notes
+
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-editor/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-surface/src/index.ts`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `fixtures/020-gfm-footnotes`, `fixtures/022-simple-footnote-editing`, `fixtures/023-multiline-footnote-editing`, `tests/parser-foundation.test.mjs`, `tests/rich-footnote-editing.test.mjs`, `tests/rich-footnote-insertion.test.mjs`, `tests/rich-footnote-rename.test.mjs`, `tests/rich-footnote-multiline.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/save-engine.test.mjs`, and the MME-0056/MME-0057/MME-0058/MME-0059 build-log and visual artifacts.
+
+Reuse parser paragraph children, semantic reference/definition nodes, source-token ranges, targeted source materialization, and conservative eligibility checks established by MME-0041/MME-0056/MME-0057/MME-0058/MME-0059. Keep ProseMirror behavior inside `@momentarise/md-rich-prosemirror`; parser/source concerns stay in `@momentarise/md-format`. No core/model/save/policy package may depend on the view engine.
+
+Do not add nested-list, blockquote, code-block, table, callout, raw-HTML, or arbitrary nested-block rich editing; container-nested definitions; automatic missing-reference repair; definition reorder; hover previews; renderer/backlink redesign; polished footnote dialogs; or docs-content construction in this slice.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible multi-paragraph footnote UX/product review is queued for the end-of-run human review block unless preservation semantics remain unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, and UX Reviewer.
+
+### Blocked by
+
+- None. MME-0059 established the continuation indentation, exact range, history, save, and browser-proof foundation required by this slice.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

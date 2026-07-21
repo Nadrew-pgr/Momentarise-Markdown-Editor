@@ -6096,3 +6096,24 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0059`; continuation requires promoting the next must-have backlog item before implementation.
+
+## Backlog promotion checkpoint — MME-0060
+
+- Date: 2026-07-21.
+- Context:
+  - `MME-0059` is accepted for code continuation and committed (`7418d8e` implementation/status, `e88674a` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0059.
+  - Andrew instructed autonomous continuation, issue-scoped commits, separate docs-content ownership, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Change:
+  - Promoted `MME-0060 — Rich multi-paragraph GFM footnote definition editing baseline` from the next explicit baseline footnote gap into normal issue form.
+  - Bounded the slice to unique top-level definitions containing only plain paragraph blocks, targeted serialization, one-step history, save truth, and browser proof.
+  - Kept nested lists, blockquotes, code blocks, tables, callouts, raw HTML, arbitrary nested blocks, container-nested definitions, duplicate, malformed, unsafe, and unmappable forms source-only.
+  - Updated `README.md` current slice plus `docs/internal/BACKLOG.md` promotion and end-of-run review tracking.
+- Rationale:
+  - MME-0059 made single-paragraph continuation-line definitions safely editable while leaving blank-line multi-paragraph definitions source-only.
+  - Plain paragraph children are the next bounded backlog-order gap and can reuse exact footnote ranges and indentation-aware reconstruction without mixing in arbitrary nested block semantics.
+- Checks run:
+  - `npm run test:alignment`, `node scripts/docs-lint.mjs`, and `git diff --check` — green before checkpoint commit.
+- Next issue:
+  - `MME-0060 — Rich multi-paragraph GFM footnote definition editing baseline`.
