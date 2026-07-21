@@ -3624,6 +3624,88 @@ Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer.
 
 - None. MME-0061 established semantic flat-list children, exact per-child source layout, bounded list-child reconstruction, history/save truth, and browser proof required by this slice.
 
+## MME-0063 — Rich task-list GFM footnote definition editing baseline
+
+### Goal
+
+Let users edit text and checked state inside safely representable flat or recursively nested GFM task lists within unique top-level footnote definitions while preserving Markdown hierarchy, unrelated source, source-only fallbacks, history, and save truth.
+
+### Scope
+
+- Extend semantic list-bearing footnote definitions to accept GFM task items alongside standard list items when every item remains recursively safe.
+- Limit each editable standard or task item to exactly one representable paragraph followed by at most one recursively safe bullet or ordered list.
+- Preserve checked and unchecked task semantics through package-owned ProseMirror `todo_item` nodes and the existing accessible task-toggle behavior.
+- Support task items in otherwise safe flat, nested, and mixed standard/task list hierarchies without adding arbitrary block editing.
+- Preserve the definition identifier, first-line prefix, block separators, footnote container indentation, line endings, unchanged sibling definition-child bytes, and unrelated document bytes.
+- Reconstruct only the containing top-level list child when task text or checked state changes; keep every unchanged definition child source-preserved.
+- Keep simple, continuation-line, multi-paragraph, standard-list, nested-standard-list, insertion, whole-body replacement, definition selection, semantic references, and identifier rename behavior compatible.
+- Keep loose or multi-paragraph items, multiple nested child blocks, blockquotes, code blocks, tables, callouts, raw HTML, and arbitrary nested structures source-only.
+- Keep container-nested definitions, duplicates, malformed definitions, unsafe content, stale source, inconsistent indentation, and unmappable ranges in explicit source-only fallback.
+- Treat one task text edit or checked-state toggle as one ProseMirror history action and keep Save Engine/autosave hashes truthful.
+- Add runtime browser proof for task text editing, pointer/keyboard-accessible state toggling, undo/redo, Source visibility, save truth, unsupported fallback visibility, and constrained-width containment.
+- Queue final task-list-footnote product/taste review for Andrew's end-of-run human review block.
+
+### Acceptance criteria
+
+- A unique top-level definition containing representable paragraphs plus safe flat or recursively nested GFM task items mounts as one semantic editable Rich definition.
+- Supported task items retain semantic checked state, accessible toggle labels/pressed state, safe paragraph text, and zero or one recursively safe nested-list child.
+- Editing one deepest task paragraph or toggling one task changes only the bounded containing list-child reconstruction; unchanged definition blocks, references, surrounding Markdown, unknown syntax, and unrelated definitions remain byte-identical.
+- Standard/task hierarchy, checked state, representable ordered starts, definition prefix spelling/spacing, footnote container indentation, block separation, and LF/CRLF convention remain valid and deterministic after serialization.
+- One undo reverts one task text edit or one state toggle; redo restores it; saving persists exactly the Source Markdown shown by the editor.
+- Existing single-line, continuation-line, multi-paragraph, flat-list, nested-list, insertion, selection/replacement, identifier rename, semantic-reference, and read-rendering tests remain green.
+- Loose/multi-paragraph items, multiple nested child blocks, non-list nested blocks, nested-container, duplicate, malformed, unsafe, stale, inconsistent-indent, or unmappable definitions remain source-only and never receive partial edits.
+- Schema, serializer, task-toggle behavior, and source mapping stay package-owned, host-independent, intentionally documented, and covered by API/architecture/security tests.
+- Browser verification captures supported task-list Rich before/after text and state changes, exact resulting Source, at least one unsupported loose/arbitrary fallback, and constrained-width states.
+- `docs/internal/build-log.md` records RED/GREEN evidence, visual impact, reviewer or fallback result, tests, residual risks, commit, push status, and next issue.
+
+### Test-first plan
+
+- RED: add a real task-list footnote fixture and focused tests that fail because its safe task definitions are still source-only.
+- RED: prove flat and recursively nested checked/unchecked task semantics, deep text editing, state toggling, exact sibling-child preservation, container indentation, LF/CRLF, one-step undo/redo, save truth, and no full-document rewrite.
+- RED: prove loose/multi-paragraph items, multiple nested child blocks, non-list nested blocks, nested containers, duplicates, malformed, unsafe, stale, inconsistent-indent, and unmappable forms refuse safely.
+- RED: prove simple, continuation, multi-paragraph, standard-list, nested-standard-list, insertion, selection/replacement, and rename behaviors remain compatible.
+- RED: add browser/runtime assertions for task text/state editing, Source output, unsupported fallback visibility, save truth, accessibility state, and constrained containment.
+- GREEN: generalize the recursive footnote list eligibility check only enough for safe task items, reusing existing `todo_item` nodes, task-toggle commands, list serializers, and bounded child reconstruction.
+- REFACTOR: isolate standard/task item eligibility without broadening support to loose or arbitrary block children and without exposing exact-source metadata through rendered DOM.
+
+### Manual verification
+
+- Start the reference demo with one supported checked/unchecked nested-task definition and separate loose/arbitrary unsupported definitions.
+- Edit one deepest task item in Rich mode, toggle one checked state by pointer and keyboard-accessible control, undo/redo each action, save, then switch to Source and inspect exact GFM task Markdown plus clean state.
+- Confirm unsupported definitions remain visibly source-only, then repeat at constrained width and capture artifacts under `docs/internal/visual-checks/MME-0063/`.
+
+### Visual impact
+
+Supported task-list definitions become semantic editable Rich blocks with accessible checked/unchecked controls at each supported depth. Unsupported loose and arbitrary forms remain explicit preserved-source fallbacks. Final nested task density, control styling, hierarchy readability, focus flow, fallback wording, definition spacing, and constrained-layout taste review remain queued for Andrew's end-of-run review block.
+
+### Implementation notes
+
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-editor/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-surface/src/index.ts`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `fixtures/018-nested-lists-todos`, `fixtures/020-gfm-footnotes`, `fixtures/022-simple-footnote-editing`, `fixtures/023-multiline-footnote-editing`, `fixtures/024-multiparagraph-footnote-editing`, `fixtures/025-list-block-footnote-editing`, `fixtures/026-nested-list-footnote-editing`, `tests/parser-foundation.test.mjs`, `tests/rich-list-editing.test.mjs`, `tests/rich-core-interactions.test.mjs`, `tests/rich-footnote-editing.test.mjs`, `tests/rich-footnote-insertion.test.mjs`, `tests/rich-footnote-rename.test.mjs`, `tests/rich-footnote-multiline.test.mjs`, `tests/rich-footnote-multiparagraph.test.mjs`, `tests/rich-footnote-list-blocks.test.mjs`, `tests/rich-footnote-nested-lists.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/save-engine.test.mjs`, and the MME-0056 through MME-0062 build-log/visual artifacts.
+
+Reuse parser task-item attributes, recursive bullet/ordered ProseMirror nodes, existing `todo_item` DOM/keyboard behavior, semantic footnote references/definitions, exact top-level definition-child source ranges, child fingerprints, targeted source materialization, and conservative eligibility checks. Keep list/footnote view behavior inside `@momentarise/md-rich-prosemirror`; parser/source concerns stay in `@momentarise/md-format`. No core/model/save/policy package may depend on ProseMirror.
+
+### Out of scope
+
+- Loose/multi-paragraph task items, multiple nested list children per item, blockquotes, code blocks, tables, callouts, raw HTML, or arbitrary block editing inside footnotes.
+- New task-list insertion commands, structural Tab/Shift+Tab indentation, list-item insertion/deletion/reordering, or original marker/case preservation for intentionally changed containing lists.
+- Container-nested definitions, definition reorder, automatic missing-reference repair, hover previews, backlink redesign, polished footnote dialogs, or docs-content construction.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible task-list-footnote UX/product review is queued for the end-of-run human review block unless preservation or task-state semantics remain unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer.
+
+### Blocked by
+
+- None. MME-0062 established recursively safe standard-list children, separated container/internal indentation, bounded list-child reconstruction, history/save truth, and browser proof required by this slice.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

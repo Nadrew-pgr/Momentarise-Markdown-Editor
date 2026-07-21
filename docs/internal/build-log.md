@@ -6303,3 +6303,24 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0062`; continuation requires promoting the next unblocked must-have backlog item before implementation.
+
+## Backlog promotion checkpoint — MME-0063
+
+- Date: 2026-07-21.
+- Context:
+  - `MME-0062` is accepted for code continuation and committed (`efa107f` implementation/status, `53855d9` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0062.
+  - Andrew instructed autonomous continuation, must-haves first, strict issue formatting, issue-scoped commits, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Change:
+  - Promoted `MME-0063 — Rich task-list GFM footnote definition editing baseline` from the next explicit baseline/hygiene footnote gap into normal issue form.
+  - Bounded the slice to safe checked/unchecked task-item text and state editing in flat or recursively nested standard/task list hierarchies.
+  - Kept loose/multi-paragraph items, multiple nested child blocks, arbitrary blocks, structural list mutation, nested containers, duplicates, malformed, unsafe, stale, and unmappable forms source-only or out of scope.
+  - Updated `README.md` current slice plus `docs/internal/BACKLOG.md` promotion and end-of-run review tracking.
+- Rationale:
+  - MME-0062 made recursively nested standard list text safely editable while explicitly leaving task items source-only.
+  - Task lists are the next backlog-order core Markdown gap and can reuse package-owned `todo_item` nodes, existing toggle behavior, recursive list conversion, and bounded definition-child reconstruction without mixing in loose or arbitrary block semantics.
+- Checks run:
+  - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0063" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before checkpoint commit.
+- Next issue:
+  - `MME-0063 — Rich task-list GFM footnote definition editing baseline`.

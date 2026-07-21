@@ -37,7 +37,7 @@ Tags: `baseline/hygiene`, `markdown`, `navigation`, `round-trip`
 - Support backlink navigation in rendered views.
 - Keep source mode fallback for editing unusual footnote syntax.
 - Future rich editing should include insertion and edit affordances without hiding the Markdown source model.
-- First rich editing slice for existing simple definitions promoted as `MME-0056`; new footnote insertion is promoted as `MME-0057`; identifier rename is promoted as `MME-0058`; top-level continuation-line editing is promoted as `MME-0059`; top-level multi-paragraph editing is promoted as `MME-0060`; standard list-block editing is promoted as `MME-0061`; nested standard list editing is promoted as `MME-0062`; tasks, loose items, and other nested blocks remain backlog.
+- First rich editing slice for existing simple definitions promoted as `MME-0056`; new footnote insertion is promoted as `MME-0057`; identifier rename is promoted as `MME-0058`; top-level continuation-line editing is promoted as `MME-0059`; top-level multi-paragraph editing is promoted as `MME-0060`; standard list-block editing is promoted as `MME-0061`; nested standard list editing is promoted as `MME-0062`; task-list editing is promoted as `MME-0063`; loose items and other nested blocks remain backlog.
 - Tests must include real footnote fixtures and parser/source/rich round-trip proof before claiming coverage.
 
 ### Core Markdown Blocks
@@ -203,6 +203,7 @@ Tags: `public-release`, `human-review`, `ui`, `ax`
 - MME-0060 multi-paragraph footnote review: review paragraph spacing, definition density, edit/focus flow, nested-block fallback wording, Source visibility, constrained layout, the dominant full-editor blue focus outline, and the floating technical-diagnostics chip overlapping narrow content.
 - MME-0061 list-footnote review: review list indentation, marker density, item editing/selection flow, definition spacing, unsupported complex-list fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, and constrained layout.
 - MME-0062 nested-list footnote review: implementation accepted for code continuation; review nested hierarchy readability, bullet/ordered marker density, deep-item editing/selection flow, definition spacing, task/loose-item fallback wording, Source visibility, the observed dominant full-editor blue focus outline, the observed diagnostics-chip overlap on constrained content, and constrained layout.
+- MME-0063 task-list footnote review: review nested task hierarchy, checked/unchecked control density, deep-item text/state editing, keyboard and pointer toggle flow, definition spacing, loose/arbitrary fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, and constrained layout.
 - Future visible/UI/HITL slices in this autonomous run should be added here instead of blocking code continuation, per the 2026-07-19 human instruction to review visible work in one final block.
 
 - Visible asset upload UX and demo provider follow-up for image paste/drop, building on the promoted MME-0051 provider contract while keeping real storage host-owned. First visible upload UX slice promoted as `MME-0054`.
@@ -275,6 +276,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - `MME-0060 — Rich multi-paragraph GFM footnote definition editing baseline`.
 - `MME-0061 — Rich list-block GFM footnote definition editing baseline`.
 - `MME-0062 — Rich nested-list GFM footnote definition editing baseline`.
+- `MME-0063 — Rich task-list GFM footnote definition editing baseline`.
 
 - Editor live preview parity.
 - Toolbar/slash/menu final UX.
@@ -285,7 +287,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - Payload CMS plugin/integration.
 - Document status/save truth UI.
 - Footnotes/endnotes preservation, rendering, backlink navigation, and editing UX.
-- First rich footnote definition editing baseline promoted as `MME-0056`; insertion is promoted as `MME-0057`; identifier rename is promoted as `MME-0058`; top-level continuation-line editing is promoted as `MME-0059`; top-level multi-paragraph editing is promoted as `MME-0060`; standard list-block editing is promoted as `MME-0061`; nested standard lists are promoted as `MME-0062`; tasks, loose items, and other nested blocks remain future splits.
+- First rich footnote definition editing baseline promoted as `MME-0056`; insertion is promoted as `MME-0057`; identifier rename is promoted as `MME-0058`; top-level continuation-line editing is promoted as `MME-0059`; top-level multi-paragraph editing is promoted as `MME-0060`; standard list-block editing is promoted as `MME-0061`; nested standard lists are promoted as `MME-0062`; task lists are promoted as `MME-0063`; loose items and other nested blocks remain future splits.
 - Table rendering and first rich table editing baseline promoted as `MME-0040` and `MME-0055`; advanced spreadsheet-like table UX remains backlog.
 - Nested GFM table rich editing after nested-range serialization can replace only table bytes inside blockquotes/lists; MME-0055 keeps these tables source-only instead of rewriting container syntax.
 - Inline slash AI prompt surface.
