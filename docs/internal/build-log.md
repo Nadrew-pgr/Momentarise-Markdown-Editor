@@ -6501,3 +6501,24 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0065`. Continuation requires promoting the next unblocked must-have backlog item before implementation.
+
+## Backlog promotion checkpoint — MME-0066
+
+- Date: 2026-07-21.
+- Context:
+  - `MME-0065` is accepted for code continuation and committed (`c3a3f31` implementation/status, `145cbc2` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0065.
+  - Andrew instructed autonomous continuation, must-haves first, strict issue formatting, issue-scoped commits, no docs-content work in this agent, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Change:
+  - Promoted `MME-0066 — Rich fenced-code GFM footnote definition editing baseline` from the next explicit footnote/core-block gap into normal issue form.
+  - Bounded the slice to parser-recognized fenced code blocks as top-level definition children or one container child inside safe standard/task list items.
+  - Required collision-proof changed-fence emission while keeping untouched fence bytes exact; indented code, quote-contained code, mixed multiple containers, tables, callouts, raw HTML, arbitrary blocks, structural mutation, nested containers, duplicates, malformed, unsafe, stale, invalid-indent, and unmappable forms remain source-only or out of scope.
+  - Updated `README.md` current slice plus `docs/internal/BACKLOG.md` promotion and end-of-run review tracking.
+- Rationale:
+  - MME-0065 made safe paragraph-only blockquotes editable while explicitly leaving code/table/callout/raw-HTML children source-only.
+  - Fenced code is the next core Markdown block in backlog order and can reuse package-owned code nodes, parser-owned language/meta, exact child layout, source-derived loose state, and bounded reconstruction without executing content or admitting arbitrary blocks.
+- Checks run:
+  - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0066" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before checkpoint commit.
+- Next issue:
+  - `MME-0066 — Rich fenced-code GFM footnote definition editing baseline`.

@@ -3875,6 +3875,89 @@ Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer.
 
 - None. MME-0064 established source-derived loose spacing, safe multi-paragraph/list/task hierarchy, bounded reconstruction, history/save truth, and browser proof required by this slice.
 
+## MME-0066 — Rich fenced-code GFM footnote definition editing baseline
+
+### Goal
+
+Let users edit safely representable fenced code blocks inside unique top-level GFM footnote definitions, including one fenced-code child inside a safe standard or task list item, while preserving code text, language/meta, hierarchy, unrelated Markdown, source-only fallbacks, history, and save truth.
+
+### Scope
+
+- Extend safe semantic footnote definition children to accept fenced code blocks with text content plus optional parser-owned language and meta strings.
+- Allow one safe fenced code block as the single container child after the required first paragraph in a standard or task list item; additional safe paragraphs remain allowed around it.
+- Support top-level definition code fences plus fences nested one level inside recursively safe bullet/ordered standard/task items without admitting indented code or arbitrary block children.
+- Preserve untouched opening/closing marker, fence length, info spacing, body bytes, definition identifier, first-line prefix, outer footnote indentation, line endings, unchanged sibling definition-child bytes, references, unknown syntax, and unrelated document bytes.
+- Reconstruct only the containing top-level definition child or list child when code text changes; emit a deterministic backtick or tilde fence long enough not to collide with body fence runs and require reparsing to the same paragraph/code/list/task hierarchy.
+- Preserve language/meta semantics during code-text edits and keep code content inert text in DOM/serialization; no execution or HTML interpretation.
+- Keep simple, continuation-line, top-level multi-paragraph, tight/loose standard/task list, nested list, blockquote, insertion, whole-body replacement, definition selection, semantic references, and identifier rename behavior compatible.
+- Keep indented code blocks, quote-contained code, list items combining code with another container child, tables, callouts, raw HTML, and other arbitrary block children source-only.
+- Keep container-nested definitions, duplicates, malformed definitions, unsafe content, stale source, invalid/inconsistent indentation, and unmappable ranges in explicit whole-definition source-only fallback.
+- Treat one code-text edit as one ProseMirror history action and keep Save Engine/autosave hashes truthful.
+- Add runtime browser proof for top-level and list/task-nested fenced-code editing, undo/redo, exact Source output, save truth, unsupported fallback visibility, and constrained-width containment.
+- Queue final fenced-code-footnote product/taste review for Andrew's end-of-run human review block.
+
+### Acceptance criteria
+
+- Unique top-level definitions containing safe fenced code blocks, including one fence child inside safe standard/task list items, mount as semantic editable Rich definitions.
+- Untouched supported definitions serialize byte-for-byte; fence/layout state remains package-owned and exact source/fingerprint metadata remains absent from rendered DOM attributes.
+- Editing code text reconstructs only its bounded containing definition child or list child; unchanged definition children and unrelated source ranges remain byte-identical.
+- Reconstructed Markdown uses a valid non-colliding fence, retains code text, language/meta, list looseness, standard/task hierarchy, checked state, ordered starts, definition prefix spelling/spacing, outer indentation, and LF/CRLF convention, and reparses to the same semantic shape.
+- One undo reverts one code edit; redo restores it; saving persists exactly the Source Markdown shown by the editor.
+- Existing single-line, continuation-line, multi-paragraph, tight/loose list, nested list, task list, blockquote, insertion, selection/replacement, identifier rename, semantic-reference, code-block, and read-rendering tests remain green.
+- Indented code, quote-contained code, mixed multiple-container list items, table/callout/raw-HTML/arbitrary children, nested-container, duplicate, malformed, unsafe, stale, invalid-indent, or unmappable definitions remain source-only and never receive partial edits.
+- Schema, fence selection, serializer, and source mapping stay inside `@momentarise/md-rich-prosemirror`, remain host-independent, and pass API/architecture/security gates.
+- Browser verification captures supported Rich fences before/after code changes, exact resulting Source, at least one indented-code or mixed-container fallback, and constrained-width states.
+- `docs/internal/build-log.md` records RED/GREEN evidence, visual impact, reviewer or fallback result, tests, residual risks, commit, push status, and next issue.
+
+### Test-first plan
+
+- RED: add a real fenced-code-footnote fixture and focused test that fails because safe fenced-code definitions remain source-only.
+- RED: prove top-level and list/task-nested code semantics, multiline text editing, language/meta retention, deep edits, exact sibling-child preservation, ordered starts, loose spacing, LF/CRLF, one-step undo/redo, save truth, and no full-document rewrite.
+- RED: prove changed output selects a non-colliding fence for body marker runs and reparses to the same paragraph/code/list/task hierarchy.
+- RED: prove indented code, quote-contained code, mixed code-plus-list/quote items, tables, callouts, raw HTML, nested containers, duplicates, malformed, unsafe, stale, invalid-indent, and unmappable forms refuse atomically.
+- RED: prove prior footnote definition, insertion, rename, multiline, multi-paragraph, list, nested-list, task-list, loose-list, and blockquote behavior remains compatible.
+- RED: add browser/runtime assertions for code editing, Source output, fallback visibility, save truth, inert code content, and constrained containment.
+- GREEN: generalize only safe fenced-code eligibility/conversion plus collision-proof fence serialization, reusing existing code-block nodes, parser source ranges, child fingerprints, loose-list state, and bounded footnote serialization.
+- REFACTOR: isolate fenced-code validation and deterministic fence selection without exposing source bytes through DOM or broadening arbitrary block support.
+
+### Manual verification
+
+- Start the reference demo with supported top-level/list/task fenced code blocks and separate indented-code/mixed-container unsupported definitions.
+- Edit multiline code in Rich mode, undo/redo, save, then switch to Source and inspect exact valid fenced Markdown plus clean state.
+- Confirm unsupported definitions remain visibly source-only, then repeat at constrained width and capture artifacts under `docs/internal/visual-checks/MME-0066/`.
+
+### Visual impact
+
+Supported fenced code blocks become semantic Rich content inside footnote definitions and safe list/task items. Unsupported indented code, quote-contained code, mixed containers, and arbitrary children remain explicit preserved-source fallbacks. Final code density, language/meta visibility, nested hierarchy, focus flow, fallback wording, horizontal overflow, and constrained-layout taste review remain queued for Andrew's end-of-run review block.
+
+### Implementation notes
+
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-editor/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-surface/src/index.ts`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `fixtures/005-code-fence-language`, `fixtures/020-gfm-footnotes`, `fixtures/022-simple-footnote-editing`, `fixtures/023-multiline-footnote-editing`, `fixtures/024-multiparagraph-footnote-editing`, `fixtures/025-list-block-footnote-editing`, `fixtures/026-nested-list-footnote-editing`, `fixtures/027-task-list-footnote-editing`, `fixtures/028-loose-list-footnote-editing`, `fixtures/029-blockquote-footnote-editing`, `tests/parser-foundation.test.mjs`, `tests/rich-prosemirror-package.test.mjs`, `tests/rich-commands.test.mjs`, `tests/rich-input-rules.test.mjs`, `tests/rich-core-interactions.test.mjs`, `tests/rich-footnote-editing.test.mjs`, `tests/rich-footnote-insertion.test.mjs`, `tests/rich-footnote-rename.test.mjs`, `tests/rich-footnote-multiline.test.mjs`, `tests/rich-footnote-multiparagraph.test.mjs`, `tests/rich-footnote-list-blocks.test.mjs`, `tests/rich-footnote-nested-lists.test.mjs`, `tests/rich-footnote-task-lists.test.mjs`, `tests/rich-footnote-loose-lists.test.mjs`, `tests/rich-footnote-blockquotes.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/save-engine.test.mjs`, and the MME-0056 through MME-0065 build-log/visual artifacts.
+
+Reuse the existing code-block ProseMirror node, parser-owned code-fence value/language/meta plus source ranges, semantic footnote references/definitions, exact top-level definition-child source layout, child fingerprints, source-derived loose state, targeted source materialization, and conservative eligibility checks. Keep fence eligibility and reconstruction inside `@momentarise/md-rich-prosemirror`; do not add ProseMirror concepts to core/model/save/policy packages. Preserve untouched fence bytes exactly and make intentionally changed fence output collision-proof rather than assuming triple backticks are always safe.
+
+### Out of scope
+
+- Indented code blocks, quote-contained code, tables, callouts, raw HTML, multiple container children per list item, or generic arbitrary-block editing inside footnotes.
+- New code-fence insertion commands, language/meta control redesign, code execution, syntax-highlighter integration, structural list/code insertion/deletion/reordering, Tab/Shift+Tab redesign, or original fence-marker/style preservation for intentionally changed containing blocks.
+- Container-nested definitions, definition reorder, missing-reference repair, hover previews, backlink redesign, polished footnote dialogs, task DOM redesign, or docs-content construction.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible fenced-code-footnote UX/product review is queued for the end-of-run human review block unless fence/hierarchy preservation remains unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer.
+
+### Blocked by
+
+- None. MME-0065 established source-aware arbitrary-block refusal, safe list/task/quote hierarchy, bounded reconstruction, history/save truth, and browser proof required by this slice; existing rich code-block nodes already provide inert editable code content plus language/meta attributes.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.
