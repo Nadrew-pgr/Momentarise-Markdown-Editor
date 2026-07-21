@@ -4212,6 +4212,87 @@ Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer.
 
 Accepted for code continuation 2026-07-21 after adding package-owned semantic callout nodes for safe paragraph-only top-level and standard/task-list footnote children, non-editable accessible type/title/fold headers, body-only Rich editing, exact untouched-source retention, bounded deterministic callout or list-child reconstruction, ordered-start/task-state/prefix/indent/LF/CRLF preservation, real DOM header-exclusion proof, conservative marker-only/malformed/nested/list/raw-HTML/mixed-container/duplicate/nested-container refusal, truthful history/save state, package docs, tokenized demo styling, real browser proof, fallback review, and full test pass. The requested exact `gpt-5.3-codex-spark` reviewer at `xhigh` reasoning hit its usage limit until 2026-07-26 and no substitute model was used; documented fallback review found and fixed a DOM reparse boundary that could have admitted the visible header into editable content, then found no remaining P0-P3 issue. Final density, header/marker treatment, nested hierarchy, edit/focus flow, fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, deep narrow wrapping, and constrained-layout taste remain queued for Andrew's end-of-run review block. No executable normal issue remains after MME-0069 until the next backlog item is promoted.
 
+## MME-0070 — Rich inert raw-HTML footnote block editing baseline
+
+### Goal
+
+Let users edit parser-recognized block HTML as inert source text inside unique top-level footnote definitions, including one raw-HTML child inside a safe standard or task list item, while preserving Markdown durability, exact untouched bytes, container hierarchy, security boundaries, history, and save truth.
+
+### Scope
+
+- Add a package-owned ProseMirror raw-HTML block node for exact source-ranged `raw HTML` opaque children inside Rich footnote definitions; do not change the public core model or parser AST contract.
+- Present raw HTML as editable, code-like source text. Escape it through ProseMirror text content, never assign it to `innerHTML`, never activate elements, attributes, scripts, styles, URLs, custom elements, or event handlers, and never treat it as sanitized preview output.
+- Support one parser-recognized block-HTML child at top-level definition depth or as the single container child after the required first paragraph in recursively safe bullet/ordered standard/task items; additional safe paragraphs remain allowed around it.
+- Preserve untouched HTML bytes, tag/attribute spelling and quoting, inner whitespace, comments carried by the parser-owned range, definition identifier/prefix, outer footnote/list indentation, line endings, unchanged sibling definition-child bytes, references, unknown syntax, and unrelated document bytes.
+- Reconstruct only the bounded raw-HTML child or containing top-level list child when its source text changes; reapply deterministic valid footnote/list indentation while leaving the edited HTML payload otherwise literal.
+- Keep simple, multiline, multi-paragraph, list, nested-list, task-list, loose-list, blockquote, fenced/indented code, table, callout, insertion, selection/replacement, semantic-reference, identifier-rename, history, and Save Engine behavior compatible.
+- Keep inline HTML mixed into paragraphs, parser-detected overlapping whole-fragment HTML, multiple raw-HTML/container children in one list item, raw HTML nested in blockquotes/callouts, container-nested definitions, duplicate definitions, stale/unmappable ranges, and ambiguous parser layouts in explicit whole-definition source-only fallback.
+- Treat well-formed and malformed edited HTML as literal source truth without execution; a later remount may conservatively return malformed or no-longer-block HTML to source-only representation instead of inventing semantics.
+- Add runtime browser proof for top-level/list/task raw-HTML source editing, literal DOM text, script/event-handler inertness, undo/redo, exact Source output, save truth, unsupported fallback visibility, and constrained-width containment.
+- Queue final raw-HTML-in-footnote product/taste review for Andrew's end-of-run human review block.
+
+### Acceptance criteria
+
+- Unique definitions containing one exact source-ranged block `raw HTML` child at supported top-level or standard/task-list depth mount as semantic editable Rich definitions.
+- Raw HTML appears as code-like editable text in a dedicated node; rendered editor DOM contains no element, attribute, script, style, URL, or event handler derived from the raw payload, and exact source/fingerprint metadata is not exposed through rendered DOM attributes.
+- Untouched supported definitions serialize byte-for-byte. Editing one HTML payload reconstructs only its bounded child or containing list child; unchanged definition children and unrelated source ranges remain byte-identical.
+- Valid changed examples retain literal HTML payload text, standard/task hierarchy, checked state, ordered starts, list looseness, definition prefix spelling/spacing, outer indentation, and LF/CRLF convention, and reparse to the same paragraph/raw-HTML/list/task shape.
+- One undo reverts one HTML-source edit; redo restores it; saving persists exactly the Source Markdown shown by the editor.
+- Existing top-level opaque HTML, inline HTML, HTML renderer/preview security policy, and every prior footnote/table/code/callout regression remain green; unsupported overlapping/inline/mixed-container/nested/duplicate/stale/unmappable definitions remain whole source-only and never receive partial edits.
+- Schema, eligibility, conversion, serializer, and source mapping stay inside `@momentarise/md-rich-prosemirror`, remain host-independent, and pass public API, architecture, preservation, and rich-security gates.
+- Raw-HTML block DOM is labelled for assistive technology, keyboard editable, code-like without claiming execution/preview, token-styled in the demo, horizontally contained at narrow widths, and exposes no active raw payload DOM.
+- Browser verification captures supported Rich HTML before/after changes, exact resulting Source, one unsupported inline/mixed fallback, save truth, inert hostile payloads, and constrained-width states.
+- `docs/internal/build-log.md` records RED/GREEN evidence, visual impact, reviewer or fallback result, tests, residual risks, commit, push status, and next issue.
+
+### Test-first plan
+
+- RED: add a real raw-HTML-footnote fixture and focused test that fails because safe block-HTML definitions remain source-only.
+- RED: prove top-level and list/task-nested semantic raw-HTML text, exact untouched identity, bounded edits, whitespace/comment/tag/attribute retention, ordered starts, loose/task state, LF/CRLF, one-step undo/redo, save truth, and no full-document rewrite.
+- RED: prove valid changed output reparses to the same paragraph/raw-HTML/list/task hierarchy while hostile script/event/style/custom-element payloads remain literal text and create no active DOM.
+- RED: prove inline HTML, overlapping whole-fragment detection, multiple containers, quote/callout-contained HTML, nested containers, duplicates, stale ranges, invalid indentation, and unmappable forms refuse atomically.
+- RED: prove prior footnote definition, insertion, rename, multiline, multi-paragraph, list, nested-list, task-list, loose-list, blockquote, fenced-code, indented-code, table, callout, generic opaque-block, HTML renderer, and HTML preview behavior remains compatible.
+- RED: add browser/runtime assertions for real HTML-source editing, literal escaped DOM content, zero payload-created executable elements/attributes, exact Source output, fallback visibility, save truth, and constrained containment.
+- GREEN: add only the package-owned raw-HTML block node, strict exact-range eligibility, inert text mapper, and bounded literal serializer needed for the fixture.
+- REFACTOR: centralize raw-HTML block discrimination and literal serialization so security and container rules are not duplicated.
+
+### Manual verification
+
+- Start the reference demo with supported top-level/list/task block-HTML definitions plus inline/mixed unsupported definitions.
+- Edit tag text/attributes/body text in Rich mode, verify raw source remains code-like text rather than active HTML, undo/redo, save, then switch to Source and inspect exact valid nested Markdown plus clean state.
+- Confirm hostile script/event-handler payloads remain inert and unsupported definitions remain visibly source-only, then repeat at constrained width and capture artifacts under `docs/internal/visual-checks/MME-0070/`.
+
+### Visual impact
+
+Supported raw-HTML children become editable code-like source blocks inside Rich footnote definitions and safe list/task items. They do not render as HTML previews. Unsupported inline, overlapping, nested-container, mixed-container, and ambiguous forms remain explicit preserved-source fallbacks. Final density, syntax readability, hierarchy, focus flow, fallback wording, horizontal scrolling, and constrained-layout taste review remain queued for Andrew's end-of-run review block.
+
+### Implementation notes
+
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-editor/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-rich-prosemirror/package.json`, `packages/md-render-html/src/index.ts`, `packages/md-preview-html/src/index.ts`, `packages/md-surface/src/index.ts`, `packages/md-theme/src/index.ts`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `fixtures/010-html-inline-block`, `fixtures/020-gfm-footnotes`, `fixtures/022-simple-footnote-editing`, `fixtures/025-list-block-footnote-editing`, `fixtures/026-nested-list-footnote-editing`, `fixtures/027-task-list-footnote-editing`, `fixtures/028-loose-list-footnote-editing`, `fixtures/029-blockquote-footnote-editing`, `fixtures/030-fenced-code-footnote-editing`, `fixtures/031-indented-code-footnote-editing`, `fixtures/032-table-footnote-editing`, `fixtures/033-callout-footnote-editing`, `tests/parser-foundation.test.mjs`, `tests/rich-prosemirror-package.test.mjs`, `tests/rich-security.test.mjs`, `tests/render-html.test.mjs`, `tests/html-preview.test.mjs`, `tests/live-preview-mode.test.mjs`, `tests/rich-commands.test.mjs`, `tests/rich-input-rules.test.mjs`, `tests/rich-core-interactions.test.mjs`, every `tests/rich-footnote-*.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/save-engine.test.mjs`, `scripts/visual-check-mme0069.mjs`, and the MME-0056 through MME-0069 build-log/visual artifacts.
+
+Direct parser probes confirm block HTML inside top-level, standard-list, and task-list footnote children becomes an exact source-ranged opaque node with reason `raw HTML`, nested under the owning definition/list item. Inline HTML produces separate inline opaque tags plus an overlapping detected whole fragment, and malformed or paragraph-like HTML can map ambiguously; those forms must stay source-only. Reuse exact footnote child layouts/fingerprints, recursive list/task reconstruction, targeted source materialization, and conservative closed eligibility. Keep the payload as ProseMirror text content only; do not reuse read-renderer sanitization as an editing transform and do not expose source bytes through DOM attributes.
+
+### Out of scope
+
+- Rich rendering or live-preview activation of inline/block HTML, standalone `.html` artifact behavior, sanitizer policy changes, HTML formatting, validation, completion, linting, syntax highlighting, element-level editing, or DOM inspection.
+- Inline HTML editing, multiple raw-HTML/container children per list item, quote/callout-contained HTML, generic top-level opaque-block editing, arbitrary nested-block editing, structural footnote block insertion/deletion/reordering, or original outer indentation preservation for intentionally changed containers.
+- Container-nested definitions, definition reorder, missing-reference repair, hover previews, backlink redesign, polished footnote dialogs, task DOM redesign, or docs-content construction.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible raw-HTML-footnote UX/product review is queued for the end-of-run human review block unless literal-DOM security, parser range ownership, or bounded reconstruction remains unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer.
+
+### Blocked by
+
+- None. MME-0061 through MME-0069 established recursive standard/task container admission, exact child-source retention, deterministic bounded reconstruction, history/save truth, and browser proof. Direct parser feasibility confirms supported block HTML exposes exact source-ranged opaque children at top/list/task depth, while ambiguous inline/overlapping forms can remain atomically source-only without widening public parser contracts.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

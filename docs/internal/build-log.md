@@ -6780,3 +6780,28 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0069`. The next unblocked must-have candidate is a separately promoted safe raw-HTML/arbitrary nested-block footnote slice, subject to fresh parser/security feasibility proof.
+
+## Backlog promotion checkpoint — MME-0070
+
+- Date: 2026-07-21.
+- Context:
+  - `MME-0069` is accepted for code continuation and committed (`1af2464` implementation/status, `2339d9d` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0069.
+  - Andrew instructed autonomous continuation, must-haves first, strict issue formatting, issue-scoped commits, no docs-content work in this agent, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Feasibility proof:
+  - Direct local parser probes confirm block HTML inside top-level, standard-list, and task-list footnote children maps to exact source-ranged opaque nodes with reason `raw HTML`, nested under the owning definition/list item.
+  - Inline HTML creates inline opaque tags plus an overlapping detected whole fragment, while malformed or paragraph-like HTML can map ambiguously; those forms remain whole-definition source-only.
+  - Existing exact footnote child layouts/fingerprints, recursive standard/task list reconstruction, targeted source materialization, and Save Engine path can carry inert text edits without changing core/parser/public contracts.
+- Change:
+  - Promoted `MME-0070 — Rich inert raw-HTML footnote block editing baseline` into normal issue form.
+  - Bounded the slice to one parser-owned block-HTML child at top-level definition depth or as the single container child inside safe standard/task list items.
+  - Required code-like editable ProseMirror text that never becomes active DOM, exact untouched identity, bounded literal changed-child reconstruction, hostile payload inertness proof, and conservative inline/overlapping/nested/mixed/duplicate/stale/unmappable fallback.
+  - Updated `README.md` current slice plus `docs/internal/BACKLOG.md` promotion and end-of-run review tracking.
+- Rationale:
+  - Raw HTML is the next explicit core-block/footnote gap after callouts.
+  - Parser range ownership is locally proven, while keeping payloads as escaped text preserves security and Markdown durability without conflating editing with HTML preview/render policy.
+- Checks run:
+  - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0070" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before checkpoint commit.
+- Next issue:
+  - `MME-0070 — Rich inert raw-HTML footnote block editing baseline`.
