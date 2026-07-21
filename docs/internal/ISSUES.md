@@ -3460,6 +3460,85 @@ Architecture Reviewer, Test Reviewer, and UX Reviewer.
 
 - None. MME-0059 established the continuation indentation, exact range, history, save, and browser-proof foundation required by this slice.
 
+## MME-0061 — Rich list-block GFM footnote definition editing baseline
+
+### Goal
+
+Let users edit safely representable standard list blocks inside unique top-level GFM footnote definitions while preserving Markdown container indentation, unrelated definition blocks, source-only fallbacks, history, and save truth.
+
+### Scope
+
+- Extend the semantic rich footnote definition model to represent plain paragraphs plus standard bullet or ordered list blocks.
+- Limit editable lists to list items containing exactly one representable plain paragraph; retain list marker/order semantics through package-owned ProseMirror list nodes.
+- Preserve the definition identifier, first-line prefix, block separators, footnote container indentation, line endings, unchanged sibling block bytes, and unrelated source bytes.
+- Reconstruct one changed list block only inside the bounded definition range; keep the complete Markdown document and every unchanged definition child source-preserved.
+- Keep simple, continuation-line, multi-paragraph, insertion, whole-body replacement, definition selection, semantic references, and identifier rename behavior compatible.
+- Keep nested lists, task lists, multi-paragraph list items, loose or mixed complex lists, blockquotes, code blocks, tables, callouts, raw HTML, and arbitrary nested structures source-only.
+- Keep container-nested definitions, duplicates, malformed definitions, unsafe content, stale source, and unmappable ranges in explicit source-only fallback.
+- Treat one list-item text edit as one ProseMirror history action and keep Save Engine/autosave hashes truthful.
+- Add runtime browser proof for supported list editing, undo/redo, Source visibility, save truth, unsupported fallback visibility, and constrained-width containment.
+- Queue final list-footnote product/taste review for Andrew's end-of-run human review block.
+
+### Acceptance criteria
+
+- A unique top-level definition containing representable paragraphs and a standard bullet or ordered list with one plain paragraph per item mounts as one semantic editable Rich definition.
+- Editing one list-item paragraph changes only its bounded definition child reconstruction; unchanged definition blocks, references, surrounding Markdown, unknown syntax, and unrelated definitions remain byte-identical.
+- Bullet marker semantics, ordered-list start value, definition prefix spelling/spacing, footnote container indentation, block separation, and LF/CRLF convention remain valid and deterministic after serialization.
+- One undo reverts the complete list-item edit; redo restores it; saving persists exactly the Source Markdown shown by the editor.
+- Existing single-line, continuation-line, multi-paragraph, insertion, selection/replacement, identifier rename, semantic-reference, and read-rendering tests remain green.
+- Nested-list, task-list, multi-paragraph-item, blockquote, code, table, callout, raw-HTML, nested-container, duplicate, malformed, unsafe, stale, or unmappable definitions remain source-only and never receive partial edits.
+- Schema and serializer changes stay package-owned, host-independent, intentionally documented, and covered by API/architecture/security tests.
+- Browser verification captures supported Rich before/after, exact resulting Source, at least one unsupported complex-list fallback, and constrained-width states.
+- `docs/internal/build-log.md` records RED/GREEN evidence, visual impact, reviewer or fallback result, tests, residual risks, commit, push status, and next issue.
+
+### Test-first plan
+
+- RED: add a real list-bearing footnote fixture and focused tests that fail because its supported definition is still source-only.
+- RED: prove bullet and ordered-list editing, exact sibling-block preservation, container indentation, LF/CRLF, one-step undo/redo, save truth, and no full-document rewrite.
+- RED: prove nested lists, task lists, multi-paragraph items, non-list nested blocks, nested containers, duplicates, malformed, unsafe, stale, and unmappable forms refuse safely.
+- RED: prove simple, continuation, multi-paragraph, insertion, selection/replacement, and rename behaviors remain compatible.
+- RED: add browser/runtime assertions for list editing, Source output, unsupported fallback visibility, save truth, and constrained containment.
+- GREEN: generalize exact footnote child-layout reconstruction only enough for safe paragraph/list blocks, using existing ProseMirror list schema and Markdown serializers.
+- REFACTOR: remove duplicated paragraph-only layout logic without broadening eligibility to arbitrary blocks or exposing exact-source metadata through rendered DOM.
+
+### Manual verification
+
+- Start the reference demo with one supported paragraph-plus-list definition and separate nested-list/task-list or non-list unsupported definitions.
+- Edit the second supported list item in Rich mode, undo once, redo once, save, then switch to Source and inspect exact GFM indentation plus clean state.
+- Confirm unsupported definitions remain visibly source-only, then repeat at constrained width and capture artifacts under `docs/internal/visual-checks/MME-0061/`.
+
+### Visual impact
+
+Supported list-bearing definitions become semantic editable Rich blocks with normal list controls inside the definition body. Unsupported complex/nested list forms remain explicit preserved-source fallbacks. Final list indentation, marker density, definition spacing, fallback wording, focus flow, and constrained-layout taste review remain queued for Andrew's end-of-run review block.
+
+### Implementation notes
+
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-editor/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-surface/src/index.ts`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `fixtures/018-nested-lists-todos`, `fixtures/020-gfm-footnotes`, `fixtures/022-simple-footnote-editing`, `fixtures/023-multiline-footnote-editing`, `fixtures/024-multiparagraph-footnote-editing`, `tests/parser-foundation.test.mjs`, `tests/rich-list-editing.test.mjs`, `tests/rich-footnote-editing.test.mjs`, `tests/rich-footnote-insertion.test.mjs`, `tests/rich-footnote-rename.test.mjs`, `tests/rich-footnote-multiline.test.mjs`, `tests/rich-footnote-multiparagraph.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/save-engine.test.mjs`, and the MME-0056 through MME-0060 build-log/visual artifacts.
+
+Reuse parser block children, existing bullet/ordered ProseMirror nodes, semantic footnote references/definitions, exact source ranges, child fingerprints, targeted source materialization, and conservative eligibility checks. Keep list/footnote view behavior inside `@momentarise/md-rich-prosemirror`; parser/source concerns stay in `@momentarise/md-format`. No core/model/save/policy package may depend on ProseMirror.
+
+### Out of scope
+
+- Nested list editing, task-list editing, loose/multi-paragraph list items, blockquotes, code blocks, tables, callouts, raw HTML, or arbitrary block editing inside footnotes.
+- Container-nested definitions, definition reorder, automatic missing-reference repair, hover previews, backlink redesign, polished footnote dialogs, or docs-content construction.
+- Changing list marker style beyond deterministic Markdown-safe reconstruction of the intentionally edited list block.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer allowed.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible list-footnote UX/product review is queued for the end-of-run human review block unless preservation semantics remain unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer.
+
+### Blocked by
+
+- None. MME-0060 established semantic child blocks, exact per-child source layout, bounded definition reconstruction, history/save truth, and browser proof required by this slice.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

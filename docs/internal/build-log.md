@@ -6166,3 +6166,24 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0060`; continuation requires promoting the next must-have backlog item before implementation.
+
+## Backlog promotion checkpoint — MME-0061
+
+- Date: 2026-07-21.
+- Context:
+  - `MME-0060` is accepted for code continuation and committed (`1d6edcd` implementation/status, `8ba7257` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0060.
+  - Andrew instructed autonomous continuation, issue-scoped commits, separate docs-content ownership, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Change:
+  - Promoted `MME-0061 — Rich list-block GFM footnote definition editing baseline` from the remaining baseline/hygiene nested-block footnote gap into normal issue form.
+  - Bounded the slice to unique top-level definitions containing plain paragraphs plus standard bullet/ordered lists whose items each contain one plain paragraph.
+  - Kept nested lists, tasks, loose/multi-paragraph items, blockquotes, code, tables, callouts, raw HTML, arbitrary blocks, nested containers, duplicates, malformed, unsafe, stale, and unmappable forms source-only.
+  - Updated `README.md` current slice plus `docs/internal/BACKLOG.md` promotion and end-of-run review tracking.
+- Rationale:
+  - MME-0060 established semantic paragraph children and exact per-child source layout while deliberately leaving all non-paragraph definition blocks source-only.
+  - A standard list block is the next narrow baseline gap and can reuse package-owned list nodes plus bounded definition reconstruction without claiming arbitrary nested Markdown editing.
+- Checks run:
+  - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0061" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before promotion commit.
+- Next issue:
+  - `MME-0061 — Rich list-block GFM footnote definition editing baseline`.
