@@ -4605,6 +4605,9 @@ const richNodes: Record<string, NodeSpec> = {
     }
   },
   bullet_list: {
+    attrs: {
+      loose: { default: false }
+    },
     content: "(list_item | todo_item)+",
     group: "block",
     parseDOM: [{ tag: "ul" }],
@@ -4612,6 +4615,7 @@ const richNodes: Record<string, NodeSpec> = {
   },
   ordered_list: {
     attrs: {
+      loose: { default: false },
       order: { default: 1 }
     },
     content: "(list_item | todo_item)+",
@@ -4627,6 +4631,9 @@ const richNodes: Record<string, NodeSpec> = {
     toDOM: (node) => (Number(node.attrs.order) === 1 ? ["ol", 0] : ["ol", { start: node.attrs.order }, 0])
   },
   list_item: {
+    attrs: {
+      loose: { default: false }
+    },
     content: "paragraph block*",
     defining: true,
     parseDOM: [{ tag: "li" }],
@@ -4634,7 +4641,8 @@ const richNodes: Record<string, NodeSpec> = {
   },
   todo_item: {
     attrs: {
-      checked: { default: false }
+      checked: { default: false },
+      loose: { default: false }
     },
     content: "paragraph block*",
     defining: true,
@@ -5134,7 +5142,9 @@ function richFootnoteListBlockHasContainerIndent(raw: string, containerIndent: s
   const lines = raw.split(/\r?\n/);
   return Boolean(
     lines[0] &&
-    lines.slice(1).every((line) => line.startsWith(containerIndent) && /\S/.test(line.slice(containerIndent.length)))
+    lines.slice(1).every(
+      (line) => !/\S/.test(line) || (line.startsWith(containerIndent) && /\S/.test(line.slice(containerIndent.length)))
+    )
   );
 }
 
@@ -5177,14 +5187,27 @@ function isRepresentableRichFootnoteListItem(item: MomentariseNode): boolean {
   }
   const itemBlocks = item.children ?? [];
   const paragraph = itemBlocks[0];
-  const nestedList = itemBlocks[1];
-  return (
-    (itemBlocks.length === 1 || itemBlocks.length === 2) &&
-    paragraph?.kind !== "opaque" &&
-    paragraph?.type === "paragraph" &&
-    (paragraph.children ?? []).every(isRepresentableRichFootnoteInlineNode) &&
-    (itemBlocks.length === 1 || Boolean(nestedList && isRepresentableRichFootnoteList(nestedList)))
-  );
+  if (
+    paragraph?.kind === "opaque" ||
+    paragraph?.type !== "paragraph" ||
+    !(paragraph.children ?? []).every(isRepresentableRichFootnoteInlineNode)
+  ) {
+    return false;
+  }
+  let nestedListCount = 0;
+  return itemBlocks.slice(1).every((block) => {
+    if (block.kind === "opaque") {
+      return false;
+    }
+    if (block.type === "paragraph") {
+      return (block.children ?? []).every(isRepresentableRichFootnoteInlineNode);
+    }
+    if (block.type !== "list") {
+      return false;
+    }
+    nestedListCount += 1;
+    return nestedListCount <= 1 && isRepresentableRichFootnoteList(block);
+  });
 }
 
 function isRepresentableRichFootnoteInlineNode(node: MomentariseNode): boolean {
@@ -5278,10 +5301,11 @@ function listNodeToProseMirror(node: KnownNode, schema: MomentariseRichSchema, s
   const items = (node.children ?? [])
     .map((child) => listItemToProseMirror(child, schema, source))
     .filter((child): child is ProseMirrorNode => Boolean(child));
+  const loose = richListNodeIsLoose(node, source);
   if (node.attributes?.ordered === true) {
-    return schema.nodes.ordered_list.create({ order: Number(node.attributes.start) || 1 }, items);
+    return schema.nodes.ordered_list.create({ loose, order: Number(node.attributes.start) || 1 }, items);
   }
-  return schema.nodes.bullet_list.create(null, items);
+  return schema.nodes.bullet_list.create({ loose }, items);
 }
 
 function listItemToProseMirror(
@@ -5294,10 +5318,18 @@ function listItemToProseMirror(
   }
   const children = blockChildrenToProseMirror(node.children ?? [], schema, source);
   const safeChildren = children.length > 0 ? children : [schema.nodes.paragraph.create()];
+  const loose = richListNodeIsLoose(node, source);
   if (typeof node.attributes?.checked === "boolean") {
-    return schema.nodes.todo_item.create({ checked: node.attributes.checked }, safeChildren);
+    return schema.nodes.todo_item.create({ checked: node.attributes.checked, loose }, safeChildren);
   }
-  return schema.nodes.list_item.create(null, safeChildren);
+  return schema.nodes.list_item.create({ loose }, safeChildren);
+}
+
+function richListNodeIsLoose(node: MomentariseNode, source: string): boolean {
+  if (!node.sourceRange) {
+    return false;
+  }
+  return /(?:^|\r?\n)[\t ]*(?:\r?\n|$)/.test(rawFromRange(node, source));
 }
 
 function blockChildrenToProseMirror(
@@ -5505,7 +5537,7 @@ function serializeRichFootnoteDefinition(node: ProseMirrorNode): string {
       (index === 0 ? stringAttribute(node.attrs.continuationIndent) : null) ||
       "    ";
     const reconstructed = block.type.name === "paragraph" ? serializeInline(block) : serializeBlock(block, 0);
-    const body = unchangedSource ?? reconstructed.replace(/\r?\n/g, `\n${continuationIndent}`);
+    const body = unchangedSource ?? indentRichFootnoteBlock(reconstructed, continuationIndent);
     const separator = index === 0
       ? prefix
       : hasCompleteSourceLayout
@@ -5515,6 +5547,13 @@ function serializeRichFootnoteDefinition(node: ProseMirrorNode): string {
   });
 
   return parts.join("");
+}
+
+function indentRichFootnoteBlock(value: string, continuationIndent: string): string {
+  return value
+    .split(/\r?\n/)
+    .map((line, index) => (index === 0 || !/\S/.test(line) ? line : `${continuationIndent}${line}`))
+    .join("\n");
 }
 
 function parseRichFootnoteStringArray(value: NodeAttributeValue | undefined): readonly string[] {
@@ -5575,7 +5614,7 @@ function serializeList(node: ProseMirrorNode, indentLevel: number, ordered: bool
     lines.push(serializeListItem(child, indentLevel, marker));
     index += 1;
   });
-  return lines.join("\n");
+  return lines.join(node.attrs.loose === true ? "\n\n" : "\n");
 }
 
 function listMarkerForChild(node: ProseMirrorNode, ordered: boolean, index: number): string {
@@ -5598,15 +5637,15 @@ function serializeListItem(node: ProseMirrorNode, indentLevel: number, marker: s
   for (const child of rest) {
     const childIsList = ["bullet_list", "ordered_list"].includes(child.type.name);
     const structuralMarker = marker.replace(/\s+\[[ xX]\]$/, "");
-    const childIndentation = childIsList
-      ? `${indentation}${" ".repeat(structuralMarker.length + 1)}`
-      : `${indentation}  `;
-    lines.push(
-      serializeBlock(child, childIsList ? 0 : indentLevel + 1)
-        .split("\n")
-        .map((line) => `${childIndentation}${line}`)
-        .join("\n")
-    );
+    const childIndentation = `${indentation}${" ".repeat(structuralMarker.length + 1)}`;
+    const serializedChild = serializeBlock(child, childIsList ? 0 : indentLevel + 1)
+      .split("\n")
+      .map((line) => `${childIndentation}${line}`)
+      .join("\n");
+    if (node.attrs.loose === true) {
+      lines.push("");
+    }
+    lines.push(serializedChild);
   }
   return lines.join("\n");
 }

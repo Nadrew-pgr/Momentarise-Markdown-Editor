@@ -9,10 +9,11 @@ const source = await readFile("fixtures/026-nested-list-footnote-editing/input.m
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
 
-assertEqual(definitions.length, 3, "safe nested bullet, ordered, and task definitions must be editable");
+assertEqual(definitions.length, 4, "safe nested bullet, ordered, task, and loose definitions must be editable");
 const bulletDefinition = definitions.find((node) => node.attrs.identifier === "nested-bullets");
 const orderedDefinition = definitions.find((node) => node.attrs.identifier === "nested-ordered");
 const taskDefinition = definitions.find((node) => node.attrs.identifier === "task-nested");
+const looseDefinition = definitions.find((node) => node.attrs.identifier === "loose-nested");
 const bulletList = bulletDefinition?.child(1);
 const bulletChildList = bulletList?.child(0).child(1);
 const bulletGrandchildList = bulletChildList?.child(0).child(1);
@@ -39,6 +40,8 @@ assertEqual(
   false,
   "nested unchecked task state is semantic"
 );
+assertEqual(looseDefinition?.child(1).attrs.loose, true, "loose ordered list state is semantic");
+assertEqual(looseDefinition?.child(1).child(0).child(1).attrs.order, 7, "loose nested ordered start is semantic");
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched nested-list document identity");
 assertNoExactSourceMetadataInDom(bulletDefinition);
 
@@ -70,7 +73,6 @@ for (const preserved of [
 
 const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block");
 for (const marker of [
-  "[^loose-nested]:",
   "[^multiple-nested]:",
   "[^quoted-nested]:",
   "[^unsafe-nested]:",

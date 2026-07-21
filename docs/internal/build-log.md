@@ -6392,3 +6392,48 @@
   - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0064" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before checkpoint commit.
 - Next issue:
   - `MME-0064 — Rich loose-list-item GFM footnote definition editing baseline`.
+
+## MME-0064 — Rich loose-list-item GFM footnote definition editing baseline
+
+- Date: 2026-07-21.
+- Previous issue status:
+  - `MME-0063` accepted for code continuation and committed (`3939bae` implementation/status, `13bbeb6` evidence).
+  - `MME-0064` was promoted from backlog and committed in checkpoint `bea0778`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, clean `git status --short`, and every parser/model/editor/rich/demo/fixture/test/save file named by the issue.
+- RED proof before implementation:
+  - Added `fixtures/028-loose-list-footnote-editing/` and `tests/rich-footnote-loose-lists.test.mjs`, then confirmed `npm run test:rich-footnote-loose-lists` failed because all three safe loose bullet/task/ordered definitions remained source-only: `expected 3, got 0`.
+- Change:
+  - Added package-owned boolean `loose` attributes to bullet/ordered lists plus standard/task items. Conversion derives semantic state from parser-owned source ranges and blank-line layout; public parser/core contracts remain unchanged and exact source metadata remains absent from rendered DOM.
+  - Generalized the closed item whitelist from one safe paragraph plus one optional recursive list to one required safe paragraph followed by safe paragraphs and at most one recursively safe bullet/ordered list. Multiple nested lists, blockquotes, code, tables, callouts, raw HTML, arbitrary blocks, nested containers, duplicates, malformed, unsafe, stale, invalid-indent, and unmappable definitions remain whole source-only fallbacks.
+  - Allowed blank lines inside otherwise valid outer footnote list indentation and added deterministic list-level/item-level blank-line reconstruction. Continuation indentation now uses structural list-marker width for both paragraphs and nested lists, while blank separator lines remain blank.
+  - Untouched definitions remain byte-exact. Editing a second item paragraph, deep nested item, or task state reconstructs only its containing top-level list child while preserving sibling definition children, references, unknown syntax, prefix spacing, ordered starts, outer indentation, unrelated Markdown, and LF/CRLF behavior.
+  - Added fixture 028 with explicit loose bullet/task/ordered cases plus multiple-list, quote, code, table, callout, raw-HTML, and nested-container fallbacks; added focused semantic/edit/toggle/reparse/history/save/CRLF tests, intentional fixture 025-027 expectation updates, package docs, root test registration, and runtime browser proof.
+- Visual impact:
+  - Safe loose standard/task items render as semantic Rich lists with visibly separated paragraphs and nested ordered hierarchy. Unsupported arbitrary children remain explicit preserved-source cards.
+  - Artifacts: `docs/internal/visual-checks/MME-0064/footnote-loose-list-rich-desktop.png`, `footnote-loose-list-edited-desktop.png`, `footnote-loose-list-toggled-desktop.png`, `footnote-loose-list-saved-desktop.png`, `footnote-loose-list-unsupported-desktop.png`, `footnote-loose-list-source-desktop.png`, and `footnote-loose-list-constrained.png`.
+  - Permissioned headless Chrome proof loads fixture 028, verifies three semantic definitions and seven arbitrary-child fallbacks, edits one second paragraph, toggles one loose task by real pointer and keyboard input, checks accessible pressed/label state, proves one-step undo/redo, saves exact Source truth, and verifies 390px containment.
+  - Builder inspected all seven captures. Desktop hierarchy, paragraph separation, task controls, fallback cards, and Source output are readable. Narrow content remains contained, but deep text wraps densely and the floating diagnostics chip overlaps lower task content; the dominant full-editor blue focus outline remains visible. These are queued for final human review.
+- Checks run:
+  - `npm run test:rich-footnote-loose-lists` — RED first (`expected 3, got 0`), then green after semantic loose-state conversion and deterministic serialization.
+  - All MME-0056 through MME-0064 footnote regressions, targeted serialization, list/core interaction, Save Engine, contracts, architecture, public API, rich security, fixture corpus, parser, round-trip, rich fidelity, and demo tests — green.
+  - `npm run visual:mme-0064` — initial sandboxed Chrome launch correctly failed. Permissioned iterations fixed reference-vs-definition selector scope and history-boundary assumptions in the harness; final run passed and captured all seven states.
+  - Final `npm test` — green end-to-end, including performance 10/10, architecture, security, preservation, every footnote/list regression, fixture corpus, CLI, AX artifacts, packages, demo, adapters, Vite build, and 42-page Next.js docs build; existing Vite chunk-size warning only.
+  - `git diff --check` — green before closeout.
+- Reviewer result:
+  - Required inspect-only code reviewers were restricted to exactly `gpt-5.3-codex-spark` with `xhigh` reasoning. The subagent interface was unavailable in this run; no substitute code-review model was used.
+  - Documented fallback self-review covered schema defaults, source-derived loose classification, closed arbitrary-child refusal, recursive whitelist closure, exact unchanged-source retention, bounded changed-child reconstruction, blank-line and structural-marker indentation, ordered/bullet/task semantics, reparse stability, CRLF/container indentation, fallback atomicity, history/save truth, DOM metadata privacy, accessible task state, package boundaries, focused tests, full regressions, and browser assertions.
+  - No remaining P0-P3 issue was found.
+- Residual risks:
+  - Multiple nested lists, blockquotes, code, tables, callouts, raw HTML, arbitrary blocks, nested containers, duplicates, malformed definitions, unsafe content, stale source, inconsistent indentation, and unmappable forms remain source-only by design.
+  - Intentionally changed loose-list blocks use deterministic required blank lines, lowercase `[x]`, `-` markers, and ordered numbering; untouched list-child bytes remain exact. Original marker style/case and noncanonical-but-equivalent blank-line placement remain out of scope.
+  - Source-derived loose state is package-owned and deliberately not added to the public parser contract. A future generic list serializer may need its own explicit spacing contract; this issue changes only bounded Rich footnote reconstruction.
+  - Structural insertion, deletion, reorder, Tab/Shift+Tab redesign, arbitrary block editing, and task DOM redesign remain future slices.
+  - Final paragraph spacing, loose-list density, nested hierarchy, task control flow, fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, deep narrow wrapping, and constrained layout are queued in `docs/internal/BACKLOG.md`.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Issue-scoped implementation/status commit pending; the follow-up evidence commit will record its hash.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0064`. The next unblocked must-have candidate is a separately promoted safe blockquote-content footnote editing slice; code/block/table/callout/raw-HTML children remain later conservative splits.

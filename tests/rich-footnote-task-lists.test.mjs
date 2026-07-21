@@ -9,10 +9,11 @@ const source = await readFile("fixtures/027-task-list-footnote-editing/input.md"
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
 
-assertEqual(definitions.length, 3, "safe flat, nested, and ordered task definitions must be editable");
+assertEqual(definitions.length, 4, "safe flat, nested, ordered, and loose task definitions must be editable");
 const flatDefinition = definitions.find((node) => node.attrs.identifier === "task-flat");
 const nestedDefinition = definitions.find((node) => node.attrs.identifier === "task-nested");
 const orderedDefinition = definitions.find((node) => node.attrs.identifier === "task-ordered");
+const looseDefinition = definitions.find((node) => node.attrs.identifier === "loose-task");
 
 const flatList = flatDefinition?.child(1);
 assertEqual(flatList?.type.name, "bullet_list", "flat task list is semantic");
@@ -36,6 +37,8 @@ assertEqual(orderedList?.type.name, "ordered_list", "ordered task list is semant
 assertEqual(orderedList?.attrs.order, 3, "ordered task start remains semantic");
 assertEqual(orderedList?.child(0).attrs.checked, true, "ordered checked task state");
 assertEqual(orderedList?.child(1).attrs.checked, false, "ordered unchecked task state");
+assertEqual(looseDefinition?.child(1).attrs.loose, true, "loose task list state is semantic");
+assertEqual(looseDefinition?.child(1).child(0).childCount, 2, "loose task paragraphs are semantic");
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched task-footnote document identity");
 assertAccessibleTodoDom(deepestTask, false);
 assertNoExactSourceMetadataInDom(nestedDefinition);
@@ -123,7 +126,6 @@ assertIncludes(
 
 const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block");
 for (const marker of [
-  "[^loose-task]:",
   "[^multiple-task]:",
   "[^quoted-task]:",
   "[^unsafe-task]:",

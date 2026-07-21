@@ -77,12 +77,12 @@ Completed slices:
 - MME-0061: Rich list-block GFM footnote definition editing baseline, accepted for code continuation after semantic bullet/ordered list children, exact unchanged-child preservation, bounded changed-list reconstruction, conservative complex-list fallback, truthful history/save behavior, browser proof, fallback review, and full test pass; final list-footnote product review is queued for end-of-run review.
 - MME-0062: Rich nested-list GFM footnote definition editing baseline, accepted for code continuation after recursively safe nested bullet/ordered list editing, exact bounded list-child reconstruction, conservative task/loose/unsafe fallback, truthful history/save behavior, browser proof, fallback review, and full test pass; final nested-list footnote product review is queued for end-of-run review.
 - MME-0063: Rich task-list GFM footnote definition editing baseline, accepted for code continuation after safe flat and recursively nested task-item text/state editing, valid task-child reconstruction, exact bounded source preservation, conservative loose/arbitrary-block fallback, truthful history/save behavior, real browser proof, fallback review, and full test pass; final task-list footnote product review is queued for end-of-run review.
-- MME-0064: Rich loose-list-item GFM footnote definition editing baseline, promoted as the current executable slice for safe list-spread and multi-paragraph standard/task items with deterministic blank-line reconstruction and conservative arbitrary-block fallback.
+- MME-0064: Rich loose-list-item GFM footnote definition editing baseline, accepted for code continuation after safe loose/list-spread and multi-paragraph standard/task editing, deterministic blank-line reconstruction, bounded source preservation, conservative arbitrary-block fallback, truthful history/save behavior, real browser proof, fallback review, and full test pass; final loose-list-item footnote product review is queued for end-of-run review.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- MME-0064 is the current executable issue: add safe loose/list-spread and multi-paragraph standard/task item editing inside unique top-level GFM footnote definitions while keeping multiple nested lists and arbitrary child blocks source-only.
+- No executable normal issue remains after MME-0064. The next unblocked must-have backlog candidate must be promoted before implementation; safe blockquote content inside footnote definitions is the next conservative arbitrary-block split.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

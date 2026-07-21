@@ -9,11 +9,12 @@ const source = await readFile("fixtures/025-list-block-footnote-editing/input.md
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
 
-assertEqual(definitions.length, 4, "safe flat, nested, and task list definitions must be editable");
+assertEqual(definitions.length, 5, "safe flat, nested, task, and loose list definitions must be editable");
 const stepsDefinition = definitions.find((node) => node.attrs.identifier === "steps");
 const orderedDefinition = definitions.find((node) => node.attrs.identifier === "ordered");
 const nestedDefinition = definitions.find((node) => node.attrs.identifier === "nested-list");
 const taskDefinition = definitions.find((node) => node.attrs.identifier === "task-list");
+const looseDefinition = definitions.find((node) => node.attrs.identifier === "loose-item");
 assertEqual(stepsDefinition?.childCount, 3, "paragraph, bullet list, and closing paragraph child blocks");
 assertEqual(stepsDefinition?.child(1).type.name, "bullet_list", "safe bullet list uses semantic list node");
 assertEqual(stepsDefinition?.child(1).childCount, 3, "all bullet items remain editable");
@@ -27,6 +28,8 @@ assertEqual(
 );
 assertEqual(taskDefinition?.child(1).child(0).type.name, "todo_item", "safe flat task uses semantic todo node");
 assertEqual(taskDefinition?.child(1).child(1).attrs.checked, true, "checked flat task state is semantic");
+assertEqual(looseDefinition?.child(1).attrs.loose, true, "loose list state is semantic");
+assertEqual(looseDefinition?.child(1).child(0).childCount, 2, "loose item paragraphs are semantic");
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched list-footnote document identity");
 assertNoExactSourceMetadataInDom(stepsDefinition);
 
@@ -56,7 +59,6 @@ assertEqual(
 
 const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block");
 for (const marker of [
-  "[^loose-item]:",
   "[^quoted]:",
   "[^unsafe-list]:",
   "[^nested-container]:"
