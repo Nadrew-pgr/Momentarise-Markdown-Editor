@@ -6875,3 +6875,48 @@
   - `npm run test:alignment`, `node scripts/docs-lint.mjs`, `rg -n "MME-0071" README.md docs/internal/ISSUES.md docs/internal/BACKLOG.md docs/internal/build-log.md`, and `git diff --check` — green before checkpoint commit.
 - Next issue:
   - `MME-0071 — Rich inert inline-HTML footnote paragraph editing baseline`.
+
+## MME-0071 — Rich inert inline-HTML footnote paragraph editing baseline
+
+- Date: 2026-07-21.
+- Previous issue status:
+  - `MME-0070` accepted for code continuation and committed (`4e5142f` implementation/status, `5a33c7c` evidence).
+  - `MME-0071` was promoted and committed in checkpoint `f727a08`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, clean `git status --short`, and every parser/model/editor/rich/render/preview/surface/theme/demo/fixture/test/save file named by the issue.
+- RED proof before implementation:
+  - Added `fixtures/035-inline-html-footnote-editing/` and `tests/rich-footnote-inline-html.test.mjs`, then confirmed `npm run test:rich-footnote-inline-html` failed because the first safe direct inline-HTML definition remained source-only: `Safe inline-HTML definition must be editable: inline-top.`
+- Change:
+  - Added package-owned `raw_html_source` ProseMirror mark. Exact parser-owned HTML tags/comments stay escaped text inside labelled code-like wrappers; payload bytes never become tag names, attributes, `innerHTML`, URLs, styles, event handlers, custom elements, or executable script DOM.
+  - Added strict eligibility for source-ranged opaque nodes whose reason is exactly `raw HTML`, whose raw bytes equal the owned source slice, and whose range is single-line and tag/comment shaped. Existing root overlap filtering continues suppressing whole-fragment opaque ranges nested inside owning definitions.
+  - Admitted direct inline HTML in safe top-level/multi-paragraph/list/task/blockquote/callout-body footnote paragraphs. Raw HTML under emphasis/strong/strikethrough/link wrappers remains rejected atomically; generic inline conversion stays unchanged outside supported footnotes.
+  - Serialized the package mark literally without backticks. Existing exact paragraph/list/quote/callout fingerprints and targeted materialization preserve untouched bytes and bound changed output to the owned paragraph or containing child.
+  - Updated older fixtures whose direct inline HTML intentionally moved from source-only to semantic inert editing. Block HTML compatibility, malformed/multiline/table-cell/wrapper/mixed/duplicate/nested/stale/invalid-indent fallback, LF/CRLF, ordered/task state, history, selection/replacement, identifier rename, Save Engine, renderer, and sandbox preview remain covered.
+  - Added fixture 035, focused DOM/security/preservation tests, root test registration, token-only demo styling, package docs, and a six-state browser harness.
+- Visual impact:
+  - Supported tags/comments appear as blue code-like literal spans inside semantic footnote paragraphs and list/task/quote/callout hierarchy. Hostile script/image/event/style/URL source is visible but creates zero payload DOM. Unsupported wrapper, multiline, table, duplicate, and nested forms remain explicit preserved-source cards.
+  - Artifacts: `docs/internal/visual-checks/MME-0071/footnote-inline-html-rich-desktop.png`, `footnote-inline-html-edited-desktop.png`, `footnote-inline-html-saved-desktop.png`, `footnote-inline-html-unsupported-desktop.png`, `footnote-inline-html-constrained.png`, and `footnote-inline-html-source-desktop.png`.
+  - Permissioned headless Chrome proof loads fixture 035 at `http://127.0.0.1:5174/`, verifies eight semantic definitions, fourteen inert inline wrappers, one compatible block-HTML node, ordered/task/quote/callout structure, zero payload-created active DOM, exact untouched/source/save content, a real attribute edit with undo/redo, nine accessible fallbacks, and 390 px containment without page overflow.
+  - Builder inspected all six initial frames and the regenerated unsupported/constrained frames. Hierarchy and inert source tokens are readable and contained. Existing full-editor blue focus outline, diagnostics-chip overlap, deep narrow wrapping, selected-token clipping while focused, and Markdown emphasis hiding hostile script-body underscore bytes in Rich display remain queued for final human review; Source bytes stay exact.
+- Checks run:
+  - `npm run test:rich-footnote-inline-html` — RED first, then green after strict token eligibility, inert mark conversion, and literal serialization; green again after fallback-review proof additions.
+  - All MME-0056 through MME-0071 footnote regressions, targeted serialization, rich package/security, Save Engine, contracts, architecture, public API, publishability, release engineering, fixture corpus, parser, round-trip, HTML renderer, HTML preview, and `git diff --check` — green.
+  - `npm run visual:mme-0071` — sandboxed Chrome launch failed before CDP as expected; corrected permissioned runs passed and regenerated all six current states after final fallback coverage.
+  - Final `npm test` — green end-to-end after all implementation/review fixes, including performance 10/10, architecture, security, preservation, every footnote/list/code/table/callout/HTML regression, fixture corpus, CLI, AX artifacts, packages, demo, adapters, Vite build, and 42-page Next.js docs build; existing Vite chunk-size warning only.
+- Reviewer result:
+  - Required inspect-only code review retried exactly `gpt-5.3-codex-spark` with `xhigh` reasoning. Agent `019f8534-959d-7792-850f-2fe1524d7a60` could not run because that model's usage limit is exhausted until 2026-07-26 14:48; no substitute code-review model was used.
+  - Documented fallback self-review covered mark/schema closure, exact source-range ownership, reason/range/line discrimination, overlap suppression, wrapper refusal, text-only DOM construction and DOM reparse, payload element/attribute/script inertness, exact untouched identity, bounded changed serialization, LF/CRLF, list/task/quote/callout hierarchy, invalid indentation, stale mappings, fallback atomicity, history/selection/rename/save truth, metadata privacy, package boundaries, focused tests, full regressions, and browser assertions.
+  - Fallback review found and fixed one P2 verification gap: emphasis and strikethrough wrapper refusal plus invalid-indent and stale-source rejection were implemented but not directly covered in fixture 035. Real regression cases now prove all four Markdown wrapper types and both mapping guards. No remaining P0-P3 issue was found.
+- Residual risks:
+  - Eligibility intentionally accepts only exact single-line parser-owned raw-HTML tokens at supported footnote paragraph depth. Markdown-wrapper, multiline, table-cell, malformed/ambiguous, duplicate, nested-container, invalid-indent, stale, and otherwise unmappable forms remain whole source-only.
+  - Edited tokens are literal source truth and are not continuously HTML-validated. A later remount can conservatively return malformed or no-longer-inline HTML to source-only representation.
+  - Text between paired inline tags remains normal Markdown content. As observed with double underscores inside a hostile script body, Rich presentation can apply Markdown emphasis and visually hide delimiter bytes even though untouched serialization and Source mode remain exact. Broader raw-fragment/source-token grouping is outside this bounded slice and queued for final product review/future promotion.
+  - HTML completion/linting/formatting, syntax trees, element editing, activation/preview, structural block mutation, generic top-level inline HTML, raw HTML inside Markdown marks, multiline tokens, table-cell HTML, and arbitrary nested blocks remain future slices.
+  - Final source-token density, hierarchy, literal-versus-preview clarity, edit/focus flow, fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, narrow wrapping, and constrained layout are queued in `docs/internal/BACKLOG.md`.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Issue-scoped implementation/status commit pending until this closeout is staged.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0071`. The next unblocked must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.

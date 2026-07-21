@@ -38,11 +38,11 @@ Neighbor <x-unknown keep="exact">syntax</x-unknown> stays byte-exact.
 
     - [x] Keep completed task sibling.
 
-[^inline-html]: Inline HTML stays source-only.
+[^inline-html]: Inline HTML stays inert and editable.
 
     Preserve <kbd>Edit inline HTML</kbd> inside a paragraph.
 
-[^paragraph-html]: Paragraph-like HTML stays source-only.
+[^paragraph-html]: Single-line HTML element stays inert and editable.
 
     <button onclick="globalThis.__MME_HTML_RAN__ = true">Edit button HTML</button>
 

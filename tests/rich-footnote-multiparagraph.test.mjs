@@ -8,13 +8,15 @@ const { TextSelection } = await import("prosemirror-state");
 const source = await readFile("fixtures/024-multiparagraph-footnote-editing/input.md", "utf8");
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
-assertEqual(definitions.length, 2, "safe multi-paragraph and simple-list definitions must be editable");
+assertEqual(definitions.length, 3, "safe multi-paragraph, simple-list, and inert inline-HTML definitions must be editable");
 const detailDefinition = definitions.find((node) => node.attrs.identifier === "detail");
 const listDefinition = definitions.find((node) => node.attrs.identifier === "nested-block");
+const inlineHtmlDefinition = definitions.find((node) => node.attrs.identifier === "unsafe");
 assertEqual(detailDefinition?.childCount, 3, "definition exposes three paragraph children");
 assertEqual(detailDefinition?.child(1).type.name, "paragraph", "second child is an editable paragraph");
 assertIncludes(detailDefinition?.child(1).textContent ?? "", "Second paragraph", "second paragraph content");
 assertEqual(listDefinition?.child(1).type.name, "bullet_list", "simple list child now mounts semantically");
+assertIncludes(JSON.stringify(inlineHtmlDefinition?.toJSON()), '"raw_html_source"', "multi-paragraph inline HTML is inert marked source");
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched multi-paragraph document identity");
 
 const edited = rich.replaceFirstRichText(state, "Second paragraph", "Edited second paragraph");
@@ -28,14 +30,14 @@ for (const preserved of [
   'Neighbor <x-unknown keep="exact">syntax</x-unknown> stays byte-exact.',
   "[^nested-block]: Nested content stays source-only.\n\n    - list item stays source-only",
   "> [^nested-container]: Container definition stays source-only.",
-  '[^unsafe]: Unsafe paragraph starts here.\n\n    Raw HTML <span onclick="boom()">stays source-only</span>.',
+  '[^unsafe]: Inline-HTML paragraph starts here.\n\n    Raw HTML <span onclick="boom()">stays inert and editable</span>.',
   "Final paragraph stays byte-exact."
 ]) {
   assertIncludes(editedOutput, preserved, `preserved source ${preserved}`);
 }
 
 const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block");
-for (const preserved of ["[^nested-container]:", "[^unsafe]:"]) {
+for (const preserved of ["[^nested-container]:"]) {
   if (!fallbacks.some((node) => String(node.attrs.raw ?? "").includes(preserved))) {
     throw new Error(`Expected source-only fallback for ${preserved}.`);
   }

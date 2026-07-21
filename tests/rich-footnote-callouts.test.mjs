@@ -10,7 +10,7 @@ const source = await readFile("fixtures/033-callout-footnote-editing/input.md", 
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
 
-for (const identifier of ["callout-top", "callout-list", "callout-task"]) {
+for (const identifier of ["callout-top", "callout-list", "callout-task", "unsafe-body"]) {
   if (!definitions.some((node) => node.attrs.identifier === identifier)) {
     throw new Error(`Safe callout definition must be editable: ${identifier}.`);
   }
@@ -19,6 +19,8 @@ const topDefinition = definitions.find((node) => node.attrs.identifier === "call
 const listDefinition = definitions.find((node) => node.attrs.identifier === "callout-list");
 const taskDefinition = definitions.find((node) => node.attrs.identifier === "callout-task");
 const quoteDefinition = definitions.find((node) => node.attrs.identifier === "quote-existing");
+const inlineHtmlDefinition = definitions.find((node) => node.attrs.identifier === "unsafe-body");
+assertIncludes(JSON.stringify(inlineHtmlDefinition?.toJSON()), '"raw_html_source"', "callout inline HTML is inert marked source");
 
 const topCallout = topDefinition?.child(1);
 assertEqual(topCallout?.type.name, "callout", "top-level callout is semantic");
@@ -155,7 +157,6 @@ for (const marker of [
   "[^malformed-fold]:",
   "[^nested-callout]:",
   "[^list-body]:",
-  "[^unsafe-body]:",
   "[^mixed-containers]:",
   "[^duplicate]:",
   "[^nested-container]:"
@@ -165,7 +166,7 @@ for (const marker of [
     throw new Error(`Expected explicit source-only callout fallback for ${marker}.`);
   }
 }
-for (const fallbackText of ["Preserve nested body", "Preserve nested list item", "Raw <span"] ) {
+for (const fallbackText of ["Preserve nested body", "Preserve nested list item"] ) {
   let rejected = false;
   try {
     rich.replaceFirstRichText(state, fallbackText, `Edited ${fallbackText}`);

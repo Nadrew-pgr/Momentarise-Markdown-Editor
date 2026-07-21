@@ -10,7 +10,7 @@ const source = await readFile("fixtures/034-raw-html-footnote-editing/input.md",
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
 
-for (const identifier of ["html-top", "html-list", "html-task"]) {
+for (const identifier of ["html-top", "html-list", "html-task", "inline-html", "paragraph-html"]) {
   if (!definitions.some((node) => node.attrs.identifier === identifier)) {
     throw new Error(`Safe raw-HTML definition must be editable: ${identifier}.`);
   }
@@ -19,6 +19,10 @@ for (const identifier of ["html-top", "html-list", "html-task"]) {
 const topDefinition = definitions.find((node) => node.attrs.identifier === "html-top");
 const listDefinition = definitions.find((node) => node.attrs.identifier === "html-list");
 const taskDefinition = definitions.find((node) => node.attrs.identifier === "html-task");
+const inlineHtmlDefinition = definitions.find((node) => node.attrs.identifier === "inline-html");
+assertIncludes(JSON.stringify(inlineHtmlDefinition?.toJSON()), '"raw_html_source"', "inline HTML is inert marked source");
+const paragraphHtmlDefinition = definitions.find((node) => node.attrs.identifier === "paragraph-html");
+assertIncludes(JSON.stringify(paragraphHtmlDefinition?.toJSON()), '"raw_html_source"', "single-line HTML element is inert marked source");
 const topHtml = topDefinition?.child(1);
 const orderedList = listDefinition?.child(1);
 const orderedItem = orderedList?.child(0);
@@ -139,8 +143,6 @@ assertEqual(
 
 const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block");
 for (const marker of [
-  "[^inline-html]:",
-  "[^paragraph-html]:",
   "[^malformed-html]:",
   "[^quote-html]:",
   "[^mixed-containers]:",
@@ -154,8 +156,6 @@ for (const marker of [
   }
 }
 for (const fallbackText of [
-  "Edit inline HTML",
-  "Edit button HTML",
   "Edit malformed HTML",
   "Edit quote HTML",
   "Edit mixed HTML",

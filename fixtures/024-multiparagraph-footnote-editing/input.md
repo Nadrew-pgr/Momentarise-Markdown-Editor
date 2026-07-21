@@ -18,8 +18,8 @@ Neighbor <x-unknown keep="exact">syntax</x-unknown> stays byte-exact.
 
 > [^nested-container]: Container definition stays source-only.
 
-[^unsafe]: Unsafe paragraph starts here.
+[^unsafe]: Inline-HTML paragraph starts here.
 
-    Raw HTML <span onclick="boom()">stays source-only</span>.
+    Raw HTML <span onclick="boom()">stays inert and editable</span>.
 
 Final paragraph stays byte-exact.

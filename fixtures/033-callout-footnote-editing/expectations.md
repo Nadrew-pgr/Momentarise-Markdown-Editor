@@ -5,5 +5,5 @@
 - Keep callout type, optional title, and optional `+`/`-` fold marker in package-owned semantic attributes while exposing only body paragraphs as editable content.
 - Edit one body paragraph through bounded callout or containing-list reconstruction while preserving unrelated Markdown, definition prefix, indentation, ordered/task/loose state, LF/CRLF, unchanged sibling children, inline marks, and unknown syntax.
 - Keep existing plain blockquotes, fenced/indented code, tables, definition selection/replacement, insertion, identifier rename, history, and Save Engine behavior compatible.
-- Keep marker-only, malformed type/fold, nested callout/quote, list/raw-HTML body, mixed-container, duplicate, nested-container, unsafe, stale, invalid-indent, and unmappable definitions whole source-only.
+- Render direct inline HTML inside safe callout paragraphs as inert editable source; keep marker-only, malformed type/fold, nested callout/quote, list/block-HTML body, mixed-container, duplicate, nested-container, stale, invalid-indent, and unmappable definitions whole source-only.
 - Never expose exact source/fingerprint metadata in rendered DOM or activate unsafe HTML.

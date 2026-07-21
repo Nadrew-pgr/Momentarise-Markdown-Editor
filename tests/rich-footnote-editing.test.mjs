@@ -14,17 +14,25 @@ const source = await readFile("fixtures/022-simple-footnote-editing/input.md", "
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 
 const rootTypes = topLevelNodes(state).map((node) => node.type.name);
-assertEqual(rootTypes.filter((type) => type === "footnote_definition").length, 3, "safe single-line, continuation, and multi-paragraph definitions must be editable");
+assertEqual(rootTypes.filter((type) => type === "footnote_definition").length, 4, "safe text and inert inline-HTML definitions must be editable");
 assertEqual(countNodeType(state.editorState.doc, "footnote_reference"), 3, "footnote references must remain semantic rich nodes");
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched footnote document must remain byte-identical");
 
 const editableDefinition = topLevelNodes(state).find((node) => node.type.name === "footnote_definition");
+const inlineHtmlDefinition = topLevelNodes(state).find(
+  (node) => node.type.name === "footnote_definition" && node.attrs.identifier === "unsafe"
+);
 assertEqual(editableDefinition?.attrs.identifier, "simple", "editable definition identifier");
 assertEqual(editableDefinition?.textContent, "Simple definition with inline code and a relative link.", "editable definition body");
 assertDomAttribute(editableDefinition, "data-mme-footnote-definition", "true");
 assertEqual(countMarkType(editableDefinition, "strong"), 1, "editable definition strong mark");
 assertEqual(countMarkType(editableDefinition, "code"), 1, "editable definition code mark");
 assertEqual(countMarkType(editableDefinition, "link"), 1, "editable definition link mark");
+assertIncludes(
+  JSON.stringify(inlineHtmlDefinition?.toJSON()),
+  '"raw_html_source"',
+  "direct inline HTML mounts as inert marked source"
+);
 
 const reference = findNodeType(state.editorState.doc, "footnote_reference");
 assertEqual(reference?.attrs.identifier, "simple", "semantic reference identifier");
@@ -33,7 +41,6 @@ assertDomAttribute(reference, "data-mme-footnote-reference", "true");
 
 const fallbacks = topLevelNodes(state).filter((node) => node.type.name === "unsupported_block");
 for (const preserved of [
-  "[^unsafe]: Unsafe definition keeps raw HTML",
   "[^duplicate]: First duplicate definition stays source-only.",
   "[^duplicate]: Second duplicate definition stays source-only.",
   "[^malformed] Missing colon stays source-only."
@@ -71,7 +78,7 @@ for (const preserved of [
   "one simple note[^simple] twice[^simple]",
   "[^complex]: Complex definition starts here.\n    Continued definition line stays source-only.",
   "[^multi]: First definition paragraph stays source-only.\n\n    Second definition paragraph stays source-only.",
-  "[^unsafe]: Unsafe definition keeps raw HTML <span onclick=\"boom()\">label</span>.",
+  "[^unsafe]: Inline HTML stays inert and editable <span onclick=\"boom()\">label</span>.",
   "[^duplicate]: First duplicate definition stays source-only.",
   "[^duplicate]: Second duplicate definition stays source-only.",
   "[^malformed] Missing colon stays source-only."

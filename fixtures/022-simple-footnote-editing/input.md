@@ -13,7 +13,7 @@ Neighbor paragraph stays byte-exact.
 
     Second definition paragraph stays source-only.
 
-[^unsafe]: Unsafe definition keeps raw HTML <span onclick="boom()">label</span>.
+[^unsafe]: Inline HTML stays inert and editable <span onclick="boom()">label</span>.
 
 [^duplicate]: First duplicate definition stays source-only.
 

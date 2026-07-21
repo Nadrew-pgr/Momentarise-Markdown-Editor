@@ -8,10 +8,12 @@ const { TextSelection } = await import("prosemirror-state");
 const source = await readFile("fixtures/023-multiline-footnote-editing/input.md", "utf8");
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
-assertEqual(definitions.length, 2, "safe continuation and multi-paragraph definitions must be editable");
+assertEqual(definitions.length, 3, "safe continuation, multi-paragraph, and inert inline-HTML definitions must be editable");
 assertEqual(definitions[0]?.attrs.identifier, "long", "continuation definition identifier");
 assertEqual(definitions[0]?.attrs.continuationIndent, "    ", "continuation indentation metadata");
 assertIncludes(definitions[0]?.textContent ?? "", "First definition line stays.\nSecond definition line", "logical multiline body");
+const inlineHtmlDefinition = definitions.find((node) => node.attrs.identifier === "unsafe");
+assertIncludes(JSON.stringify(inlineHtmlDefinition?.toJSON()), '"raw_html_source"', "continuation inline HTML is inert marked source");
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched multiline document identity");
 
 const edited = rich.replaceFirstRichText(state, "Second definition line", "Edited second definition line");
@@ -22,14 +24,14 @@ for (const preserved of [
   'Neighbor <x-unknown keep="exact">syntax</x-unknown> stays byte-exact.',
   "[^multi]: First paragraph stays source-only.\n\n    Second paragraph stays source-only.",
   "> [^nested]: Nested definition stays source-only.",
-  '[^unsafe]: Unsafe continuation starts here.\n    Raw HTML <span onclick="boom()">stays source-only</span>.',
+  '[^unsafe]: Inline-HTML continuation starts here.\n    Raw HTML <span onclick="boom()">stays inert and editable</span>.',
   "Final paragraph stays byte-exact."
 ]) {
   assertIncludes(editedOutput, preserved, `preserved source ${preserved}`);
 }
 
 const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block");
-for (const preserved of ["[^nested]:", "[^unsafe]:"]) {
+for (const preserved of ["[^nested]:"]) {
   if (!fallbacks.some((node) => String(node.attrs.raw ?? "").includes(preserved))) {
     throw new Error(`Expected source-only fallback for ${preserved}.`);
   }

@@ -84,12 +84,12 @@ Completed slices:
 - MME-0068: Rich table GFM footnote definition editing baseline, accepted for code continuation after semantic top-level/list/task table editing, recursive table command reuse, exact untouched-source retention, bounded deterministic reconstruction, conservative malformed/unsafe/mixed-container fallback, real browser proof, fallback review, and full test pass; final table-footnote product review is queued for end-of-run review.
 - MME-0069: Rich Obsidian callout footnote definition editing baseline, accepted for code continuation after semantic top-level/list/task callout body editing, non-editable accessible type/title/fold headers, exact untouched-source retention, bounded deterministic reconstruction, conservative malformed/nested/unsafe/mixed-container fallback, real browser proof, fallback review, and full test pass; final callout-footnote product review is queued for end-of-run review.
 - MME-0070: Rich inert raw-HTML footnote block editing baseline, accepted for code continuation after semantic inert top-level/list/task source editing, literal-DOM hostile-payload proof, exact untouched-source retention, bounded deterministic reconstruction, conservative inline/overlapping/nested/mixed fallback, real browser proof, fallback review, and full test pass; final raw-HTML-footnote product review is queued for end-of-run review.
-- MME-0071: Rich inert inline-HTML footnote paragraph editing baseline, promoted for implementation after exact inline-token range, overlap-filter, literal-mark DOM, and bounded paragraph reconstruction feasibility proof.
+- MME-0071: Rich inert inline-HTML footnote paragraph editing baseline, accepted for code continuation after exact single-line token editing across top/list/task/quote/callout paragraphs, literal-DOM hostile-payload proof, bounded reconstruction, conservative wrapper/multiline/table fallback, real browser proof, fallback review, and full test pass; final inline-HTML-footnote product review is queued for end-of-run review.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- MME-0071 is the current executable slice: inert, editable parser-owned inline-HTML source tokens inside otherwise safe top-level/list/task/quote/callout footnote paragraphs, with exact untouched-source retention, bounded changed-paragraph reconstruction, literal DOM security, and conservative marked-wrapper/multiline/ambiguous fallback.
+- No executable normal issue remains after MME-0071. The next must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

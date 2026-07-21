@@ -47,7 +47,7 @@ Neighbor <x-unknown keep="exact">syntax</x-unknown> stays byte-exact.
     - Parent before quote
       > Nested quote block
 
-[^unsafe-nested]: Unsafe nested inline content stays source-only.
+[^unsafe-nested]: Nested inline HTML stays inert and editable.
 
     - Parent before unsafe child
       - Raw <span onclick="boom()">HTML</span>

@@ -1941,6 +1941,12 @@ h1 {
   font-size: 0.86em;
 }
 
+.ProseMirror code[data-mme-raw-html-inline="true"] {
+  border: 1px solid var(--mme-color-border);
+  color: var(--mme-color-accent);
+  overflow-wrap: anywhere;
+}
+
 .ProseMirror img {
   max-width: 100%;
   border-radius: var(--mme-radius-md);

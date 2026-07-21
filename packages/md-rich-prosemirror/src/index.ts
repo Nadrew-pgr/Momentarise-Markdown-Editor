@@ -5011,10 +5011,24 @@ const richMarks: Record<string, MarkSpec> = {
     parseDOM: [{ tag: "strong" }, { tag: "b" }],
     toDOM: () => ["strong", 0]
   },
+  raw_html_source: {
+    code: true,
+    excludes: "_",
+    inclusive: false,
+    parseDOM: [{ tag: 'code[data-mme-raw-html-inline="true"]' }],
+    toDOM: () => [
+      "code",
+      {
+        "aria-label": "Raw HTML source",
+        "data-mme-raw-html-inline": "true"
+      },
+      0
+    ]
+  },
   code: {
     code: true,
     inclusive: false,
-    parseDOM: [{ tag: "code" }],
+    parseDOM: [{ tag: 'code:not([data-mme-raw-html-inline="true"])' }],
     toDOM: () => ["code", 0]
   },
   strike: {
@@ -5360,7 +5374,7 @@ function richFootnoteBlockToProseMirror(
   if (node.type === "paragraph") {
     return schema.nodes.paragraph!.create(
       null,
-      inlineChildrenToProseMirror(node.children ?? [], schema, source)
+      inlineChildrenToProseMirror(node.children ?? [], schema, source, [], true)
     );
   }
   if (node.type === "list") {
@@ -5375,7 +5389,7 @@ function richFootnoteBlockToProseMirror(
         }
         return schema.nodes.paragraph!.create(
           null,
-          inlineChildrenToProseMirror(child.children ?? [], schema, source)
+          inlineChildrenToProseMirror(child.children ?? [], schema, source, [], true)
         );
       });
       const first = paragraphs[0]!;
@@ -5400,7 +5414,7 @@ function richFootnoteBlockToProseMirror(
         }
         return schema.nodes.paragraph!.create(
           null,
-          inlineChildrenToProseMirror(child.children ?? [], schema, source)
+          inlineChildrenToProseMirror(child.children ?? [], schema, source, [], true)
         );
       })
     );
@@ -5466,7 +5480,7 @@ function isRepresentableRichFootnoteBlock(node: MomentariseNode, source: string)
     return richFootnoteRawHtml(node, source) !== null;
   }
   if (node.type === "paragraph") {
-    return isRepresentableRichFootnoteParagraph(node);
+    return isRepresentableRichFootnoteParagraph(node, source);
   }
   if (node.type === "list") {
     return isRepresentableRichFootnoteList(node, source);
@@ -5520,7 +5534,7 @@ function isRepresentableRichFootnoteBlockquote(node: MomentariseNode, source: st
     (block) =>
       block.kind !== "opaque" &&
       block.type === "paragraph" &&
-      isRepresentableRichFootnoteParagraph(block)
+      isRepresentableRichFootnoteParagraph(block, source)
   );
 }
 
@@ -5542,7 +5556,7 @@ function richFootnoteCallout(node: MomentariseNode, source: string): RichFootnot
       (block) =>
         block.kind !== "opaque" &&
         block.type === "paragraph" &&
-        isRepresentableRichFootnoteParagraph(block)
+        isRepresentableRichFootnoteParagraph(block, source)
     )
   ) {
     return null;
@@ -5609,7 +5623,7 @@ function isRepresentableRichFootnoteListItem(item: MomentariseNode, source: stri
   if (
     paragraph?.kind === "opaque" ||
     paragraph?.type !== "paragraph" ||
-    !isRepresentableRichFootnoteParagraph(paragraph)
+    !isRepresentableRichFootnoteParagraph(paragraph, source)
   ) {
     return false;
   }
@@ -5620,7 +5634,7 @@ function isRepresentableRichFootnoteListItem(item: MomentariseNode, source: stri
       return containerCount <= 1 && richFootnoteRawHtml(block, source) !== null;
     }
     if (block.type === "paragraph") {
-      return isRepresentableRichFootnoteParagraph(block);
+      return isRepresentableRichFootnoteParagraph(block, source);
     }
     if (block.type === "list") {
       containerCount += 1;
@@ -5713,9 +5727,29 @@ function isRepresentableRichFootnoteTable(node: MomentariseNode): node is KnownN
   return node.kind !== "opaque" && Boolean(node.sourceRange) && isRepresentableRichTable(node);
 }
 
-function isRepresentableRichFootnoteInlineNode(node: MomentariseNode): boolean {
+function richFootnoteInlineRawHtml(node: MomentariseNode, source: string): string | null {
+  if (
+    node.kind !== "opaque" ||
+    node.reason !== "raw HTML" ||
+    !node.sourceRange ||
+    node.raw !== source.slice(node.sourceRange.start.offset, node.sourceRange.end.offset) ||
+    node.sourceRange.start.line !== node.sourceRange.end.line ||
+    /[\r\n]/.test(node.raw) ||
+    !node.raw.startsWith("<") ||
+    !node.raw.endsWith(">")
+  ) {
+    return null;
+  }
+  return node.raw;
+}
+
+function isRepresentableRichFootnoteInlineNode(
+  node: MomentariseNode,
+  source: string,
+  allowRawHtml = true
+): boolean {
   if (node.kind === "opaque") {
-    return false;
+    return allowRawHtml && richFootnoteInlineRawHtml(node, source) !== null;
   }
   if (["text", "inlineCode"].includes(node.type)) {
     return true;
@@ -5730,14 +5764,18 @@ function isRepresentableRichFootnoteInlineNode(node: MomentariseNode): boolean {
   if (node.type === "link" && !isSafeUrl(stringAttribute(node.attributes?.url))) {
     return false;
   }
-  return (node.children ?? []).every(isRepresentableRichFootnoteInlineNode);
+  return (node.children ?? []).every((child) =>
+    isRepresentableRichFootnoteInlineNode(child, source, false)
+  );
 }
 
-function isRepresentableRichFootnoteParagraph(node: MomentariseNode): boolean {
+function isRepresentableRichFootnoteParagraph(node: MomentariseNode, source: string): boolean {
   if (node.kind === "opaque" || node.type !== "paragraph") {
     return false;
   }
-  return (node.children ?? []).every(isRepresentableRichFootnoteInlineNode) &&
+  return (node.children ?? []).every((child) =>
+    isRepresentableRichFootnoteInlineNode(child, source)
+  ) &&
     !looksLikeUnsupportedRichFootnoteTable(node);
 }
 
@@ -5879,11 +5917,12 @@ function inlineChildrenToProseMirror(
   children: readonly MomentariseNode[],
   schema: MomentariseRichSchema,
   source: string,
-  marks: readonly Mark[] = []
+  marks: readonly Mark[] = [],
+  markRawHtmlSource = false
 ): readonly ProseMirrorNode[] {
   const inlineNodes: ProseMirrorNode[] = [];
   for (const child of children) {
-    inlineNodes.push(...inlineNodeToProseMirror(child, schema, source, marks));
+    inlineNodes.push(...inlineNodeToProseMirror(child, schema, source, marks, markRawHtmlSource));
   }
   return inlineNodes;
 }
@@ -5892,10 +5931,17 @@ function inlineNodeToProseMirror(
   node: MomentariseNode,
   schema: MomentariseRichSchema,
   source: string,
-  marks: readonly Mark[]
+  marks: readonly Mark[],
+  markRawHtmlSource: boolean
 ): readonly ProseMirrorNode[] {
   if (node.kind === "opaque") {
-    return [schema.text(node.raw, marks)];
+    const rawHtml = markRawHtmlSource ? richFootnoteInlineRawHtml(node, source) : null;
+    return [
+      schema.text(
+        node.raw,
+        rawHtml ? [...marks, schema.marks.raw_html_source!.create()] : marks
+      )
+    ];
   }
   if (node.type === "text") {
     return [schema.text(stringAttribute(node.attributes?.value) ?? rawFromRange(node, source), marks)];
@@ -5933,22 +5979,46 @@ function inlineNodeToProseMirror(
     ];
   }
   if (node.type === "emphasis") {
-    return inlineChildrenToProseMirror(node.children ?? [], schema, source, [...marks, schema.marks.em.create()]);
+    return inlineChildrenToProseMirror(
+      node.children ?? [],
+      schema,
+      source,
+      [...marks, schema.marks.em.create()],
+      markRawHtmlSource
+    );
   }
   if (node.type === "strong") {
-    return inlineChildrenToProseMirror(node.children ?? [], schema, source, [...marks, schema.marks.strong.create()]);
+    return inlineChildrenToProseMirror(
+      node.children ?? [],
+      schema,
+      source,
+      [...marks, schema.marks.strong.create()],
+      markRawHtmlSource
+    );
   }
   if (node.type === "strikethrough") {
-    return inlineChildrenToProseMirror(node.children ?? [], schema, source, [...marks, schema.marks.strike.create()]);
+    return inlineChildrenToProseMirror(
+      node.children ?? [],
+      schema,
+      source,
+      [...marks, schema.marks.strike.create()],
+      markRawHtmlSource
+    );
   }
   if (node.type === "link") {
-    return inlineChildrenToProseMirror(node.children ?? [], schema, source, [
-      ...marks,
-      schema.marks.link.create({
-        href: safeUrlAttribute(stringAttribute(node.attributes?.url)),
-        title: stringAttribute(node.attributes?.title)
-      })
-    ]);
+    return inlineChildrenToProseMirror(
+      node.children ?? [],
+      schema,
+      source,
+      [
+        ...marks,
+        schema.marks.link.create({
+          href: safeUrlAttribute(stringAttribute(node.attributes?.url)),
+          title: stringAttribute(node.attributes?.title)
+        })
+      ],
+      markRawHtmlSource
+    );
   }
   if (node.type === "image") {
     return [
@@ -5964,7 +6034,7 @@ function inlineNodeToProseMirror(
   if (node.type === "break") {
     return [schema.nodes.hard_break.create()];
   }
-  return inlineChildrenToProseMirror(node.children ?? [], schema, source, marks);
+  return inlineChildrenToProseMirror(node.children ?? [], schema, source, marks, markRawHtmlSource);
 }
 
 function footnoteReferenceText(node: MomentariseNode, source: string): string {
@@ -6277,6 +6347,9 @@ function escapeMarkdownTitle(value: string | null): string {
 
 function wrapTextWithMarks(text: string, marks: readonly Mark[]): string {
   return marks.reduce((value, mark) => {
+    if (mark.type.name === "raw_html_source") {
+      return value;
+    }
     if (mark.type.name === "code") {
       return `\`${value}\``;
     }

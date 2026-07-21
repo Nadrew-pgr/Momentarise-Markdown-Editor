@@ -9,12 +9,13 @@ const source = await readFile("fixtures/027-task-list-footnote-editing/input.md"
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
 
-assertEqual(definitions.length, 5, "safe flat, nested, ordered, loose, and quoted task definitions must be editable");
+assertEqual(definitions.length, 6, "safe task structures and inert inline-HTML definitions must be editable");
 const flatDefinition = definitions.find((node) => node.attrs.identifier === "task-flat");
 const nestedDefinition = definitions.find((node) => node.attrs.identifier === "task-nested");
 const orderedDefinition = definitions.find((node) => node.attrs.identifier === "task-ordered");
 const looseDefinition = definitions.find((node) => node.attrs.identifier === "loose-task");
 const quoteDefinition = definitions.find((node) => node.attrs.identifier === "quoted-task");
+const inlineHtmlDefinition = definitions.find((node) => node.attrs.identifier === "unsafe-task");
 
 const flatList = flatDefinition?.child(1);
 assertEqual(flatList?.type.name, "bullet_list", "flat task list is semantic");
@@ -45,6 +46,7 @@ assertEqual(
   "blockquote",
   "safe task-item quote now mounts semantically"
 );
+assertIncludes(JSON.stringify(inlineHtmlDefinition?.toJSON()), '"raw_html_source"', "task inline HTML is inert marked source");
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched task-footnote document identity");
 assertAccessibleTodoDom(deepestTask, false);
 assertNoExactSourceMetadataInDom(nestedDefinition);
@@ -133,7 +135,6 @@ assertIncludes(
 const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block");
 for (const marker of [
   "[^multiple-task]:",
-  "[^unsafe-task]:",
   "[^nested-container]:"
 ]) {
   const fallback = fallbacks.find((node) => String(node.attrs.raw ?? "").includes(marker));

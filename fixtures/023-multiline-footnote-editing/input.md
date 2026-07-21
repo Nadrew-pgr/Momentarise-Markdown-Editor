@@ -14,7 +14,7 @@ Neighbor <x-unknown keep="exact">syntax</x-unknown> stays byte-exact.
 
 > [^nested]: Nested definition stays source-only.
 
-[^unsafe]: Unsafe continuation starts here.
-    Raw HTML <span onclick="boom()">stays source-only</span>.
+[^unsafe]: Inline-HTML continuation starts here.
+    Raw HTML <span onclick="boom()">stays inert and editable</span>.
 
 Final paragraph stays byte-exact.

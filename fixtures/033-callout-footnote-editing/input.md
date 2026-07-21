@@ -66,7 +66,7 @@ Neighbor <x-unknown keep="exact">syntax</x-unknown> stays byte-exact.
     >
     > - Preserve nested list item.
 
-[^unsafe-body]: Unsafe body stays source-only.
+[^unsafe-body]: Inline HTML body stays inert and editable.
 
     > [!CAUTION] Unsafe body
     > Raw <span onclick="boom()">HTML</span> stays inert.

@@ -41,7 +41,7 @@ Neighbor <x-unknown keep="exact">syntax</x-unknown> stays byte-exact.
     - [ ] Parent before quote
       > Nested quote block
 
-[^unsafe-task]: Unsafe task stays source-only.
+[^unsafe-task]: Task inline HTML stays inert and editable.
 
     - [ ] Raw <span onclick="boom()">HTML</span>
 

@@ -9,12 +9,13 @@ const source = await readFile("fixtures/026-nested-list-footnote-editing/input.m
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
 
-assertEqual(definitions.length, 5, "safe nested bullet, ordered, task, loose, and quoted definitions must be editable");
+assertEqual(definitions.length, 6, "safe nested structures and inert inline-HTML definitions must be editable");
 const bulletDefinition = definitions.find((node) => node.attrs.identifier === "nested-bullets");
 const orderedDefinition = definitions.find((node) => node.attrs.identifier === "nested-ordered");
 const taskDefinition = definitions.find((node) => node.attrs.identifier === "task-nested");
 const looseDefinition = definitions.find((node) => node.attrs.identifier === "loose-nested");
 const quoteDefinition = definitions.find((node) => node.attrs.identifier === "quoted-nested");
+const inlineHtmlDefinition = definitions.find((node) => node.attrs.identifier === "unsafe-nested");
 const bulletList = bulletDefinition?.child(1);
 const bulletChildList = bulletList?.child(0).child(1);
 const bulletGrandchildList = bulletChildList?.child(0).child(1);
@@ -48,6 +49,7 @@ assertEqual(
   "blockquote",
   "safe nested-list item quote now mounts semantically"
 );
+assertIncludes(JSON.stringify(inlineHtmlDefinition?.toJSON()), '"raw_html_source"', "nested-list inline HTML is inert marked source");
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched nested-list document identity");
 assertNoExactSourceMetadataInDom(bulletDefinition);
 
@@ -80,7 +82,6 @@ for (const preserved of [
 const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block");
 for (const marker of [
   "[^multiple-nested]:",
-  "[^unsafe-nested]:",
   "[^nested-container]:"
 ]) {
   const fallback = fallbacks.find((node) => String(node.attrs.raw ?? "").includes(marker));

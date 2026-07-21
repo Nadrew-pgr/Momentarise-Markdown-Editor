@@ -45,6 +45,7 @@ Fixtures are intentionally synthetic and sanitized. They must not contain privat
 32. `032-table-footnote-editing`: rectangular GFM table footnote children at top/list/task depth.
 33. `033-callout-footnote-editing`: paragraph-only Obsidian callout footnote children with semantic headers.
 34. `034-raw-html-footnote-editing`: inert parser-owned block-HTML source editing with hostile-payload DOM proof.
+35. `035-inline-html-footnote-editing`: inert parser-owned inline-HTML token editing in safe footnote paragraphs.
 
 ## Use
 

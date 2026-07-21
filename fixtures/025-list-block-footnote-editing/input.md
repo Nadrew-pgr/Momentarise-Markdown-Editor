@@ -37,7 +37,7 @@ Neighbor <x-unknown keep="exact">syntax</x-unknown> stays byte-exact.
 
     > Quoted definition block.
 
-[^unsafe-list]: Unsafe list stays source-only.
+[^unsafe-list]: Inline HTML stays inert and editable.
 
     - Raw <span onclick="boom()">HTML</span>
 
