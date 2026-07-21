@@ -8,11 +8,13 @@ const { TextSelection } = await import("prosemirror-state");
 const source = await readFile("fixtures/024-multiparagraph-footnote-editing/input.md", "utf8");
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 const definitions = topLevelNodes(state).filter((node) => node.type.name === "footnote_definition");
-assertEqual(definitions.length, 1, "one safe multi-paragraph definition must be editable");
-assertEqual(definitions[0]?.attrs.identifier, "detail", "multi-paragraph definition identifier");
-assertEqual(definitions[0]?.childCount, 3, "definition exposes three paragraph children");
-assertEqual(definitions[0]?.child(1).type.name, "paragraph", "second child is an editable paragraph");
-assertIncludes(definitions[0]?.child(1).textContent ?? "", "Second paragraph", "second paragraph content");
+assertEqual(definitions.length, 2, "safe multi-paragraph and simple-list definitions must be editable");
+const detailDefinition = definitions.find((node) => node.attrs.identifier === "detail");
+const listDefinition = definitions.find((node) => node.attrs.identifier === "nested-block");
+assertEqual(detailDefinition?.childCount, 3, "definition exposes three paragraph children");
+assertEqual(detailDefinition?.child(1).type.name, "paragraph", "second child is an editable paragraph");
+assertIncludes(detailDefinition?.child(1).textContent ?? "", "Second paragraph", "second paragraph content");
+assertEqual(listDefinition?.child(1).type.name, "bullet_list", "simple list child now mounts semantically");
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched multi-paragraph document identity");
 
 const edited = rich.replaceFirstRichText(state, "Second paragraph", "Edited second paragraph");
@@ -33,7 +35,7 @@ for (const preserved of [
 }
 
 const fallbacks = collectNodesByType(state.editorState.doc, "unsupported_block");
-for (const preserved of ["[^nested-block]:", "[^nested-container]:", "[^unsafe]:"]) {
+for (const preserved of ["[^nested-container]:", "[^unsafe]:"]) {
   if (!fallbacks.some((node) => String(node.attrs.raw ?? "").includes(preserved))) {
     throw new Error(`Expected source-only fallback for ${preserved}.`);
   }
@@ -109,9 +111,12 @@ const nestedRename = rich.renameRichFootnoteIdentifier(state, {
   identifier: "nested-block",
   nextIdentifier: "nested-renamed"
 });
-assertEqual(nestedRename.handled, false, "source-only nested definition rename rejected");
-assertEqual(nestedRename.reason, "mapping-unavailable", "source-only nested definition rejection reason");
-assertEqual(nestedRename.state, state, "source-only nested definition rejection does not mutate state");
+assertEqual(nestedRename.handled, true, "simple-list definition rename handled");
+assertEqual(
+  rich.serializeRichMarkdownState(nestedRename.state).content,
+  source.replaceAll("[^nested-block]", "[^nested-renamed]"),
+  "simple-list definition rename changes identifier tokens only"
+);
 
 const saveTarget = save.createMemorySaveTarget({ initialContent: source });
 const saveEngine = save.createSaveEngine({ content: source, target: saveTarget });

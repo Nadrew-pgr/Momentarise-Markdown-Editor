@@ -4673,16 +4673,16 @@ const richNodes: Record<string, NodeSpec> = {
       identifier: { default: "" },
       inserted: { default: false },
       label: { default: "" },
-      paragraphContinuationIndents: { default: "[]" },
-      paragraphFingerprints: { default: "[]" },
-      paragraphSeparators: { default: "[]" },
-      paragraphSources: { default: "[]" },
+      blockContinuationIndents: { default: "[]" },
+      blockFingerprints: { default: "[]" },
+      blockSeparators: { default: "[]" },
+      blockSources: { default: "[]" },
       prefix: { default: "" },
       sourceIdentifier: { default: null },
       sourceIdentifierFrom: { default: null },
       sourceIdentifierTo: { default: null }
     },
-    content: "paragraph+",
+    content: "paragraph (paragraph | bullet_list | ordered_list)*",
     defining: true,
     group: "block",
     parseDOM: [
@@ -4986,7 +4986,7 @@ function footnoteDefinitionToProseMirror(
   const identifier = stringAttribute(node.attributes?.identifier) ?? stringAttribute(node.attributes?.label);
   const label = stringAttribute(node.attributes?.label) ?? identifier;
   const normalizedIdentifier = normalizeFootnoteIdentifier(identifier ?? "");
-  const paragraphs = node.children ?? [];
+  const blocks = node.children ?? [];
   const layout = richFootnoteDefinitionLayout(node, source);
   if (
     !identifier ||
@@ -4995,24 +4995,23 @@ function footnoteDefinitionToProseMirror(
     footnoteDefinitionCounts.get(normalizedIdentifier) !== 1 ||
     !layout ||
     normalizeFootnoteIdentifier(layout.sourceIdentifier) !== normalizedIdentifier ||
-    paragraphs.length === 0 ||
-    paragraphs.some(
-      (paragraph) =>
-        paragraph.kind === "opaque" ||
-        paragraph.type !== "paragraph" ||
-        !(paragraph.children ?? []).every(isRepresentableRichFootnoteInlineNode)
-    )
+    blocks.length === 0 ||
+    blocks[0]?.kind === "opaque" ||
+    blocks[0]?.type !== "paragraph" ||
+    blocks.some((block) => !isRepresentableRichFootnoteBlock(block))
   ) {
     return null;
   }
-  const paragraphNodes = paragraphs.map((paragraph) => {
-    if (paragraph.kind === "opaque") {
-      throw new Error("Opaque footnote paragraphs must be rejected before rich conversion.");
+  const blockNodes = blocks.map((block) => {
+    if (block.kind === "opaque") {
+      throw new Error("Opaque footnote blocks must be rejected before rich conversion.");
     }
-    return schema.nodes.paragraph!.create(
-      null,
-      inlineChildrenToProseMirror(paragraph.children ?? [], schema, source)
-    );
+    return block.type === "paragraph"
+      ? schema.nodes.paragraph!.create(
+          null,
+          inlineChildrenToProseMirror(block.children ?? [], schema, source)
+        )
+      : listNodeToProseMirror(block, schema, source);
   });
   const raw = rawFromRange(node, source);
   const identifierOffset = raw.indexOf("[^") + 2;
@@ -5022,23 +5021,23 @@ function footnoteDefinitionToProseMirror(
       identifier,
       label,
       prefix: layout.prefix,
-      continuationIndent: layout.paragraphContinuationIndents[0] ?? "",
-      paragraphContinuationIndents: JSON.stringify(layout.paragraphContinuationIndents),
-      paragraphFingerprints: JSON.stringify(paragraphNodes.map(richFootnoteParagraphFingerprint)),
-      paragraphSeparators: JSON.stringify(layout.paragraphSeparators),
-      paragraphSources: JSON.stringify(layout.paragraphSources),
+      continuationIndent: layout.blockContinuationIndents[0] ?? "",
+      blockContinuationIndents: JSON.stringify(layout.blockContinuationIndents),
+      blockFingerprints: JSON.stringify(blockNodes.map(richFootnoteBlockFingerprint)),
+      blockSeparators: JSON.stringify(layout.blockSeparators),
+      blockSources: JSON.stringify(layout.blockSources),
       sourceIdentifier: layout.sourceIdentifier,
       sourceIdentifierFrom,
       sourceIdentifierTo: sourceIdentifierFrom + layout.sourceIdentifier.length
     },
-    paragraphNodes
+    blockNodes
   );
 }
 
 interface RichFootnoteDefinitionLayout {
-  readonly paragraphContinuationIndents: readonly string[];
-  readonly paragraphSeparators: readonly string[];
-  readonly paragraphSources: readonly string[];
+  readonly blockContinuationIndents: readonly string[];
+  readonly blockSeparators: readonly string[];
+  readonly blockSources: readonly string[];
   readonly prefix: string;
   readonly sourceIdentifier: string;
 }
@@ -5048,52 +5047,52 @@ function richFootnoteDefinitionLayout(
   source: string
 ): RichFootnoteDefinitionLayout | null {
   const sourceRange = node.sourceRange;
-  const paragraphs = node.children ?? [];
-  if (!sourceRange || paragraphs.length === 0 || paragraphs.some((paragraph) => !paragraph.sourceRange)) {
+  const blocks = node.children ?? [];
+  if (!sourceRange || blocks.length === 0 || blocks.some((block) => !block.sourceRange)) {
     return null;
   }
 
-  const paragraphRanges = paragraphs.map((paragraph) => paragraph.sourceRange!);
+  const blockRanges = blocks.map((block) => block.sourceRange!);
   if (
-    paragraphRanges[0]!.start.offset < sourceRange.start.offset ||
-    paragraphRanges.at(-1)!.end.offset > sourceRange.end.offset
+    blockRanges[0]!.start.offset < sourceRange.start.offset ||
+    blockRanges.at(-1)!.end.offset > sourceRange.end.offset
   ) {
     return null;
   }
 
-  const prefix = source.slice(sourceRange.start.offset, paragraphRanges[0]!.start.offset);
+  const prefix = source.slice(sourceRange.start.offset, blockRanges[0]!.start.offset);
   const prefixMatch = prefix.match(/^([ \t]{0,3}\[\^([^\]\r\n]+)\]:[ \t]*)$/);
   if (!prefixMatch) {
     return null;
   }
 
-  const paragraphSources = paragraphRanges.map((range) => source.slice(range.start.offset, range.end.offset));
-  const paragraphContinuationIndents = paragraphSources.map(richFootnoteParagraphContinuationIndent);
-  if (paragraphContinuationIndents.some((indent) => indent === null)) {
+  const blockSources = blockRanges.map((range) => source.slice(range.start.offset, range.end.offset));
+  const blockContinuationIndents = blockSources.map(richFootnoteBlockContinuationIndent);
+  if (blockContinuationIndents.some((indent) => indent === null)) {
     return null;
   }
 
-  const paragraphSeparators: string[] = [];
-  for (let index = 1; index < paragraphRanges.length; index += 1) {
-    const previous = paragraphRanges[index - 1]!;
-    const current = paragraphRanges[index]!;
+  const blockSeparators: string[] = [];
+  for (let index = 1; index < blockRanges.length; index += 1) {
+    const previous = blockRanges[index - 1]!;
+    const current = blockRanges[index]!;
     const separator = source.slice(previous.end.offset, current.start.offset);
-    if (!isSafeRichFootnoteParagraphSeparator(separator)) {
+    if (!isSafeRichFootnoteBlockSeparator(separator)) {
       return null;
     }
-    paragraphSeparators.push(separator);
+    blockSeparators.push(separator);
   }
 
   return {
-    paragraphContinuationIndents: paragraphContinuationIndents as readonly string[],
-    paragraphSeparators,
-    paragraphSources,
+    blockContinuationIndents: blockContinuationIndents as readonly string[],
+    blockSeparators,
+    blockSources,
     prefix,
     sourceIdentifier: prefixMatch[2]!
   };
 }
 
-function richFootnoteParagraphContinuationIndent(raw: string): string | null {
+function richFootnoteBlockContinuationIndent(raw: string): string | null {
   const lines = raw.split(/\r?\n/);
   if (lines.length === 1) {
     return "";
@@ -5112,7 +5111,7 @@ function richFootnoteParagraphContinuationIndent(raw: string): string | null {
   return continuationIndent;
 }
 
-function isSafeRichFootnoteParagraphSeparator(value: string): boolean {
+function isSafeRichFootnoteBlockSeparator(value: string): boolean {
   const match = value.match(/^(?:[ \t]*(?:\r\n|\n)){2,}([ \t]+)$/);
   return Boolean(match && isSafeRichFootnoteContinuationIndent(match[1] ?? ""));
 }
@@ -5121,8 +5120,38 @@ function isSafeRichFootnoteContinuationIndent(value: string): boolean {
   return /^(?: {4,}|\t+)$/.test(value);
 }
 
-function richFootnoteParagraphFingerprint(node: ProseMirrorNode): string {
+function richFootnoteBlockFingerprint(node: ProseMirrorNode): string {
   return JSON.stringify(node.toJSON());
+}
+
+function isRepresentableRichFootnoteBlock(node: MomentariseNode): boolean {
+  if (node.kind === "opaque") {
+    return false;
+  }
+  if (node.type === "paragraph") {
+    return (node.children ?? []).every(isRepresentableRichFootnoteInlineNode);
+  }
+  if (node.type !== "list") {
+    return false;
+  }
+  const items = node.children ?? [];
+  return items.length > 0 && items.every((item) => {
+    if (
+      item.kind === "opaque" ||
+      item.type !== "listItem" ||
+      typeof item.attributes?.checked === "boolean"
+    ) {
+      return false;
+    }
+    const itemBlocks = item.children ?? [];
+    const paragraph = itemBlocks[0];
+    return (
+      itemBlocks.length === 1 &&
+      paragraph?.kind !== "opaque" &&
+      paragraph?.type === "paragraph" &&
+      (paragraph.children ?? []).every(isRepresentableRichFootnoteInlineNode)
+    );
+  });
 }
 
 function isRepresentableRichFootnoteInlineNode(node: MomentariseNode): boolean {
@@ -5418,31 +5447,32 @@ function serializeBlock(node: ProseMirrorNode, indentLevel: number): string {
 function serializeRichFootnoteDefinition(node: ProseMirrorNode): string {
   const prefix = stringAttribute(node.attrs.prefix) ??
     `[^${stringAttribute(node.attrs.label) ?? stringAttribute(node.attrs.identifier) ?? ""}]: `;
-  const paragraphs: ProseMirrorNode[] = [];
-  node.forEach((paragraph) => {
-    paragraphs.push(paragraph);
+  const blocks: ProseMirrorNode[] = [];
+  node.forEach((block) => {
+    blocks.push(block);
   });
-  const continuationIndents = parseRichFootnoteStringArray(node.attrs.paragraphContinuationIndents);
-  const fingerprints = parseRichFootnoteStringArray(node.attrs.paragraphFingerprints);
-  const separators = parseRichFootnoteStringArray(node.attrs.paragraphSeparators);
-  const sources = parseRichFootnoteStringArray(node.attrs.paragraphSources);
+  const continuationIndents = parseRichFootnoteStringArray(node.attrs.blockContinuationIndents);
+  const fingerprints = parseRichFootnoteStringArray(node.attrs.blockFingerprints);
+  const separators = parseRichFootnoteStringArray(node.attrs.blockSeparators);
+  const sources = parseRichFootnoteStringArray(node.attrs.blockSources);
   const hasCompleteSourceLayout =
-    continuationIndents.length === paragraphs.length &&
-    fingerprints.length === paragraphs.length &&
-    sources.length === paragraphs.length &&
-    separators.length === Math.max(0, paragraphs.length - 1);
+    continuationIndents.length === blocks.length &&
+    fingerprints.length === blocks.length &&
+    sources.length === blocks.length &&
+    separators.length === Math.max(0, blocks.length - 1);
   const parts: string[] = [];
 
-  paragraphs.forEach((paragraph, index) => {
+  blocks.forEach((block, index) => {
     const unchangedSource =
-      hasCompleteSourceLayout && fingerprints[index] === richFootnoteParagraphFingerprint(paragraph)
+      hasCompleteSourceLayout && fingerprints[index] === richFootnoteBlockFingerprint(block)
         ? sources[index]
         : null;
     const continuationIndent =
       (hasCompleteSourceLayout ? continuationIndents[index] : null) ||
       (index === 0 ? stringAttribute(node.attrs.continuationIndent) : null) ||
       "    ";
-    const body = unchangedSource ?? serializeInline(paragraph).replace(/\r?\n/g, `\n${continuationIndent}`);
+    const reconstructed = block.type.name === "paragraph" ? serializeInline(block) : serializeBlock(block, 0);
+    const body = unchangedSource ?? reconstructed.replace(/\r?\n/g, `\n${continuationIndent}`);
     const separator = index === 0
       ? prefix
       : hasCompleteSourceLayout

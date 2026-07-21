@@ -1827,11 +1827,15 @@ h1 {
   white-space: pre-wrap;
 }
 
-.ProseMirror [data-mme-footnote-body="true"] > p {
+.ProseMirror [data-mme-footnote-body="true"] > :is(p, ul, ol) {
   margin: 0 0 0.58em;
 }
 
-.ProseMirror [data-mme-footnote-body="true"] > p:last-child {
+.ProseMirror [data-mme-footnote-body="true"] > :is(ul, ol) {
+  padding-left: 20px;
+}
+
+.ProseMirror [data-mme-footnote-body="true"] > :is(p, ul, ol):last-child {
   margin-bottom: 0;
 }
 
