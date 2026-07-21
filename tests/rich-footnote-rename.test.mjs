@@ -78,11 +78,16 @@ const duplicate = rich.renameRichFootnoteIdentifier(state, {
 });
 assertRejected(duplicate, state, "ambiguous-identifier", source, "duplicate definition");
 
-const complex = rich.renameRichFootnoteIdentifier(state, {
+const multiline = rich.renameRichFootnoteIdentifier(state, {
   identifier: "complex",
   nextIdentifier: "complex-renamed"
 });
-assertRejected(complex, state, "mapping-unavailable", source, "complex source-only definition");
+assertEqual(multiline.handled, true, "multiline definition rename handled");
+assertEqual(
+  rich.serializeRichMarkdownState(multiline.state).content,
+  source.replaceAll("[^complex]", "[^complex-renamed]"),
+  "multiline definition rename changes matching identifier tokens only"
+);
 
 let matchingReferenceIndex = 0;
 let corruptedTransaction = state.editorState.tr;

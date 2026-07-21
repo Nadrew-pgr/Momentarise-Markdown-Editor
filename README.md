@@ -72,12 +72,12 @@ Completed slices:
 - MME-0056: Rich GFM footnote definition editing baseline, accepted for code continuation after semantic references, editable safe definitions, exact targeted serialization, conservative complex/duplicate fallback, truthful undo/redo/save behavior, browser proof, reviewer pass, and full test pass; final footnote UX/AX review is queued for end-of-run review.
 - MME-0057: Rich GFM footnote insertion baseline, accepted for code continuation after collision-safe reference-plus-definition insertion, exact bounded Markdown materialization, same-paragraph multiple insertion, escaped-source mapping, truthful command diagnostics/history/save behavior, browser proof, reviewer pass, and full test pass; final insertion UX/product review is queued for end-of-run review.
 - MME-0058: Rich GFM footnote identifier rename baseline, accepted for code continuation after atomic normalized definition/reference rename, exact multi-range Markdown patches, conservative refusal states, truthful history/save behavior, browser proof, reviewer/fallback fixes, and full test pass; final rename UX/product review is queued for end-of-run review.
-- MME-0059: Rich multiline GFM footnote definition editing baseline, promoted as the current executable slice for safe continuation-line editing, targeted serialization, conservative complex fallback, history/save truth, and browser proof.
+- MME-0059: Rich multiline GFM footnote definition editing baseline, accepted for code continuation after safe continuation-line editing, exact indentation/line-ending preservation, conservative complex fallback, truthful history/save behavior, browser proof, fallback review, and full test pass; final multiline footnote UX/product review is queued for end-of-run review.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- MME-0059 is the current executable issue: add safe Rich editing for top-level continuation-line GFM footnote definitions while preserving complex source-only fallbacks.
+- No executable normal issue remains after MME-0059; autonomous continuation must promote the next must-have backlog item before implementation.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

@@ -32,7 +32,8 @@ Fixtures are intentionally synthetic and sanitized. They must not contain privat
 19. `019-gfm-table-variants`: supported GFM table variants plus malformed table-like syntax.
 20. `020-gfm-footnotes`: GFM footnote references, definitions, duplicate/missing references, and malformed footnote-like fallback.
 21. `021-large-performance`: generated 10k-line Markdown performance fixture with many real Markdown structures.
-22. `022-simple-footnote-editing`: one editable safe definition plus multi-line, multi-block, unsafe, duplicate, and malformed source-only cases.
+22. `022-simple-footnote-editing`: editable safe definitions plus multi-block, unsafe, duplicate, and malformed source-only cases.
+23. `023-multiline-footnote-editing`: one editable single-paragraph continuation definition plus multi-block, nested, unsafe, and unknown-syntax preservation cases.
 
 ## Use
 

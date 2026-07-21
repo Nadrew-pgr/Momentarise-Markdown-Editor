@@ -6049,3 +6049,50 @@
   - `git diff --check` — green before checkpoint commit.
 - Next issue:
   - `MME-0059 — Rich multiline GFM footnote definition editing baseline`.
+
+## MME-0059 — Rich multiline GFM footnote definition editing baseline
+
+- Date: 2026-07-21.
+- Previous issue status:
+  - `MME-0058` accepted for code continuation and committed (`5e77068` implementation/status, `7c3b2f1` evidence).
+  - `MME-0059` was promoted from backlog and committed in checkpoint `1aba8f0`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, `git status --short`, and every parser, model, editor, rich-package, demo, fixture, serializer, renderer, and save file named by the issue.
+- RED proof before implementation:
+  - Added `fixtures/023-multiline-footnote-editing/` and `tests/rich-footnote-multiline.test.mjs`, registered `test:rich-footnote-multiline`, and confirmed the first run failed because the supported continuation definition mounted as source-only: `expected 1, got 0`.
+- Change:
+  - Unique top-level GFM definitions whose one logical paragraph continues across consistently indented source lines now mount as semantic editable Rich definitions.
+  - Added `continuationIndent` to package-owned ProseMirror definition metadata and DOM round-trip attributes.
+  - Eligibility requires one safe unique identifier, one representable paragraph, a non-empty first line, one consistent continuation indent, and no unsafe, nested, blank-line, malformed, duplicate, or unmappable content.
+  - Targeted reconstruction preserves the exact first-line prefix, four-or-more-space or tab continuation indent, LF/CRLF convention, semantic references, and every unrelated source byte.
+  - Existing insertion and identifier rename remain compatible with the expanded editable definition; one undo/redo and Save Engine/autosave truth are covered.
+  - Multi-paragraph, nested-container, unsafe-HTML, malformed, duplicate, and otherwise unsupported definitions stay in explicit source-only fallback.
+  - Added minimal package/public docs truth, regenerated `llms-full.txt` and AX manifests, indexed fixture 023, and kept docs-content construction outside this issue.
+- Visual impact:
+  - Supported continuation definitions render as one editable semantic block with preserved logical line breaks; unsupported forms remain visibly source-only.
+  - Added `white-space: pre-wrap` to the demo footnote body so continuation lines remain visually legible.
+  - Artifacts: `docs/internal/visual-checks/MME-0059/footnote-multiline-rich-desktop.png`, `footnote-multiline-edited-desktop.png`, `footnote-multiline-source-desktop.png`, and `footnote-multiline-constrained.png`.
+  - Permissioned headless Chrome proof edits a continuation line, proves exact bounded Markdown, performs one-step undo/redo, saves to clean disk truth, switches to Source, and verifies 390px nonblank containment.
+  - Builder inspected all four artifacts. Final density, focus outline, fallback wording, continuation presentation, and constrained-layout taste remain queued for Andrew's end-of-run review block.
+- Checks run:
+  - `npm run test:rich-footnote-multiline` — RED first, then green after implementation and fallback-review fixes.
+  - `node tests/rich-footnote-editing.test.mjs`, `node tests/rich-footnote-insertion.test.mjs`, `node tests/rich-footnote-rename.test.mjs`, `node tests/rich-targeted-serialization.test.mjs`, `node tests/parser-foundation.test.mjs`, `node tests/fixtures-corpus.test.mjs`, and `node scripts/docs-lint.mjs` — green.
+  - `npm run visual:mme-0059` — sandbox Chrome first exited with `SIGABRT`; permissioned Chrome reruns passed and refreshed all four artifacts after final serializer fixes.
+  - `npm run test:performance-budgets` — green, 10/10 operations. One earlier full-suite run exceeded two timing budgets under transient host load; immediate detailed and standalone reruns passed without source or budget changes.
+  - `npm test` — green end-to-end on final code, including performance, public API, security, docs, LLM/agent artifact sync, package/demo/docs builds; existing Vite chunk-size warning only.
+  - `git diff --check` — pending immediately before commit.
+- Reviewer result:
+  - Two inspect-only code reviewers were requested with `gpt-5.3-codex-spark` and `xhigh` reasoning as required. Both hit the Spark usage limit and returned no findings; no other code-review model was substituted.
+  - Documented fallback self-review covered package boundaries, preservation, source mapping, CRLF, indentation, history/save truth, tests, docs/API truth, accessibility, and browser proof.
+  - Fallback review found one acceptance defect: eligible five-space and tab continuation indentation was reconstructed as four spaces. Builder routed footnote block reconstruction through the indentation-aware serializer and added five-space CRLF plus tab regressions. No remaining P0-P3 finding was found in the corrected diff.
+- Residual risks:
+  - Blank-line multi-paragraph, nested-block, nested-container, duplicate, malformed, unsafe, and unmappable definitions remain source-only by design.
+  - Definition reordering, hover previews, backlink redesign, polished footnote dialogs, and automatic missing-reference repair remain out of scope.
+  - Final continuation-line presentation, definition density, edit/focus flow, fallback wording, Source visibility, and constrained layout are queued in `docs/internal/BACKLOG.md`.
+  - Existing demo bundle-size warning and timing-budget sensitivity under heavy host load remain outside this issue.
+- Commit status:
+  - Issue-scoped implementation/status commit pending.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0059`; continuation requires promoting the next must-have backlog item before implementation.

@@ -2552,6 +2552,9 @@ function serializeReconstructedProseMirrorDoc(doc: ProseMirrorNode): string {
 }
 
 function serializeReconstructedProseMirrorBlock(block: ProseMirrorNode): string {
+  if (block.type.name === "footnote_definition") {
+    return serializeRichFootnoteDefinition(block);
+  }
   const doc = block.type.schema.nodes.doc!.create(null, [block]);
   return serializeReconstructedProseMirrorDoc(doc).trimEnd();
 }
@@ -2634,7 +2637,8 @@ function proseMirrorBlockToMomentariseNode(
         {
           identifier: stringAttribute(node.attrs.identifier) ?? "",
           label: stringAttribute(node.attrs.label) ?? stringAttribute(node.attrs.identifier) ?? "",
-          prefix: stringAttribute(node.attrs.prefix) ?? ""
+          prefix: stringAttribute(node.attrs.prefix) ?? "",
+          continuationIndent: stringAttribute(node.attrs.continuationIndent) ?? ""
         }
       );
     case "horizontal_rule":
@@ -4661,6 +4665,7 @@ const richNodes: Record<string, NodeSpec> = {
   },
   footnote_definition: {
     attrs: {
+      continuationIndent: { default: "" },
       identifier: { default: "" },
       inserted: { default: false },
       label: { default: "" },
@@ -4680,7 +4685,8 @@ const richNodes: Record<string, NodeSpec> = {
             ? {
                 identifier: element.dataset.mmeFootnoteIdentifier ?? "",
                 label: element.dataset.mmeFootnoteLabel ?? element.dataset.mmeFootnoteIdentifier ?? "",
-                prefix: element.dataset.mmeFootnotePrefix ?? ""
+                prefix: element.dataset.mmeFootnotePrefix ?? "",
+                continuationIndent: element.dataset.mmeFootnoteContinuationIndent ?? ""
               }
             : false
       }
@@ -4694,6 +4700,7 @@ const richNodes: Record<string, NodeSpec> = {
         {
           "aria-label": `Footnote ${label}`,
           "data-mme-footnote-definition": "true",
+          "data-mme-footnote-continuation-indent": stringAttribute(node.attrs.continuationIndent) ?? "",
           "data-mme-footnote-identifier": identifier,
           "data-mme-footnote-label": label,
           "data-mme-footnote-prefix": prefix,
@@ -4972,16 +4979,15 @@ function footnoteDefinitionToProseMirror(
   const label = stringAttribute(node.attributes?.label) ?? identifier;
   const normalizedIdentifier = normalizeFootnoteIdentifier(identifier ?? "");
   const raw = rawFromRange(node, source);
-  const prefixMatch = raw.match(/^([ \t]{0,3}\[\^([^\]\r\n]+)\]:[ \t]*)([\s\S]*)$/);
+  const layout = richFootnoteDefinitionLayout(raw);
   const paragraph = node.children?.[0];
   if (
     !identifier ||
     !label ||
     !isSafeFootnoteIdentifier(identifier) ||
     footnoteDefinitionCounts.get(normalizedIdentifier) !== 1 ||
-    !prefixMatch ||
-    normalizeFootnoteIdentifier(prefixMatch[2] ?? "") !== normalizedIdentifier ||
-    /[\r\n]/.test(raw) ||
+    !layout ||
+    normalizeFootnoteIdentifier(layout.sourceIdentifier) !== normalizedIdentifier ||
     node.children?.length !== 1 ||
     !paragraph ||
     paragraph.kind === "opaque" ||
@@ -4996,13 +5002,54 @@ function footnoteDefinitionToProseMirror(
     {
       identifier,
       label,
-      prefix: prefixMatch[1],
-      sourceIdentifier: prefixMatch[2],
+      prefix: layout.prefix,
+      continuationIndent: layout.continuationIndent,
+      sourceIdentifier: layout.sourceIdentifier,
       sourceIdentifierFrom,
-      sourceIdentifierTo: sourceIdentifierFrom + prefixMatch[2]!.length
+      sourceIdentifierTo: sourceIdentifierFrom + layout.sourceIdentifier.length
     },
     inlineChildrenToProseMirror(paragraph.children ?? [], schema, source)
   );
+}
+
+interface RichFootnoteDefinitionLayout {
+  readonly continuationIndent: string;
+  readonly prefix: string;
+  readonly sourceIdentifier: string;
+}
+
+function richFootnoteDefinitionLayout(raw: string): RichFootnoteDefinitionLayout | null {
+  const prefixMatch = raw.match(/^([ \t]{0,3}\[\^([^\]\r\n]+)\]:[ \t]*)([\s\S]*)$/);
+  if (!prefixMatch) {
+    return null;
+  }
+  const body = prefixMatch[3] ?? "";
+  if (!/[\r\n]/.test(body)) {
+    return {
+      continuationIndent: "",
+      prefix: prefixMatch[1]!,
+      sourceIdentifier: prefixMatch[2]!
+    };
+  }
+
+  const lines = body.split(/\r?\n/);
+  if (!lines[0] || lines.length < 2) {
+    return null;
+  }
+  const continuationMatches = lines.slice(1).map((line) => line.match(/^([ \t]+)(\S[\s\S]*)$/));
+  const continuationIndent = continuationMatches[0]?.[1] ?? "";
+  if (
+    !continuationIndent ||
+    !/^(?: {4,}|\t+)/.test(continuationIndent) ||
+    continuationMatches.some((match) => !match || match[1] !== continuationIndent)
+  ) {
+    return null;
+  }
+  return {
+    continuationIndent,
+    prefix: prefixMatch[1]!,
+    sourceIdentifier: prefixMatch[2]!
+  };
 }
 
 function isRepresentableRichFootnoteInlineNode(node: MomentariseNode): boolean {
@@ -5285,7 +5332,7 @@ function serializeBlock(node: ProseMirrorNode, indentLevel: number): string {
     case "table":
       return serializeRichTable(node);
     case "footnote_definition":
-      return `${stringAttribute(node.attrs.prefix) ?? `[^${stringAttribute(node.attrs.label) ?? stringAttribute(node.attrs.identifier) ?? ""}]: `}${serializeInline(node)}`.trimEnd();
+      return serializeRichFootnoteDefinition(node);
     case "horizontal_rule":
       return "---";
     case "unsupported_block":
@@ -5293,6 +5340,14 @@ function serializeBlock(node: ProseMirrorNode, indentLevel: number): string {
     default:
       return node.textContent;
   }
+}
+
+function serializeRichFootnoteDefinition(node: ProseMirrorNode): string {
+  const prefix = stringAttribute(node.attrs.prefix) ??
+    `[^${stringAttribute(node.attrs.label) ?? stringAttribute(node.attrs.identifier) ?? ""}]: `;
+  const continuationIndent = stringAttribute(node.attrs.continuationIndent) || "    ";
+  const body = serializeInline(node).replace(/\r?\n/g, `\n${continuationIndent}`);
+  return `${prefix}${body}`.trimEnd();
 }
 
 function serializeRichTable(node: ProseMirrorNode): string {

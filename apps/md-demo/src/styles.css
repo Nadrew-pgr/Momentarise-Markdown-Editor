@@ -1824,6 +1824,7 @@ h1 {
 .ProseMirror [data-mme-footnote-body="true"] {
   min-width: 0;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .ProseMirror [data-mme-preserved-footnote="true"] {

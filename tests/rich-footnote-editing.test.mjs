@@ -14,7 +14,7 @@ const source = await readFile("fixtures/022-simple-footnote-editing/input.md", "
 const state = rich.createRichMarkdownState(source, { dialect: "momentarise-enhanced" });
 
 const rootTypes = topLevelNodes(state).map((node) => node.type.name);
-assertEqual(rootTypes.filter((type) => type === "footnote_definition").length, 1, "only one safe unique definition must be editable");
+assertEqual(rootTypes.filter((type) => type === "footnote_definition").length, 2, "safe single-line and continuation definitions must be editable");
 assertEqual(countNodeType(state.editorState.doc, "footnote_reference"), 3, "footnote references must remain semantic rich nodes");
 assertEqual(rich.serializeRichMarkdownState(state).content, source, "untouched footnote document must remain byte-identical");
 
@@ -33,7 +33,6 @@ assertDomAttribute(reference, "data-mme-footnote-reference", "true");
 
 const fallbacks = topLevelNodes(state).filter((node) => node.type.name === "unsupported_block");
 for (const preserved of [
-  "[^complex]: Complex definition starts here.",
   "[^multi]: First definition paragraph stays source-only.",
   "[^unsafe]: Unsafe definition keeps raw HTML",
   "[^duplicate]: First duplicate definition stays source-only.",
