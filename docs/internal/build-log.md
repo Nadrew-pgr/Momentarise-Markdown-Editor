@@ -7159,7 +7159,7 @@
   - Final command placement/labels, More/slash density, boundary clarity, moved-cell focus and undo/redo feel, drag expectations, wide horizontal reachability, full-editor focus outline, diagnostics-chip overlap, far-right-scroll composition, and constrained-layout taste remain queued in `docs/internal/BACKLOG.md` for Andrew's end-of-run review block.
   - Existing demo bundle-size warning remains outside this issue.
 - Commit status:
-  - Pending issue-scoped implementation/status commit after final post-review verification.
+  - Issue-scoped implementation/status commit created: `134c7c0` (`feat: add rich table reorder operations`).
 - Push status:
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
