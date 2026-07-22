@@ -16,7 +16,7 @@ for (const commandId of expectedCommands) {
 }
 assertEqual(
   JSON.stringify(rich.filterRichMarkdownCommands("column").map((command) => command.id)),
-  JSON.stringify(expectedCommands),
+  JSON.stringify([...expectedCommands, "tableColumnLeft", "tableColumnRight"]),
   "column command search order"
 );
 

@@ -172,12 +172,16 @@ assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableRowDelete"]').text
 assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableColumnBefore"]').textContent === "Insert column before", "Toolbar More menu must expose insert-column-before.");
 assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableColumnAfter"]').textContent === "Insert column after", "Toolbar More menu must expose insert-column-after.");
 assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableColumnDelete"]').textContent === "Delete column", "Toolbar More menu must expose delete-column.");
+assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableRowUp"]').textContent === "Move row up", "Toolbar More menu must expose move-row-up.");
+assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableRowDown"]').textContent === "Move row down", "Toolbar More menu must expose move-row-down.");
+assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableColumnLeft"]').textContent === "Move column left", "Toolbar More menu must expose move-column-left.");
+assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableColumnRight"]').textContent === "Move column right", "Toolbar More menu must expose move-column-right.");
 assert(!query(toolbarHost, '[data-toolbar-command-id="mme:tableColumnBefore"]').disabled, "Available column commands must stay enabled.");
 query(toolbarHost, '[data-toolbar-command-id="mme:tableColumnBefore"]').click();
 assert(toolbarActions.includes("mme:tableColumnBefore"), "Column commands must dispatch through the shared toolbar handler.");
 toolbar.setState({
   activeIds: [],
-  disabledIds: ["mme:tableColumnDelete"],
+  disabledIds: ["mme:tableColumnDelete", "mme:tableRowUp", "mme:tableColumnLeft"],
   editorMode: "rich",
   hostToolbarItems: session.extensions.getToolbarItems(),
   visible: true
@@ -185,6 +189,14 @@ toolbar.setState({
 toolbar.setMoreOpen(true);
 assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableColumnDelete"]').disabled, "Unavailable final-column deletion must render disabled.");
 assert(!query(toolbarHost, '[data-toolbar-command-id="mme:tableColumnAfter"]').disabled, "Column insertion must remain enabled when deletion is unavailable.");
+assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableRowUp"]').disabled, "First-body-row move-up must render disabled.");
+assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableColumnLeft"]').disabled, "First-column move-left must render disabled.");
+query(toolbarHost, '[data-toolbar-command-id="mme:tableRowDown"]').click();
+assert(toolbarActions.includes("mme:tableRowDown"), "Available reorder commands must dispatch through the shared toolbar handler.");
+query(toolbarHost, '[data-toolbar-command-id="mme:tableColumnRight"]').dispatchEvent(
+  new dom.window.KeyboardEvent("keydown", { bubbles: true, key: "Enter" })
+);
+assert(toolbarActions.includes("mme:tableColumnRight"), "Available reorder commands must support explicit keyboard activation.");
 Object.defineProperty(toolbarMoreMenu, "offsetHeight", { configurable: true, value: 240 });
 query(toolbarHost, '[data-testid="toolbar-more-button"]').getBoundingClientRect = () => ({
   bottom: 760,

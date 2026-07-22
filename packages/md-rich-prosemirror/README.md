@@ -15,13 +15,17 @@ ProseMirror rich-mode bridge for Momentarise Markdown Editor.
 - `replaceRichTableCellText` replaces one cell with Markdown-representable single-line text.
 - `runRichTableRowOperation` inserts a body row before/after a selected or explicit target, or deletes a body row, with typed non-mutating failure reasons.
 - `runRichTableColumnOperation` inserts a column before/after a selected or explicit target, or deletes a column, with typed non-mutating failure reasons.
-- `canRunRichMarkdownCommand` lets hosts disable context-sensitive row and column commands before dispatching them.
+- `runRichTableRowReorder` moves a validated body row between arbitrary indices while protecting the semantic header boundary.
+- `runRichTableColumnReorder` moves a validated column between arbitrary indices while preserving its header, body cells, content, and alignment.
+- `canRunRichMarkdownCommand` lets hosts disable context-sensitive row, column, and reorder commands before dispatching them.
 
 Standard rectangular top-level GFM pipe tables mount as editable ProseMirror table nodes. The same helpers enumerate supported tables at any semantic document depth, including safe footnote-definition and standard/task-list children. Generic blockquote/container nesting, malformed tables, and non-representable table-like syntax remain opaque source-only blocks until their container has bounded serialization.
 
 The `tableRowBefore`, `tableRowAfter`, and `tableRowDelete` registry commands reuse the same package-owned row-operation path. They admit semantic body rows only: the Markdown header row is protected, missing/stale/source-only targets do not mutate, inserted cells inherit header alignment, and selection moves into the inserted row or nearest surviving cell. Final-cell Tab append uses the same normalization path.
 
-The `tableColumnBefore`, `tableColumnAfter`, and `tableColumnDelete` registry commands reuse the package-owned column-operation path. Inserted columns use semantic header/body cell types and neutral alignment, deletion protects the final remaining column, missing/stale/source-only targets do not mutate, and selection moves into the inserted or nearest surviving column on the target row. Merged cells, reorder, resize, alignment controls, and spreadsheet paste are not part of this baseline.
+The `tableColumnBefore`, `tableColumnAfter`, and `tableColumnDelete` registry commands reuse the package-owned column-operation path. Inserted columns use semantic header/body cell types and neutral alignment, deletion protects the final remaining column, missing/stale/source-only targets do not mutate, and selection moves into the inserted or nearest surviving column on the target row.
+
+The `tableRowUp`, `tableRowDown`, `tableColumnLeft`, and `tableColumnRight` registry commands reuse package-owned reorder paths. Row moves admit body rows only and never cross index `0`; column moves retain the corresponding header/body cells and alignment. Boundary, no-op, invalid, stale, missing, and source-only targets do not mutate. Selection follows the moved row or column at the same valid orthogonal coordinate. Drag handles, merged cells, resize, alignment controls, and spreadsheet paste are not part of this baseline.
 
 ## Rich footnote helpers
 

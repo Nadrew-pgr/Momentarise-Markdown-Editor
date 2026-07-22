@@ -36,6 +36,8 @@ import {
   deleteColumn,
   deleteRow,
   goToNextCell,
+  moveTableColumn,
+  moveTableRow,
   tableEditing,
   tableNodes
 } from "prosemirror-tables";
@@ -66,9 +68,13 @@ export type RichCommandId =
   | "tableColumnAfter"
   | "tableColumnBefore"
   | "tableColumnDelete"
+  | "tableColumnLeft"
+  | "tableColumnRight"
   | "tableRowAfter"
   | "tableRowBefore"
   | "tableRowDelete"
+  | "tableRowDown"
+  | "tableRowUp"
   | "toggleBlock"
   | "todo";
 
@@ -240,7 +246,7 @@ export interface RichBlockAffordancePluginOptions {
 export interface RichMarkdownCommandResult {
   readonly handled: boolean;
   readonly identifier?: string | null;
-  readonly reason?: RichFootnoteInsertionFailureReason | RichTableColumnOperationFailureReason | RichTableRowOperationFailureReason | null;
+  readonly reason?: RichFootnoteInsertionFailureReason | RichTableColumnOperationFailureReason | RichTableReorderFailureReason | RichTableRowOperationFailureReason | null;
   readonly state: RichMarkdownState;
 }
 
@@ -338,6 +344,43 @@ export type RichTableColumnOperationResult =
   | {
       readonly handled: false;
       readonly reason: RichTableColumnOperationFailureReason;
+      readonly state: RichMarkdownState;
+    };
+
+export type RichTableReorderFailureReason =
+  | "cell-not-found"
+  | "column-not-found"
+  | "command-rejected"
+  | "header-row-protected"
+  | "no-op"
+  | "row-not-found"
+  | "selection-outside-table"
+  | "stale-source"
+  | "table-not-found";
+
+export interface RunRichTableRowReorderOptions {
+  readonly columnIndex?: number;
+  readonly fromRowIndex?: number;
+  readonly tableIndex?: number;
+  readonly toRowIndex: number;
+}
+
+export interface RunRichTableColumnReorderOptions {
+  readonly fromColumnIndex?: number;
+  readonly rowIndex?: number;
+  readonly tableIndex?: number;
+  readonly toColumnIndex: number;
+}
+
+export type RichTableReorderResult =
+  | {
+      readonly handled: true;
+      readonly reason: null;
+      readonly state: RichMarkdownState;
+    }
+  | {
+      readonly handled: false;
+      readonly reason: RichTableReorderFailureReason;
       readonly state: RichMarkdownState;
     };
 
@@ -556,6 +599,30 @@ export const richCommandRegistry: readonly RichMarkdownCommand[] = [
     group: "insert",
     id: "tableColumnDelete",
     label: "Delete column"
+  },
+  {
+    aliases: ["move row up", "move table row up", "table row up"],
+    group: "insert",
+    id: "tableRowUp",
+    label: "Move row up"
+  },
+  {
+    aliases: ["move row down", "move table row down", "table row down"],
+    group: "insert",
+    id: "tableRowDown",
+    label: "Move row down"
+  },
+  {
+    aliases: ["move column left", "move table column left", "table column left"],
+    group: "insert",
+    id: "tableColumnLeft",
+    label: "Move column left"
+  },
+  {
+    aliases: ["move column right", "move table column right", "table column right"],
+    group: "insert",
+    id: "tableColumnRight",
+    label: "Move column right"
   },
   {
     aliases: ["bold", "strong"],
@@ -810,6 +877,98 @@ export function runRichTableColumnOperation(
   };
 }
 
+export function runRichTableRowReorder(
+  state: RichMarkdownState,
+  options: RunRichTableRowReorderOptions
+): RichTableReorderResult {
+  if (state.source !== state.parseResult.snapshot.content) {
+    return rejectedRichTableReorder(state, "stale-source");
+  }
+  const target = resolveRichTableRowReorderTarget(state.editorState, options);
+  if ("reason" in target) {
+    return rejectedRichTableReorder(state, target.reason);
+  }
+  const location = findRichTableCellLocation(state.editorState.doc, target.coordinates);
+  if (!location) {
+    return rejectedRichTableReorder(state, "cell-not-found");
+  }
+  let editorState = state.editorState;
+  const currentCoordinates = richTableCellCoordinatesInEditorState(editorState);
+  if (!sameRichTableCellCoordinates(currentCoordinates, target.coordinates)) {
+    editorState = editorState.apply(
+      editorState.tr.setSelection(new CellSelection(editorState.doc.resolve(location.cellPosition)))
+    );
+  }
+  let transformedState = editorState;
+  let didDispatch = false;
+  const handled = executeRichTableRowReorder(
+    editorState,
+    target.fromRowIndex,
+    target.toRowIndex,
+    (transaction) => {
+      transformedState = editorState.apply(transaction);
+      didDispatch = true;
+    }
+  );
+  if (!handled || !didDispatch) {
+    return rejectedRichTableReorder(state, "command-rejected");
+  }
+  return {
+    handled: true,
+    reason: null,
+    state: {
+      ...state,
+      editorState: transformedState
+    }
+  };
+}
+
+export function runRichTableColumnReorder(
+  state: RichMarkdownState,
+  options: RunRichTableColumnReorderOptions
+): RichTableReorderResult {
+  if (state.source !== state.parseResult.snapshot.content) {
+    return rejectedRichTableReorder(state, "stale-source");
+  }
+  const target = resolveRichTableColumnReorderTarget(state.editorState, options);
+  if ("reason" in target) {
+    return rejectedRichTableReorder(state, target.reason);
+  }
+  const location = findRichTableCellLocation(state.editorState.doc, target.coordinates);
+  if (!location) {
+    return rejectedRichTableReorder(state, "cell-not-found");
+  }
+  let editorState = state.editorState;
+  const currentCoordinates = richTableCellCoordinatesInEditorState(editorState);
+  if (!sameRichTableCellCoordinates(currentCoordinates, target.coordinates)) {
+    editorState = editorState.apply(
+      editorState.tr.setSelection(new CellSelection(editorState.doc.resolve(location.cellPosition)))
+    );
+  }
+  let transformedState = editorState;
+  let didDispatch = false;
+  const handled = executeRichTableColumnReorder(
+    editorState,
+    target.fromColumnIndex,
+    target.toColumnIndex,
+    (transaction) => {
+      transformedState = editorState.apply(transaction);
+      didDispatch = true;
+    }
+  );
+  if (!handled || !didDispatch) {
+    return rejectedRichTableReorder(state, "command-rejected");
+  }
+  return {
+    handled: true,
+    reason: null,
+    state: {
+      ...state,
+      editorState: transformedState
+    }
+  };
+}
+
 export function selectRichFootnoteDefinition(
   state: RichMarkdownState,
   options: SelectRichFootnoteDefinitionOptions
@@ -1043,6 +1202,23 @@ export function canRunRichMarkdownCommand(
   commandId: RichCommandId,
   options: ApplyRichMarkdownCommandOptions = {}
 ): boolean {
+  const tableReorder = richTableReorderForCommand(commandId);
+  if (tableReorder) {
+    if (state.source !== state.parseResult.snapshot.content) {
+      return false;
+    }
+    const coordinates = richTableCellCoordinatesInEditorState(state.editorState);
+    if (!coordinates) {
+      return false;
+    }
+    return tableReorder.axis === "row"
+      ? !("reason" in resolveRichTableRowReorderTarget(state.editorState, {
+          toRowIndex: coordinates.rowIndex + tableReorder.delta
+        }))
+      : !("reason" in resolveRichTableColumnReorderTarget(state.editorState, {
+          toColumnIndex: coordinates.columnIndex + tableReorder.delta
+        }));
+  }
   const tableColumnOperation = richTableColumnOperationForCommand(commandId);
   if (tableColumnOperation) {
     if (state.source !== state.parseResult.snapshot.content) {
@@ -1588,6 +1764,226 @@ function findRichTableCellLocation(
   };
 }
 
+function resolveRichTableRowReorderTarget(
+  state: EditorState,
+  options: RunRichTableRowReorderOptions
+):
+  | {
+      readonly coordinates: RichTableCellCoordinates;
+      readonly fromRowIndex: number;
+      readonly toRowIndex: number;
+    }
+  | { readonly reason: RichTableReorderFailureReason } {
+  const selectionCoordinates = richTableCellCoordinatesInEditorState(state);
+  const hasExplicitTarget = options.columnIndex !== undefined || options.fromRowIndex !== undefined || options.tableIndex !== undefined;
+  let coordinates: RichTableCellCoordinates | null = null;
+  if (hasExplicitTarget) {
+    if (options.fromRowIndex === undefined) {
+      return { reason: "row-not-found" };
+    }
+    coordinates = {
+      columnIndex: options.columnIndex ?? 0,
+      rowIndex: options.fromRowIndex,
+      tableIndex: options.tableIndex ?? 0
+    };
+  } else if (selectionCoordinates) {
+    coordinates = selectionCoordinates;
+  }
+  if (!coordinates) {
+    return { reason: "selection-outside-table" };
+  }
+  const table = findRichTable(state.doc, coordinates.tableIndex);
+  if (!table) {
+    return { reason: "table-not-found" };
+  }
+  if (
+    coordinates.rowIndex < 0 ||
+    coordinates.rowIndex >= table.node.childCount ||
+    options.toRowIndex < 0 ||
+    options.toRowIndex >= table.node.childCount
+  ) {
+    return { reason: "row-not-found" };
+  }
+  if (coordinates.rowIndex === 0 || options.toRowIndex === 0) {
+    return { reason: "header-row-protected" };
+  }
+  if (coordinates.rowIndex === options.toRowIndex) {
+    return { reason: "no-op" };
+  }
+  const row = table.node.child(coordinates.rowIndex);
+  if (coordinates.columnIndex < 0 || coordinates.columnIndex >= row.childCount) {
+    return { reason: "cell-not-found" };
+  }
+  return {
+    coordinates,
+    fromRowIndex: coordinates.rowIndex,
+    toRowIndex: options.toRowIndex
+  };
+}
+
+function resolveRichTableColumnReorderTarget(
+  state: EditorState,
+  options: RunRichTableColumnReorderOptions
+):
+  | {
+      readonly coordinates: RichTableCellCoordinates;
+      readonly fromColumnIndex: number;
+      readonly toColumnIndex: number;
+    }
+  | { readonly reason: RichTableReorderFailureReason } {
+  const selectionCoordinates = richTableCellCoordinatesInEditorState(state);
+  const hasExplicitTarget = options.fromColumnIndex !== undefined || options.rowIndex !== undefined || options.tableIndex !== undefined;
+  let coordinates: RichTableCellCoordinates | null = null;
+  if (hasExplicitTarget) {
+    if (options.fromColumnIndex === undefined) {
+      return { reason: "column-not-found" };
+    }
+    const tableIndex = options.tableIndex ?? 0;
+    const table = findRichTable(state.doc, tableIndex);
+    if (!table) {
+      return { reason: "table-not-found" };
+    }
+    coordinates = {
+      columnIndex: options.fromColumnIndex,
+      rowIndex: options.rowIndex ?? Math.min(1, table.node.childCount - 1),
+      tableIndex
+    };
+  } else if (selectionCoordinates) {
+    coordinates = selectionCoordinates;
+  }
+  if (!coordinates) {
+    return { reason: "selection-outside-table" };
+  }
+  const table = findRichTable(state.doc, coordinates.tableIndex);
+  if (!table) {
+    return { reason: "table-not-found" };
+  }
+  if (coordinates.rowIndex < 0 || coordinates.rowIndex >= table.node.childCount) {
+    return { reason: "row-not-found" };
+  }
+  const row = table.node.child(coordinates.rowIndex);
+  if (
+    coordinates.columnIndex < 0 ||
+    coordinates.columnIndex >= row.childCount ||
+    options.toColumnIndex < 0 ||
+    options.toColumnIndex >= row.childCount
+  ) {
+    return { reason: "column-not-found" };
+  }
+  if (coordinates.columnIndex === options.toColumnIndex) {
+    return { reason: "no-op" };
+  }
+  return {
+    coordinates,
+    fromColumnIndex: coordinates.columnIndex,
+    toColumnIndex: options.toColumnIndex
+  };
+}
+
+function rejectedRichTableReorder(
+  state: RichMarkdownState,
+  reason: RichTableReorderFailureReason
+): RichTableReorderResult {
+  return {
+    handled: false,
+    reason,
+    state
+  };
+}
+
+function executeRichTableRowReorder(
+  state: EditorState,
+  fromRowIndex: number,
+  toRowIndex: number,
+  dispatch: (transaction: Transaction) => void
+): boolean {
+  const coordinates = richTableCellCoordinatesInEditorState(state);
+  if (!coordinates || coordinates.rowIndex !== fromRowIndex) {
+    return false;
+  }
+  const table = findRichTable(state.doc, coordinates.tableIndex);
+  if (
+    !table ||
+    fromRowIndex <= 0 ||
+    toRowIndex <= 0 ||
+    fromRowIndex >= table.node.childCount ||
+    toRowIndex >= table.node.childCount ||
+    fromRowIndex === toRowIndex
+  ) {
+    return false;
+  }
+  try {
+    return moveTableRow({ from: fromRowIndex, select: false, to: toRowIndex })(state, (initialTransaction) => {
+      let transaction = initialTransaction;
+      const nextTable = findRichTable(transaction.doc, coordinates.tableIndex);
+      const targetRow = nextTable?.node.maybeChild(toRowIndex);
+      const targetColumnIndex = targetRow
+        ? Math.min(coordinates.columnIndex, targetRow.childCount - 1)
+        : 0;
+      const selectionLocation = findRichTableCellLocation(transaction.doc, {
+        columnIndex: targetColumnIndex,
+        rowIndex: toRowIndex,
+        tableIndex: coordinates.tableIndex
+      });
+      if (selectionLocation) {
+        transaction = transaction
+          .setSelection(TextSelection.near(transaction.doc.resolve(selectionLocation.contentPosition)))
+          .scrollIntoView();
+      }
+      dispatch(transaction);
+    });
+  } catch {
+    return false;
+  }
+}
+
+function executeRichTableColumnReorder(
+  state: EditorState,
+  fromColumnIndex: number,
+  toColumnIndex: number,
+  dispatch: (transaction: Transaction) => void
+): boolean {
+  const coordinates = richTableCellCoordinatesInEditorState(state);
+  if (!coordinates || coordinates.columnIndex !== fromColumnIndex) {
+    return false;
+  }
+  const table = findRichTable(state.doc, coordinates.tableIndex);
+  const row = table?.node.maybeChild(coordinates.rowIndex);
+  if (
+    !table ||
+    !row ||
+    fromColumnIndex < 0 ||
+    toColumnIndex < 0 ||
+    fromColumnIndex >= row.childCount ||
+    toColumnIndex >= row.childCount ||
+    fromColumnIndex === toColumnIndex
+  ) {
+    return false;
+  }
+  try {
+    return moveTableColumn({ from: fromColumnIndex, select: false, to: toColumnIndex })(state, (initialTransaction) => {
+      let transaction = initialTransaction;
+      const nextTable = findRichTable(transaction.doc, coordinates.tableIndex);
+      const targetRowIndex = nextTable
+        ? Math.min(coordinates.rowIndex, nextTable.node.childCount - 1)
+        : 0;
+      const selectionLocation = findRichTableCellLocation(transaction.doc, {
+        columnIndex: toColumnIndex,
+        rowIndex: targetRowIndex,
+        tableIndex: coordinates.tableIndex
+      });
+      if (selectionLocation) {
+        transaction = transaction
+          .setSelection(TextSelection.near(transaction.doc.resolve(selectionLocation.contentPosition)))
+          .scrollIntoView();
+      }
+      dispatch(transaction);
+    });
+  } catch {
+    return false;
+  }
+}
+
 function resolveRichTableColumnTarget(
   state: EditorState,
   options: RunRichTableColumnOperationOptions
@@ -1981,6 +2377,20 @@ export function runRichMarkdownCommand(
   commandId: RichCommandId,
   options: ApplyRichMarkdownCommandOptions = {}
 ): RichMarkdownCommandResult {
+  const tableReorder = richTableReorderForCommand(commandId);
+  if (tableReorder) {
+    const coordinates = richTableCellCoordinatesInEditorState(state.editorState);
+    if (!coordinates) {
+      return { handled: false, reason: "selection-outside-table", state };
+    }
+    return tableReorder.axis === "row"
+      ? runRichTableRowReorder(state, {
+          toRowIndex: coordinates.rowIndex + tableReorder.delta
+        })
+      : runRichTableColumnReorder(state, {
+          toColumnIndex: coordinates.columnIndex + tableReorder.delta
+        });
+  }
   const tableColumnOperation = richTableColumnOperationForCommand(commandId);
   if (tableColumnOperation) {
     return runRichTableColumnOperation(state, { operation: tableColumnOperation });
@@ -3607,6 +4017,30 @@ function executeRichMarkdownCommand(
       return executeRichTableColumnOperation(state, "insert-after", dispatch);
     case "tableColumnDelete":
       return executeRichTableColumnOperation(state, "delete", dispatch);
+    case "tableRowUp": {
+      const coordinates = richTableCellCoordinatesInEditorState(state);
+      return coordinates
+        ? executeRichTableRowReorder(state, coordinates.rowIndex, coordinates.rowIndex - 1, dispatch)
+        : false;
+    }
+    case "tableRowDown": {
+      const coordinates = richTableCellCoordinatesInEditorState(state);
+      return coordinates
+        ? executeRichTableRowReorder(state, coordinates.rowIndex, coordinates.rowIndex + 1, dispatch)
+        : false;
+    }
+    case "tableColumnLeft": {
+      const coordinates = richTableCellCoordinatesInEditorState(state);
+      return coordinates
+        ? executeRichTableColumnReorder(state, coordinates.columnIndex, coordinates.columnIndex - 1, dispatch)
+        : false;
+    }
+    case "tableColumnRight": {
+      const coordinates = richTableCellCoordinatesInEditorState(state);
+      return coordinates
+        ? executeRichTableColumnReorder(state, coordinates.columnIndex, coordinates.columnIndex + 1, dispatch)
+        : false;
+    }
     case "bold":
       return toggleMark(schema.marks.strong!)(state, dispatch);
     case "italic":
@@ -4929,6 +5363,24 @@ function richTableRowOperationForCommand(commandId: RichCommandId): RichTableRow
   }
   if (commandId === "tableRowDelete") {
     return "delete";
+  }
+  return null;
+}
+
+function richTableReorderForCommand(
+  commandId: RichCommandId
+): { readonly axis: "column" | "row"; readonly delta: -1 | 1 } | null {
+  if (commandId === "tableRowUp") {
+    return { axis: "row", delta: -1 };
+  }
+  if (commandId === "tableRowDown") {
+    return { axis: "row", delta: 1 };
+  }
+  if (commandId === "tableColumnLeft") {
+    return { axis: "column", delta: -1 };
+  }
+  if (commandId === "tableColumnRight") {
+    return { axis: "column", delta: 1 };
   }
   return null;
 }

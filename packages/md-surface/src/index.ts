@@ -174,9 +174,13 @@ export interface MmeStrings {
     readonly tableColumnAfter: string;
     readonly tableColumnBefore: string;
     readonly tableColumnDelete: string;
+    readonly tableColumnLeft: string;
+    readonly tableColumnRight: string;
     readonly tableRowAfter: string;
     readonly tableRowBefore: string;
     readonly tableRowDelete: string;
+    readonly tableRowDown: string;
+    readonly tableRowUp: string;
     readonly todo: string;
     readonly toggleBlock: string;
   };
@@ -575,9 +579,13 @@ export const defaultMmeStrings: MmeStrings = {
     tableColumnAfter: "Insert column after",
     tableColumnBefore: "Insert column before",
     tableColumnDelete: "Delete column",
+    tableColumnLeft: "Move column left",
+    tableColumnRight: "Move column right",
     tableRowAfter: "Insert row after",
     tableRowBefore: "Insert row before",
     tableRowDelete: "Delete row",
+    tableRowDown: "Move row down",
+    tableRowUp: "Move row up",
     todo: "Todo",
     toggleBlock: "Toggle block"
   }
@@ -612,6 +620,10 @@ const toolbarMoreCommands: readonly ToolbarCommandDefinition[] = [
   { group: "insert", icon: "list", id: "mme:tableColumnBefore", richCommand: "tableColumnBefore", title: "tableColumnBefore" },
   { group: "insert", icon: "list", id: "mme:tableColumnAfter", richCommand: "tableColumnAfter", title: "tableColumnAfter" },
   { group: "insert", icon: "list", id: "mme:tableColumnDelete", richCommand: "tableColumnDelete", title: "tableColumnDelete" },
+  { group: "insert", icon: "list", id: "mme:tableRowUp", richCommand: "tableRowUp", title: "tableRowUp" },
+  { group: "insert", icon: "list", id: "mme:tableRowDown", richCommand: "tableRowDown", title: "tableRowDown" },
+  { group: "insert", icon: "list", id: "mme:tableColumnLeft", richCommand: "tableColumnLeft", title: "tableColumnLeft" },
+  { group: "insert", icon: "list", id: "mme:tableColumnRight", richCommand: "tableColumnRight", title: "tableColumnRight" },
   { group: "marks", icon: "code", id: "mme:inlineCode", richCommand: "inlineCode", title: "inlineCode" }
 ] as const;
 
@@ -697,6 +709,14 @@ export function createToolbar(options: CreateToolbarOptions): SurfaceComponent &
     }
   };
   const onKeyDown = (event: KeyboardEvent): void => {
+    if (event.key === "Enter" || event.key === " ") {
+      const command = elementTarget(event)?.closest<HTMLButtonElement>("button[data-toolbar-command-id]");
+      if (command?.dataset.toolbarCommandId && !command.disabled) {
+        event.preventDefault();
+        void options.onRunToolbarItem(command.dataset.toolbarCommandId);
+      }
+      return;
+    }
     if (event.key !== "ArrowRight" && event.key !== "ArrowLeft" && event.key !== "Home" && event.key !== "End") {
       return;
     }

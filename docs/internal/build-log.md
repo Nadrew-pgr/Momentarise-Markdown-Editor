@@ -7116,3 +7116,51 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - `MME-0074 — Rich Markdown table row and column reorder baseline`.
+
+## MME-0074 — Rich Markdown table row and column reorder baseline
+
+- Date: 2026-07-22.
+- Previous issue status:
+  - `MME-0073` accepted for code continuation and committed (`dfdc31c` implementation/status, `bd2cec3` evidence).
+  - `MME-0074` was promoted and committed in checkpoint `9fd7459` (`8a2aecf` evidence).
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, clean `git status --short`, and every parser/model/editor/rich/surface/theme/demo/fixture/test/save file named by the issue.
+  - Direct installed-library probes confirmed `moveTableRow`/`moveTableColumn` support, top-level and nested-table serialization, and mandatory header/index/selection guards before implementation.
+- RED proof before implementation:
+  - Added fixture 038 plus focused package, demo, and shared-surface tests.
+  - `npm run test:rich-table-reorder` failed because `runRichTableRowReorder` and `runRichTableColumnReorder` did not exist.
+  - `npm run test:demo-table-reorder-commands` failed because `TABLE_REORDER_COMMAND_IDS` did not exist.
+  - `npm run test:surface` failed because `mme:tableRowUp` and the remaining reorder actions did not exist.
+- Change:
+  - Added typed `runRichTableRowReorder` and `runRichTableColumnReorder` APIs plus `tableRowUp`, `tableRowDown`, `tableColumnLeft`, and `tableColumnRight` registry IDs in `@momentarise/md-rich-prosemirror`.
+  - Wrapped installed MIT-licensed `prosemirror-tables` movement behind package-owned validation. Stale, missing, source-only, outside-table, invalid-index, no-op, header-origin, and header-destination row moves refuse without mutation or exceptions.
+  - Kept each move one transaction, moved selection with the row/column at the same valid orthogonal coordinate, retained rectangular semantic header/body cells, content, inline marks, and column alignment, and preserved one-step undo/redo.
+  - Preserved exact untouched Markdown and bytes outside the owned table across top-level plus direct/list/task footnote contexts, including definition prefixes, ordered starts, task state, loose/container structure, sibling syntax, and LF/CRLF. Save Engine persists the exact Source result.
+  - Added localized shared More-menu actions, public capability-disabled states, slash/command-palette/demo wiring, and explicit Enter/Space activation for enabled toolbar commands without demo-owned ProseMirror transforms or invented shortcut bindings.
+  - Updated prior row/column command-search regressions, documented/approved the two intentional public API exports, added fixture 038, focused tests, root test registration, and a ten-state browser harness.
+- Visual impact:
+  - Supported table cells expose Move row up/down and Move column left/right; first/final boundaries disable only invalid directions. Real keyboard activation moves a row, nested column movement retains alignment/content, dirty-to-clean save remains truthful, and Source shows deterministic Markdown.
+  - Artifacts: `docs/internal/visual-checks/MME-0074/table-reorder-commands-unavailable.png`, `table-reorder-boundaries.png`, `table-reorder-commands-enabled.png`, `table-row-moved.png`, `table-column-moved.png`, `table-reorder-saved-desktop.png`, `table-reorder-unsupported-desktop.png`, `table-reorder-constrained.png`, `table-reorder-wide-constrained.png`, and `table-reorder-source-desktop.png`.
+  - Permissioned headless Chrome loads fixture 038 at `http://127.0.0.1:5174/`, verifies supported root/direct/ordered/task/wide tables, explicit quote/malformed source-only fallbacks, outside/boundary/middle availability, real focused-menu Enter activation, row and nested-column movement, independent undo/redo, post-reorder insert operations, exact save/source content, selected final-column reachability, local horizontal overflow, focus visibility, and 390 px containment without page overflow.
+  - Builder inspected all ten regenerated frames. Command states, moves, nested hierarchy, saved/source states, fallbacks, and containment are readable. Existing full-editor blue focus outline, diagnostics-chip overlap, dense More menu, and intentionally far-right-scrolled wide-table composition remain queued for final human review.
+- Checks run:
+  - `npm run test:rich-table-reorder` — RED first, then green for public APIs, registry/search/run behavior, arbitrary/adjacent movement, header/index/no-op/stale/outside refusal, shape/types/alignment/content, moved selection, one-step history, exact ownership, top-level/nested LF/CRLF serialization, insert/delete/Tab compatibility, and Save Engine truth.
+  - Focused row/column/table/footnote/command/demo/surface/save/fixture/public-API/alignment/docs-lint checks — green. Prior row/column search expectations were updated to include the new registry commands; the public-API gate approved only the two intentional documented exports.
+  - `npm run visual:mme-0074` — final permissioned Chrome run passed after strengthening explicit keyboard activation and selected wide-edge cell visibility.
+  - Post-review `npm test` — green end-to-end, including performance 10/10 with parse at 3099 ms, architecture, security, preservation, table/footnote regressions, fixture corpus, public API, AX artifacts, CLI, adapters, demo, Vite build, and 42-page Next.js docs build; existing Vite chunk-size warning only.
+  - `git diff --check` — green before closeout.
+- Reviewer result:
+  - Required inspect-only review used exactly `gpt-5.3-codex-spark` with `xhigh` reasoning. Agent `019f8a31-bfec-7600-baec-6b53000cd62b` found no P0-P3 correctness, preservation, package-boundary, security, or accessibility issue.
+  - Reviewer identified residual keyboard-path and wide-edge visual proof risks. Builder added explicit reusable Enter/Space toolbar activation, shared-surface keyboard dispatch proof, real-browser focused-menu Enter activation, and final-column visibility at the reachable wide-table edge.
+  - Reviewer re-inspected the fixes, reran `test:rich-table-reorder`, `test:surface`, and `test:demo-table-reorder-commands`, and reported no remaining P0-P3 finding.
+- Residual risks:
+  - Drag handles, pointer/touch movement, multi-selection moves, merged cells, resizing, alignment controls, sorting/filtering/formulas, spreadsheet/CSV paste, unsupported nested tables, malformed repair, and generic table adapters remain outside this slice.
+  - Changed tables normalize deterministically; untouched tables and bytes outside the owned table remain exact.
+  - Final command placement/labels, More/slash density, boundary clarity, moved-cell focus and undo/redo feel, drag expectations, wide horizontal reachability, full-editor focus outline, diagnostics-chip overlap, far-right-scroll composition, and constrained-layout taste remain queued in `docs/internal/BACKLOG.md` for Andrew's end-of-run review block.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Pending issue-scoped implementation/status commit after final post-review verification.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0074`. The next unblocked must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.

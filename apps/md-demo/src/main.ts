@@ -735,12 +735,17 @@ const richCommandIcons: Partial<Record<RichCommandId, IconName>> = {
   tableColumnAfter: "more",
   tableColumnBefore: "more",
   tableColumnDelete: "more",
+  tableColumnLeft: "more",
+  tableColumnRight: "more",
+  tableRowDown: "more",
+  tableRowUp: "more",
   todo: "todo",
   toggleBlock: "chevron"
 };
 
 const TABLE_ROW_COMMAND_IDS = ["tableRowBefore", "tableRowAfter", "tableRowDelete"] as const satisfies readonly RichCommandId[];
 const TABLE_COLUMN_COMMAND_IDS = ["tableColumnBefore", "tableColumnAfter", "tableColumnDelete"] as const satisfies readonly RichCommandId[];
+const TABLE_REORDER_COMMAND_IDS = ["tableRowUp", "tableRowDown", "tableColumnLeft", "tableColumnRight"] as const satisfies readonly RichCommandId[];
 
 function registerReferenceExtensions(editorSession: MarkdownEditorSession): void {
   for (const command of richCommandRegistry) {
@@ -3958,7 +3963,11 @@ function disabledRichToolbarIds(): readonly string[] {
   if (!richEditor || activeDocument.kind !== "markdown") {
     return richCommandRegistry.map((command) => richCommandExtensionId(command.id));
   }
-  const disabledIds = [...unavailableTableRowCommandIds(), ...unavailableTableColumnCommandIds()];
+  const disabledIds = [
+    ...unavailableTableRowCommandIds(),
+    ...unavailableTableColumnCommandIds(),
+    ...unavailableTableReorderCommandIds()
+  ];
   const selection = richEditor.state.selection;
   if (!(selection instanceof TextSelection) || selection.empty) {
     disabledIds.push("mme:link", "mme:image");
@@ -3982,6 +3991,16 @@ function unavailableTableColumnCommandIds(): readonly string[] {
     return TABLE_COLUMN_COMMAND_IDS.map(richCommandExtensionId);
   }
   return TABLE_COLUMN_COMMAND_IDS
+    .filter((commandId) => !canRunRichMarkdownCommand(currentState, commandId))
+    .map(richCommandExtensionId);
+}
+
+function unavailableTableReorderCommandIds(): readonly string[] {
+  const currentState = currentRichStateFromEditor();
+  if (!currentState) {
+    return TABLE_REORDER_COMMAND_IDS.map(richCommandExtensionId);
+  }
+  return TABLE_REORDER_COMMAND_IDS
     .filter((commandId) => !canRunRichMarkdownCommand(currentState, commandId))
     .map(richCommandExtensionId);
 }
@@ -5020,7 +5039,8 @@ function filterAvailableRichSlashItems(items: readonly SlashItemDefinition[]): r
     const commandId = item.id.slice("mme:".length) as RichCommandId;
     if (
       !TABLE_ROW_COMMAND_IDS.some((candidate) => candidate === commandId) &&
-      !TABLE_COLUMN_COMMAND_IDS.some((candidate) => candidate === commandId)
+      !TABLE_COLUMN_COMMAND_IDS.some((candidate) => candidate === commandId) &&
+      !TABLE_REORDER_COMMAND_IDS.some((candidate) => candidate === commandId)
     ) {
       return true;
     }
