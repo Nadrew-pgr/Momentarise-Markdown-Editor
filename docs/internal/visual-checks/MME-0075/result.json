@@ -1,0 +1,12 @@
+{
+  "consoleErrors": [],
+  "demoUrl": "http://127.0.0.1:5174/",
+  "ignoredResponses": [
+    {
+      "status": 404,
+      "url": "http://127.0.0.1:5174/favicon.ico"
+    }
+  ],
+  "screenshots": 8,
+  "status": "passed"
+}

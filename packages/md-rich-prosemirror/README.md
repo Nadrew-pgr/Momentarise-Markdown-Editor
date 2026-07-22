@@ -17,6 +17,7 @@ ProseMirror rich-mode bridge for Momentarise Markdown Editor.
 - `runRichTableColumnOperation` inserts a column before/after a selected or explicit target, or deletes a column, with typed non-mutating failure reasons.
 - `runRichTableRowReorder` moves a validated body row between arbitrary indices while protecting the semantic header boundary.
 - `runRichTableColumnReorder` moves a validated column between arbitrary indices while preserving its header, body cells, content, and alignment.
+- `runRichTableMatrixPaste` pastes a bounded rectangular TSV matrix into a selected or explicit supported table cell, expanding right/down in one transaction while keeping spreadsheet values literal.
 - `canRunRichMarkdownCommand` lets hosts disable context-sensitive row, column, and reorder commands before dispatching them.
 
 Standard rectangular top-level GFM pipe tables mount as editable ProseMirror table nodes. The same helpers enumerate supported tables at any semantic document depth, including safe footnote-definition and standard/task-list children. Generic blockquote/container nesting, malformed tables, and non-representable table-like syntax remain opaque source-only blocks until their container has bounded serialization.
@@ -25,7 +26,9 @@ The `tableRowBefore`, `tableRowAfter`, and `tableRowDelete` registry commands re
 
 The `tableColumnBefore`, `tableColumnAfter`, and `tableColumnDelete` registry commands reuse the package-owned column-operation path. Inserted columns use semantic header/body cell types and neutral alignment, deletion protects the final remaining column, missing/stale/source-only targets do not mutate, and selection moves into the inserted or nearest surviving column on the target row.
 
-The `tableRowUp`, `tableRowDown`, `tableColumnLeft`, and `tableColumnRight` registry commands reuse package-owned reorder paths. Row moves admit body rows only and never cross index `0`; column moves retain the corresponding header/body cells and alignment. Boundary, no-op, invalid, stale, missing, and source-only targets do not mutate. Selection follows the moved row or column at the same valid orthogonal coordinate. Drag handles, merged cells, resize, alignment controls, and spreadsheet paste are not part of this baseline.
+The `tableRowUp`, `tableRowDown`, `tableColumnLeft`, and `tableColumnRight` registry commands reuse package-owned reorder paths. Row moves admit body rows only and never cross index `0`; column moves retain the corresponding header/body cells and alignment. Boundary, no-op, invalid, stale, missing, and source-only targets do not mutate. Selection follows the moved row or column at the same valid orthogonal coordinate. Drag handles, merged cells, resize, and alignment controls are not part of this baseline.
+
+Native Rich paste accepts only `text/tab-separated-values`, or `text/plain` containing tabs, while selection is inside a supported table and no file payload is present. Input is rectangular, control-safe, capped at 1,000 rows, 256 columns, 10,000 cells, and 1,000,000 UTF-16 code units. Accepted paste prevents default, expands the table, selects the final cell, and remains one undoable transaction. Rejected matrices plus normal text, HTML, images, source-only tables, and outside-table paste remain on existing host/editor paths. Pasted values serialize as literal Markdown-safe table text; authored semantic links and marks remain semantic.
 
 ## Rich footnote helpers
 

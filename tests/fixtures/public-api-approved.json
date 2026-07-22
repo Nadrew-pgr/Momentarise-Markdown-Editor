@@ -150,6 +150,7 @@
     "runRichMarkdownCommand",
     "runRichTableColumnOperation",
     "runRichTableColumnReorder",
+    "runRichTableMatrixPaste",
     "runRichTableRowOperation",
     "runRichTableRowReorder",
     "selectFirstRichText",

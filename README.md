@@ -88,12 +88,12 @@ Completed slices:
 - MME-0072: Rich Markdown table row operations baseline, accepted for code continuation after reusable body-row APIs and Rich commands, strict header/stale/unsupported refusal, inherited alignment, predictable selection/history, exact bounded top-level/nested serialization, save truth, Spark review, real browser proof, and full test pass; final table-row command/product review is queued for end-of-run review.
 - MME-0073: Rich Markdown table column operations baseline, accepted for code continuation after reusable column APIs and Rich commands, final-column protection, semantic header/body types, neutral inserted alignment, current-row selection, exact bounded top-level/nested serialization, save truth, Spark review, real browser proof, and full test pass; final table-column command/product review is queued for end-of-run review.
 - MME-0074: Rich Markdown table row and column reorder baseline, accepted for code continuation after reusable arbitrary/adjacent move APIs, semantic-header and boundary guards, moved-cell selection, exact bounded serialization, keyboard-accessible shared commands, save truth, Spark review, browser proof, and a full test pass; final command/product review remains queued.
-- MME-0075: Rich table spreadsheet/TSV paste baseline, promoted after one-transaction table-expansion feasibility proof and discovery of the literal Markdown-text escaping guard; implementation pending.
+- MME-0075: Rich table spreadsheet/TSV paste baseline, accepted for code continuation after strict bounded TSV parsing, literal-text-safe table expansion, native paste pass-through, exact top-level/nested ownership, one-step history, truthful save/source behavior, Spark review, real clipboard-event browser proof, and a full test pass; final spreadsheet-paste product review remains queued.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- Current executable issue: MME-0075, adding strict event-driven TSV paste into existing supported Rich tables without swallowing normal paste or reinterpreting spreadsheet text as Markdown.
+- No executable normal issue remains after MME-0075. The next unblocked must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 
