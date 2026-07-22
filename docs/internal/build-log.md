@@ -7111,7 +7111,7 @@
   - Implementation review will use exactly `gpt-5.3-codex-spark` at `xhigh` if available; no substitute code-review model.
   - If unavailable, perform and document a fallback self-review covering header/index protection, arbitrary and adjacent movement semantics, one-transaction history, selection, exact ownership, nested serialization, command availability, accessibility, save truth, and regressions.
 - Commit status:
-  - Promotion checkpoint pending.
+  - Promotion checkpoint committed as `9fd7459` (`docs: promote mme-0074 table reorder`).
 - Push status:
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
