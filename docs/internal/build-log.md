@@ -7031,8 +7031,52 @@
   - Implementation review will use exactly `gpt-5.3-codex-spark` at `xhigh` if available; no substitute code-review model.
   - If unavailable, perform and document a fallback self-review covering target resolution, one-column protection, header/body types, neutral alignment, current-row selection, one-transaction history, exact ownership, nested serialization, command availability, accessibility, save truth, and regressions.
 - Commit status:
-  - Promotion checkpoint pending.
+  - Promotion checkpoint committed as `e2d514f` (`docs: promote mme-0073 table column operations`).
 - Push status:
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - `MME-0073 — Rich Markdown table column operations baseline`.
+
+## MME-0073 — Rich Markdown table column operations baseline
+
+- Date: 2026-07-22.
+- Previous issue status:
+  - `MME-0072` accepted for code continuation and committed (`ef17c08` implementation/status, `e724bbc` evidence).
+  - `MME-0073` was promoted and committed in checkpoint `e2d514f`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, clean `git status --short`, and every parser/model/editor/rich/surface/theme/demo/fixture/test/save file named by the issue.
+- RED proof before implementation:
+  - Added fixture 037 plus focused package and demo tests, then confirmed `npm run test:rich-table-column-operations` failed because `runRichTableColumnOperation` did not exist and `npm run test:demo-table-column-commands` failed because `TABLE_COLUMN_COMMAND_IDS` did not exist.
+- Change:
+  - Added typed `runRichTableColumnOperation` insert-before/insert-after/delete operations plus `tableColumnBefore`, `tableColumnAfter`, and `tableColumnDelete` registry IDs in `@momentarise/md-rich-prosemirror`.
+  - Reused `prosemirror-tables` transforms behind package-owned target resolution. Explicit and selected targets reject stale source, missing table/row/cell, outside-table selection, and final-column deletion without mutation.
+  - Preserved rectangular semantic header/body cells, gave inserted columns deterministic neutral alignment, moved selection into inserted columns or the nearest surviving column on the same row, and retained one-transaction undo/redo.
+  - Preserved exact untouched Markdown and bounded changed-table output across top-level plus direct/list/task footnote tables, ordered starts, task state, sibling syntax, inline marks, and LF/CRLF. Save Engine persists the exact Source result.
+  - Added shared localized More-menu column actions, accessible labels, context-disabled states, slash filtering, and demo icon wiring without demo-owned table transforms.
+  - Added fixture 037, focused package/demo/surface tests, intentional public-API approval, root test registration, and a ten-state real-browser harness. Reviewer follow-up added executable shared-surface dispatch and final-column disabled-state assertions.
+- Visual impact:
+  - Supported table-cell selection enables Insert column before, Insert column after, and Delete column; outside-table contexts disable all three and one-column tables keep insertion enabled while disabling deletion. Insert/delete focus stays on the affected row, dirty/saved state remains truthful, and Source shows deterministic Markdown.
+  - Artifacts: `docs/internal/visual-checks/MME-0073/table-column-commands-unavailable.png`, `table-column-final-protected.png`, `table-column-commands-enabled.png`, `table-column-inserted.png`, `table-column-deleted.png`, `table-column-saved-desktop.png`, `table-column-unsupported-desktop.png`, `table-column-constrained.png`, `table-column-wide-constrained.png`, and `table-column-source-desktop.png`.
+  - Permissioned headless Chrome proof loads fixture 037 at `http://127.0.0.1:5174/`, verifies six semantic tables, accessible source-only quote/malformed fallbacks, command availability, final-column protection, real insert/delete plus undo/redo, exact saved/source content, local horizontal reachability, selected-cell focus, and 390 px containment without page overflow.
+  - Builder inspected all ten regenerated frames. Commands, one-column protection, hierarchy, insertion/deletion, fallbacks, saved/source states, and containment are readable. Existing full-editor blue focus outline, diagnostics-chip overlap, and intentionally far-right-scrolled wide-table composition remain queued for final human review.
+- Checks run:
+  - `npm run test:rich-table-column-operations` — RED first, then green after public operations, eligibility, transforms, types/alignment, selection, history, preservation, nested-context, LF/CRLF, row/Tab compatibility, and Save Engine implementation.
+  - `npm run test:demo-table-column-commands`, `npm run test:surface`, row/table/footnote/command/fixture/public-API checks, `npm run test:alignment`, docs lint, and demo build — green.
+  - `npm run visual:mme-0073` — permissioned Chrome run passed twice, including strengthened visible-target assertions and all ten current states.
+  - First broader `npm test` run hit one transient timing miss (`parseLargeDocument` 4323 ms versus 4000 ms) while the other nine performance operations passed; immediate focused rerun passed 10/10 with parse at 2554 ms.
+  - Final post-review `npm test` — green end-to-end, including performance 10/10 with parse at 2156 ms, architecture, security, preservation, table/footnote regressions, fixture corpus, public API, AX artifacts, CLI, adapters, demo, Vite build, and 42-page Next.js docs build; existing Vite chunk-size warning only.
+  - `git diff --check` — green before closeout.
+- Reviewer result:
+  - Required inspect-only code review used exactly `gpt-5.3-codex-spark` with `xhigh` reasoning. Agent `019f8a0b-c080-70d1-baef-af67ec90131d` found no P0-P2 correctness, preservation, package-boundary, or accessibility issue.
+  - Reviewer P3 noted that the small demo wiring test was static and that Chrome could not launch inside its restricted environment. Builder added executable shared-surface command dispatch and final-column disabled-state transitions, while the already-permissioned full demo Chrome harness passed twice locally; no runtime proof gap remains in the builder environment.
+- Residual risks:
+  - Row/column reorder, merged cells, resizing, alignment controls, sorting/filtering/formulas, spreadsheet/CSV paste, unsupported nested tables, malformed repair, and generic table adapters remain outside this slice.
+  - Changed tables normalize deterministically; untouched tables and bytes outside the owned table remain exact.
+  - Final command placement/labels, More/slash density, selected-cell focus, undo/redo feel, wide horizontal reachability, full-editor focus outline, diagnostics-chip overlap, far-right-scroll composition, and constrained-layout taste remain queued in `docs/internal/BACKLOG.md`.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Issue-scoped implementation/status commit pending.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0073`. The next unblocked must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.

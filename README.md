@@ -86,12 +86,12 @@ Completed slices:
 - MME-0070: Rich inert raw-HTML footnote block editing baseline, accepted for code continuation after semantic inert top-level/list/task source editing, literal-DOM hostile-payload proof, exact untouched-source retention, bounded deterministic reconstruction, conservative inline/overlapping/nested/mixed fallback, real browser proof, fallback review, and full test pass; final raw-HTML-footnote product review is queued for end-of-run review.
 - MME-0071: Rich inert inline-HTML footnote paragraph editing baseline, accepted for code continuation after exact single-line token editing across top/list/task/quote/callout paragraphs, literal-DOM hostile-payload proof, bounded reconstruction, conservative wrapper/multiline/table fallback, real browser proof, fallback review, and full test pass; final inline-HTML-footnote product review is queued for end-of-run review.
 - MME-0072: Rich Markdown table row operations baseline, accepted for code continuation after reusable body-row APIs and Rich commands, strict header/stale/unsupported refusal, inherited alignment, predictable selection/history, exact bounded top-level/nested serialization, save truth, Spark review, real browser proof, and full test pass; final table-row command/product review is queued for end-of-run review.
-- MME-0073: Rich Markdown table column operations baseline, promoted after direct top-level/nested transform and one-column refusal feasibility proof; implementation pending.
+- MME-0073: Rich Markdown table column operations baseline, accepted for code continuation after reusable column APIs and Rich commands, final-column protection, semantic header/body types, neutral inserted alignment, current-row selection, exact bounded top-level/nested serialization, save truth, Spark review, real browser proof, and full test pass; final table-column command/product review is queued for end-of-run review.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- Current executable issue: MME-0073, adding reusable column insert/delete APIs and context-aware Rich commands without widening supported table syntax or weakening bounded Markdown serialization.
+- No executable normal issue remains after MME-0073. The next unblocked must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

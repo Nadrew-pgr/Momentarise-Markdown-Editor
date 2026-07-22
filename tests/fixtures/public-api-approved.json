@@ -148,6 +148,7 @@
     "richTableCellCoordinates",
     "richTopLevelBlockRanges",
     "runRichMarkdownCommand",
+    "runRichTableColumnOperation",
     "runRichTableRowOperation",
     "selectFirstRichText",
     "selectRichFootnoteDefinition",

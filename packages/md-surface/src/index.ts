@@ -171,6 +171,9 @@ export interface MmeStrings {
     readonly more: string;
     readonly orderedList: string;
     readonly paragraph: string;
+    readonly tableColumnAfter: string;
+    readonly tableColumnBefore: string;
+    readonly tableColumnDelete: string;
     readonly tableRowAfter: string;
     readonly tableRowBefore: string;
     readonly tableRowDelete: string;
@@ -569,6 +572,9 @@ export const defaultMmeStrings: MmeStrings = {
     more: "More commands",
     orderedList: "Numbered list",
     paragraph: "Paragraph",
+    tableColumnAfter: "Insert column after",
+    tableColumnBefore: "Insert column before",
+    tableColumnDelete: "Delete column",
     tableRowAfter: "Insert row after",
     tableRowBefore: "Insert row before",
     tableRowDelete: "Delete row",
@@ -603,6 +609,9 @@ const toolbarMoreCommands: readonly ToolbarCommandDefinition[] = [
   { group: "insert", icon: "list", id: "mme:tableRowBefore", richCommand: "tableRowBefore", title: "tableRowBefore" },
   { group: "insert", icon: "list", id: "mme:tableRowAfter", richCommand: "tableRowAfter", title: "tableRowAfter" },
   { group: "insert", icon: "list", id: "mme:tableRowDelete", richCommand: "tableRowDelete", title: "tableRowDelete" },
+  { group: "insert", icon: "list", id: "mme:tableColumnBefore", richCommand: "tableColumnBefore", title: "tableColumnBefore" },
+  { group: "insert", icon: "list", id: "mme:tableColumnAfter", richCommand: "tableColumnAfter", title: "tableColumnAfter" },
+  { group: "insert", icon: "list", id: "mme:tableColumnDelete", richCommand: "tableColumnDelete", title: "tableColumnDelete" },
   { group: "marks", icon: "code", id: "mme:inlineCode", richCommand: "inlineCode", title: "inlineCode" }
 ] as const;
 

@@ -27,7 +27,18 @@ import { history, redo, undo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
 import { Fragment, Mark, Node as ProseMirrorNode, Schema, type DOMOutputSpec, type MarkSpec, type NodeSpec, type NodeType, type ResolvedPos } from "prosemirror-model";
 import { EditorState, NodeSelection, Plugin, PluginKey, Selection, TextSelection, type Transaction } from "prosemirror-state";
-import { addRowAfter, addRowBefore, CellSelection, deleteRow, goToNextCell, tableEditing, tableNodes } from "prosemirror-tables";
+import {
+  addColumnAfter,
+  addColumnBefore,
+  addRowAfter,
+  addRowBefore,
+  CellSelection,
+  deleteColumn,
+  deleteRow,
+  goToNextCell,
+  tableEditing,
+  tableNodes
+} from "prosemirror-tables";
 import { parseFragment } from "parse5";
 
 export interface MomentariseRichProseMirrorContract {
@@ -52,6 +63,9 @@ export type RichCommandId =
   | "link"
   | "orderedList"
   | "paragraph"
+  | "tableColumnAfter"
+  | "tableColumnBefore"
+  | "tableColumnDelete"
   | "tableRowAfter"
   | "tableRowBefore"
   | "tableRowDelete"
@@ -226,7 +240,7 @@ export interface RichBlockAffordancePluginOptions {
 export interface RichMarkdownCommandResult {
   readonly handled: boolean;
   readonly identifier?: string | null;
-  readonly reason?: RichFootnoteInsertionFailureReason | RichTableRowOperationFailureReason | null;
+  readonly reason?: RichFootnoteInsertionFailureReason | RichTableColumnOperationFailureReason | RichTableRowOperationFailureReason | null;
   readonly state: RichMarkdownState;
 }
 
@@ -294,6 +308,36 @@ export type RichTableRowOperationResult =
   | {
       readonly handled: false;
       readonly reason: RichTableRowOperationFailureReason;
+      readonly state: RichMarkdownState;
+    };
+
+export type RichTableColumnOperation = "delete" | "insert-after" | "insert-before";
+
+export type RichTableColumnOperationFailureReason =
+  | "cell-not-found"
+  | "command-rejected"
+  | "last-column-protected"
+  | "row-not-found"
+  | "selection-outside-table"
+  | "stale-source"
+  | "table-not-found";
+
+export interface RunRichTableColumnOperationOptions {
+  readonly columnIndex?: number;
+  readonly operation: RichTableColumnOperation;
+  readonly rowIndex?: number;
+  readonly tableIndex?: number;
+}
+
+export type RichTableColumnOperationResult =
+  | {
+      readonly handled: true;
+      readonly reason: null;
+      readonly state: RichMarkdownState;
+    }
+  | {
+      readonly handled: false;
+      readonly reason: RichTableColumnOperationFailureReason;
       readonly state: RichMarkdownState;
     };
 
@@ -496,6 +540,24 @@ export const richCommandRegistry: readonly RichMarkdownCommand[] = [
     label: "Delete row"
   },
   {
+    aliases: ["column before", "insert column before", "table column left"],
+    group: "insert",
+    id: "tableColumnBefore",
+    label: "Insert column before"
+  },
+  {
+    aliases: ["column after", "insert column after", "table column right"],
+    group: "insert",
+    id: "tableColumnAfter",
+    label: "Insert column after"
+  },
+  {
+    aliases: ["delete column", "remove column", "table column delete"],
+    group: "insert",
+    id: "tableColumnDelete",
+    label: "Delete column"
+  },
+  {
     aliases: ["bold", "strong"],
     group: "inline",
     id: "bold",
@@ -693,6 +755,50 @@ export function runRichTableRowOperation(
   );
   if (!handled) {
     return rejectedRichTableRowOperation(state, "command-rejected");
+  }
+  return {
+    handled: true,
+    reason: null,
+    state: {
+      ...state,
+      editorState: transformedState
+    }
+  };
+}
+
+export function runRichTableColumnOperation(
+  state: RichMarkdownState,
+  options: RunRichTableColumnOperationOptions
+): RichTableColumnOperationResult {
+  if (state.source !== state.parseResult.snapshot.content) {
+    return rejectedRichTableColumnOperation(state, "stale-source");
+  }
+  const target = resolveRichTableColumnTarget(state.editorState, options);
+  if ("reason" in target) {
+    return rejectedRichTableColumnOperation(state, target.reason);
+  }
+
+  const location = findRichTableCellLocation(state.editorState.doc, target.coordinates);
+  if (!location) {
+    return rejectedRichTableColumnOperation(state, "cell-not-found");
+  }
+  let editorState = state.editorState;
+  const currentCoordinates = richTableCellCoordinatesInEditorState(editorState);
+  if (!sameRichTableCellCoordinates(currentCoordinates, target.coordinates)) {
+    editorState = editorState.apply(
+      editorState.tr.setSelection(new CellSelection(editorState.doc.resolve(location.cellPosition)))
+    );
+  }
+  let transformedState = editorState;
+  const handled = executeRichTableColumnOperation(
+    editorState,
+    options.operation,
+    (transaction) => {
+      transformedState = editorState.apply(transaction);
+    }
+  );
+  if (!handled) {
+    return rejectedRichTableColumnOperation(state, "command-rejected");
   }
   return {
     handled: true,
@@ -937,6 +1043,13 @@ export function canRunRichMarkdownCommand(
   commandId: RichCommandId,
   options: ApplyRichMarkdownCommandOptions = {}
 ): boolean {
+  const tableColumnOperation = richTableColumnOperationForCommand(commandId);
+  if (tableColumnOperation) {
+    if (state.source !== state.parseResult.snapshot.content) {
+      return false;
+    }
+    return !("reason" in resolveRichTableColumnTarget(state.editorState, { operation: tableColumnOperation }));
+  }
   const tableOperation = richTableRowOperationForCommand(commandId);
   if (tableOperation) {
     if (state.source !== state.parseResult.snapshot.content) {
@@ -1475,6 +1588,108 @@ function findRichTableCellLocation(
   };
 }
 
+function resolveRichTableColumnTarget(
+  state: EditorState,
+  options: RunRichTableColumnOperationOptions
+):
+  | { readonly coordinates: RichTableCellCoordinates }
+  | { readonly reason: RichTableColumnOperationFailureReason } {
+  const selectionCoordinates = richTableCellCoordinatesInEditorState(state);
+  const hasExplicitTarget = options.columnIndex !== undefined || options.rowIndex !== undefined || options.tableIndex !== undefined;
+  let coordinates: RichTableCellCoordinates | null = null;
+  if (hasExplicitTarget) {
+    if (options.columnIndex === undefined) {
+      return { reason: "cell-not-found" };
+    }
+    const tableIndex = options.tableIndex ?? 0;
+    const table = findRichTable(state.doc, tableIndex);
+    if (!table) {
+      return { reason: "table-not-found" };
+    }
+    coordinates = {
+      columnIndex: options.columnIndex,
+      rowIndex: options.rowIndex ?? Math.min(1, table.node.childCount - 1),
+      tableIndex
+    };
+  } else if (selectionCoordinates) {
+    coordinates = selectionCoordinates;
+  }
+  if (!coordinates) {
+    return { reason: "selection-outside-table" };
+  }
+  const table = findRichTable(state.doc, coordinates.tableIndex);
+  if (!table) {
+    return { reason: "table-not-found" };
+  }
+  if (coordinates.rowIndex < 0 || coordinates.rowIndex >= table.node.childCount) {
+    return { reason: "row-not-found" };
+  }
+  const row = table.node.child(coordinates.rowIndex);
+  if (coordinates.columnIndex < 0 || coordinates.columnIndex >= row.childCount) {
+    return { reason: "cell-not-found" };
+  }
+  if (options.operation === "delete" && row.childCount === 1) {
+    return { reason: "last-column-protected" };
+  }
+  return { coordinates };
+}
+
+function rejectedRichTableColumnOperation(
+  state: RichMarkdownState,
+  reason: RichTableColumnOperationFailureReason
+): RichTableColumnOperationResult {
+  return {
+    handled: false,
+    reason,
+    state
+  };
+}
+
+function executeRichTableColumnOperation(
+  state: EditorState,
+  operation: RichTableColumnOperation,
+  dispatch: (transaction: Transaction) => void
+): boolean {
+  const coordinates = richTableCellCoordinatesInEditorState(state);
+  if (!coordinates) {
+    return false;
+  }
+  const table = findRichTable(state.doc, coordinates.tableIndex);
+  const row = table?.node.child(coordinates.rowIndex);
+  if (!table || !row || (operation === "delete" && row.childCount === 1)) {
+    return false;
+  }
+  const command = operation === "insert-before"
+    ? addColumnBefore
+    : operation === "insert-after"
+      ? addColumnAfter
+      : deleteColumn;
+  return command(state, (initialTransaction) => {
+    let transaction = initialTransaction;
+    const nextTable = findRichTable(transaction.doc, coordinates.tableIndex);
+    if (!nextTable) {
+      return;
+    }
+    const targetColumnIndex = operation === "insert-before"
+      ? coordinates.columnIndex
+      : operation === "insert-after"
+        ? coordinates.columnIndex + 1
+        : Math.min(coordinates.columnIndex, nextTable.node.firstChild!.childCount - 1);
+    const targetRowIndex = Math.min(coordinates.rowIndex, nextTable.node.childCount - 1);
+    const selectionLocation = findRichTableCellLocation(transaction.doc, {
+      columnIndex: targetColumnIndex,
+      rowIndex: targetRowIndex,
+      tableIndex: coordinates.tableIndex
+    });
+    if (selectionLocation) {
+      transaction = transaction
+        .setSelection(TextSelection.near(transaction.doc.resolve(selectionLocation.contentPosition)))
+        .scrollIntoView();
+    }
+    dispatch(transaction);
+  });
+}
+
 function resolveRichTableRowTarget(
   state: EditorState,
   options: RunRichTableRowOperationOptions
@@ -1766,6 +1981,10 @@ export function runRichMarkdownCommand(
   commandId: RichCommandId,
   options: ApplyRichMarkdownCommandOptions = {}
 ): RichMarkdownCommandResult {
+  const tableColumnOperation = richTableColumnOperationForCommand(commandId);
+  if (tableColumnOperation) {
+    return runRichTableColumnOperation(state, { operation: tableColumnOperation });
+  }
   const tableOperation = richTableRowOperationForCommand(commandId);
   if (tableOperation) {
     return runRichTableRowOperation(state, { operation: tableOperation });
@@ -3382,6 +3601,12 @@ function executeRichMarkdownCommand(
       return executeRichTableRowOperation(state, "insert-after", dispatch);
     case "tableRowDelete":
       return executeRichTableRowOperation(state, "delete", dispatch);
+    case "tableColumnBefore":
+      return executeRichTableColumnOperation(state, "insert-before", dispatch);
+    case "tableColumnAfter":
+      return executeRichTableColumnOperation(state, "insert-after", dispatch);
+    case "tableColumnDelete":
+      return executeRichTableColumnOperation(state, "delete", dispatch);
     case "bold":
       return toggleMark(schema.marks.strong!)(state, dispatch);
     case "italic":
@@ -4680,6 +4905,19 @@ function escapeDetailsSummary(summary: string): string {
 
 function normalizeCommandQuery(query: string): string {
   return query.trim().replace(/^\/+/, "").toLowerCase().replace(/[\s_-]+/g, "");
+}
+
+function richTableColumnOperationForCommand(commandId: RichCommandId): RichTableColumnOperation | null {
+  if (commandId === "tableColumnBefore") {
+    return "insert-before";
+  }
+  if (commandId === "tableColumnAfter") {
+    return "insert-after";
+  }
+  if (commandId === "tableColumnDelete") {
+    return "delete";
+  }
+  return null;
 }
 
 function richTableRowOperationForCommand(commandId: RichCommandId): RichTableRowOperation | null {

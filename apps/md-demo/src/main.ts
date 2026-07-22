@@ -732,11 +732,15 @@ const richCommandIcons: Partial<Record<RichCommandId, IconName>> = {
   tableRowAfter: "more",
   tableRowBefore: "more",
   tableRowDelete: "more",
+  tableColumnAfter: "more",
+  tableColumnBefore: "more",
+  tableColumnDelete: "more",
   todo: "todo",
   toggleBlock: "chevron"
 };
 
 const TABLE_ROW_COMMAND_IDS = ["tableRowBefore", "tableRowAfter", "tableRowDelete"] as const satisfies readonly RichCommandId[];
+const TABLE_COLUMN_COMMAND_IDS = ["tableColumnBefore", "tableColumnAfter", "tableColumnDelete"] as const satisfies readonly RichCommandId[];
 
 function registerReferenceExtensions(editorSession: MarkdownEditorSession): void {
   for (const command of richCommandRegistry) {
@@ -3954,7 +3958,7 @@ function disabledRichToolbarIds(): readonly string[] {
   if (!richEditor || activeDocument.kind !== "markdown") {
     return richCommandRegistry.map((command) => richCommandExtensionId(command.id));
   }
-  const disabledIds = [...unavailableTableRowCommandIds()];
+  const disabledIds = [...unavailableTableRowCommandIds(), ...unavailableTableColumnCommandIds()];
   const selection = richEditor.state.selection;
   if (!(selection instanceof TextSelection) || selection.empty) {
     disabledIds.push("mme:link", "mme:image");
@@ -3968,6 +3972,16 @@ function unavailableTableRowCommandIds(): readonly string[] {
     return TABLE_ROW_COMMAND_IDS.map(richCommandExtensionId);
   }
   return TABLE_ROW_COMMAND_IDS
+    .filter((commandId) => !canRunRichMarkdownCommand(currentState, commandId))
+    .map(richCommandExtensionId);
+}
+
+function unavailableTableColumnCommandIds(): readonly string[] {
+  const currentState = currentRichStateFromEditor();
+  if (!currentState) {
+    return TABLE_COLUMN_COMMAND_IDS.map(richCommandExtensionId);
+  }
+  return TABLE_COLUMN_COMMAND_IDS
     .filter((commandId) => !canRunRichMarkdownCommand(currentState, commandId))
     .map(richCommandExtensionId);
 }
@@ -5004,7 +5018,10 @@ function filterAvailableRichSlashItems(items: readonly SlashItemDefinition[]): r
       return true;
     }
     const commandId = item.id.slice("mme:".length) as RichCommandId;
-    if (!TABLE_ROW_COMMAND_IDS.some((candidate) => candidate === commandId)) {
+    if (
+      !TABLE_ROW_COMMAND_IDS.some((candidate) => candidate === commandId) &&
+      !TABLE_COLUMN_COMMAND_IDS.some((candidate) => candidate === commandId)
+    ) {
       return true;
     }
     return Boolean(currentState && canRunRichMarkdownCommand(currentState, commandId));

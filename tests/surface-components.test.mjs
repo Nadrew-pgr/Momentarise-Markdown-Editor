@@ -169,6 +169,22 @@ assert(toolbarMoreMenu.style.left && toolbarMoreMenu.style.top, "Toolbar More me
 assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableRowBefore"]').textContent === "Insert row before", "Toolbar More menu must expose insert-row-before.");
 assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableRowAfter"]').textContent === "Insert row after", "Toolbar More menu must expose insert-row-after.");
 assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableRowDelete"]').textContent === "Delete row", "Toolbar More menu must expose delete-row.");
+assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableColumnBefore"]').textContent === "Insert column before", "Toolbar More menu must expose insert-column-before.");
+assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableColumnAfter"]').textContent === "Insert column after", "Toolbar More menu must expose insert-column-after.");
+assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableColumnDelete"]').textContent === "Delete column", "Toolbar More menu must expose delete-column.");
+assert(!query(toolbarHost, '[data-toolbar-command-id="mme:tableColumnBefore"]').disabled, "Available column commands must stay enabled.");
+query(toolbarHost, '[data-toolbar-command-id="mme:tableColumnBefore"]').click();
+assert(toolbarActions.includes("mme:tableColumnBefore"), "Column commands must dispatch through the shared toolbar handler.");
+toolbar.setState({
+  activeIds: [],
+  disabledIds: ["mme:tableColumnDelete"],
+  editorMode: "rich",
+  hostToolbarItems: session.extensions.getToolbarItems(),
+  visible: true
+});
+toolbar.setMoreOpen(true);
+assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableColumnDelete"]').disabled, "Unavailable final-column deletion must render disabled.");
+assert(!query(toolbarHost, '[data-toolbar-command-id="mme:tableColumnAfter"]').disabled, "Column insertion must remain enabled when deletion is unavailable.");
 Object.defineProperty(toolbarMoreMenu, "offsetHeight", { configurable: true, value: 240 });
 query(toolbarHost, '[data-testid="toolbar-more-button"]').getBoundingClientRect = () => ({
   bottom: 760,
