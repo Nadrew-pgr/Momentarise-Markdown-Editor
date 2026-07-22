@@ -4376,6 +4376,90 @@ Architecture Reviewer, Test Reviewer, Security Reviewer, and UX Reviewer.
 
 - None. MME-0059 through MME-0070 established exact paragraph/block layouts, recursive standard/task/quote/callout reconstruction, literal raw-HTML DOM safety, history/save truth, and browser proof. Direct parser probes confirm exact single-line inline token ranges and existing strict root-overlap suppression without widening core/parser/public contracts.
 
+Accepted for code continuation 2026-07-21 after adding a package-owned inert inline-HTML source mark for exact single-line parser-owned tokens across safe top-level/list/task/quote/callout footnote paragraphs, literal text-only hostile-payload DOM proof, exact untouched-source retention, bounded deterministic paragraph/container reconstruction, conservative Markdown-wrapper/multiline/table/block/duplicate/nested/stale/invalid-indent refusal, truthful history/save state, package docs, tokenized demo styling, real browser proof, fallback review, and full test pass. The requested exact `gpt-5.3-codex-spark` reviewer at `xhigh` reasoning hit its usage limit until 2026-07-26 and no substitute model was used; documented fallback review found and closed one P2 proof gap, then found no remaining P0-P3 issue. Final inline-token readability, literal-versus-rendered clarity, hierarchy, focus/selection flow, fallback wording, Source visibility, full-editor focus outline, diagnostics-chip placement, narrow wrapping, and constrained-layout taste remain queued for Andrew's end-of-run review block.
+
+## MME-0072 — Rich Markdown table row operations baseline
+
+### Goal
+
+Let framework consumers and users insert or delete body rows in supported Rich Markdown tables through reusable package commands and reference command surfaces, while preserving Markdown as durable source, exact untouched bytes outside the owned table, deterministic serialization, nested footnote/list/task containers, history, selection, accessibility, and save truth.
+
+### Scope
+
+- Add package-owned, typed Rich table-row operations for inserting a body row before or after a selected/targeted body row and deleting a selected/targeted body row.
+- Add context-sensitive Rich command-registry entries for insert-row-before, insert-row-after, and delete-row so framework hosts can expose the same behavior through slash, toolbar, command-palette, or custom UI without reimplementing ProseMirror table transforms.
+- Reuse `prosemirror-tables` row commands and existing table lookup, selection, alignment normalization, source fingerprints, targeted serializers, and history plugins; do not hand-roll generic table transforms.
+- Admit only semantic supported tables and body-row targets. Refuse header-row insertion/deletion, missing/stale targets, source-only/malformed tables, and selections outside tables without mutation.
+- Preserve header cell types, column count, header-derived alignment, inline Markdown in untouched cells, exact source outside the changed table, footnote/list/task hierarchy and indentation, definition prefixes, ordered starts, task state, loose state, and LF/CRLF convention.
+- Place selection in the inserted row after insertion and in the nearest valid cell after deletion, with one undo restoring the exact prior source and redo restoring the operation.
+- Keep final-cell Tab row append compatible and route shared row normalization through one implementation where practical.
+- Surface row commands in the reusable command registry and reference demo with accessible labels, disabled/unavailable behavior outside supported body rows, keyboard invocation, save-state proof, and constrained-width browser evidence.
+- Queue final table-row command placement, wording, density, focus, selection, and constrained-layout taste review for Andrew's end-of-run human review block.
+
+### Acceptance criteria
+
+- Public package APIs and Rich command IDs can insert before, insert after, and delete a body row in a selected or explicitly targeted supported table; invalid/header/source-only/stale targets return the original state and report or expose an unhandled result.
+- Inserted rows are rectangular, use body-cell node types, inherit normalized header alignment, serialize as Markdown-representable empty cells, and receive a predictable first/current-column selection.
+- Deleting a body row preserves a valid semantic table, never deletes or demotes the header row, and leaves selection in the nearest valid cell.
+- Untouched tables serialize byte-for-byte. Changed tables serialize deterministically while bytes before and after the owned table remain exact and unchanged cells retain supported inline Markdown.
+- Top-level tables plus existing safe top-level/list/task footnote table contexts support row operations with exact container hierarchy, indentation, definition prefixes, ordered starts, task checked state, loose state, and LF/CRLF retention.
+- One undo restores the exact pre-operation Markdown and selection-compatible table shape; redo restores the deterministic changed Markdown. Save Engine persists exactly the Source Markdown shown by the editor.
+- Final-cell Tab append remains compatible and uses the same body-cell/alignment invariants as explicit insertion.
+- Malformed, unsupported nested, source-only, missing, stale, header-targeted, and selection-outside-table cases do not mutate source or editor state.
+- The package command registry remains host-independent; the reference slash/toolbar surfaces expose accessible row-action labels and disabled/unavailable behavior outside supported body rows without demo-only table mutation logic.
+- Browser verification captures insertion before/after, deletion, undo/redo, Source output, dirty-to-clean save truth, nested table behavior, unavailable states, and constrained-width containment.
+- Public API, architecture, preservation, rich-security, command-surface, Save Engine, fixture, renderer, preview, and full-suite gates pass.
+- `docs/internal/build-log.md` records RED/GREEN evidence, visual impact, reviewer or fallback result, tests, residual risks, commit, push status, and next issue.
+
+### Test-first plan
+
+- RED: add a real table-row fixture and focused test that fails because explicit package row-operation APIs and command IDs do not exist.
+- RED: prove insert-before, insert-after, delete, selection continuity, rectangular shape, header/body types, inherited alignment, inline-mark retention, exact outside-table bytes, deterministic changed Markdown, LF/CRLF, and one-step undo/redo.
+- RED: prove top-level plus safe top-level/list/task footnote table operations preserve definition/container syntax, ordered starts, task state, loose state, sibling bytes, references, and no-full-document-rewrite invariants.
+- RED: prove header, malformed/source-only, unsupported nested, missing, stale, and outside-table targets refuse without mutation.
+- RED: prove command registry search, run/unhandled semantics, reference slash/toolbar registration, accessible labels, context disablement, final-cell Tab compatibility, and Save Engine truth.
+- RED: add browser/runtime assertions for real row insertion/deletion, undo/redo, exact Source output, clean save state, nested behavior, unavailable controls, and constrained containment.
+- GREEN: add only the typed row-operation wrapper, command IDs/registry metadata, context check, shared row normalization, and reference wiring needed by the proofs.
+- REFACTOR: centralize table target resolution and row alignment/selection logic so explicit commands and final-cell Tab cannot drift.
+
+### Manual verification
+
+- Start the reference demo with supported top-level and footnote/list/task tables plus malformed/source-only examples.
+- Select body cells and invoke insert before, insert after, and delete from the reference command surfaces; verify focus moves predictably, header/alignment remains stable, unavailable contexts do not mutate, and final-cell Tab still appends one row.
+- Undo/redo each operation, save, switch to Source, inspect exact deterministic Markdown and clean state, then repeat at constrained width and capture artifacts under `docs/internal/visual-checks/MME-0072/`.
+
+### Visual impact
+
+Supported table body cells gain accessible row-action entries in the existing command surfaces. The table itself keeps its established styling; inserted/deleted rows change only table shape and selection. Final command placement, labels, menu density, selected-cell focus treatment, narrow horizontal reachability, and constrained-layout taste remain queued for Andrew's end-of-run review block.
+
+### Implementation notes
+
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-editor/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-rich-prosemirror/package.json`, `packages/md-surface/src/index.ts`, `packages/md-surface/README.md`, `packages/md-theme/src/index.ts`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/reference-surface.ts`, `apps/md-demo/src/styles.css`, `fixtures/032-table-footnote-editing`, `tests/rich-table-editing.test.mjs`, `tests/rich-footnote-tables.test.mjs`, `tests/rich-commands.test.mjs`, `tests/demo-slash-toolbar-baseline.test.mjs`, `tests/editor-surface-package.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/save-engine.test.mjs`, `scripts/visual-check-mme0068.mjs`, `scripts/visual-check-mme0071.mjs`, and the MME-0055/MME-0068/MME-0071 build-log and visual artifacts.
+
+Direct feasibility probes confirm upstream `addRowBefore`, `addRowAfter`, and `deleteRow` operate on MME top-level and semantic footnote tables, and existing targeted serializers keep bytes outside the table exact. Upstream commands also permit destructive header transforms, so package-owned eligibility must reject row index `0`. Normalize every inserted body cell from the semantic header alignment, preserve one transaction/history action, and keep all mutation logic in `@momentarise/md-rich-prosemirror`; reference surfaces only consume public command metadata/results.
+
+### Out of scope
+
+- Column insertion/deletion/reordering, row drag/reorder, merged cells, rowspan/colspan editing, header creation/removal, alignment controls, table creation dialogs, column resizing, sorting, filtering, formulas, spreadsheet calculation, or CSV/TSV/spreadsheet paste.
+- Generic blockquote-contained or otherwise unsupported nested table admission, HTML inside cells, malformed table repair, parser/model contract widening, full-document normalization, or non-Markdown table adapters.
+- Final table visual redesign, mobile touch handles, polished context menus, command-surface redesign, docs-content construction, or public-release copy.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer allowed; code review must use exactly `gpt-5.3-codex-spark` at `xhigh` when available.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible table-row command/product review is queued for the end-of-run human review block unless source ownership, header protection, bounded serialization, history, or save truth remains unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer.
+
+### Blocked by
+
+- None. MME-0055 established semantic top-level table editing, navigation, final-cell row append, deterministic changed-table serialization, and Save Engine truth. MME-0068 extended the same exact source ownership and bounded reconstruction to safe top-level/list/task footnote table contexts. Direct `prosemirror-tables` probes confirm row transforms are viable inside those states; strict body-row eligibility closes the observed unsafe header-transform behavior.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

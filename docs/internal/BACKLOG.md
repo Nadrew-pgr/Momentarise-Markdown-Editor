@@ -25,7 +25,7 @@ Tags: `baseline/hygiene`, `markdown`, `rich-mode`, `live-preview`, `round-trip`
 - Render tables properly in read mode and live preview.
 - Keep source mode as the truth and fallback for every table form.
 - Rich mode must never silently convert a table into lossy paragraphs.
-- Future rich editing should support cells, rows, columns, keyboard navigation, paste from spreadsheet/CSV-like content, and explicit Markdown-safe serialization.
+- Rich cell editing, keyboard navigation, and final-cell row append are implemented in MME-0055; explicit body-row insert/delete is promoted as MME-0072. Columns, row/column reorder, and spreadsheet/CSV-like paste remain backlog and require explicit Markdown-safe serialization.
 - Tests must include real table fixtures, edited-neighbor preservation, and round-trip proof.
 
 ### Footnotes / Endnotes
@@ -213,6 +213,7 @@ Tags: `public-release`, `human-review`, `ui`, `ax`
 - MME-0069 callout-footnote review: implementation accepted for code continuation; review callout density, marker/type/title/fold header treatment, top-level/list/task hierarchy, body-only editing and focus flow, deterministic changed-callout normalization, malformed/nested/list/raw-HTML/mixed-container fallback wording, Source visibility, the observed full-editor blue focus outline, the observed diagnostics-chip overlap at constrained width, deep narrow-width wrapping, and constrained layout.
 - MME-0070 raw-HTML-footnote review: implementation accepted for code continuation; review code-like source readability, top-level/list/task hierarchy, literal-versus-preview clarity, script/event-handler inertness messaging, edit/focus flow, horizontal scrolling, inline/overlapping/nested/mixed fallback wording, Source visibility, the observed dominant full-editor blue focus outline, the observed diagnostics-chip overlap at constrained width, deep narrow-width wrapping, and constrained layout.
 - MME-0071 inline-HTML-footnote review: implementation accepted for code continuation; review inline tag/comment readability, literal-versus-rendered clarity, top-level/list/task/quote/callout hierarchy, hostile attribute/script-source inertness, script-body Markdown emphasis hiding underscore bytes in Rich display while Source remains exact, edit/focus/selection flow across tag boundaries, selected-token viewport clipping before focus clears, marked-wrapper/multiline/ambiguous fallback wording, Source visibility, the observed dominant full-editor blue focus outline, the observed diagnostics-chip overlap at constrained width, narrow wrapping, and constrained layout.
+- MME-0072 table-row operations review: review insert-before/after/delete placement and labels, toolbar/slash density, unavailable-state clarity, selected-cell/focus continuity, undo/redo feel, final-cell Tab compatibility, nested table reachability, wide-table horizontal scrolling, and constrained layout.
 - Future visible/UI/HITL slices in this autonomous run should be added here instead of blocking code continuation, per the 2026-07-19 human instruction to review visible work in one final block.
 
 - Visible asset upload UX and demo provider follow-up for image paste/drop, building on the promoted MME-0051 provider contract while keeping real storage host-owned. First visible upload UX slice promoted as `MME-0054`.
@@ -294,6 +295,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - `MME-0069 — Rich Obsidian callout footnote definition editing baseline`.
 - `MME-0070 — Rich inert raw-HTML footnote block editing baseline`.
 - `MME-0071 — Rich inert inline-HTML footnote paragraph editing baseline`.
+- `MME-0072 — Rich Markdown table row operations baseline`.
 
 - Editor live preview parity.
 - Toolbar/slash/menu final UX.
@@ -305,7 +307,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - Document status/save truth UI.
 - Footnotes/endnotes preservation, rendering, backlink navigation, and editing UX.
 - First rich footnote definition editing baseline promoted as `MME-0056`; insertion is promoted as `MME-0057`; identifier rename is promoted as `MME-0058`; top-level continuation-line editing is promoted as `MME-0059`; top-level multi-paragraph editing is promoted as `MME-0060`; standard list-block editing is promoted as `MME-0061`; nested standard lists are promoted as `MME-0062`; task lists are promoted as `MME-0063`; loose/list-spread and multi-paragraph list items are promoted as `MME-0064`; safe paragraph-only blockquotes are promoted as `MME-0065`; safe fenced code blocks are promoted as `MME-0066`; safe indented code blocks are promoted as `MME-0067`; safe table blocks are promoted as `MME-0068`; safe paragraph-only Obsidian callouts are promoted as `MME-0069`; inert block-HTML source editing is promoted as `MME-0070`; inert inline-HTML paragraph source editing is promoted as `MME-0071`; other arbitrary nested blocks remain future splits.
-- Table rendering and first rich table editing baseline promoted as `MME-0040` and `MME-0055`; advanced spreadsheet-like table UX remains backlog.
+- Table rendering and first rich table editing baseline promoted as `MME-0040` and `MME-0055`; explicit body-row operations are promoted as `MME-0072`; columns, reorder, and spreadsheet-like paste remain backlog.
 - Nested GFM table rich editing requires container-specific bounded serialization. MME-0068 covers the safe footnote-definition and standard/task-list subset; blockquote-contained and other generic nested tables remain source-only instead of rewriting container syntax.
 - Inline slash AI prompt surface.
 - LiteLLM / OpenAI-compatible AI provider adapter.

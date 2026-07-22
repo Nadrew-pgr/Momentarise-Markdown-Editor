@@ -6920,3 +6920,38 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0071`. The next unblocked must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.
+
+## Backlog promotion checkpoint — MME-0072
+
+- Date: 2026-07-22.
+- Context:
+  - `MME-0071` is accepted for code continuation and committed (`788f00d` implementation/status, `5dfbbae` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0071.
+  - Andrew instructed autonomous continuation, must-haves first, strict issue formatting, issue-scoped commits, no docs-content work in this agent, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Feasibility proof:
+  - Existing MME-0055/MME-0068 semantic tables already expose exact owned ranges, deterministic changed-table serialization, nested footnote/list/task reconstruction, final-cell row append, history, and Save Engine truth.
+  - Direct `prosemirror-tables` probes against current built MME states confirm `addRowBefore`, `addRowAfter`, and `deleteRow` transform top-level and semantic footnote tables while existing serializers keep bytes outside the table exact.
+  - The same probes exposed the required safety boundary: upstream row commands permit inserting before or deleting the semantic header row, which changes table meaning. MME-0072 therefore admits body rows only and must refuse row index `0` before dispatch.
+- Change:
+  - Promoted `MME-0072 — Rich Markdown table row operations baseline` into normal issue form.
+  - Bounded the slice to reusable body-row insert-before, insert-after, and delete APIs plus context-aware command-registry/reference-surface wiring.
+  - Required header protection, inherited alignment, predictable selection, one-step history, exact outside-table bytes, deterministic top-level/nested Markdown, save truth, unavailable-state proof, and browser evidence.
+  - Left columns, reorder, merged cells, alignment UI, table creation, spreadsheet/CSV paste, generic nested-table admission, and final visual redesign in backlog.
+  - Updated `README.md` current slice plus `docs/internal/BACKLOG.md` promotion and end-of-run review tracking.
+- Rationale:
+  - Advanced table editing is the first unfinished `baseline/hygiene` requirement in backlog order after the completed semantic table and footnote slices.
+  - Row operations are a bounded vertical slice over already-proven ownership and serialization; columns and spreadsheet paste carry separate parser/UX risk and should remain later issues.
+- Checks required before checkpoint commit:
+  - `npm run test:alignment`.
+  - `node scripts/docs-lint.mjs`.
+  - `git diff --check`.
+- Reviewer plan:
+  - Implementation review will use exactly `gpt-5.3-codex-spark` at `xhigh` if available; no substitute code-review model.
+  - If unavailable, perform and document a fallback self-review covering header protection, target resolution, one-transaction history, alignment, selection, exact ownership, nested serialization, command availability, accessibility, save truth, and regressions.
+- Commit status:
+  - Promotion checkpoint pending.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - `MME-0072 — Rich Markdown table row operations baseline`.
