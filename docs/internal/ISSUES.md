@@ -4462,6 +4462,88 @@ Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer.
 
 Accepted for code continuation 2026-07-22 after adding typed body-row insert-before/after/delete APIs and Rich command IDs, strict body/header/stale/missing/outside-table eligibility, upstream ProseMirror table transforms, header-derived body-cell alignment, predictable inserted/nearest surviving selection, one-step history, exact untouched and bounded deterministic top-level/direct/list/task serialization, LF/CRLF and Save Engine truth, final-cell Tab compatibility, reusable accessible More/slash wiring, disabled unavailable states, viewport-clamped More-menu placement, dedicated fixture/browser evidence, exact Spark/xhigh review, and a full test pass. The reviewer found no P0-P3 issue; three residual proof/UX gaps were closed by adding bottom-edge menu placement, dedicated fixture 036 visual coverage, and final-body-row deletion selection proof. Final command placement/labels, More/slash density, selected-cell focus, wide horizontal reachability, full-editor focus outline, diagnostics-chip overlap, far-right-scroll composition, and constrained-layout taste remain queued for Andrew's end-of-run review block. No executable normal issue remains after MME-0072 until the next backlog item is promoted.
 
+## MME-0073 — Rich Markdown table column operations baseline
+
+### Goal
+
+Let framework consumers and users insert or delete columns in supported Rich Markdown tables through reusable package commands and reference command surfaces, while preserving Markdown as durable source, exact untouched bytes outside the owned table, deterministic serialization, semantic header/body cell types, nested footnote/list/task containers, history, selection, accessibility, and save truth.
+
+### Scope
+
+- Add package-owned, typed Rich table-column operations for inserting a column before or after a selected/targeted column and deleting a selected/targeted column.
+- Add context-sensitive Rich command-registry entries for insert-column-before, insert-column-after, and delete-column so framework hosts can expose the same behavior through slash, toolbar, command-palette, or custom UI without reimplementing ProseMirror transforms.
+- Reuse `prosemirror-tables` column commands and existing table lookup, selection, source fingerprints, targeted serializers, row-operation availability patterns, and history plugins; do not hand-roll generic table transforms.
+- Admit only semantic supported tables. Refuse missing/stale targets, source-only/malformed tables, selections outside tables, invalid rows/cells, and deletion of the only remaining column without mutation.
+- Preserve rectangular row shape, header-cell type in the semantic header, body-cell types elsewhere, untouched cell content/inline Markdown, exact source outside the changed table, footnote/list/task hierarchy and indentation, definition prefixes, ordered starts, task state, loose state, and LF/CRLF convention.
+- Give inserted columns deterministic neutral alignment and Markdown delimiters. Place selection in the inserted column after insertion and in the nearest valid surviving column on the same row after deletion.
+- Keep MME-0055/MME-0072 cell navigation, final-cell Tab append, and row operations compatible.
+- Surface column commands in the reusable command registry and reference demo with accessible labels, disabled/unavailable behavior outside supported table cells or when deleting the only column, keyboard invocation, save-state proof, and constrained-width browser evidence.
+- Queue final table-column command placement, wording, density, focus, selection, horizontal scrolling, and constrained-layout taste review for Andrew's end-of-run human review block.
+
+### Acceptance criteria
+
+- Public package APIs and Rich command IDs can insert before, insert after, and delete a column in a selected or explicitly targeted supported table; invalid/source-only/stale/outside-table targets return the original state and report or expose an unhandled result.
+- Inserted columns keep every row rectangular, use header cells in the first row and body cells elsewhere, use deterministic neutral alignment, serialize as Markdown-representable empty cells, and receive a predictable current-row selection.
+- Deleting a column never removes the only remaining column, never deletes/demotes the header row, and leaves selection in the nearest valid surviving column on the same row.
+- Untouched tables serialize byte-for-byte. Changed tables serialize deterministically while bytes before and after the owned table remain exact and untouched cells retain supported inline Markdown and alignment.
+- Top-level tables plus existing safe direct/list/task footnote table contexts support column operations with exact container hierarchy, indentation, definition prefixes, ordered starts, task checked state, loose state, and LF/CRLF retention.
+- One undo restores the exact pre-operation Markdown and table shape; redo restores deterministic changed Markdown. Save Engine persists exactly the Source Markdown shown by the editor.
+- Existing row insert/delete, cell edit/navigation, Shift+Tab, and final-cell Tab append behavior remains compatible.
+- Malformed, unsupported nested, source-only, missing, stale, invalid-coordinate, outside-table, and one-column delete cases do not mutate source or editor state.
+- The package command registry remains host-independent; reference slash/toolbar surfaces expose accessible column-action labels and context disablement without demo-only table mutation logic.
+- Browser verification captures insertion before/after, deletion, undo/redo, Source output, dirty-to-clean save truth, nested table behavior, unavailable/one-column states, horizontal reachability, and constrained-width containment.
+- Public API, architecture, preservation, rich-security, command-surface, Save Engine, fixture, renderer, preview, and full-suite gates pass.
+- `docs/internal/build-log.md` records RED/GREEN evidence, visual impact, reviewer or fallback result, tests, residual risks, commit, push status, and next issue.
+
+### Test-first plan
+
+- RED: add a real table-column fixture and focused test that fails because explicit package column-operation APIs and command IDs do not exist.
+- RED: prove insert-before, insert-after, delete, selection continuity, rectangular shape, header/body cell types, neutral inserted alignment, untouched alignment/inline-mark retention, exact outside-table bytes, deterministic changed Markdown, LF/CRLF, and one-step undo/redo.
+- RED: prove top-level plus safe direct/list/task footnote table operations preserve definition/container syntax, ordered starts, task state, loose state, sibling bytes, references, and no-full-document-rewrite invariants.
+- RED: prove malformed/source-only, unsupported nested, missing, stale, invalid-coordinate, outside-table, and only-column deletion targets refuse without mutation.
+- RED: prove command registry search, run/unhandled semantics, reference slash/toolbar registration, accessible labels, context disablement, row-operation/navigation compatibility, and Save Engine truth.
+- RED: add browser/runtime assertions for real column insertion/deletion, undo/redo, exact Source output, clean save state, nested behavior, unavailable controls, horizontal reachability, and constrained containment.
+- GREEN: add only the typed column-operation wrapper, command IDs/registry metadata, context checks, selection normalization, and reference wiring needed by the proofs.
+- REFACTOR: share table target/dispatch utilities with row operations only where it reduces duplication without weakening their distinct eligibility rules.
+
+### Manual verification
+
+- Start the reference demo with supported top-level and direct/list/task footnote tables, a one-column table, and malformed/source-only examples.
+- Select header/body cells and invoke insert before, insert after, and delete from reference command surfaces; verify focus moves predictably, row/header types and existing alignments remain stable, only-column/outside-table contexts do not mutate, and row/Tab behavior still works.
+- Undo/redo each operation, save, switch to Source, inspect exact deterministic Markdown and clean state, then repeat at constrained width and capture artifacts under `docs/internal/visual-checks/MME-0073/`.
+
+### Visual impact
+
+Supported table cells gain accessible column-action entries in the existing command surfaces. Inserted/deleted columns change table width and selected-cell position without redesigning the table. Final command placement, labels, menu density, selected-cell focus treatment, horizontal reachability, and constrained-layout taste remain queued for Andrew's end-of-run review block.
+
+### Implementation notes
+
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-editor/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-rich-prosemirror/package.json`, `packages/md-surface/src/index.ts`, `packages/md-surface/README.md`, `packages/md-theme/src/index.ts`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/reference-surface.ts`, `apps/md-demo/src/styles.css`, `fixtures/036-table-row-operations`, `tests/rich-table-editing.test.mjs`, `tests/rich-table-row-operations.test.mjs`, `tests/rich-footnote-tables.test.mjs`, `tests/rich-commands.test.mjs`, `tests/demo-slash-toolbar-baseline.test.mjs`, `tests/demo-table-row-commands.test.mjs`, `tests/surface-components.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/save-engine.test.mjs`, `scripts/visual-check-mme0072.mjs`, and the MME-0055/MME-0068/MME-0072 build-log and visual artifacts.
+
+Direct feasibility probes confirm upstream `addColumnBefore`, `addColumnAfter`, and `deleteColumn` transform MME top-level and semantic direct/list/task footnote tables while existing serializers keep bytes outside the table exact. Upstream insertion creates correct header/body cell types and neutral alignment, but leaves selection on the original cell; deletion can move selection to an unrelated row. The package wrapper must normalize selection into the inserted or nearest surviving column on the target row. Upstream refuses deletion of a one-column table; expose that boundary explicitly as package availability/failure state. Keep all mutation logic in `@momentarise/md-rich-prosemirror`; reference surfaces only consume public command metadata/results.
+
+### Out of scope
+
+- Column or row drag/reorder, merged cells, rowspan/colspan editing, header creation/removal, alignment controls, column resizing, sorting, filtering, formulas, spreadsheet calculation, or CSV/TSV/spreadsheet paste.
+- Generic blockquote-contained or otherwise unsupported nested table admission, HTML inside cells, malformed table repair, parser/model contract widening, full-document normalization, or non-Markdown table adapters.
+- Final table visual redesign, mobile touch handles, polished context menus, command-surface redesign, docs-content construction, or public-release copy.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer allowed; code review must use exactly `gpt-5.3-codex-spark` at `xhigh` when available.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible table-column command/product review is queued for the end-of-run human review block unless source ownership, cell-type preservation, bounded serialization, history, or save truth remains unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer.
+
+### Blocked by
+
+- None. MME-0055 established semantic table editing/navigation/serialization, MME-0068 extended bounded nested-table reconstruction, and MME-0072 established reusable structural table commands, context availability, one-transaction history, and shared reference wiring. Direct `prosemirror-tables` probes confirm column transforms and the one-column refusal boundary on current MME states.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

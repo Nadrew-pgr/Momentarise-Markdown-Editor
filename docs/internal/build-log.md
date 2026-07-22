@@ -7000,3 +7000,39 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0072`. The next unblocked must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.
+
+## Backlog promotion checkpoint — MME-0073
+
+- Date: 2026-07-22.
+- Context:
+  - `MME-0072` is accepted for code continuation and committed (`ef17c08` implementation/status, `e724bbc` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0072.
+  - Andrew instructed autonomous continuation, must-haves first, strict issue formatting, issue-scoped commits, no docs-content work in this agent, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Feasibility proof:
+  - Existing MME-0055/MME-0068/MME-0072 semantic tables expose exact owned ranges, deterministic changed-table serialization, nested direct/list/task reconstruction, selection helpers, structural-command availability, history, and Save Engine truth.
+  - Direct `prosemirror-tables` probes against current built MME states confirm `addColumnBefore`, `addColumnAfter`, and `deleteColumn` transform top-level and semantic ordered/task footnote tables while existing serializers keep bytes outside the table exact.
+  - Insertion creates rectangular rows with correct header/body cell types and neutral alignment delimiters. Upstream keeps selection on the original cell after insertion and can move it to another row after deletion, so MME-0073 requires package-owned current-row selection normalization.
+  - Upstream rejects deletion of a one-column table without mutation, establishing an explicit `last-column-protected` availability/failure boundary.
+- Change:
+  - Promoted `MME-0073 — Rich Markdown table column operations baseline` into normal issue form.
+  - Bounded the slice to reusable insert-column-before, insert-column-after, and delete-column APIs plus context-aware command-registry/reference-surface wiring.
+  - Required one-column protection, correct header/body types, neutral inserted alignment, predictable selection, one-step history, exact outside-table bytes, deterministic top-level/nested Markdown, save truth, unavailable-state proof, and browser evidence.
+  - Left reorder, merged cells, resizing, alignment UI, sorting/filtering/formulas, spreadsheet/CSV paste, generic nested-table admission, and final visual redesign in backlog.
+  - Updated `README.md` current slice plus `docs/internal/BACKLOG.md` promotion and end-of-run review tracking.
+- Rationale:
+  - Column operations are the next explicit unfinished advanced-table baseline after MME-0072 row operations.
+  - The slice is bounded over proven source ownership and serializers; reorder and spreadsheet paste carry distinct interaction/parser risks and remain separate candidates.
+- Checks required before checkpoint commit:
+  - `npm run test:alignment`.
+  - `node scripts/docs-lint.mjs`.
+  - `git diff --check`.
+- Reviewer plan:
+  - Implementation review will use exactly `gpt-5.3-codex-spark` at `xhigh` if available; no substitute code-review model.
+  - If unavailable, perform and document a fallback self-review covering target resolution, one-column protection, header/body types, neutral alignment, current-row selection, one-transaction history, exact ownership, nested serialization, command availability, accessibility, save truth, and regressions.
+- Commit status:
+  - Promotion checkpoint pending.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - `MME-0073 — Rich Markdown table column operations baseline`.
