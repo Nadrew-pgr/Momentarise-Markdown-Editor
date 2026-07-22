@@ -7080,3 +7080,39 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0073`. The next unblocked must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.
+
+## Backlog promotion checkpoint — MME-0074
+
+- Date: 2026-07-22.
+- Context:
+  - `MME-0073` is accepted for code continuation and committed (`dfdc31c` implementation/status, `bd2cec3` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0073.
+  - Andrew instructed autonomous continuation, must-haves first, strict issue formatting, issue-scoped commits, no docs-content work in this agent, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Feasibility proof:
+  - Installed MIT-licensed `prosemirror-tables` exports `moveTableRow` and `moveTableColumn`; no new dependency or architecture decision is required.
+  - Direct probes against current built MME states confirm body-row and column movement in top-level plus semantic ordered/task footnote tables, deterministic changed-table serialization, preserved column alignment/content, and exact bytes outside the owned table.
+  - The same probes exposed mandatory guards: moving row index `0` or moving a body row to index `0` corrupts semantic header meaning, invalid indices throw upstream, no-op moves return false, and `select: false` leaves no usable cell selection.
+  - A package-owned wrapper can prevalidate indices/header boundaries, normalize moved-cell selection, preserve one transaction/history action, and expose safe adjacent command availability without widening supported table syntax.
+- Change:
+  - Promoted `MME-0074 — Rich Markdown table row and column reorder baseline` into normal issue form.
+  - Bounded the slice to reusable arbitrary-index body-row/column reorder APIs plus Move row up/down and Move column left/right command-registry/reference-surface wiring.
+  - Required header/index/no-op safety, moved-cell selection, one-step history, exact outside-table bytes, deterministic top-level/nested Markdown, save truth, command boundary proof, and browser evidence.
+  - Left drag handles, pointer/touch movement, multi-selection, merged cells, resizing, alignment UI, sorting/filtering/formulas, spreadsheet/CSV paste, generic nested-table admission, and final visual redesign in backlog.
+  - Updated `README.md` current slice plus `docs/internal/BACKLOG.md` promotion and end-of-run review tracking.
+- Rationale:
+  - Row/column reorder is the next explicit unfinished `baseline/hygiene` table item after MME-0072/MME-0073 structural operations.
+  - Safe package APIs provide the reusable foundation for future host drag/drop while adjacent commands give keyboard-accessible reference behavior without prematurely designing touch/drag UX.
+- Checks required before checkpoint commit:
+  - `npm run test:alignment`.
+  - `node scripts/docs-lint.mjs`.
+  - `git diff --check`.
+- Reviewer plan:
+  - Implementation review will use exactly `gpt-5.3-codex-spark` at `xhigh` if available; no substitute code-review model.
+  - If unavailable, perform and document a fallback self-review covering header/index protection, arbitrary and adjacent movement semantics, one-transaction history, selection, exact ownership, nested serialization, command availability, accessibility, save truth, and regressions.
+- Commit status:
+  - Promotion checkpoint pending.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - `MME-0074 — Rich Markdown table row and column reorder baseline`.

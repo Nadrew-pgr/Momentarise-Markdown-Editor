@@ -4546,6 +4546,90 @@ Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer.
 
 Accepted for code continuation 2026-07-22 after adding typed insert-column-before/after/delete APIs and Rich command IDs, strict stale/missing/outside/final-column refusal, upstream ProseMirror transforms, semantic header/body cell retention, neutral inserted alignment, predictable inserted/nearest-surviving current-row selection, one-step history, exact untouched and bounded deterministic top-level/direct/list/task serialization, LF/CRLF and Save Engine truth, row/final-cell-Tab compatibility, reusable accessible More/slash wiring, context-disabled states, dedicated fixture/browser evidence, exact Spark/xhigh review, and a full test pass. The reviewer found no P0-P2 issue; its P3 runtime-state coverage gap was closed with executable shared-surface dispatch and disabled-state assertions while the builder's permissioned Chrome harness proved full demo integration. Final command placement/labels, More/slash density, selected-cell focus, wide horizontal reachability, full-editor focus outline, diagnostics-chip overlap, far-right-scroll composition, and constrained-layout taste remain queued for Andrew's end-of-run review block. No executable normal issue remains after MME-0073 until the next backlog item is promoted.
 
+## MME-0074 — Rich Markdown table row and column reorder baseline
+
+### Goal
+
+Let framework consumers and users reorder body rows and columns in supported Rich Markdown tables through reusable package APIs and accessible adjacent-move commands, while preserving Markdown as durable source, the semantic header boundary, exact untouched bytes outside the owned table, deterministic serialization, nested footnote/list/task containers, history, selection, accessibility, and save truth.
+
+### Scope
+
+- Add package-owned, typed table row/column reorder APIs that move an explicitly selected or indexed body row/column to a validated destination.
+- Add context-sensitive Rich command-registry entries for Move row up, Move row down, Move column left, and Move column right so hosts can expose safe adjacent moves through slash, toolbar, command palette, keyboard bindings, or custom UI.
+- Reuse the installed `prosemirror-tables` `moveTableRow` and `moveTableColumn` commands; do not hand-roll generic table movement.
+- Admit only semantic supported tables. Refuse stale/source-only/malformed/outside-table targets, invalid source/destination indices, no-op moves, movement of the semantic header row, and movement of a body row into header index `0` without mutation.
+- Preserve rectangular shape, semantic header/body cell types, cell content and inline Markdown, column alignment, exact source outside the changed table, footnote/list/task hierarchy and indentation, definition prefixes, ordered starts, task state, loose state, and LF/CRLF convention.
+- After row movement, select the moved row at the same valid column. After column movement, select the moved column on the same valid row. Keep each move one undoable transaction.
+- Keep MME-0055/MME-0072/MME-0073 cell navigation, final-cell Tab append, row insert/delete, and column insert/delete compatible.
+- Expose adjacent-move availability from public command state: row up/down disables at body boundaries; column left/right disables at column boundaries; all four disable outside supported table cells.
+- Surface the commands in reusable localized surfaces and the reference demo with accessible labels, keyboard invocation, truthful save-state proof, and constrained-width browser evidence.
+- Queue final command placement, wording, menu density, moved-cell focus, drag-handle expectations, horizontal scrolling, and constrained-layout taste review for Andrew's end-of-run human review block.
+
+### Acceptance criteria
+
+- Public package APIs can reorder a validated body row or column between arbitrary supported indices; Rich command IDs move the selected body row one step up/down and the selected column one step left/right.
+- Row movement never moves the semantic header row or places a body row at index `0`. First-body-row up and final-body-row down are unavailable and do not mutate.
+- First-column left and final-column right are unavailable and do not mutate. Column movement preserves the corresponding header/body cells, cell content, and alignment as one column.
+- Invalid/missing/source-only/stale/outside-table/no-op targets return the original state with a typed failure or unhandled command result instead of throwing or partially mutating.
+- Selection moves with the reordered row/column at the same valid orthogonal coordinate. One undo restores the exact pre-move Markdown/table shape and redo restores the deterministic reordered Markdown.
+- Untouched tables serialize byte-for-byte. Changed tables serialize deterministically while bytes before and after the owned table remain exact and untouched cells retain supported inline Markdown and alignment.
+- Top-level tables plus existing safe direct/list/task footnote table contexts support reorder with exact container hierarchy, indentation, definition prefixes, ordered starts, task checked state, loose state, and LF/CRLF retention.
+- Existing row/column insert/delete, cell edit/navigation, Shift+Tab, and final-cell Tab append behavior remains compatible after reorder.
+- Malformed, unsupported nested, source-only, header-targeted, invalid-index, no-op, stale, and outside-table cases do not mutate source or editor state.
+- The package registry remains host-independent; reusable slash/toolbar surfaces expose localized adjacent-move labels and correct disabled states without demo-owned ProseMirror mutation logic.
+- Browser verification captures enabled/boundary-disabled commands, real row and column movement, undo/redo, Source output, dirty-to-clean save truth, nested behavior, unsupported fallbacks, horizontal reachability, and constrained-width containment.
+- Public API, architecture, preservation, rich-security, command-surface, Save Engine, fixture, renderer, preview, and full-suite gates pass.
+- `docs/internal/build-log.md` records RED/GREEN evidence, visual impact, reviewer or fallback result, tests, residual risks, commit, push status, and next issue.
+
+### Test-first plan
+
+- RED: add a dedicated table-reorder fixture and focused test that fails because public row/column reorder APIs and adjacent-move Rich command IDs do not exist.
+- RED: prove arbitrary body-row/column movement, moved-cell selection, row/header and column-boundary protection, invalid/no-op refusal, rectangular shape, semantic types, alignment/content retention, exact outside-table bytes, deterministic Markdown, LF/CRLF, and one-step undo/redo.
+- RED: prove top-level plus safe direct/list/task footnote table reorder preserves definition/container syntax, ordered starts, task state, loose state, sibling bytes, references, and no-full-document-rewrite invariants.
+- RED: prove malformed/source-only, unsupported nested, header-targeted, missing, stale, invalid-index, no-op, boundary, and outside-table targets refuse without mutation or exceptions.
+- RED: prove registry search/run semantics, localized reusable surfaces, command availability transitions, insert/delete/navigation compatibility, and Save Engine truth.
+- RED: add browser assertions for real row/column movement, undo/redo, exact Source output, clean save state, nested behavior, disabled boundaries, unsupported fallbacks, horizontal reachability, and constrained containment.
+- GREEN: add only the typed reorder wrappers, command IDs/metadata, validated target resolution, moved-cell selection normalization, and reusable reference wiring required by the proofs.
+- REFACTOR: share validated table/selection utilities with existing row/column operations only where doing so reduces duplication without weakening distinct header or boundary rules.
+
+### Manual verification
+
+- Start the reference demo with supported top-level and direct/list/task footnote tables plus malformed/source-only examples.
+- Select first/middle/final body rows and first/middle/final columns; invoke adjacent move commands and verify availability, moved-cell focus, header/alignment/content stability, and no mutation at boundaries.
+- Undo/redo row and column moves, run existing insert/delete and Tab navigation, save, switch to Source, inspect exact deterministic Markdown and clean state, then repeat at constrained width and capture artifacts under `docs/internal/visual-checks/MME-0074/`.
+
+### Visual impact
+
+Supported table cells gain accessible Move row up/down and Move column left/right entries in existing command surfaces. Reorder changes table content order and selected-cell position without redesigning table styling. Final command placement, labels, menu density, moved-cell focus, drag-handle expectations, horizontal reachability, and constrained-layout taste remain queued for Andrew's end-of-run review block.
+
+### Implementation notes
+
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-editor/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-rich-prosemirror/package.json`, `packages/md-surface/src/index.ts`, `packages/md-surface/README.md`, `packages/md-theme/src/index.ts`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/reference-surface.ts`, `apps/md-demo/src/styles.css`, `fixtures/036-table-row-operations`, `fixtures/037-table-column-operations`, `tests/rich-table-editing.test.mjs`, `tests/rich-table-row-operations.test.mjs`, `tests/rich-table-column-operations.test.mjs`, `tests/rich-footnote-tables.test.mjs`, `tests/rich-commands.test.mjs`, `tests/demo-slash-toolbar-baseline.test.mjs`, `tests/demo-table-row-commands.test.mjs`, `tests/demo-table-column-commands.test.mjs`, `tests/surface-components.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/save-engine.test.mjs`, `scripts/visual-check-mme0072.mjs`, `scripts/visual-check-mme0073.mjs`, and the MME-0055/MME-0068/MME-0072/MME-0073 build-log and visual artifacts.
+
+Direct feasibility probes confirm installed MIT-licensed `prosemirror-tables` `moveTableRow`/`moveTableColumn` commands reorder current MME top-level and semantic ordered/task footnote tables while existing serializers keep bytes outside the table exact. Row movement from/to index `0` corrupts semantic header meaning, invalid indices throw upstream, no-op moves return false, and `select: false` does not retain a usable cell selection. The package wrapper must prevalidate all indices, protect the header boundary, normalize selection to the moved row/column, and keep all mutation inside `@momentarise/md-rich-prosemirror`; reference surfaces consume only public command metadata/results.
+
+### Out of scope
+
+- Table drag handles, pointer/touch drag-and-drop UI, animated drop indicators, multi-row/multi-column selection moves, merged cells, rowspan/colspan editing, header creation/removal, alignment controls, column resizing, sorting, filtering, formulas, spreadsheet calculation, or CSV/TSV/spreadsheet paste.
+- Generic blockquote-contained or otherwise unsupported nested table admission, HTML inside cells, malformed table repair, parser/model contract widening, full-document normalization, or non-Markdown table adapters.
+- Final table visual redesign, mobile touch handles, polished context-menu redesign, docs-content construction, or public-release copy.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer allowed; code review must use exactly `gpt-5.3-codex-spark` at `xhigh` when available.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible reorder command/product review is queued for the end-of-run human review block unless header protection, validated indices, bounded serialization, history, or save truth remains unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer.
+
+### Blocked by
+
+- None. MME-0055 established semantic table editing/navigation/serialization, MME-0068 extended bounded nested-table reconstruction, and MME-0072/MME-0073 established reusable structural table commands, context availability, one-transaction history, and shared reference wiring. Direct installed-library probes confirm safe row/column movement once header and index guards are applied.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.
