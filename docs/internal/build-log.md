@@ -7187,15 +7187,15 @@
 - Rationale:
   - Spreadsheet paste is the final explicit unfinished `baseline/hygiene` table item after MME-0055/MME-0072/MME-0073/MME-0074.
   - Strict TSV covers standard spreadsheet range clipboard text without introducing a CSV dialect/parser dependency or ambiguous comma inference.
-- Checks required before checkpoint commit:
-  - `npm run test:alignment`.
-  - `node scripts/docs-lint.mjs`.
-  - `git diff --check`.
+- Checks run before checkpoint commit:
+  - `npm run test:alignment` — green.
+  - `node scripts/docs-lint.mjs` — green.
+  - `git diff --check` — green.
 - Reviewer plan:
   - Implementation review will use exactly `gpt-5.3-codex-spark` at `xhigh`; no substitute code-review model.
   - Reviewer will inspect matrix bounds/parser strictness, literal Markdown safety, one-transaction transform, target selection, native pass-through, exact ownership, nested serialization, security, accessibility, save truth, and regressions.
 - Commit status:
-  - Pending promotion checkpoint commit after documentation gates.
+  - Promotion checkpoint committed as `b9ce98d` (`docs: promote mme-0075 spreadsheet paste`).
 - Push status:
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
