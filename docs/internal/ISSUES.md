@@ -4632,6 +4632,91 @@ Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer.
 
 Accepted for code continuation 2026-07-22 after adding typed arbitrary-index row/column reorder APIs and adjacent Rich command IDs, strict stale/missing/outside/no-op/index/header-boundary refusal, installed `prosemirror-tables` movement, moved-cell selection, one-step history, exact bounded top-level/direct/list/task serialization, LF/CRLF and Save Engine truth, insert/delete/Tab compatibility, reusable localized More/slash/command-palette wiring, explicit Enter/Space activation, context-disabled states, dedicated fixture/browser evidence, exact Spark/xhigh review, and a full test pass. Reviewer found no P0-P3 correctness issue; its keyboard and wide-edge proof risks were closed with executable surface and browser assertions. Final command placement/labels, More/slash density, boundary clarity, moved-cell focus feel, wide horizontal reachability, full-editor focus outline, diagnostics-chip overlap, far-right-scroll composition, and constrained-layout taste remain queued for Andrew's end-of-run review block. No executable normal issue remains after MME-0074 until the next backlog item is promoted.
 
+## MME-0075 — Rich table spreadsheet/TSV paste baseline
+
+### Goal
+
+Let framework consumers and users paste rectangular spreadsheet data into an existing supported Rich Markdown table through a reusable package API and native paste integration, while preserving literal cell text, Markdown durability, exact bytes outside the owned table, semantic table structure, history, accessibility, and save truth.
+
+### Scope
+
+- Add a package-owned, typed table-matrix paste API that accepts tab-separated clipboard text plus an explicitly indexed or currently selected starting cell.
+- Add Rich ProseMirror paste handling for `text/tab-separated-values`, or `text/plain` containing tabs, only while selection is inside a supported semantic table; normal text, HTML, image, source-only, and outside-table paste paths must remain untouched.
+- Parse one-row or multi-row TSV deterministically, retain empty cells, normalize CRLF/LF only for matrix decoding, ignore at most one terminal clipboard line ending, and reject absent tabs, inconsistent row widths, empty matrices, NUL/control payloads, and over-limit matrices without mutation.
+- Bound accepted input to at most 1,000 rows, 256 columns, and 10,000 cells so clipboard paste cannot create an unbounded transaction.
+- Replace the rectangular region starting at the target cell, expanding the table rightward and downward when required. Preserve all untouched cells, existing column alignments, semantic header/body cell types, and table/container structure; new columns use neutral alignment and new rows use body cells.
+- Treat spreadsheet values as literal cell text. Escape Markdown-significant plain text during changed-table serialization so values such as pipes, emphasis markers, links, backticks, raw-HTML-like text, and backslashes remount with the same visible text instead of silently becoming Markdown semantics.
+- Keep one accepted paste as one undoable transaction and move selection to the final pasted cell. One undo restores the exact original Markdown; redo restores deterministic pasted Markdown.
+- Preserve exact Markdown before/after the owned table plus top-level and existing safe direct/list/task footnote hierarchy, definition prefixes, indentation, ordered starts, task state, loose state, sibling syntax, and LF/CRLF convention.
+- Keep MME-0055/MME-0072/MME-0073/MME-0074 cell edit/navigation, final-cell Tab append, row/column insert/delete, and row/column reorder compatible after matrix paste.
+- Add real browser proof using a clipboard `paste` event, including accepted matrix expansion, literal-text safety, rejected/outside-table pass-through, nested-table behavior, undo/redo, save/source truth, wide horizontal reachability, and constrained containment.
+- Queue final spreadsheet-paste discoverability, selected-cell feedback, large-matrix feel, horizontal scrolling, and constrained-layout taste for Andrew's end-of-run human review block.
+
+### Acceptance criteria
+
+- Public package API pastes a valid rectangular TSV matrix at a selected or explicit supported table cell; native Rich paste intercepts only qualifying table matrices and otherwise returns control to normal paste handling.
+- Valid paste replaces target cells and expands rows/columns only as needed in one transaction. Existing cells outside the pasted rectangle remain semantically unchanged; existing alignment follows existing columns and added columns are neutral.
+- Header-row targets retain header cell types; body and appended rows use body cells. Table shape remains rectangular and deterministic after remount.
+- Empty cells and one terminal clipboard newline are handled predictably. Missing-tab, ragged, empty, unsafe-control, oversized, missing/stale/source-only/outside-table, and invalid-coordinate inputs return the original state with a typed failure or unhandled paste result.
+- Literal spreadsheet values containing `|`, `*`, `_`, `` ` ``, brackets, angle brackets, tildes, backslashes, and link/footnote-like text serialize to safe Markdown and remount with identical visible cell text and no unexpected marks, links, HTML, footnotes, or executable DOM.
+- Selection lands in the final pasted cell. One undo restores exact pre-paste Markdown and redo restores the deterministic matrix result.
+- Untouched tables serialize byte-for-byte. Changed top-level plus safe direct/list/task footnote tables preserve exact outside bytes, hierarchy, prefixes, indentation, ordered starts, task/loose state, sibling syntax, and LF/CRLF convention.
+- Existing row/column insert/delete/reorder, cell edit/navigation, Shift+Tab, and final-cell Tab behavior remains compatible after paste.
+- Native paste handling calls `preventDefault` only for an accepted matrix transaction; ordinary plain text, sanitized HTML, image-provider paste, source mode, and outside-table paste are not swallowed.
+- Browser verification captures real event-driven paste, expansion, literal text, undo/redo, exact Source, dirty-to-clean save truth, nested behavior, rejection/pass-through, horizontal reachability, and constrained containment.
+- Public API, architecture, preservation, rich-security, command/surface, Save Engine, fixture, renderer, preview, and full-suite gates pass.
+- `docs/internal/build-log.md` records RED/GREEN evidence, visual impact, reviewer or fallback result, tests, residual risks, commit, push status, and next issue.
+
+### Test-first plan
+
+- RED: add a dedicated spreadsheet-paste fixture and focused test that fails because the typed matrix-paste API and Rich paste handler do not exist.
+- RED: prove strict TSV decoding, empty cells, terminal-newline handling, selected/explicit targets, bounded expansion, shape/types/alignment, final-cell selection, one-step undo/redo, save truth, and exact outside-table bytes.
+- RED: prove pasted literal Markdown punctuation remounts as identical plain text with no marks/links/HTML/footnote semantics or active payload DOM.
+- RED: prove top-level plus safe direct/list/task footnote table paste preserves exact definition/container syntax, ordered starts, task state, loose state, sibling bytes, references, and LF/CRLF.
+- RED: prove missing-tab, ragged, empty, control-containing, oversized, stale, source-only, invalid, and outside-table cases refuse atomically and native handling does not prevent normal/image/HTML paste paths.
+- RED: prove compatibility with existing edit/navigation, row/column insert/delete/reorder, final-cell Tab append, rich paste sanitization, and Save Engine behavior.
+- RED: add browser assertions for a real clipboard paste event, matrix expansion, literal-text safety, undo/redo, exact Source/clean save, nested behavior, pass-through, horizontal reachability, and constrained containment.
+- GREEN: add only the typed matrix parser/result, one-transaction table transform, literal table-cell serialization, and package-owned paste plugin hook required by the proofs.
+- REFACTOR: share table cloning/cell creation and target validation with existing table operations only where this reduces duplication without weakening their distinct header or boundary rules.
+
+### Manual verification
+
+- Start the reference demo with supported top-level and direct/list/task footnote tables plus malformed/source-only examples.
+- Copy a rectangular spreadsheet range containing empty cells and Markdown-significant literal text, paste into first/middle/final cells, verify replacement/expansion/final-cell focus, undo/redo, save, then inspect exact Source Markdown and clean state.
+- Confirm ordinary text/image/HTML and outside-table paste remain on their existing paths, then repeat nested/wide-table paste at constrained width and capture artifacts under `docs/internal/visual-checks/MME-0075/`.
+
+### Visual impact
+
+Pasting a spreadsheet range into a supported Rich table fills and expands cells directly, selects the final pasted cell, and updates dirty/save state without adding new persistent chrome. Rejected or non-table paste remains visually unchanged. Final discoverability, selected-range feedback, large-matrix feel, horizontal scrolling, and constrained-layout taste remain queued for Andrew's end-of-run review block.
+
+### Implementation notes
+
+Read first: `packages/md-format/src/index.ts`, `packages/md-core/src/index.ts`, `packages/md-editor/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-rich-prosemirror/package.json`, `packages/md-surface/src/index.ts`, `packages/md-theme/src/index.ts`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `fixtures/036-table-row-operations`, `fixtures/037-table-column-operations`, `fixtures/038-table-reorder`, `tests/rich-security.test.mjs`, `tests/rich-core-interactions.test.mjs`, `tests/rich-table-editing.test.mjs`, `tests/rich-table-row-operations.test.mjs`, `tests/rich-table-column-operations.test.mjs`, `tests/rich-table-reorder.test.mjs`, `tests/rich-footnote-tables.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/save-engine.test.mjs`, `tests/demo-asset-upload-ux.test.mjs`, `scripts/visual-check-mme0074.mjs`, and the MME-0055/MME-0068/MME-0072/MME-0073/MME-0074 build-log and visual artifacts.
+
+Direct feasibility confirms current ProseMirror table nodes can be cloned, expanded, and replaced as one transaction while existing targeted serialization keeps bytes outside the owned table exact. No dependency is required: spreadsheet clipboard text is TSV and the admitted grammar is deliberately strict/rectangular. The feasibility probe also exposed a required safety fix: unmarked `*literal*` in a changed table currently serializes as active emphasis on remount. MME-0075 must use table-context plain-text escaping so accepted spreadsheet values remain literal. Keep parsing, transform, limits, and paste interception inside `@momentarise/md-rich-prosemirror`; do not add clipboard or ProseMirror concepts to core/model/save/policy packages.
+
+### Out of scope
+
+- Quoted RFC 4180 CSV parsing, comma/semicolon delimiter inference, HTML `<table>` clipboard import, paste-to-create-table outside an existing table, importing `.csv`/`.tsv` files as Markdown tables, or spreadsheet export.
+- Formula evaluation, number/date typing, style/color/font import, merged cells, rowspan/colspan, multi-table paste, multi-selection paste, sorting/filtering, drag fill, clipboard copy formatting, or external spreadsheet sync.
+- Generic blockquote-contained or unsupported nested table admission, malformed table repair, inline Markdown interpretation of spreadsheet values, full-document normalization, new toolbar/slash commands, persistent paste UI, or docs-content construction.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Security Reviewer, Accessibility Reviewer, and UX Reviewer allowed; code review must use exactly `gpt-5.3-codex-spark` at `xhigh` when available.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible spreadsheet-paste product review is queued for the end-of-run human review block unless literal-text safety, bounded transformation, paste pass-through, history, or save truth remains unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, Security Reviewer, Accessibility Reviewer, and UX Reviewer.
+
+### Blocked by
+
+- None. MME-0055 established semantic table editing/navigation/serialization; MME-0068 established bounded nested-table reconstruction; MME-0072/MME-0073/MME-0074 established safe structural table transforms, command availability, one-transaction history, and exact ownership. Direct table-clone and serializer probes identify a bounded TSV path plus the literal-text escaping guard required before implementation.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

@@ -7164,3 +7164,39 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0074`. The next unblocked must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.
+
+## Backlog promotion checkpoint — MME-0075
+
+- Date: 2026-07-22.
+- Context:
+  - `MME-0074` is accepted for code continuation and committed (`134c7c0` implementation/status, `8380cd8` evidence).
+  - `docs/internal/ISSUES.md` had no executable normal issue after MME-0074.
+  - Andrew instructed autonomous continuation, must-haves first, strict issue formatting, issue-scoped commits, no docs-content work in this agent, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Feasibility proof:
+  - Current semantic ProseMirror table nodes can be cloned, expanded right/down, and replaced as one transaction without a new dependency; existing targeted serialization keeps bytes outside the owned table exact.
+  - Spreadsheet clipboard text admits a narrow deterministic TSV grammar. Package paste props can intercept only qualifying tabular text inside supported table cells while returning false for normal text, HTML, image, source-only, and outside-table paths.
+  - Existing top-level/direct/list/task table source ownership, cell selection, history, save, and structural-operation APIs provide the required compatibility foundation.
+  - A direct changed-table probe exposed mandatory literal-text safety: unmarked `*literal*` currently serializes as emphasis on remount. The promoted issue requires table-context escaping so spreadsheet values cannot silently become Markdown semantics.
+- Change:
+  - Promoted `MME-0075 — Rich table spreadsheet/TSV paste baseline` into normal issue form.
+  - Bounded the slice to strict tab-separated clipboard data pasted into an existing supported Rich table, one-transaction replacement/expansion, literal cell text, native paste pass-through, exact top-level/nested ownership, history, save truth, and browser evidence.
+  - Added explicit safety limits of 1,000 rows, 256 columns, and 10,000 cells.
+  - Left quoted CSV, delimiter inference, HTML-table clipboard import, outside-table creation, `.csv`/`.tsv` file conversion, spreadsheet semantics, and final visual redesign in backlog.
+  - Updated `README.md` current slice plus `docs/internal/BACKLOG.md` promotion and end-of-run review tracking.
+- Rationale:
+  - Spreadsheet paste is the final explicit unfinished `baseline/hygiene` table item after MME-0055/MME-0072/MME-0073/MME-0074.
+  - Strict TSV covers standard spreadsheet range clipboard text without introducing a CSV dialect/parser dependency or ambiguous comma inference.
+- Checks required before checkpoint commit:
+  - `npm run test:alignment`.
+  - `node scripts/docs-lint.mjs`.
+  - `git diff --check`.
+- Reviewer plan:
+  - Implementation review will use exactly `gpt-5.3-codex-spark` at `xhigh`; no substitute code-review model.
+  - Reviewer will inspect matrix bounds/parser strictness, literal Markdown safety, one-transaction transform, target selection, native pass-through, exact ownership, nested serialization, security, accessibility, save truth, and regressions.
+- Commit status:
+  - Pending promotion checkpoint commit after documentation gates.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - `MME-0075 — Rich table spreadsheet/TSV paste baseline`.
