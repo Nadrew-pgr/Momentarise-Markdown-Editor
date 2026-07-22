@@ -7200,3 +7200,49 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - `MME-0075 — Rich table spreadsheet/TSV paste baseline`.
+
+## MME-0075 — Rich table spreadsheet/TSV paste baseline
+
+- Date: 2026-07-22.
+- Previous issue status:
+  - `MME-0074` accepted for code continuation and committed (`134c7c0` implementation/status, `8380cd8` evidence).
+  - `MME-0075` was promoted and committed in checkpoint `b9ce98d` (`3eb122f` evidence).
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, clean `git status --short`, and every parser/model/editor/rich/surface/theme/demo/fixture/test/save file named by the issue.
+  - Direct probes confirmed one-transaction table cloning/expansion and native paste interception feasibility, while exposing the required literal Markdown-text escaping guard.
+- RED proof before implementation:
+  - Added fixture 039 plus a focused package/native-paste test.
+  - `npm run test:rich-table-spreadsheet-paste` failed because `runRichTableMatrixPaste` did not exist.
+- Change:
+  - Added public typed `runRichTableMatrixPaste` support for selected or explicit supported table cells, plus native `text/tab-separated-values` and tab-containing `text/plain` interception inside semantic Rich tables.
+  - Added strict rectangular TSV decoding with retained empty cells, one terminal LF/CRLF allowance, typed invalid/control/oversize refusal, and hard limits of 1,000 rows, 256 columns, 10,000 cells, and 1,000,000 UTF-16 code units.
+  - Replaced/expanded the owned table region rightward and downward in one transaction, preserving untouched cell nodes, existing alignments, header/body types, nested table hierarchy, final-cell selection, and one-step undo/redo.
+  - Added table-context Markdown escaping for literal spreadsheet values, including punctuation, HTML-like text, footnote-like text, and link/autolink triggers. Escaping is serializer-only: the public Momentarise document model retains original literal values.
+  - Kept normal text, HTML, image/provider, source-only, malformed, and outside-table paste paths unclaimed; `preventDefault` runs only after an accepted matrix transaction.
+  - Preserved exact bytes outside changed top-level/direct/list/task tables, LF/CRLF convention, structural operation compatibility, and truthful Save Engine persistence.
+  - Documented and approved the intentional public API, registered the focused/full-suite scripts, and added eight browser artifacts.
+- Visual impact:
+  - Real clipboard-event paste replaces and expands a Rich table without new persistent chrome; the final pasted cell receives selection, undo/redo is one step, dirty-to-clean save is truthful, and Source shows durable Markdown.
+  - Artifacts: `docs/internal/visual-checks/MME-0075/table-paste-before.png`, `table-paste-expanded.png`, `table-paste-literal.png`, `table-paste-nested.png`, `table-paste-saved.png`, `table-paste-source.png`, `table-paste-undone.png`, and `table-paste-wide-constrained.png`.
+  - Permissioned Playwright proof at `http://127.0.0.1:5174/` uses `ClipboardEvent` plus `DataTransfer` and verifies expansion, literal no-link/no-script behavior, nested paste, undo/redo, exact saved/source content, local horizontal scroll, and constrained containment. `result.json` reports `passed`, no console errors, and only the existing demo favicon 404 as ignored.
+  - Builder inspected all eight frames. Expansion, literal text, nesting, save, undo, and Source states are readable. Existing full-editor blue focus outline, diagnostics-chip placement, and intentionally far-right-scrolled wide composition remain queued for final human review.
+- Checks run:
+  - `npm run test:rich-table-spreadsheet-paste` — RED first, then green after API, parser, transform, serializer, native handler, semantic-model, bounds, history, nesting, pass-through, security, structural compatibility, and Save Engine implementation.
+  - Focused public-API, fixture, table editing/row/column/reorder, footnote-table, targeted-serialization, rich-security, core-interaction, and Save Engine regressions — green.
+  - `npm run visual:mme-0075` — final permissioned browser run passed after the serializer-only escaping correction.
+  - Final `npm test` — green end-to-end, including contracts, architecture, docs lint/site/launch, public API, security, preservation, performance 10/10, all rich/table/footnote regressions, CLI/adapters, demo build, and 42-page Next.js docs build; existing Vite chunk-size warning only.
+  - `npm run test:alignment`, `node scripts/docs-lint.mjs`, and `git diff --check` — green before commit.
+- Reviewer result:
+  - Required inspect-only code review used exactly `gpt-5.3-codex-spark` with `xhigh` reasoning. Agent `019f8a5d-62a3-74c3-bb18-3c19e052db10` found no P0-P3 correctness, preservation, package-boundary, security, pass-through, history, selection, bounds, or accessibility issue.
+  - Reviewer reran the focused spreadsheet-paste, core-interaction, and public-API tests successfully. Its only note was that single-column no-tab paste remains intentionally outside the strict TSV contract.
+- Residual risks:
+  - Quoted CSV, delimiter inference, HTML-table clipboard import, paste-to-create-table, file conversion, formulas/typing/styles, merged cells, multi-selection, and external spreadsheet sync remain outside this slice.
+  - Changed tables normalize deterministically; untouched tables and bytes outside the owned table remain exact.
+  - Final paste discoverability, replacement/expansion feel, final-cell feedback, literal display, large/wide matrix scrolling, full-editor focus outline, diagnostics-chip placement, far-right-scroll composition, and constrained-layout taste remain queued in `docs/internal/BACKLOG.md` for Andrew's end-of-run review block.
+  - Existing demo favicon 404 and bundle-size warning remain outside this issue.
+- Commit status:
+  - Issue-scoped implementation/status commit created: `09b7376` (`feat: add rich table spreadsheet paste`).
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0075`. The next unblocked must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.
