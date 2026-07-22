@@ -6950,8 +6950,53 @@
   - Implementation review will use exactly `gpt-5.3-codex-spark` at `xhigh` if available; no substitute code-review model.
   - If unavailable, perform and document a fallback self-review covering header protection, target resolution, one-transaction history, alignment, selection, exact ownership, nested serialization, command availability, accessibility, save truth, and regressions.
 - Commit status:
-  - Promotion checkpoint pending.
+  - Promotion checkpoint committed as `119b0e9` (`docs: promote mme-0072 table row operations`).
 - Push status:
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - `MME-0072 — Rich Markdown table row operations baseline`.
+
+## MME-0072 — Rich Markdown table row operations baseline
+
+- Date: 2026-07-22.
+- Previous issue status:
+  - `MME-0071` accepted for code continuation and committed (`788f00d` implementation/status, `5dfbbae` evidence).
+  - `MME-0072` was promoted and committed in checkpoint `119b0e9`.
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, clean `git status --short`, and every parser/model/editor/rich/surface/theme/demo/fixture/test/save file named by the issue.
+- RED proof before implementation:
+  - Added `fixtures/036-table-row-operations/` and `tests/rich-table-row-operations.test.mjs`, registered the focused/root test command, then confirmed `npm run test:rich-table-row-operations` failed because `canRunRichMarkdownCommand` and the public row-operation API did not exist.
+  - Added demo and reusable-surface regression checks, then confirmed missing context-aware row wiring and fixed-position More-menu behavior before GREEN.
+- Change:
+  - Added typed `runRichTableRowOperation` insert-before/insert-after/delete operations and `canRunRichMarkdownCommand`, plus `tableRowBefore`, `tableRowAfter`, and `tableRowDelete` registry IDs in `@momentarise/md-rich-prosemirror`.
+  - Reused `prosemirror-tables` transforms behind package-owned target resolution. Explicit and selected targets reject stale source, missing table/row/cell, outside-table selection, and protected header row without mutation.
+  - Normalized inserted cells to body-cell types with header-derived alignment, moved selection into inserted rows or the nearest surviving cell, retained one-transaction undo/redo, and routed final-cell Tab append through shared normalization.
+  - Preserved exact untouched Markdown and bounded changed-table output across top-level plus direct/list/task footnote tables, ordered starts, task state, sibling syntax, inline marks, and LF/CRLF. Save Engine persists the exact Source result.
+  - Added shared localized More-menu row actions, accessible labels, context-disabled states, slash filtering, demo icon wiring, visible disabled styling, and viewport-fixed menu placement. Reviewer follow-up added vertical viewport flipping/clamping.
+  - Added fixture 036, focused package/demo/surface tests, intentional public-API approval, root test registration, and a nine-state real-browser harness using the dedicated fixture.
+- Visual impact:
+  - Body-cell selection enables Insert row before, Insert row after, and Delete row in the shared More menu; outside-table/header contexts show those actions disabled. Insert/delete focus stays in the affected nested table, dirty/saved state remains truthful, and Source shows deterministic Markdown.
+  - Artifacts: `docs/internal/visual-checks/MME-0072/table-row-commands-enabled.png`, `table-row-commands-unavailable.png`, `table-row-inserted.png`, `table-row-deleted.png`, `table-row-saved-desktop.png`, `table-row-unsupported-desktop.png`, `table-row-constrained.png`, `table-row-wide-constrained.png`, and `table-row-source-desktop.png`.
+  - Permissioned headless Chrome proof loads fixture 036 at `http://127.0.0.1:5174/`, verifies root/direct/ordered/task/wide semantic tables, accessible source-only quote/malformed fallbacks, context availability, real insert/delete plus undo/redo, exact saved/source content, local horizontal overflow, selected-cell focus, and 390 px containment without page overflow.
+  - Builder inspected all nine regenerated frames. Commands, table hierarchy, insertion/deletion, fallbacks, saved/source states, and containment are readable. Existing full-editor blue focus outline, diagnostics-chip overlap, and intentionally far-right-scrolled wide-table composition remain queued for final human review.
+- Checks run:
+  - `npm run test:rich-table-row-operations` — RED first, then green after public operations, eligibility, transforms, alignment, selection, history, preservation, nested-context, LF/CRLF, Tab, and Save Engine implementation; green again after reviewer follow-up.
+  - `tests/rich-table-editing.test.mjs`, `tests/rich-footnote-tables.test.mjs`, `tests/rich-commands.test.mjs`, `tests/demo-slash-toolbar-baseline.test.mjs`, `tests/demo-table-row-commands.test.mjs`, `tests/surface-components.test.mjs`, fixture corpus, targeted serialization, Save Engine, and demo build — green.
+  - `npm run visual:mme-0072` — permissioned Chrome run passed after aligning the harness to fixture 036 and captured all nine current states.
+  - Final post-review `npm test` — green end-to-end, including performance 10/10, architecture, security, preservation, table/footnote regressions, fixture corpus, public API, AX artifacts, CLI, adapters, demo, Vite build, and 42-page Next.js docs build; existing Vite chunk-size warning only.
+  - `git diff --check` — green before closeout.
+- Reviewer result:
+  - Required inspect-only code review used exactly `gpt-5.3-codex-spark` with `xhigh` reasoning. Agent `019f89e6-7755-73a1-8999-801be9a0c5d1` found no P0-P3 correctness, preservation, package-boundary, or accessibility issue.
+  - Reviewer identified three residual proof/UX risks: More-menu bottom overflow, visual harness use of the older table-footnote fixture, and final-row delete selection coverage. Builder fixed all three immediately with vertical viewport flipping/clamping, fixture 036 plus wide-table browser coverage, and a direct nearest-surviving-cell regression.
+  - Focused tests and visual proof passed after fixes; no remaining P0-P3 issue was found in the builder's final diff review.
+- Residual risks:
+  - Header mutation, columns, row/column reorder, merged cells, resizing, sorting/filtering/formulas, spreadsheet/CSV paste, unsupported nested tables, malformed repair, and generic table adapters remain outside this slice.
+  - Changed tables normalize deterministically; untouched tables and bytes outside the owned table remain exact.
+  - Final command placement/labels, More/slash density, selected-cell focus, undo/redo feel, wide horizontal reachability, full-editor focus outline, diagnostics-chip overlap, far-right-scroll composition, and constrained-layout taste remain queued in `docs/internal/BACKLOG.md`.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Issue-scoped implementation/status commit pending.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0072`. The next unblocked must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.

@@ -161,6 +161,28 @@ toolbar.setState({
   visible: true
 });
 assert(query(toolbarHost, '[data-testid="toolbar-command-bold"]').getAttribute("aria-pressed") === "false", "Toolbar active state must update.");
+toolbar.setMoreOpen(true);
+const toolbarMoreMenu = query(toolbarHost, '[data-testid="toolbar-more-menu"]');
+assert(!toolbarMoreMenu.hidden, "Toolbar More menu must open.");
+assert(toolbarMoreMenu.style.position === "fixed", "Toolbar More menu must escape horizontally scrolling toolbar clipping.");
+assert(toolbarMoreMenu.style.left && toolbarMoreMenu.style.top, "Toolbar More menu must receive viewport coordinates.");
+assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableRowBefore"]').textContent === "Insert row before", "Toolbar More menu must expose insert-row-before.");
+assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableRowAfter"]').textContent === "Insert row after", "Toolbar More menu must expose insert-row-after.");
+assert(query(toolbarHost, '[data-toolbar-command-id="mme:tableRowDelete"]').textContent === "Delete row", "Toolbar More menu must expose delete-row.");
+Object.defineProperty(toolbarMoreMenu, "offsetHeight", { configurable: true, value: 240 });
+query(toolbarHost, '[data-testid="toolbar-more-button"]').getBoundingClientRect = () => ({
+  bottom: 760,
+  height: 32,
+  left: 700,
+  right: 732,
+  top: 728,
+  width: 32,
+  x: 700,
+  y: 728,
+  toJSON() { return this; }
+});
+toolbar.setMoreOpen(true);
+assert(Number.parseFloat(toolbarMoreMenu.style.top) < 728, "Toolbar More menu must flip above a bottom-edge trigger.");
 
 const groupedToolbarHost = document.createElement("div");
 const groupedToolbar = createToolbar({

@@ -171,6 +171,9 @@ export interface MmeStrings {
     readonly more: string;
     readonly orderedList: string;
     readonly paragraph: string;
+    readonly tableRowAfter: string;
+    readonly tableRowBefore: string;
+    readonly tableRowDelete: string;
     readonly todo: string;
     readonly toggleBlock: string;
   };
@@ -566,6 +569,9 @@ export const defaultMmeStrings: MmeStrings = {
     more: "More commands",
     orderedList: "Numbered list",
     paragraph: "Paragraph",
+    tableRowAfter: "Insert row after",
+    tableRowBefore: "Insert row before",
+    tableRowDelete: "Delete row",
     todo: "Todo",
     toggleBlock: "Toggle block"
   }
@@ -594,6 +600,9 @@ const toolbarMoreCommands: readonly ToolbarCommandDefinition[] = [
   { group: "insert", icon: "chevron", id: "mme:toggleBlock", richCommand: "toggleBlock", testId: "toolbar-command-toggleBlock", title: "toggleBlock" },
   { group: "insert", icon: "image", id: "mme:image", richCommand: "image", title: "image" },
   { group: "insert", icon: "link", id: "mme:footnote", richCommand: "footnote", title: "footnote" },
+  { group: "insert", icon: "list", id: "mme:tableRowBefore", richCommand: "tableRowBefore", title: "tableRowBefore" },
+  { group: "insert", icon: "list", id: "mme:tableRowAfter", richCommand: "tableRowAfter", title: "tableRowAfter" },
+  { group: "insert", icon: "list", id: "mme:tableRowDelete", richCommand: "tableRowDelete", title: "tableRowDelete" },
   { group: "marks", icon: "code", id: "mme:inlineCode", richCommand: "inlineCode", title: "inlineCode" }
 ] as const;
 
@@ -630,6 +639,9 @@ export function createToolbar(options: CreateToolbarOptions): SurfaceComponent &
     button?.setAttribute("aria-expanded", String(moreOpen));
     if (menu) {
       menu.hidden = !moreOpen;
+      if (moreOpen && button) {
+        positionToolbarMoreMenu(button, menu);
+      }
     }
   };
 
@@ -2048,6 +2060,25 @@ function toolbarMore(options: CreateToolbarOptions, state: SurfaceToolbarState, 
   );
   container.append(button, menu);
   return container;
+}
+
+function positionToolbarMoreMenu(button: HTMLElement, menu: HTMLElement): void {
+  const rect = button.getBoundingClientRect();
+  const viewport = button.ownerDocument.defaultView;
+  const viewportWidth = viewport?.innerWidth ?? rect.right;
+  const viewportHeight = viewport?.innerHeight ?? rect.bottom;
+  const menuWidth = menu.offsetWidth || 184;
+  const menuHeight = menu.offsetHeight || 280;
+  const left = Math.max(8, Math.min(rect.right - menuWidth, viewportWidth - menuWidth - 8));
+  const below = rect.bottom + 6;
+  const above = rect.top - menuHeight - 6;
+  const top = below + menuHeight <= viewportHeight - 8
+    ? below
+    : Math.max(8, Math.min(above, viewportHeight - menuHeight - 8));
+  menu.style.position = "fixed";
+  menu.style.inset = "auto";
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.top = `${Math.round(top)}px`;
 }
 
 function findIconButton(

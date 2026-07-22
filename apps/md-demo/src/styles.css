@@ -1037,6 +1037,12 @@ h1 {
   font-weight: 500;
 }
 
+.toolbar-button:disabled,
+.toolbar-menu-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
 .rich-block-controls {
   grid-row: 2;
   display: flex;

@@ -25,9 +25,9 @@ import {
 } from "prosemirror-commands";
 import { history, redo, undo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
-import { Fragment, Mark, Node as ProseMirrorNode, Schema, type DOMOutputSpec, type MarkSpec, type NodeSpec, type ResolvedPos } from "prosemirror-model";
+import { Fragment, Mark, Node as ProseMirrorNode, Schema, type DOMOutputSpec, type MarkSpec, type NodeSpec, type NodeType, type ResolvedPos } from "prosemirror-model";
 import { EditorState, NodeSelection, Plugin, PluginKey, Selection, TextSelection, type Transaction } from "prosemirror-state";
-import { addRowAfter, CellSelection, goToNextCell, tableEditing, tableNodes } from "prosemirror-tables";
+import { addRowAfter, addRowBefore, CellSelection, deleteRow, goToNextCell, tableEditing, tableNodes } from "prosemirror-tables";
 import { parseFragment } from "parse5";
 
 export interface MomentariseRichProseMirrorContract {
@@ -52,6 +52,9 @@ export type RichCommandId =
   | "link"
   | "orderedList"
   | "paragraph"
+  | "tableRowAfter"
+  | "tableRowBefore"
+  | "tableRowDelete"
   | "toggleBlock"
   | "todo";
 
@@ -223,7 +226,7 @@ export interface RichBlockAffordancePluginOptions {
 export interface RichMarkdownCommandResult {
   readonly handled: boolean;
   readonly identifier?: string | null;
-  readonly reason?: RichFootnoteInsertionFailureReason | null;
+  readonly reason?: RichFootnoteInsertionFailureReason | RichTableRowOperationFailureReason | null;
   readonly state: RichMarkdownState;
 }
 
@@ -263,6 +266,36 @@ export interface SelectRichTableCellOptions {
 export interface ReplaceRichTableCellTextOptions extends SelectRichTableCellOptions {
   readonly text: string;
 }
+
+export type RichTableRowOperation = "delete" | "insert-after" | "insert-before";
+
+export type RichTableRowOperationFailureReason =
+  | "cell-not-found"
+  | "command-rejected"
+  | "header-row-protected"
+  | "row-not-found"
+  | "selection-outside-table"
+  | "stale-source"
+  | "table-not-found";
+
+export interface RunRichTableRowOperationOptions {
+  readonly columnIndex?: number;
+  readonly operation: RichTableRowOperation;
+  readonly rowIndex?: number;
+  readonly tableIndex?: number;
+}
+
+export type RichTableRowOperationResult =
+  | {
+      readonly handled: true;
+      readonly reason: null;
+      readonly state: RichMarkdownState;
+    }
+  | {
+      readonly handled: false;
+      readonly reason: RichTableRowOperationFailureReason;
+      readonly state: RichMarkdownState;
+    };
 
 export interface SelectRichFootnoteDefinitionOptions {
   readonly identifier: string;
@@ -445,6 +478,24 @@ export const richCommandRegistry: readonly RichMarkdownCommand[] = [
     label: "Divider"
   },
   {
+    aliases: ["row before", "insert row before", "table row above"],
+    group: "insert",
+    id: "tableRowBefore",
+    label: "Insert row before"
+  },
+  {
+    aliases: ["row after", "insert row after", "table row below"],
+    group: "insert",
+    id: "tableRowAfter",
+    label: "Insert row after"
+  },
+  {
+    aliases: ["delete row", "remove row", "table row delete"],
+    group: "insert",
+    id: "tableRowDelete",
+    label: "Delete row"
+  },
+  {
     aliases: ["bold", "strong"],
     group: "inline",
     id: "bold",
@@ -606,6 +657,50 @@ export function replaceRichTableCellText(
   return {
     ...state,
     editorState: state.editorState.apply(transaction)
+  };
+}
+
+export function runRichTableRowOperation(
+  state: RichMarkdownState,
+  options: RunRichTableRowOperationOptions
+): RichTableRowOperationResult {
+  if (state.source !== state.parseResult.snapshot.content) {
+    return rejectedRichTableRowOperation(state, "stale-source");
+  }
+  const target = resolveRichTableRowTarget(state.editorState, options);
+  if ("reason" in target) {
+    return rejectedRichTableRowOperation(state, target.reason);
+  }
+
+  const location = findRichTableCellLocation(state.editorState.doc, target.coordinates);
+  if (!location) {
+    return rejectedRichTableRowOperation(state, "cell-not-found");
+  }
+  let editorState = state.editorState;
+  const currentCoordinates = richTableCellCoordinatesInEditorState(editorState);
+  if (!sameRichTableCellCoordinates(currentCoordinates, target.coordinates)) {
+    editorState = editorState.apply(
+      editorState.tr.setSelection(new CellSelection(editorState.doc.resolve(location.cellPosition)))
+    );
+  }
+  let transformedState = editorState;
+  const handled = executeRichTableRowOperation(
+    editorState,
+    options.operation,
+    (transaction) => {
+      transformedState = editorState.apply(transaction);
+    }
+  );
+  if (!handled) {
+    return rejectedRichTableRowOperation(state, "command-rejected");
+  }
+  return {
+    handled: true,
+    reason: null,
+    state: {
+      ...state,
+      editorState: transformedState
+    }
   };
 }
 
@@ -837,6 +932,24 @@ export function filterRichMarkdownCommands(query: string): readonly RichMarkdown
   );
 }
 
+export function canRunRichMarkdownCommand(
+  state: RichMarkdownState,
+  commandId: RichCommandId,
+  options: ApplyRichMarkdownCommandOptions = {}
+): boolean {
+  const tableOperation = richTableRowOperationForCommand(commandId);
+  if (tableOperation) {
+    if (state.source !== state.parseResult.snapshot.content) {
+      return false;
+    }
+    return !("reason" in resolveRichTableRowTarget(state.editorState, { operation: tableOperation }));
+  }
+  if (commandId === "footnote") {
+    return options.text !== undefined;
+  }
+  return executeRichMarkdownCommand(commandId, state.editorState, () => {}, options);
+}
+
 function createRichKeymapPlugins(preferences: Required<MomentariseRichPreferences>): Plugin[] {
   if (preferences.keymapProfile === "minimal") {
     return [
@@ -884,48 +997,10 @@ function moveToNextRichTableCellCommand(
     return true;
   }
 
-  const rowTransactions: Transaction[] = [];
-  if (!addRowAfter(state, (transaction) => {
-    rowTransactions.push(transaction);
-  })) {
-    return false;
-  }
-  const rowTransaction = rowTransactions[0];
-  if (!rowTransaction) {
-    return false;
-  }
-  let transaction = rowTransaction;
-  const appendedTable = findRichTable(transaction.doc, coordinates.tableIndex);
-  const headerRow = appendedTable?.node.firstChild;
-  const appendedRow = appendedTable?.node.child(coordinates.rowIndex + 1);
-  if (headerRow && appendedRow) {
-    for (let columnIndex = 0; columnIndex < appendedRow.childCount; columnIndex += 1) {
-      const location = findRichTableCellLocation(transaction.doc, {
-        columnIndex,
-        rowIndex: coordinates.rowIndex + 1,
-        tableIndex: coordinates.tableIndex
-      });
-      if (!location) {
-        continue;
-      }
-      transaction = transaction.setNodeMarkup(location.cellPosition, state.schema.nodes.table_cell, {
-        ...location.cell.attrs,
-        alignment: normalizeTableAlignment(headerRow.child(columnIndex).attrs.alignment)
-      });
-    }
-  }
-  const nextLocation = findRichTableCellLocation(transaction.doc, {
-    columnIndex: 0,
-    rowIndex: coordinates.rowIndex + 1,
-    tableIndex: coordinates.tableIndex
+  return executeRichTableRowOperation(state, "insert-after", dispatch, {
+    allowHeaderTarget: true,
+    selectionColumnIndex: 0
   });
-  if (nextLocation) {
-    transaction = transaction
-      .setSelection(TextSelection.near(transaction.doc.resolve(nextLocation.contentPosition)))
-      .scrollIntoView();
-  }
-  dispatch(transaction);
-  return true;
 }
 
 interface RichTableLocation {
@@ -1400,6 +1475,160 @@ function findRichTableCellLocation(
   };
 }
 
+function resolveRichTableRowTarget(
+  state: EditorState,
+  options: RunRichTableRowOperationOptions
+):
+  | { readonly coordinates: RichTableCellCoordinates }
+  | { readonly reason: RichTableRowOperationFailureReason } {
+  const selectionCoordinates = richTableCellCoordinatesInEditorState(state);
+  const hasExplicitRowTarget = options.rowIndex !== undefined || options.tableIndex !== undefined;
+  let coordinates: RichTableCellCoordinates | null = null;
+  if (hasExplicitRowTarget) {
+    if (options.rowIndex === undefined) {
+      return { reason: "row-not-found" };
+    }
+    coordinates = {
+      columnIndex: options.columnIndex ?? 0,
+      rowIndex: options.rowIndex,
+      tableIndex: options.tableIndex ?? 0
+    };
+  } else if (selectionCoordinates) {
+    coordinates = {
+      ...selectionCoordinates,
+      ...(options.columnIndex === undefined ? {} : { columnIndex: options.columnIndex })
+    };
+  }
+  if (!coordinates) {
+    return { reason: "selection-outside-table" };
+  }
+  const table = findRichTable(state.doc, coordinates.tableIndex);
+  if (!table) {
+    return { reason: "table-not-found" };
+  }
+  if (coordinates.rowIndex < 0 || coordinates.rowIndex >= table.node.childCount) {
+    return { reason: "row-not-found" };
+  }
+  if (coordinates.rowIndex === 0) {
+    return { reason: "header-row-protected" };
+  }
+  const row = table.node.child(coordinates.rowIndex);
+  if (coordinates.columnIndex < 0 || coordinates.columnIndex >= row.childCount) {
+    return { reason: "cell-not-found" };
+  }
+  return { coordinates };
+}
+
+function rejectedRichTableRowOperation(
+  state: RichMarkdownState,
+  reason: RichTableRowOperationFailureReason
+): RichTableRowOperationResult {
+  return {
+    handled: false,
+    reason,
+    state
+  };
+}
+
+function sameRichTableCellCoordinates(
+  first: RichTableCellCoordinates | null,
+  second: RichTableCellCoordinates
+): boolean {
+  return Boolean(
+    first &&
+    first.columnIndex === second.columnIndex &&
+    first.rowIndex === second.rowIndex &&
+    first.tableIndex === second.tableIndex
+  );
+}
+
+function executeRichTableRowOperation(
+  state: EditorState,
+  operation: RichTableRowOperation,
+  dispatch: (transaction: Transaction) => void,
+  options: {
+    readonly allowHeaderTarget?: boolean;
+    readonly selectionColumnIndex?: number;
+  } = {}
+): boolean {
+  const coordinates = richTableCellCoordinatesInEditorState(state);
+  if (!coordinates || (coordinates.rowIndex === 0 && !options.allowHeaderTarget)) {
+    return false;
+  }
+  const command = operation === "insert-before"
+    ? addRowBefore
+    : operation === "insert-after"
+      ? addRowAfter
+      : deleteRow;
+  return command(state, (initialTransaction) => {
+    let transaction = initialTransaction;
+    const nextTable = findRichTable(transaction.doc, coordinates.tableIndex);
+    if (!nextTable) {
+      return;
+    }
+    const targetRowIndex = operation === "insert-before"
+      ? coordinates.rowIndex
+      : operation === "insert-after"
+        ? coordinates.rowIndex + 1
+        : Math.min(coordinates.rowIndex, nextTable.node.childCount - 1);
+    if (operation !== "delete") {
+      transaction = normalizeInsertedRichTableRow(
+        transaction,
+        coordinates.tableIndex,
+        targetRowIndex,
+        state.schema.nodes.table_cell!
+      );
+    }
+    const selectionTable = findRichTable(transaction.doc, coordinates.tableIndex);
+    const selectionRow = selectionTable?.node.child(targetRowIndex);
+    const requestedColumn = options.selectionColumnIndex ?? coordinates.columnIndex;
+    const selectionColumnIndex = selectionRow
+      ? Math.min(Math.max(0, requestedColumn), selectionRow.childCount - 1)
+      : 0;
+    const selectionLocation = findRichTableCellLocation(transaction.doc, {
+      columnIndex: selectionColumnIndex,
+      rowIndex: targetRowIndex,
+      tableIndex: coordinates.tableIndex
+    });
+    if (selectionLocation) {
+      transaction = transaction
+        .setSelection(TextSelection.near(transaction.doc.resolve(selectionLocation.contentPosition)))
+        .scrollIntoView();
+    }
+    dispatch(transaction);
+  });
+}
+
+function normalizeInsertedRichTableRow(
+  initialTransaction: Transaction,
+  tableIndex: number,
+  rowIndex: number,
+  bodyCellType: NodeType
+): Transaction {
+  let transaction = initialTransaction;
+  const table = findRichTable(transaction.doc, tableIndex);
+  const headerRow = table?.node.firstChild;
+  const insertedRow = table?.node.child(rowIndex);
+  if (!headerRow || !insertedRow) {
+    return transaction;
+  }
+  for (let columnIndex = 0; columnIndex < insertedRow.childCount; columnIndex += 1) {
+    const location = findRichTableCellLocation(transaction.doc, {
+      columnIndex,
+      rowIndex,
+      tableIndex
+    });
+    if (!location) {
+      continue;
+    }
+    transaction = transaction.setNodeMarkup(location.cellPosition, bodyCellType, {
+      ...location.cell.attrs,
+      alignment: normalizeTableAlignment(headerRow.child(columnIndex).attrs.alignment)
+    });
+  }
+  return transaction;
+}
+
 function richTableCellCoordinatesInEditorState(state: EditorState): RichTableCellCoordinates | null {
   const selection = state.selection as Selection & { readonly $anchorCell?: ResolvedPos };
   const position = selection.$anchorCell ?? state.selection.$from;
@@ -1537,6 +1766,10 @@ export function runRichMarkdownCommand(
   commandId: RichCommandId,
   options: ApplyRichMarkdownCommandOptions = {}
 ): RichMarkdownCommandResult {
+  const tableOperation = richTableRowOperationForCommand(commandId);
+  if (tableOperation) {
+    return runRichTableRowOperation(state, { operation: tableOperation });
+  }
   if (commandId === "footnote") {
     if (options.text === undefined) {
       return { handled: false, identifier: null, reason: "invalid-body", state };
@@ -3143,6 +3376,12 @@ function executeRichMarkdownCommand(
       );
     case "footnote":
       return false;
+    case "tableRowBefore":
+      return executeRichTableRowOperation(state, "insert-before", dispatch);
+    case "tableRowAfter":
+      return executeRichTableRowOperation(state, "insert-after", dispatch);
+    case "tableRowDelete":
+      return executeRichTableRowOperation(state, "delete", dispatch);
     case "bold":
       return toggleMark(schema.marks.strong!)(state, dispatch);
     case "italic":
@@ -4441,6 +4680,19 @@ function escapeDetailsSummary(summary: string): string {
 
 function normalizeCommandQuery(query: string): string {
   return query.trim().replace(/^\/+/, "").toLowerCase().replace(/[\s_-]+/g, "");
+}
+
+function richTableRowOperationForCommand(commandId: RichCommandId): RichTableRowOperation | null {
+  if (commandId === "tableRowBefore") {
+    return "insert-before";
+  }
+  if (commandId === "tableRowAfter") {
+    return "insert-after";
+  }
+  if (commandId === "tableRowDelete") {
+    return "delete";
+  }
+  return null;
 }
 
 function replaceCurrentBlock(

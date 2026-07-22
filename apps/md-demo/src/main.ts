@@ -74,6 +74,7 @@ import {
   type ToolbarItemDefinition
 } from "@momentarise/md-editor";
 import {
+  canRunRichMarkdownCommand,
   canInsertParagraphAfterCurrentBlock,
   createRichBlockAffordancePlugin,
   createRichMarkdownState,
@@ -728,9 +729,14 @@ const richCommandIcons: Partial<Record<RichCommandId, IconName>> = {
   link: "link",
   orderedList: "list",
   paragraph: "heading",
+  tableRowAfter: "more",
+  tableRowBefore: "more",
+  tableRowDelete: "more",
   todo: "todo",
   toggleBlock: "chevron"
 };
+
+const TABLE_ROW_COMMAND_IDS = ["tableRowBefore", "tableRowAfter", "tableRowDelete"] as const satisfies readonly RichCommandId[];
 
 function registerReferenceExtensions(editorSession: MarkdownEditorSession): void {
   for (const command of richCommandRegistry) {
@@ -2340,6 +2346,7 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
     richState = selectRichTableCell(richState, { columnIndex, rowIndex, tableIndex });
     richEditor.updateState(richState.editorState);
     richEditor.focus();
+    renderReferenceSurfaceState();
   },
   selectRichFootnoteDefinitionForTest(identifier: string) {
     if (!richEditor) {
@@ -3947,11 +3954,22 @@ function disabledRichToolbarIds(): readonly string[] {
   if (!richEditor || activeDocument.kind !== "markdown") {
     return richCommandRegistry.map((command) => richCommandExtensionId(command.id));
   }
+  const disabledIds = [...unavailableTableRowCommandIds()];
   const selection = richEditor.state.selection;
   if (!(selection instanceof TextSelection) || selection.empty) {
-    return ["mme:link", "mme:image"];
+    disabledIds.push("mme:link", "mme:image");
   }
-  return [];
+  return [...new Set(disabledIds)];
+}
+
+function unavailableTableRowCommandIds(): readonly string[] {
+  const currentState = currentRichStateFromEditor();
+  if (!currentState) {
+    return TABLE_ROW_COMMAND_IDS.map(richCommandExtensionId);
+  }
+  return TABLE_ROW_COMMAND_IDS
+    .filter((commandId) => !canRunRichMarkdownCommand(currentState, commandId))
+    .map(richCommandExtensionId);
 }
 
 function disabledRichSelectionToolbarIds(): readonly string[] {
@@ -4968,7 +4986,7 @@ function detectSlashCommandState(): SlashCommandState {
   }
   const query = match[1] ?? "";
   const from = selection.from - query.length - 1;
-  const items = session.extensions.searchSlashItems(query).slice(0, 8);
+  const items = filterAvailableRichSlashItems(session.extensions.searchSlashItems(query)).slice(0, 8);
   const aiItems = matchingReferenceAiSlashActions(query);
   return {
     from,
@@ -4977,6 +4995,20 @@ function detectSlashCommandState(): SlashCommandState {
     query,
     to: selection.from
   };
+}
+
+function filterAvailableRichSlashItems(items: readonly SlashItemDefinition[]): readonly SlashItemDefinition[] {
+  const currentState = currentRichStateFromEditor();
+  return items.filter((item) => {
+    if (!item.id.startsWith("mme:")) {
+      return true;
+    }
+    const commandId = item.id.slice("mme:".length) as RichCommandId;
+    if (!TABLE_ROW_COMMAND_IDS.some((candidate) => candidate === commandId)) {
+      return true;
+    }
+    return Boolean(currentState && canRunRichMarkdownCommand(currentState, commandId));
+  });
 }
 
 function closedSlashCommandState(): SlashCommandState {

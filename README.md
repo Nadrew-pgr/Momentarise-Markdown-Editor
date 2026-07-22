@@ -85,12 +85,12 @@ Completed slices:
 - MME-0069: Rich Obsidian callout footnote definition editing baseline, accepted for code continuation after semantic top-level/list/task callout body editing, non-editable accessible type/title/fold headers, exact untouched-source retention, bounded deterministic reconstruction, conservative malformed/nested/unsafe/mixed-container fallback, real browser proof, fallback review, and full test pass; final callout-footnote product review is queued for end-of-run review.
 - MME-0070: Rich inert raw-HTML footnote block editing baseline, accepted for code continuation after semantic inert top-level/list/task source editing, literal-DOM hostile-payload proof, exact untouched-source retention, bounded deterministic reconstruction, conservative inline/overlapping/nested/mixed fallback, real browser proof, fallback review, and full test pass; final raw-HTML-footnote product review is queued for end-of-run review.
 - MME-0071: Rich inert inline-HTML footnote paragraph editing baseline, accepted for code continuation after exact single-line token editing across top/list/task/quote/callout paragraphs, literal-DOM hostile-payload proof, bounded reconstruction, conservative wrapper/multiline/table fallback, real browser proof, fallback review, and full test pass; final inline-HTML-footnote product review is queued for end-of-run review.
-- MME-0072: Rich Markdown table row operations baseline, promoted after direct top-level/nested transform feasibility proof; implementation pending.
+- MME-0072: Rich Markdown table row operations baseline, accepted for code continuation after reusable body-row APIs and Rich commands, strict header/stale/unsupported refusal, inherited alignment, predictable selection/history, exact bounded top-level/nested serialization, save truth, Spark review, real browser proof, and full test pass; final table-row command/product review is queued for end-of-run review.
 
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- Current executable issue: MME-0072, adding reusable body-row insert/delete APIs and context-aware Rich commands without widening supported table syntax or weakening bounded Markdown serialization.
+- No executable normal issue remains after MME-0072. The next must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 

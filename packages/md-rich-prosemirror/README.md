@@ -13,8 +13,12 @@ ProseMirror rich-mode bridge for Momentarise Markdown Editor.
 - `moveRichTableCell` applies the same next/previous movement used by the rich keymap, including one Markdown-safe row append from the final cell.
 - `richTableCellCoordinates` reports the selected cell for host UI and tests.
 - `replaceRichTableCellText` replaces one cell with Markdown-representable single-line text.
+- `runRichTableRowOperation` inserts a body row before/after a selected or explicit target, or deletes a body row, with typed non-mutating failure reasons.
+- `canRunRichMarkdownCommand` lets hosts disable context-sensitive row commands before dispatching them.
 
 Standard rectangular top-level GFM pipe tables mount as editable ProseMirror table nodes. The same helpers enumerate supported tables at any semantic document depth, including safe footnote-definition and standard/task-list children. Generic blockquote/container nesting, malformed tables, and non-representable table-like syntax remain opaque source-only blocks until their container has bounded serialization.
+
+The `tableRowBefore`, `tableRowAfter`, and `tableRowDelete` registry commands reuse the same package-owned operation path. They admit semantic body rows only: the Markdown header row is protected, missing/stale/source-only targets do not mutate, inserted cells inherit header alignment, and selection moves into the inserted row or nearest surviving cell. Final-cell Tab append uses the same normalization path. Columns, merged cells, reorder, resize, and spreadsheet paste are not part of this baseline.
 
 ## Rich footnote helpers
 
