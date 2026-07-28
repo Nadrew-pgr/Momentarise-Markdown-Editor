@@ -7573,7 +7573,7 @@
   - Public npm packages remain unpublished; Payload/CMS adapters remain future work. Every new entrypoint states these boundaries.
   - Product-profile taxonomy, public wording, comparison neutrality, direct-answer density, and launch acceptance remain queued in `docs/internal/BACKLOG.md` for Andrew's consolidated review block.
 - Commit status:
-  - Issue-scoped implementation/status commit pending.
+  - Issue-scoped implementation/status commit created: `fe8db49` (`docs: harden agent retrieval content`).
 - Push status:
   - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
 - Next issue:
