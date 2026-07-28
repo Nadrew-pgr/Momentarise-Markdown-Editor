@@ -7433,7 +7433,7 @@
   - Implementation review will use exactly `gpt-5.3-codex-spark` at `xhigh` if available; no substitute code-review model.
   - Review will inspect package/global boundaries, measurement clamping, listener cleanup, fallback behavior, safe-area/dynamic sizing, coarse-pointer reachability, focus/editability, overflow/scroll ownership, save truth, and browser proof.
 - Commit status:
-  - Promotion checkpoint commit to be created.
+  - Promotion checkpoint committed as `098b27f` (`docs: promote mme-0079 agent retrieval`).
 - Push status:
   - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
 - Next issue:
