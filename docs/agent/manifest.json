@@ -2,6 +2,9 @@
   "schema": "https://momentarise.dev/schemas/agent-artifacts.v0.json",
   "generatedBy": "scripts/generate-agent-artifacts.mjs",
   "sourceBoundary": "public-docs-only",
+  "publicUrl": "https://momentarise.dev/agent/manifest.json",
+  "readmePath": "docs/agent/README.md",
+  "readmeUrl": "https://momentarise.dev/agent/README.md",
   "sources": {
     "publicDocsRoot": "docs/public",
     "llms": [
@@ -26,13 +29,15 @@
       "packages/md-surface/package.json",
       "packages/md-theme/package.json"
     ],
-    "inputHash": "eeb0286b3cbbee0ce8f61698de3fe291f87211b41dabb5a7a3f6df439b47c3a6"
+    "inputHash": "e0f0273570ba7b881daf2290e70a69718d04567294496d61e344b4192b956120"
   },
   "actionsPath": "docs/agent/actions.json",
+  "actionsUrl": "https://momentarise.dev/agent/actions.json",
   "skills": [
     {
       "id": "mme-docs",
       "path": "docs/agent/skills/mme-docs/SKILL.md",
+      "publicUrl": "https://momentarise.dev/agent/skills/mme-docs/SKILL.md",
       "sourceDocs": [
         "docs/public/index.md",
         "docs/public/concepts/document-model.md",
@@ -45,6 +50,7 @@
     {
       "id": "mme-migration-help",
       "path": "docs/agent/skills/mme-migration-help/SKILL.md",
+      "publicUrl": "https://momentarise.dev/agent/skills/mme-migration-help/SKILL.md",
       "sourceDocs": [
         "docs/public/concepts/import-export.md",
         "docs/public/concepts/preservation.md",
@@ -76,6 +82,7 @@
     {
       "id": "mme-package-selection",
       "path": "docs/agent/skills/mme-package-selection/SKILL.md",
+      "publicUrl": "https://momentarise.dev/agent/skills/mme-package-selection/SKILL.md",
       "sourceDocs": [
         "docs/public/packages/md-adapter-theia.md",
         "docs/public/packages/md-adapter-web.md",
@@ -116,6 +123,7 @@
     {
       "id": "mme-ai-privacy-boundary",
       "path": "docs/agent/skills/mme-ai-privacy-boundary/SKILL.md",
+      "publicUrl": "https://momentarise.dev/agent/skills/mme-ai-privacy-boundary/SKILL.md",
       "sourceDocs": [
         "docs/public/concepts/ai-privacy.md",
         "docs/public/concepts/policy.md",
@@ -131,6 +139,7 @@
     {
       "id": "mme-docs-to-implementation",
       "path": "docs/agent/skills/mme-docs-to-implementation/SKILL.md",
+      "publicUrl": "https://momentarise.dev/agent/skills/mme-docs-to-implementation/SKILL.md",
       "sourceDocs": [
         "docs/public/concepts/agentic-experience.md",
         "docs/public/packages/md-cli.md",

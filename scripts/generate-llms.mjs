@@ -16,8 +16,10 @@ const outputFiles = {
   full: "llms-full.txt",
   index: "llms.txt"
 };
-const defaultBaseUrl = "https://momentarise.dev/docs";
-const baseUrl = normalizeBaseUrl(process.env.MME_DOCS_SITE_URL ?? defaultBaseUrl);
+const defaultDocsBaseUrl = "https://momentarise.dev/docs";
+const docsBaseUrl = normalizeBaseUrl(process.env.MME_DOCS_SITE_URL ?? defaultDocsBaseUrl);
+const siteOrigin = normalizeBaseUrl(process.env.MME_SITE_URL ?? new URL(docsBaseUrl).origin);
+const repositoryUrl = "https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor";
 const checkMode = process.argv.includes("--check");
 
 const pages = (await Promise.all((await collectMarkdownFiles(publicRoot)).map(createPage))).sort(comparePublicDocsPages);
@@ -54,18 +56,71 @@ function renderLlmsIndex(docsPages) {
   const lines = [
     "# Momentarise Markdown Editor",
     "",
-    "Markdown-native framework for portable, preservation-first document editors.",
+    "## What MME Is",
+    "",
+    "Momentarise Markdown Editor is an experimental TypeScript framework for building modern document editors where Markdown remains the durable source.",
+    "",
+    "Source editing, rich editing, HTML rendering, save state, extensions, and policy-gated AI are derived around real `.md` files instead of replacing them with an editor-owned JSON or block database.",
+    "",
+    "## Core Guarantees",
+    "",
+    "- Markdown plus optional YAML frontmatter is canonical persisted source.",
+    "- Untouched documents remain byte-identical through derived views.",
+    "- Targeted edits preserve bytes outside the owned source range.",
+    "- Unsupported syntax falls back to raw or opaque preservation.",
+    "- Save state names the real disk, download, memory, conflict, or error target.",
+    "- Core packages remain independent from React, Next.js, CodeMirror, ProseMirror, and host APIs.",
+    "- Sensitive access and AI calls are policy-gated; suggestions remain staged.",
+    "",
+    "## Use MME When",
+    "",
+    "- You need modern source and rich editing while users keep portable Markdown files.",
+    "- You need headless, vanilla, React, Next.js, browser-file, or IDE-shell integration.",
+    "- You need preservation, truthful persistence, safe rendering, extension, theme, and AI contracts in reusable packages.",
+    "",
+    "## Do Not Assume",
+    "",
+    "- Current packages are experimental `0.x` and are not yet published to the public npm registry.",
+    "- Payload CMS or other CMS integrations are future work, not shipped adapters.",
+    "- Hosted Ask AI, semantic docs search, production collaboration, managed AI billing, and automatic skill installation are not shipped.",
+    "- Public docs are `README.md` plus `docs/public`; internal planning files are not public product evidence.",
+    "",
+    "## Start Building",
+    "",
+    `- [Overview](${docsBaseUrl})`,
+    `- [Vanilla quickstart](${docsBaseUrl}/quickstart/vanilla)`,
+    `- [React quickstart](${docsBaseUrl}/quickstart/react)`,
+    `- [Next.js quickstart](${docsBaseUrl}/quickstart/next)`,
+    `- [Headless quickstart](${docsBaseUrl}/quickstart/headless)`,
+    `- [CLI for agents and developers](${docsBaseUrl}/packages/md-cli)`,
+    "",
+    "## Machine-Readable Entry Points",
+    "",
+    `- [Full public context](${siteOrigin}/llms-full.txt)`,
+    `- [Agent artifact index](${siteOrigin}/agent/README.md)`,
+    `- [Agent manifest](${siteOrigin}/agent/manifest.json)`,
+    `- [Agent actions](${siteOrigin}/agent/actions.json)`,
+    `- [Source repository](${repositoryUrl})`,
     "",
     "## Public Docs",
     ""
   ];
+  let currentSection = "";
   for (const page of docsPages) {
+    const section = sanitizeLlmsLineField(page.metadata.navSection ?? "Reference", 80);
+    if (section !== currentSection) {
+      if (currentSection) {
+        lines.push("");
+      }
+      lines.push(`### ${section}`, "");
+      currentSection = section;
+    }
     const title = sanitizeLlmsLineField(page.title, 120);
     const description = sanitizeLlmsLineField(page.description, 220);
     const suffix = description ? `: ${description}` : "";
     lines.push(`- [${title}](${page.url})${suffix}`);
   }
-  lines.push("", "## Full Context", "", `- [llms-full.txt](${baseUrl}/llms-full.txt)`, "");
+  lines.push("");
   return lines.join("\n");
 }
 
@@ -119,11 +174,15 @@ async function collectMarkdownFiles(root) {
 function buildUrl(path) {
   const route = path.replace(/\.md$/, "");
   if (route === "index") {
-    return baseUrl;
+    return docsBaseUrl;
   }
-  return `${baseUrl}/${route.split("/").map(encodeURIComponent).join("/")}`;
+  return `${docsBaseUrl}/${route.split("/").map(encodeURIComponent).join("/")}`;
 }
 
 function normalizeBaseUrl(value) {
-  return value.replace(/\/+$/g, "");
+  const parsed = new URL(validateAbsoluteUrl(value));
+  if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error(`Docs base URL must not include credentials, a query, or a fragment: ${value}`);
+  }
+  return parsed.toString().replace(/\/+$/g, "");
 }

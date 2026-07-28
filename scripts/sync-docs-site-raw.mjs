@@ -1,54 +1,75 @@
 import { lstat, mkdir, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { dirname, join, normalize, relative, resolve, sep } from "node:path";
+import { dirname, extname, join, normalize, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const publicDocsRoot = join(repoRoot, "docs/public");
+const agentArtifactsRoot = join(repoRoot, "docs/agent");
 const docsSitePublicBaseRoot = join(repoRoot, "apps/docs-site/public");
 const docsSitePublicRoot = join(docsSitePublicBaseRoot, "docs");
+const docsSiteAgentRoot = join(docsSitePublicBaseRoot, "agent");
+const rootArtifacts = ["llms.txt", "llms-full.txt"];
 
 export async function syncDocsSiteRaw() {
-  await mkdir(docsSitePublicRoot, { recursive: true });
   const realRepoRoot = await realpath(repoRoot);
   await assertSafeDirectory(publicDocsRoot, realRepoRoot);
+  await assertSafeDirectory(agentArtifactsRoot, realRepoRoot);
   const realDocsSitePublicBaseRoot = await assertSafeDirectory(docsSitePublicBaseRoot, realRepoRoot);
-  const realDocsSitePublicRoot = await assertSafeDirectory(docsSitePublicRoot, realRepoRoot);
-  const sourceFiles = await collectMarkdownFiles(publicDocsRoot);
-  const sourceRelPaths = new Set(sourceFiles.map((path) => relative(publicDocsRoot, path).replaceAll("\\", "/")));
+  await ensureSafeDirectory(docsSitePublicRoot, realDocsSitePublicBaseRoot);
+  await ensureSafeDirectory(docsSiteAgentRoot, realDocsSitePublicBaseRoot);
 
-  for (const staleRootMarkdown of await collectMarkdownFiles(docsSitePublicBaseRoot)) {
-    const relPath = relative(docsSitePublicBaseRoot, staleRootMarkdown).replaceAll("\\", "/");
-    if (!relPath.startsWith("docs/")) {
-      await assertInsideRoot(await realpath(staleRootMarkdown), realDocsSitePublicBaseRoot, "stale root raw Markdown output");
-      await rm(staleRootMarkdown, { force: true });
-    }
+  await syncFileTree(publicDocsRoot, docsSitePublicRoot, new Set([".md"]), realRepoRoot, realDocsSitePublicBaseRoot);
+  await syncFileTree(
+    agentArtifactsRoot,
+    docsSiteAgentRoot,
+    new Set([".json", ".md"]),
+    realRepoRoot,
+    realDocsSitePublicBaseRoot
+  );
+
+  for (const relPath of rootArtifacts) {
+    const source = join(repoRoot, relPath);
+    const target = join(docsSitePublicBaseRoot, relPath);
+    await copySafeFile(source, target, realRepoRoot, realDocsSitePublicBaseRoot);
   }
+}
 
-  for (const existing of await collectMarkdownFiles(docsSitePublicRoot)) {
-    await assertInsideRoot(await realpath(existing), realDocsSitePublicRoot, "existing raw Markdown output");
-    const relPath = relative(docsSitePublicRoot, existing).replaceAll("\\", "/");
-    if (!sourceRelPaths.has(relPath)) {
+async function syncFileTree(sourceRoot, targetRoot, allowedExtensions, realRepoRoot, realPublicRoot) {
+  const realSourceRoot = await assertSafeDirectory(sourceRoot, realRepoRoot);
+  const realTargetRoot = await assertSafeDirectory(targetRoot, realPublicRoot);
+  const sourceFiles = await collectAllowedFiles(sourceRoot, allowedExtensions);
+  const sourceRelPaths = new Set(sourceFiles.map((path) => relative(sourceRoot, path).replaceAll("\\", "/")));
+
+  for (const existing of await collectAllFiles(targetRoot)) {
+    await assertInsideRoot(await realpath(existing), realTargetRoot, "existing static discovery output");
+    const relPath = relative(targetRoot, existing).replaceAll("\\", "/");
+    if (relPath !== ".gitignore" && !sourceRelPaths.has(relPath)) {
       await rm(existing, { force: true });
     }
   }
 
   for (const sourceFile of sourceFiles) {
-    const relPath = relative(publicDocsRoot, sourceFile).replaceAll("\\", "/");
-    const target = join(docsSitePublicRoot, relPath);
+    await assertInsideRoot(await realpath(sourceFile), realSourceRoot, "static discovery source");
+    const relPath = relative(sourceRoot, sourceFile).replaceAll("\\", "/");
+    const target = join(targetRoot, relPath);
     await mkdir(dirname(target), { recursive: true });
-    await assertSafeWriteTarget(target, realDocsSitePublicRoot);
-    await writeFile(target, await readFile(sourceFile, "utf8"));
-  }
-
-  const gitignoreTarget = join(docsSitePublicRoot, ".gitignore");
-  if (!existsSync(gitignoreTarget)) {
-    await assertSafeWriteTarget(gitignoreTarget, realDocsSitePublicRoot);
-    await writeFile(gitignoreTarget, "*.md\n**/*.md\n");
+    await assertSafeWriteTarget(target, realTargetRoot);
+    await writeFile(target, await readFile(sourceFile));
   }
 }
 
-async function collectMarkdownFiles(root) {
+async function copySafeFile(source, target, realSourceRoot, realTargetRoot) {
+  const sourceStats = await lstat(source);
+  if (sourceStats.isSymbolicLink() || !sourceStats.isFile()) {
+    throw new Error(`Static discovery source must be a regular file, not a symlink: ${source}`);
+  }
+  await assertInsideRoot(await realpath(source), realSourceRoot, "static discovery source");
+  await assertSafeWriteTarget(target, realTargetRoot);
+  await writeFile(target, await readFile(source));
+}
+
+async function collectAllowedFiles(root, allowedExtensions) {
   const entries = existsSync(root) ? await readdir(root, { withFileTypes: true }) : [];
   const files = [];
   for (const entry of entries) {
@@ -58,12 +79,39 @@ async function collectMarkdownFiles(root) {
       throw new Error(`Symlinks are not allowed in docs-site raw sync: ${fullPath}`);
     }
     if (stats.isDirectory()) {
-      files.push(...(await collectMarkdownFiles(fullPath)));
-    } else if (stats.isFile() && entry.name.endsWith(".md")) {
+      files.push(...(await collectAllowedFiles(fullPath, allowedExtensions)));
+    } else if (stats.isFile() && allowedExtensions.has(extname(entry.name).toLowerCase())) {
       files.push(fullPath);
     }
   }
   return files.sort();
+}
+
+async function collectAllFiles(root) {
+  const entries = existsSync(root) ? await readdir(root, { withFileTypes: true }) : [];
+  const files = [];
+  for (const entry of entries) {
+    const fullPath = join(root, entry.name);
+    const stats = await lstat(fullPath);
+    if (stats.isSymbolicLink()) {
+      throw new Error(`Symlinks are not allowed in docs-site raw sync: ${fullPath}`);
+    }
+    if (stats.isDirectory()) {
+      files.push(...(await collectAllFiles(fullPath)));
+    } else if (stats.isFile()) {
+      files.push(fullPath);
+    }
+  }
+  return files.sort();
+}
+
+async function ensureSafeDirectory(path, root) {
+  if (existsSync(path)) {
+    return assertSafeDirectory(path, root);
+  }
+  await assertInsideRoot(await realpath(dirname(path)), root, "raw sync directory parent");
+  await mkdir(path);
+  return assertSafeDirectory(path, root);
 }
 
 async function assertSafeDirectory(path, root) {

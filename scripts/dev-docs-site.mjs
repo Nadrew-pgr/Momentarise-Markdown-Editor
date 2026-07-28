@@ -1,19 +1,23 @@
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { watch } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { syncDocsSiteRaw } from "./sync-docs-site-raw.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const docsRoot = join(repoRoot, "docs/public");
 const docsSiteRoot = join(repoRoot, "apps/docs-site");
 const nextCli = join(docsSiteRoot, "node_modules/next/dist/bin/next");
+const generatePublicDiscoveryScript = join(repoRoot, "scripts/generate-public-discovery.mjs");
+const execFileAsync = promisify(execFile);
 const watchers = new Map();
 let syncQueue = Promise.resolve();
 let closed = false;
 
+await generatePublicDiscovery();
 await syncDocsSiteRaw();
 await refreshWatchers();
 
@@ -45,6 +49,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 async function scheduleRawSync() {
   syncQueue = syncQueue
     .then(async () => {
+      await generatePublicDiscovery();
       await syncDocsSiteRaw();
       await refreshWatchers();
     })
@@ -52,6 +57,13 @@ async function scheduleRawSync() {
       console.error(`[docs-site] raw Markdown sync failed: ${error instanceof Error ? error.message : String(error)}`);
     });
   await syncQueue;
+}
+
+async function generatePublicDiscovery() {
+  await execFileAsync(process.execPath, [generatePublicDiscoveryScript], {
+    cwd: repoRoot,
+    maxBuffer: 10 * 1024 * 1024
+  });
 }
 
 async function refreshWatchers() {

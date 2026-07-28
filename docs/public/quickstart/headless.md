@@ -11,12 +11,14 @@ packages:
   - "@momentarise/md-editor"
   - "@momentarise/md-save"
 llms: include
-updated: 2026-07-08
+updated: 2026-07-28
 ---
 
 # Headless Quickstart
 
 Use the headless session when you need Markdown orchestration without UI: tests, server-side inspection, CLI tools, adapters, or agent workflows.
+
+The packages are experimental and not published to the public npm registry yet. The imports below describe the intended consumer API and are validated against packed workspace tarballs.
 
 ## Create A Session
 

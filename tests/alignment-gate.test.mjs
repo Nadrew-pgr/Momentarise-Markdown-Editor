@@ -39,8 +39,8 @@ if (!issues.includes("MME-0011.5") || issues.indexOf("MME-0011.5") > issues.inde
 }
 
 const readme = readFileSync("README.md", "utf8");
-if (!readme.includes("MME-0011") || !readme.includes("MME-0011.5")) {
-  throw new Error("README must report MME-0011 and the MME-0011.5 alignment gate.");
+if (!readme.includes("## Core Guarantees") || !readme.includes("Markdown remains the durable source")) {
+  throw new Error("README must expose the public preservation contract instead of internal issue history.");
 }
 
 const buildLog = readFileSync("docs/internal/build-log.md", "utf8");

@@ -180,7 +180,7 @@ Tags: `future-adapter`, `product-differentiator`, `research`, `conversion`, `mon
 
 Tags: `public-release`, `dx`, `ax`, `research`
 
-- Agent-indexable repository/docs discovery is promoted as `MME-0076`: concise public README, root agent compatibility entrypoint, stable `llms` and `/agent/*` URLs, static artifact serving, robots/sitemap, metadata, and truthful source-code structured data.
+- Agent-indexable repository/docs discovery was implemented in `MME-0076`: concise public README, root agent compatibility entrypoint, stable `llms` and `/agent/*` URLs, static artifact serving, robots/sitemap, metadata, and truthful source-code structured data.
 
 ### End-Of-Run Human Review Queue
 

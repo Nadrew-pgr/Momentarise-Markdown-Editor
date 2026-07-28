@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { allDocsPages, getPageByRouteSegments } from "../../../src/docs-data";
+import { allDocsPages, getPageByRouteSegments, hrefForPage } from "../../../src/docs-data";
 import { DocsPageView } from "../../../src/DocsPageView";
 
 interface PageProps {
@@ -24,7 +24,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return {};
   }
   return {
+    alternates: {
+      canonical: hrefForPage(page)
+    },
     description: page.description,
+    openGraph: {
+      description: page.description,
+      title: page.title,
+      type: "article",
+      url: hrefForPage(page)
+    },
     title: page.title
   };
 }

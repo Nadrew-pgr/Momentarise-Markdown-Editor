@@ -4797,6 +4797,8 @@ DX/AX Reviewer, Security Reviewer, and Test Reviewer.
 
 - None. MME-0038/MME-0048 established the Next.js public docs surface and raw Markdown routes. MME-0049 established generated public-only actions, manifest, and skills. Existing generators and static export provide a bounded implementation path; this issue closes discovery and serving gaps without changing editor core.
 
+Accepted for code continuation 2026-07-28 after replacing the internal-ledger README with a truthful public/agent entrypoint, adding a root agent compatibility pointer, strengthening generated LLM and agent indexes, publishing stable root discovery artifacts through the static Next.js output, adding canonical crawler/source-code metadata, hardening raw sync against path/symlink/stale-file failures, and passing focused plus full-suite proof. Exact Spark/xhigh review was unavailable and no substitute model was used; documented fallback self-review found and fixed stale-output and pre-write validation gaps, with no remaining P0-P3 finding. Deployment, indexing, package publication, public-launch review, and queued visual/content review remain outside this issue. No executable normal issue remains after MME-0076 until the next backlog item is promoted.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

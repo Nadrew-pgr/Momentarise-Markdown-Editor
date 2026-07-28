@@ -102,6 +102,8 @@ function contentTypeFor(path) {
       return "font/woff";
     case ".woff2":
       return "font/woff2";
+    case ".xml":
+      return "application/xml; charset=utf-8";
     default:
       return "application/octet-stream";
   }

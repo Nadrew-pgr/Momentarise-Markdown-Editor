@@ -2,15 +2,53 @@ import type { Metadata } from "next";
 import { BrandMark } from "../src/BrandMark";
 import { LiveMarkdownDemo } from "../src/LiveMarkdownDemo";
 import { ThemeToggle } from "../src/ThemeToggle";
+import {
+  DOCS_ORIGIN,
+  FRAMEWORK_LICENSE_URL,
+  REPOSITORY_URL,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_ORIGIN
+} from "../src/site-metadata";
 
 export const metadata: Metadata = {
-  description: "Markdown-native framework for portable, AI-ready document editors.",
+  alternates: {
+    canonical: "/"
+  },
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    description: SITE_DESCRIPTION,
+    title: SITE_NAME,
+    type: "website",
+    url: "/"
+  },
   title: "Momentarise Markdown Editor"
+};
+
+const softwareSourceCode = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  name: SITE_NAME,
+  description: SITE_DESCRIPTION,
+  codeRepository: REPOSITORY_URL,
+  license: FRAMEWORK_LICENSE_URL,
+  programmingLanguage: ["TypeScript", "JavaScript"],
+  runtimePlatform: ["Web browser", "Node.js"],
+  version: "0.x experimental",
+  url: SITE_ORIGIN,
+  sameAs: [REPOSITORY_URL, DOCS_ORIGIN],
+  keywords: ["Markdown editor", "TypeScript", "MPL-2.0"]
 };
 
 export default function LandingPage() {
   return (
     <main className="landing-page" data-testid="site-landing">
+      <script
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(softwareSourceCode).replaceAll("<", "\\u003c")
+        }}
+        type="application/ld+json"
+      />
       <header className="landing-topbar">
         <a className="landing-brand" href="/">
           <BrandMark />

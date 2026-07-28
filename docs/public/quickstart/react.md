@@ -11,7 +11,7 @@ packages:
   - "@momentarise/md-react"
   - "@momentarise/md-save"
 llms: include
-updated: 2026-07-08
+updated: 2026-07-28
 ---
 
 # React Quickstart
@@ -19,6 +19,8 @@ updated: 2026-07-08
 The React binding is lifecycle glue. It does not make MME React-only, and it does not move Markdown state into React.
 
 ## Install
+
+The packages are experimental and not published to the public npm registry yet. This is the intended consumer command; current release proof uses packed workspace tarballs.
 
 ```bash
 npm install @momentarise/md-react @momentarise/md-save react react-dom

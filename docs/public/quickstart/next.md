@@ -10,12 +10,14 @@ tags:
 packages:
   - "@momentarise/md-react"
 llms: include
-updated: 2026-07-08
+updated: 2026-07-28
 ---
 
 # Next.js Quickstart
 
 MME packages avoid DOM globals at module import where required, but the editor itself is an interactive client surface. In Next.js App Router, mount it from a client component.
+
+The packages are experimental and not published to the public npm registry yet. The imports below describe the intended consumer API and are validated against packed workspace tarballs.
 
 ## Client Component
 

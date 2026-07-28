@@ -7277,3 +7277,53 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - `MME-0076 — Agent-indexable repository and docs discovery`.
+
+## MME-0076 — Agent-indexable repository and docs discovery
+
+- Date: 2026-07-28.
+- Previous issue status:
+  - `MME-0075` accepted for code continuation and committed (`09b7376` implementation/status, `dbfd341` evidence).
+  - `MME-0076` was promoted and committed in checkpoint `4192b7d` (`110d163` evidence, corrected by `42d338b`).
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, current build-log entries, clean `git status --short`, the supplied AI-search text, and every README/generator/agent/docs-site/test file named by the issue.
+  - Existing static docs, raw public Markdown, LLM generators, and agent artifacts provided a bounded docs-only path. The previous README was an internal issue ledger, public discovery URLs were incomplete, root LLM/agent artifacts were absent from static output, and crawler metadata/routes were absent.
+- RED proof before implementation:
+  - Added `tests/agent-discovery.test.mjs` and registered `test:agent-discovery` in focused and full-suite scripts.
+  - The first focused run failed with `README must include ## Why MME`, proving the public entrypoint/discovery contract was absent.
+  - Strengthened the proof during GREEN to check truthful package/publication boundaries, canonical endpoint placement, public-only generated content, deterministic artifact sync, source/target symlink rejection, and stale output deletion.
+- Change:
+  - Replaced the root issue-ledger README with a concise public/agent entrypoint covering MME's purpose, differentiation, shipped package map, quickstarts, durable-source guarantees, coding-agent reading order, stable discovery endpoints, experimental boundaries, repository structure, and MPL-2.0 framework licensing.
+  - Added thin root `AGENTS.md` compatibility guidance that points coding agents to canonical `AGENT.md`, public docs, and private/public boundaries without duplicating implementation policy.
+  - Reworked `llms.txt` generation around high-signal framework guidance, core guarantees, use/not-use boundaries, start paths, repository links, and root `/llms*` plus `/agent/*` endpoints while keeping `llms-full.txt` generated only from `docs/public`.
+  - Generated a public `docs/agent/README.md`, enriched manifest/skill metadata with stable repository and public URLs, and kept actions/skills explicit about generation, installation, policy, and unsupported behavior.
+  - Added one public-discovery generator entrypoint and wired docs build/dev to regenerate LLM/agent artifacts before static sync.
+  - Hardened static raw sync with realpath containment, source/target symlink rejection, validation before writes, public-only allowlists, and stale generated-file cleanup. Published root LLM files plus agent index/manifest/actions/skills through the Next.js static output.
+  - Added shared site metadata, absolute canonicals, index/follow robots policy, Open Graph metadata, static `robots.txt` and sitemap routes, and truthful escaped `SoftwareSourceCode` JSON-LD.
+  - Documented the stable endpoints and no-guarantee boundaries in Agentic Experience, added publication caveats to quickstarts, and corrected static-preview XML MIME handling.
+  - Updated alignment/docs-site tests so the public README can remain an entrypoint while implementation history stays in internal issue/build records.
+- Visual impact:
+  - No editor or docs layout change. Public README/docs copy and invisible discovery metadata changed; no screenshot was required by the issue.
+- Checks run:
+  - `npm run test:agent-discovery` — RED first, then green after README, agent entrypoint, generators, endpoint placement, safe sync, metadata, and truth-boundary implementation.
+  - `npm run test:llms-sync`, `npm run test:agent-artifacts`, `npm run test:alignment`, and `node scripts/docs-lint.mjs` — green.
+  - `npm run test:docs`, `npm run test:docs-launch`, and `npm run test:docs-site` — green. Static docs build emitted 44 routes, including `/robots.txt` and `/sitemap.xml`.
+  - `npm run build:docs-site` — green with Next.js 16.2.10; generated output includes root `llms.txt`, `llms-full.txt`, agent index/manifest/actions/five skills, robots, sitemap, and the rendered public documentation pages.
+  - Permissioned local HTTP proof at `http://127.0.0.1:4178/` returned `200`: `/llms.txt` as `text/plain`, `/agent/manifest.json` as `application/json`, `/agent/skills/mme-docs/SKILL.md` as `text/markdown`, and `/sitemap.xml` as `application/xml`.
+  - Public-artifact scans found no `docs/internal`, local `/Users` path, secret/key material, or unsupported shipped-capability claim.
+  - Final `npm test` — green end-to-end, including contracts, architecture, security, preservation, performance, all rich/table/footnote regressions, CLI/adapters, demo build, and 44-route Next.js docs build; existing Vite chunk-size warning only.
+  - Final focused discovery/LLM/agent/alignment/docs-lint reruns and `git diff --check` — green.
+- Reviewer result:
+  - Attempted the required inspect-only code review with exactly `gpt-5.3-codex-spark` at `xhigh`. The subagent tool rejected that model and listed only other models; no substitute code-review model was used per Andrew's instruction.
+  - Fallback self-review covered truthfulness, private/public boundaries, generator determinism, URL stability, source/target containment, symlink handling, stale output, metadata semantics, static serving, test quality, and package/editor non-impact.
+  - The fallback review found that non-allowlisted stale public files could survive sync and that target directories could be created before all target validation completed. Both were fixed; structured-data semantics and URL normalization were tightened in the same pass. No P0-P3 finding remains.
+- Residual risks:
+  - Local static-output proof does not verify production deployment, DNS, crawler ingestion, search ranking, citation behavior, or public endpoint availability at `momentarise.dev`.
+  - Public npm artifacts are not published; README and quickstarts state this explicitly. Local packed-workspace validation does not imply registry availability.
+  - Payload/CMS adapters, hosted Ask AI, semantic search, schema hosting, automatic skill installation, analytics, and public launch remain outside this slice.
+  - Public docs visual/content acceptance and launch review remain queued for Andrew's consolidated end-of-run review block.
+- Commit status:
+  - Issue-scoped implementation/status commit pending.
+- Push status:
+  - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0076`. The next backlog candidate requires fresh feasibility proof and strict promotion before implementation.

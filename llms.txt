@@ -1,18 +1,73 @@
 # Momentarise Markdown Editor
 
-Markdown-native framework for portable, preservation-first document editors.
+## What MME Is
+
+Momentarise Markdown Editor is an experimental TypeScript framework for building modern document editors where Markdown remains the durable source.
+
+Source editing, rich editing, HTML rendering, save state, extensions, and policy-gated AI are derived around real `.md` files instead of replacing them with an editor-owned JSON or block database.
+
+## Core Guarantees
+
+- Markdown plus optional YAML frontmatter is canonical persisted source.
+- Untouched documents remain byte-identical through derived views.
+- Targeted edits preserve bytes outside the owned source range.
+- Unsupported syntax falls back to raw or opaque preservation.
+- Save state names the real disk, download, memory, conflict, or error target.
+- Core packages remain independent from React, Next.js, CodeMirror, ProseMirror, and host APIs.
+- Sensitive access and AI calls are policy-gated; suggestions remain staged.
+
+## Use MME When
+
+- You need modern source and rich editing while users keep portable Markdown files.
+- You need headless, vanilla, React, Next.js, browser-file, or IDE-shell integration.
+- You need preservation, truthful persistence, safe rendering, extension, theme, and AI contracts in reusable packages.
+
+## Do Not Assume
+
+- Current packages are experimental `0.x` and are not yet published to the public npm registry.
+- Payload CMS or other CMS integrations are future work, not shipped adapters.
+- Hosted Ask AI, semantic docs search, production collaboration, managed AI billing, and automatic skill installation are not shipped.
+- Public docs are `README.md` plus `docs/public`; internal planning files are not public product evidence.
+
+## Start Building
+
+- [Overview](https://momentarise.dev/docs)
+- [Vanilla quickstart](https://momentarise.dev/docs/quickstart/vanilla)
+- [React quickstart](https://momentarise.dev/docs/quickstart/react)
+- [Next.js quickstart](https://momentarise.dev/docs/quickstart/next)
+- [Headless quickstart](https://momentarise.dev/docs/quickstart/headless)
+- [CLI for agents and developers](https://momentarise.dev/docs/packages/md-cli)
+
+## Machine-Readable Entry Points
+
+- [Full public context](https://momentarise.dev/llms-full.txt)
+- [Agent artifact index](https://momentarise.dev/agent/README.md)
+- [Agent manifest](https://momentarise.dev/agent/manifest.json)
+- [Agent actions](https://momentarise.dev/agent/actions.json)
+- [Source repository](https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor)
 
 ## Public Docs
 
+### Start
+
 - [Momentarise Markdown Editor](https://momentarise.dev/docs): Build portable Markdown editors with rich UX, AI assistance, truthful saves, and host-independent contracts.
+
+### Getting Started
+
 - [Vanilla Quickstart](https://momentarise.dev/docs/quickstart/vanilla): Mount Momentarise Markdown Editor without a framework.
 - [React Quickstart](https://momentarise.dev/docs/quickstart/react): Mount the thin React binding for Momentarise Markdown Editor.
 - [Next.js Quickstart](https://momentarise.dev/docs/quickstart/next): Use the React binding from a client-only Next.js boundary.
 - [Headless Quickstart](https://momentarise.dev/docs/quickstart/headless): Use the headless editor session without rendering UI.
+
+### Foundations
+
 - [Document Model](https://momentarise.dev/docs/concepts/document-model): Markdown is the durable source; views and artifacts are derived.
 - [Preservation](https://momentarise.dev/docs/concepts/preservation): How MME protects Markdown bytes and unknown syntax.
 - [Save Truthfulness](https://momentarise.dev/docs/concepts/save-truthfulness): Save state must describe the real persistence target.
 - [Document Access Policy](https://momentarise.dev/docs/concepts/policy): Policy decisions gate read, write, share, export, and AI access.
+
+### Features
+
 - [Editor UI](https://momentarise.dev/docs/concepts/editor-ui): Source mode, rich view, toolbar, slash menu, outline, and status surfaces.
 - [AI And Privacy](https://momentarise.dev/docs/concepts/ai-privacy): AI writing is assistive, staged, and policy-gated.
 - [Import, Export, And Rendering](https://momentarise.dev/docs/concepts/import-export): Markdown stays source; HTML and external formats are explicit artifacts or adapters.
@@ -23,8 +78,14 @@ Markdown-native framework for portable, preservation-first document editors.
 - [HTML And SVG Artifact Preview](https://momentarise.dev/docs/packages/md-preview-html): Sandboxed preview descriptors for standalone HTML and sanitized SVG files.
 - [Agentic Experience](https://momentarise.dev/docs/concepts/agentic-experience): How MME docs expose Markdown context to coding agents without hiding the source.
 - [Performance Budgets](https://momentarise.dev/docs/concepts/performance): CI-runnable performance guardrails for large Markdown documents.
+
+### Styling
+
 - [Theming](https://momentarise.dev/docs/concepts/theming): Theme MME through tokens, host theme objects, icons, and class maps.
 - [Theme System](https://momentarise.dev/docs/packages/md-theme): Tokens, host theme objects, icons, and class maps.
+
+### Reference
+
 - [Core Contracts](https://momentarise.dev/docs/packages/md-core): Stable host-independent primitives shared by every MME package.
 - [Markdown Parser And Serializer](https://momentarise.dev/docs/packages/md-format): Parse Markdown into MME nodes and serialize edited ranges safely.
 - [Save Engine](https://momentarise.dev/docs/packages/md-save): Dirty, saved, conflict, and persistence-target contracts.
@@ -42,7 +103,3 @@ Markdown-native framework for portable, preservation-first document editors.
 - [AI Provider Adapter](https://momentarise.dev/docs/AI_PROVIDER_ADAPTER)
 - [Compatibility Promise](https://momentarise.dev/docs/compatibility-promise)
 - [Glossary](https://momentarise.dev/docs/GLOSSARY)
-
-## Full Context
-
-- [llms-full.txt](https://momentarise.dev/docs/llms-full.txt)

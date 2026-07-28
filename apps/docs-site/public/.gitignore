@@ -1,2 +1,5 @@
 *.md
 **/*.md
+llms.txt
+llms-full.txt
+agent/

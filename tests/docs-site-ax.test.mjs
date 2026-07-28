@@ -23,6 +23,10 @@ assert(manifest.dependencies?.["@momentarise/md-source-codemirror"], "docs site 
 assert(manifest.dependencies?.next, "docs site must be implemented as a Next.js app.");
 assert(manifest.dependencies?.react, "docs site Next app must depend on React.");
 assert(manifest.scripts?.["sync:raw"], "docs site must sync raw Markdown from docs/public before dev/build.");
+assert(
+  manifest.scripts?.build?.includes("generate-public-discovery.mjs"),
+  "docs site build must regenerate public LLM and agent discovery artifacts."
+);
 assert(manifest.scripts?.dev?.includes("dev-docs-site.mjs"), "docs site dev script must watch raw Markdown sync.");
 assert(manifest.scripts?.preview?.includes("preview-docs-site.mjs"), "docs site preview script must serve static out.");
 assert(!manifest.scripts?.preview?.includes("next start"), "static-export docs site must not preview through next start.");
@@ -45,6 +49,8 @@ for (const required of [
 }
 
 const layoutSource = await readText(join(appRoot, "app/layout.tsx"));
+const robotsSource = await readText(join(appRoot, "app/robots.ts"));
+const sitemapSource = await readText(join(appRoot, "app/sitemap.ts"));
 const faviconSource = await readText(join(appRoot, "app/favicon.ico/route.ts"));
 const pageSource = await readText(join(appRoot, "app/page.tsx"));
 const docsPageSource = await readText(join(appRoot, "app/docs/page.tsx"));
@@ -121,7 +127,8 @@ for (const required of [
   "apps/docs-site/public",
   "docsSitePublicBaseRoot",
   "join(docsSitePublicBaseRoot, \"docs\")",
-  "collectMarkdownFiles",
+  "collectAllowedFiles",
+  "collectAllFiles",
   "realpath",
   "lstat",
   "assertSafeWriteTarget",
@@ -129,9 +136,12 @@ for (const required of [
 ]) {
   assert(syncRawSource.includes(required), `raw sync script must include ${required}.`);
 }
+for (const required of ["agentArtifactsRoot", "rootArtifacts", "collectAllowedFiles", "docsSiteAgentRoot"]) {
+  assert(syncRawSource.includes(required), `raw sync script must publish discovery artifact source ${required}.`);
+}
 
 const devScript = await readText("scripts/dev-docs-site.mjs");
-for (const required of ["watch", "syncDocsSiteRaw", "next", "docs/public"]) {
+for (const required of ["watch", "syncDocsSiteRaw", "generatePublicDiscovery", "next", "docs/public"]) {
   assert(devScript.includes(required), `dev wrapper must include ${required}.`);
 }
 
@@ -141,6 +151,7 @@ for (const required of ["apps/docs-site/out", "createServer", "404.html", "text/
 }
 assert(previewScript.includes("normalizeRequestPath"), "static preview script must normalize request paths.");
 assert(previewScript.includes("replace(/\\/+$/, \"\")"), "static preview script must strip trailing slashes before resolving static pages.");
+assert(previewScript.includes("application/xml; charset=utf-8"), "static preview must serve sitemap.xml with an XML content type.");
 
 const sharedSource = await readText(join(appRoot, "src/docs-shared.mjs"));
 for (const required of [
@@ -197,6 +208,37 @@ for (const doc of publicDocs) {
   assert(existsSync(builtRaw), `docs site build must emit raw Markdown at ${builtRaw}.`);
   assertEqual(await readText(builtRaw), await readText(doc), `built raw Markdown must match docs/public/${relPath}.`);
 }
+
+const agentManifest = await readJson("docs/agent/manifest.json");
+for (const [source, publicPath, builtPath] of [
+  ["llms.txt", join(appRoot, "public/llms.txt"), join(appRoot, "out/llms.txt")],
+  ["llms-full.txt", join(appRoot, "public/llms-full.txt"), join(appRoot, "out/llms-full.txt")],
+  ["docs/agent/README.md", join(appRoot, "public/agent/README.md"), join(appRoot, "out/agent/README.md")],
+  ["docs/agent/manifest.json", join(appRoot, "public/agent/manifest.json"), join(appRoot, "out/agent/manifest.json")],
+  ["docs/agent/actions.json", join(appRoot, "public/agent/actions.json"), join(appRoot, "out/agent/actions.json")]
+]) {
+  assertEqual(await readText(publicPath), await readText(source), `${publicPath} must match ${source}.`);
+  assertEqual(await readText(builtPath), await readText(source), `${builtPath} must match ${source}.`);
+}
+for (const skill of agentManifest.skills) {
+  const publicSkill = join(appRoot, "public/agent/skills", skill.id, "SKILL.md");
+  const builtSkill = join(appRoot, "out/agent/skills", skill.id, "SKILL.md");
+  assertEqual(await readText(publicSkill), await readText(skill.path), `${publicSkill} must match ${skill.path}.`);
+  assertEqual(await readText(builtSkill), await readText(skill.path), `${builtSkill} must match ${skill.path}.`);
+}
+
+const builtRobots = await readText(join(appRoot, "out/robots.txt"));
+assert(builtRobots.includes("Allow: /"), "built robots.txt must allow public crawling.");
+assert(
+  builtRobots.includes("Sitemap: https://momentarise.dev/sitemap.xml"),
+  "built robots.txt must advertise the canonical sitemap."
+);
+const builtSitemap = await readText(join(appRoot, "out/sitemap.xml"));
+assert(builtSitemap.includes("<loc>https://momentarise.dev/</loc>"), "built sitemap must include the product landing.");
+assert(builtSitemap.includes("<loc>https://momentarise.dev/docs</loc>"), "built sitemap must include docs.");
+assert(robotsSource.includes('dynamic = "force-static"'), "robots route must support static export.");
+assert(sitemapSource.includes('dynamic = "force-static"'), "sitemap route must support static export.");
+assert(sitemapSource.includes("allDocsPages"), "sitemap must derive public docs routes from Markdown pages.");
 
 const axGuide = await readText("docs/public/concepts/agentic-experience.md");
 for (const required of [

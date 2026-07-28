@@ -12,7 +12,7 @@ packages:
   - "@momentarise/md-source-codemirror"
   - "@momentarise/md-surface"
 llms: include
-updated: 2026-07-08
+updated: 2026-07-28
 ---
 
 # Vanilla Quickstart
@@ -20,6 +20,8 @@ updated: 2026-07-08
 Use the vanilla path when your host is a browser app, Vite app, web component, IDE webview, or custom shell that does not want a React dependency.
 
 ## Install
+
+The packages are experimental and not published to the public npm registry yet. This is the intended consumer command; current release proof uses packed workspace tarballs.
 
 ```bash
 npm install @momentarise/md-editor @momentarise/md-save @momentarise/md-source-codemirror @momentarise/md-surface

@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Static public documentation site for Momentarise Markdown Editor.",
   "scripts": {
-    "build": "npm run sync:raw && NEXT_IGNORE_INCORRECT_LOCKFILE=1 next build",
+    "build": "node ../../scripts/generate-public-discovery.mjs && npm run sync:raw && NEXT_IGNORE_INCORRECT_LOCKFILE=1 next build",
     "dev": "node ../../scripts/dev-docs-site.mjs",
     "preview": "npm run build && node ../../scripts/preview-docs-site.mjs",
     "sync:raw": "node ../../scripts/sync-docs-site-raw.mjs",
