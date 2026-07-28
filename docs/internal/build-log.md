@@ -7524,7 +7524,7 @@
   - Generator/code review will use exactly `gpt-5.3-codex-spark` at `xhigh` if available; no substitute code-review model.
   - Review will inspect truthfulness, public/private boundaries, source derivation, profile schema, deterministic generation, static-sync safety, query usefulness, non-duplication, package/license/publication claims, and no runtime/UI impact.
 - Commit status:
-  - Promotion checkpoint commit to be created.
+  - Promotion checkpoint committed as `098b27f` (`docs: promote mme-0079 agent retrieval`).
 - Push status:
   - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
 - Next issue:
@@ -7605,7 +7605,7 @@
   - Implementation code review will use exactly `gpt-5.3-codex-spark` at `xhigh` if available; no substitute code-review model.
   - Review will inspect CSV parser configuration, dependency/license boundary, MIME precedence, matrix limits, control/multiline rejection, literal safety, transaction atomicity, exact ownership, pass-through, history, Save Engine truth, and browser proof.
 - Commit status:
-  - Promotion checkpoint commit to be created.
+  - Promotion checkpoint committed as `b2cea41` (`docs: promote mme-0080 csv paste`).
 - Push status:
   - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
 - Next issue:
