@@ -2,6 +2,8 @@
 
 ProseMirror rich-mode bridge for Momentarise Markdown Editor.
 
+Task Markdown mounts as native list semantics: `bullet_list` or `ordered_list` contains `todo_item`, rendered as direct `<li>` children. Toggle controls stay native non-editable buttons; only `[data-todo-content]` is reparsed, so visual check glyphs never enter document content. Rich commands and input rules create one-item bullet task lists rather than schema-valid orphan task blocks.
+
 ## Interaction helpers
 
 - `insertParagraphAfterCurrentBlock` / `canInsertParagraphAfterCurrentBlock` support explicit insertion after the selected rich block.

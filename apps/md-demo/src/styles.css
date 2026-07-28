@@ -2016,11 +2016,18 @@ h1 {
 }
 
 .ProseMirror [data-type="todo-item"] {
+  margin: 0 0 0.35em;
+}
+
+.ProseMirror ul > [data-type="todo-item"] {
+  list-style: none;
+}
+
+.ProseMirror [data-todo-row="true"] {
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr);
   gap: 6px;
   align-items: start;
-  margin: 0 0 0.35em;
 }
 
 .ProseMirror [data-todo-toggle] {

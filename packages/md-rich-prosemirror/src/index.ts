@@ -3144,8 +3144,12 @@ function createRichBlockAffordanceDecorations(
   }
 
   for (const range of ranges) {
+    const widgetPosition =
+      range.type === "bullet_list" || range.type === "ordered_list"
+        ? range.from + 2
+        : range.from + 1;
     decorations.push(
-      adapter.Decoration.widget(range.from + 1, (view) => createRichBlockAffordanceWidget(view, range, options), {
+      adapter.Decoration.widget(widgetPosition, (view) => createRichBlockAffordanceWidget(view, range, options), {
         key: `rich-block-affordance:${range.index}:${range.type}:${range.text}`,
         side: -1
       })
@@ -4204,7 +4208,9 @@ function executeRichMarkdownCommand(
       return replaceCurrentBlock(
         state,
         dispatch,
-        schema.nodes.todo_item!.create({ checked: false }, [paragraphFromCurrentBlock(state)])
+        schema.nodes.bullet_list!.create(null, [
+          schema.nodes.todo_item!.create({ checked: false }, [paragraphFromCurrentBlock(state)])
+        ])
       );
     case "bulletList":
       return replaceCurrentBlock(
@@ -5408,14 +5414,6 @@ function createListTodoInputRuleTransaction(
     retainedListItem.content
   );
 
-  if (listNode.childCount === 1 && $from.node(listDepth - 1).type === state.schema.nodes.doc) {
-    const listFrom = transaction.mapping.map($from.before(listDepth));
-    const listTo = transaction.mapping.map($from.after(listDepth));
-    transaction.replaceWith(listFrom, listTo, todoItem);
-    const selectionPosition = Math.min(listFrom + 2, transaction.doc.content.size);
-    return transaction.setSelection(TextSelection.near(transaction.doc.resolve(selectionPosition)));
-  }
-
   transaction.replaceWith(listItemFrom, listItemTo, todoItem);
   const selectionPosition = Math.min(listItemFrom + 2, transaction.doc.content.size);
   return transaction.setSelection(TextSelection.near(transaction.doc.resolve(selectionPosition)));
@@ -5473,17 +5471,19 @@ function replacementForInputRule(
         schema.nodes.list_item!.create(null, [paragraph])
       ]);
     case "todo_item":
-      return schema.nodes.todo_item!.create({ checked: rule.checked }, [paragraph]);
+      return schema.nodes.bullet_list!.create(null, [
+        schema.nodes.todo_item!.create({ checked: rule.checked }, [paragraph])
+      ]);
   }
 }
 
 function selectionOffsetForInputRule(rule: Exclude<RichMarkdownInputRule, { readonly kind: "heading" }>): number {
   switch (rule.kind) {
     case "blockquote":
-    case "todo_item":
       return 2;
     case "bullet_list":
     case "ordered_list":
+    case "todo_item":
       return 3;
     case "code_block":
     case "horizontal_rule":
@@ -6011,10 +6011,19 @@ const richNodes: Record<string, NodeSpec> = {
     },
     content: "paragraph block*",
     defining: true,
-    group: "block",
     parseDOM: [
       {
-        tag: '[data-type="todo-item"]',
+        tag: 'li[data-type="todo-item"]',
+        priority: 60,
+        contentElement: '[data-todo-content="true"]',
+        getAttrs: (element) => ({
+          checked: element instanceof HTMLElement ? element.dataset.checked === "true" : false
+        })
+      },
+      {
+        tag: 'div[data-type="todo-item"]',
+        priority: 60,
+        contentElement: '[data-todo-content="true"]',
         getAttrs: (element) => ({
           checked: element instanceof HTMLElement ? element.dataset.checked === "true" : false
         })
@@ -6023,20 +6032,24 @@ const richNodes: Record<string, NodeSpec> = {
     toDOM: (node) => {
       const checked = Boolean(node.attrs.checked);
       return [
-        "div",
+        "li",
         { "data-checked": String(checked), "data-type": "todo-item" },
         [
-          "button",
-          {
-            "aria-label": checked ? "Mark todo incomplete" : "Mark todo complete",
-            "aria-pressed": String(checked),
-            "contenteditable": "false",
-            "data-todo-toggle": "true",
-            type: "button"
-          },
-          checked ? "\u2713" : ""
-        ],
-        ["div", { "data-todo-content": "true" }, 0]
+          "div",
+          { "data-todo-row": "true" },
+          [
+            "button",
+            {
+              "aria-label": checked ? "Mark todo incomplete" : "Mark todo complete",
+              "aria-pressed": String(checked),
+              "contenteditable": "false",
+              "data-todo-toggle": "true",
+              type: "button"
+            },
+            checked ? "\u2713" : ""
+          ],
+          ["div", { "data-todo-content": "true" }, 0]
+        ]
       ];
     }
   },

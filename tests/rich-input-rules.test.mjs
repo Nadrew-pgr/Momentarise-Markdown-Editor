@@ -21,8 +21,8 @@ assertTypedMarkdown("### Fine", "### Fine", "heading 3 input rule", ["heading"])
 assertTypedMarkdown("- Bullet", "- Bullet", "bullet list input rule", ["bullet_list", "list_item", "paragraph"]);
 assertTypedMarkdown("1. Ordered", "1. Ordered", "ordered list input rule", ["ordered_list", "list_item", "paragraph"]);
 assertTypedMarkdown("> Quote", "> Quote", "blockquote input rule", ["blockquote", "paragraph"]);
-assertTypedMarkdown("- [ ] Task", "- [ ] Task", "unchecked todo input rule", ["todo_item", "paragraph"]);
-assertTypedMarkdown("- [x] Done", "- [x] Done", "checked todo input rule", ["todo_item", "paragraph"]);
+assertTypedMarkdown("- [ ] Task", "- [ ] Task", "unchecked todo input rule", ["bullet_list", "todo_item", "paragraph"]);
+assertTypedMarkdown("- [x] Done", "- [x] Done", "checked todo input rule", ["bullet_list", "todo_item", "paragraph"]);
 assertTypedMarkdown("```ts const value = 1;", "```ts\nconst value = 1;\n```", "code fence space input rule", [
   "code_block"
 ]);
@@ -55,8 +55,9 @@ assertRootChildTypes(exitedCodeFenceWithArrowRight, ["code_block", "paragraph"],
 const uncheckedTodo = typeIntoRichState(rich.createRichMarkdownState(""), "- [ ] Ship it");
 const continuedTodo = pressEnterInRichState(uncheckedTodo);
 assertIncludes(rich.serializeRichMarkdownState(continuedTodo).content, "- [ ] Ship it\n- [ ]", "todo Enter continuation");
-assertNodePath(continuedTodo, ["todo_item", "paragraph"], "todo Enter first item node shape");
-assertRootChildTypes(continuedTodo, ["todo_item", "todo_item"], "todo Enter creates adjacent item");
+assertNodePath(continuedTodo, ["bullet_list", "todo_item", "paragraph"], "todo Enter first item node shape");
+assertRootChildTypes(continuedTodo, ["bullet_list"], "todo Enter stays inside one semantic list");
+assertFirstListChildTypes(continuedTodo, ["todo_item", "todo_item"], "todo Enter creates adjacent item");
 const checkedTodo = rich.toggleCurrentTodoItem(uncheckedTodo);
 assertIncludes(rich.serializeRichMarkdownState(checkedTodo).content, "- [x] Ship it", "todo toggle checked");
 const uncheckedAgain = rich.toggleCurrentTodoItem(checkedTodo);
@@ -218,6 +219,16 @@ function assertRootChildTypes(state, expectedTypes, label) {
   });
   if (actualTypes.join(",") !== expectedTypes.join(",")) {
     throw new Error(`${label} expected root children ${expectedTypes.join(",")}.\n${JSON.stringify(state.editorState.doc.toJSON(), null, 2)}`);
+  }
+}
+
+function assertFirstListChildTypes(state, expectedTypes, label) {
+  const actualTypes = [];
+  state.editorState.doc.firstChild?.forEach((child) => {
+    actualTypes.push(child.type.name);
+  });
+  if (actualTypes.join(",") !== expectedTypes.join(",")) {
+    throw new Error(`${label} expected list children ${expectedTypes.join(",")}.\n${JSON.stringify(state.editorState.doc.toJSON(), null, 2)}`);
   }
 }
 

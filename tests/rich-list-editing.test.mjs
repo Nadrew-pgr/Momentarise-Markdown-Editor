@@ -41,7 +41,8 @@ assertListChildTypes(orderedContinued, ["list_item", "list_item"], "ordered Ente
 const checkedTodo = typeIntoRichState(rich.createRichMarkdownState(""), "- [x] Done");
 const checkedTodoContinued = pressKeyInRichState(checkedTodo, "Enter");
 assertSerializedIncludes(checkedTodoContinued, "- [x] Done\n- [ ]", "Enter after checked todo creates unchecked sibling todo");
-assertRootChildTypes(checkedTodoContinued, ["todo_item", "todo_item"], "todo Enter sibling shape");
+assertRootChildTypes(checkedTodoContinued, ["bullet_list"], "todo Enter stays inside one semantic list");
+assertListChildTypes(checkedTodoContinued, ["todo_item", "todo_item"], "todo Enter sibling shape");
 assertSelectionInListItem(checkedTodoContinued, {
   itemIndex: 1,
   itemType: "todo_item",

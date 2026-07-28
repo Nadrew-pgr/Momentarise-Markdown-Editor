@@ -1,0 +1,17 @@
+{
+  "consoleErrors": [],
+  "demoUrl": "http://127.0.0.1:5174/",
+  "failedResponses": [],
+  "mounted": {
+    "allListChildrenNative": true,
+    "invalidLists": [],
+    "contentHasGlyph": false,
+    "directTaskDivs": 0,
+    "orderedListStyle": "decimal",
+    "orderedStart": "3",
+    "taskCount": 5,
+    "unorderedListStyle": "none"
+  },
+  "screenshots": 5,
+  "status": "passed"
+}

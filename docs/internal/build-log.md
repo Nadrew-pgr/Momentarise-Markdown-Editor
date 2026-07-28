@@ -7359,3 +7359,48 @@
   - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
 - Next issue:
   - `MME-0077 — Rich todo semantic DOM and accessibility integrity`.
+
+## MME-0077 — Rich todo semantic DOM and accessibility integrity
+
+- Date: 2026-07-28.
+- Previous issue status:
+  - `MME-0076` accepted for code continuation and committed (`e095ef0` implementation/status, `c9878ca` evidence).
+  - `MME-0077` was promoted and committed in checkpoint `53c2a74` (`0ce5a7d` evidence).
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, current build-log entries, clean `git status --short`, and every schema/editor/demo/fixture/test file named by the issue.
+  - Direct built-package proof confirmed invalid `ul > div[data-type="todo-item"]` output, checked-glyph leakage during DOM reparse, and orphan task creation through command/input-rule paths.
+- RED proof before implementation:
+  - Added `tests/rich-todo-dom-semantics.test.mjs` and registered focused/full-suite scripts.
+  - First `npm run test:rich-todo-dom-semantics` failed with `UL direct children must all be LI, got DIV, DIV`.
+- Change:
+  - Changed package-owned task DOM to native `li[data-type="todo-item"]` with an inner layout row, native non-editable toggle button, and explicit `[data-todo-content]` parse boundary.
+  - Added priority task parse rules for native `li` and safe legacy `div` wrappers. DOM reparse preserves checked state and excludes visible glyph/control text.
+  - Removed top-level block admission from `todo_item`; command and input-rule creation now produce `bullet_list > todo_item > paragraph`, while nested bullet/ordered conversion stays inside its existing list.
+  - Moved top-level bullet/ordered block-affordance widgets into the first item content position after runtime proof exposed an additional direct `ul/ol > span` semantics defect.
+  - Kept unordered task markers hidden and ordered numbering native. Existing toggle transactions, history, source serialization, Save Engine, parser/model, and package boundaries remain unchanged.
+  - Updated affected rich/live-preview regressions, package docs, demo selectors, root scripts, and browser artifacts.
+- Visual impact:
+  - Task rows retain their existing checkbox-led appearance. Unordered tasks have no duplicate bullet; ordered tasks visibly retain `3.`/`4.` numbering.
+  - Permissioned headless Chrome at `http://127.0.0.1:5174/` proves native direct `LI` children, no task `DIV` or affordance `SPAN` under lists, content isolation, pointer/Enter/Space toggles, button focus, semantic command creation, exact Source handoff, no console/HTTP failures, and 390 px containment without page overflow.
+  - Artifacts: `docs/internal/visual-checks/MME-0077/todo-semantic-lists-desktop.png`, `todo-semantic-toggle-focused.png`, `todo-semantic-command.png`, `todo-semantic-constrained.png`, `todo-semantic-source.png`, `result.json`, and `README.md`.
+  - Builder inspected desktop, command, and constrained frames. Alignment, numbering, focus, hierarchy, and containment are readable; subjective styling remains queued.
+- Checks run:
+  - `npm run test:rich-todo-dom-semantics` — RED first, then green for native list structure, content-only DOM parse, specialized/legacy task parsing, checked state, orphan rejection, list-wrapped command/input creation, and fixture identity.
+  - Focused task-footnote, input-rule, list-editing, live-preview, core-interaction, security, targeted-serialization, and rich-fidelity regressions — green.
+  - `npm run visual:mme-0077` — green after fixing the runtime block-affordance direct-child defect and adding pointer/Enter/Space, focus, command, Source, and constrained proof.
+  - `npm test` — green end-to-end, including contracts, architecture, security, preservation, performance 10/10, rich/list/table/footnote interactions, agent/docs gates, CLI/adapters, demo build, and 44-route Next.js docs build; existing Vite chunk-size warning only.
+  - Final focused legacy-wrapper extension and `git diff --check` — green with no production-code change after the full-suite run.
+- Reviewer result:
+  - Attempted inspect-only review with exactly `gpt-5.3-codex-spark` at `xhigh`; the subagent tool rejected that model and listed only other models. No substitute code-review model was used.
+  - Fallback self-review covered schema validity, parse priority/content isolation, command/input creation, list interactions/history, preservation, accessibility, CSS markers, decoration DOM, package boundaries, security, and proof quality.
+  - Runtime review found and fixed the additional direct `ul/ol > span` block-affordance defect. Closeout review added explicit safe legacy-wrapper and Space-key proof. No P0-P3 finding remains.
+- Residual risks:
+  - Final checkbox density/styling, ordered-number spacing, nested visual hierarchy, focus treatment, task creation/nesting/undo feel, Source visibility, and constrained-layout taste remain queued in `docs/internal/BACKLOG.md` for Andrew's consolidated review block.
+  - Broad list-model redesign, custom node views, task metadata, touch-specific UX, localization architecture, and command redesign remain outside this slice.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Pending issue-scoped implementation/status commit after this closeout update.
+- Push status:
+  - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0077`. The next unblocked must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.

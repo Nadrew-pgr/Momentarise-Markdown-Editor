@@ -57,7 +57,7 @@ assertTypedMarkdown("Paragraph text", "Paragraph text", "paragraph live typing",
 assertTypedMarkdown("# Live title", "# Live title", "heading live typing", ["heading"]);
 assertTypedMarkdown("- Live bullet", "- Live bullet", "bullet list live typing", ["bullet_list", "list_item", "paragraph"]);
 assertTypedMarkdown("1. Ordered item", "1. Ordered item", "ordered list live typing", ["ordered_list", "list_item", "paragraph"]);
-assertTypedMarkdown("- [ ] Live task", "- [ ] Live task", "task list live typing", ["todo_item", "paragraph"]);
+assertTypedMarkdown("- [ ] Live task", "- [ ] Live task", "task list live typing", ["bullet_list", "todo_item", "paragraph"]);
 assertTypedMarkdown("> Live quote", "> Live quote", "blockquote live typing", ["blockquote", "paragraph"]);
 assertTypedMarkdown("```ts const answer = 42;", "```ts\nconst answer = 42;\n```", "code fence live typing", ["code_block"]);
 assertTypedMarkdown("---", "---", "thematic break live typing", ["horizontal_rule"]);

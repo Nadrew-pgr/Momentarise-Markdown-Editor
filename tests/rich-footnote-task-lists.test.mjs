@@ -295,8 +295,11 @@ function collectNodesByType(node, typeName) {
 
 function assertAccessibleTodoDom(node, checked) {
   const dom = node?.type.spec.toDOM?.(node);
-  const button = dom?.[2];
-  assertEqual(dom?.[0], "div", "todo DOM root");
+  const row = dom?.[2];
+  const button = row?.[2];
+  assertEqual(dom?.[0], "li", "todo DOM root uses native list item");
+  assertEqual(row?.[0], "div", "todo DOM row");
+  assertEqual(row?.[1]?.["data-todo-row"], "true", "todo DOM row hook");
   assertEqual(button?.[0], "button", "todo control uses native button");
   assertEqual(button?.[1]?.type, "button", "todo control avoids form submission");
   assertEqual(button?.[1]?.["aria-pressed"], String(checked), "todo control pressed state");
