@@ -7327,3 +7327,35 @@
   - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0076`. The next backlog candidate requires fresh feasibility proof and strict promotion before implementation.
+
+## Backlog promotion checkpoint — MME-0077
+
+- Date: 2026-07-28.
+- Context:
+  - `MME-0076` is accepted for code continuation and committed (`e095ef0` implementation/status, `c9878ca` evidence).
+  - No executable normal issue remained after MME-0076.
+  - Andrew instructed autonomous continuation, must-haves first, strict issue formatting, issue-scoped commits, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Feasibility proof:
+  - Current built-package DOM serialization emits `ul > div[data-type="todo-item"]`, violating native list child structure.
+  - Reparsing a checked task imports the visible check glyph as an extra document paragraph because the task parse rule does not isolate its editable content element.
+  - Markdown-origin task lists already mount under semantic bullet or ordered list parents. Orphan top-level tasks come from Rich command/input-rule creation, so those paths can be normalized into one-item bullet lists without parser/model changes.
+  - Native `li` output, specialized content-only parsing, list-wrapped creation, and an inner layout row stay bounded to `@momentarise/md-rich-prosemirror` plus demo selectors and reuse existing task transactions/serialization.
+- Change:
+  - Promoted `MME-0077 — Rich todo semantic DOM and accessibility integrity` into strict normal issue form.
+  - Required valid `ul/ol > li` ownership, content-only DOM reparse, native control state/keyboard behavior, orphan-task rejection, ordered/unordered visual semantics, preservation/history/save compatibility, focused tests, and browser evidence.
+  - Left final checkbox styling, broad list-model changes, task metadata, custom node views, localization architecture, command redesign, docs content, and public-launch review outside the slice.
+  - Updated `docs/internal/BACKLOG.md` promotion and end-of-run review tracking.
+- Checks required before checkpoint commit:
+  - `npm run test:alignment`.
+  - `node scripts/docs-lint.mjs`.
+  - `git diff --check`.
+- Reviewer plan:
+  - Implementation review will use exactly `gpt-5.3-codex-spark` at `xhigh` if available; no substitute code-review model.
+  - Reviewer will inspect schema validity, specialized parse priority, content isolation, command/input-rule normalization, native control semantics, DOM round-trip, list/history/preservation/save regressions, and browser proof.
+- Commit status:
+  - Promotion checkpoint commit pending.
+- Push status:
+  - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - `MME-0077 — Rich todo semantic DOM and accessibility integrity`.

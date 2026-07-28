@@ -4799,6 +4799,88 @@ DX/AX Reviewer, Security Reviewer, and Test Reviewer.
 
 Accepted for code continuation 2026-07-28 after replacing the internal-ledger README with a truthful public/agent entrypoint, adding a root agent compatibility pointer, strengthening generated LLM and agent indexes, publishing stable root discovery artifacts through the static Next.js output, adding canonical crawler/source-code metadata, hardening raw sync against path/symlink/stale-file failures, and passing focused plus full-suite proof. Exact Spark/xhigh review was unavailable and no substitute model was used; documented fallback self-review found and fixed stale-output and pre-write validation gaps, with no remaining P0-P3 finding. Deployment, indexing, package publication, public-launch review, and queued visual/content review remain outside this issue. No executable normal issue remains after MME-0076 until the next backlog item is promoted.
 
+## MME-0077 — Rich todo semantic DOM and accessibility integrity
+
+### Goal
+
+Make standalone, bullet-list, ordered-list, nested, and footnote task items render and reparse through valid native list semantics without leaking checkbox-control text into editable Markdown, while preserving existing task editing, history, source fidelity, and accessible pointer/keyboard behavior.
+
+### Scope
+
+- Render every package-owned `todo_item` as a native `<li>` when it is contained by a semantic bullet or ordered list; list containers must have only native list-item direct children.
+- Normalize toolbar/slash/input-rule creation of a visually standalone task into a one-item semantic bullet list instead of allowing a top-level orphan `todo_item`.
+- Keep checked state on the task item and keep the existing native `button type="button"` toggle with truthful `aria-label`, `aria-pressed`, pointer, Enter, Space, and focus behavior.
+- Give the task node an explicit editable content element so DOM parsing ignores the toggle button, check glyph, and other non-document control chrome.
+- Keep specialized task parsing ahead of generic list-item parsing and retain safe compatibility for previously emitted task DOM where practical.
+- Move row layout styling to an inner task row so native `<li>` semantics survive; hide the redundant bullet marker for unordered task items while preserving ordered-list numbering.
+- Preserve Markdown identity for untouched documents, bounded changed-list serialization, task state, nested hierarchy, ordered starts, loose-list state, LF/CRLF, history, Save Engine truth, and all existing list/footnote behavior.
+- Add focused schema/DOM tests plus runtime browser proof for native structure, content-only reparse, accessible toggles, visual containment, and no visible regression.
+- Queue final task density, checkbox styling, numbering, nested hierarchy, focus treatment, and constrained-layout taste for Andrew's consolidated end-of-run review block.
+
+### Acceptance criteria
+
+- `DOMSerializer` emits `<ul>/<ol>` whose direct task children are `<li data-type="todo-item">`; no list has a direct task `<div>`.
+- A task item's editable content is isolated under an explicit content element. DOM reparse preserves checked state and document text exactly without importing the visible check glyph, accessible label, or button text.
+- Specialized task DOM parses as `todo_item` rather than generic `list_item`; safe legacy task wrappers remain readable without exposing control text.
+- Toolbar/slash `todo` and top-level `- [ ]` / `- [x]` input-rule creation produce a one-item `bullet_list > todo_item > paragraph` shape. Nested conversion inside bullet/ordered lists remains in the existing list container.
+- The schema no longer admits an orphan top-level `todo_item`; parsed Markdown task lists remain semantic bullet/ordered lists with task children.
+- Native toggle controls retain `type="button"`, accurate `aria-label`/`aria-pressed`, focusability, pointer toggling, Enter/Space toggling, one-step undo/redo, and no form-submit behavior.
+- Unordered task items suppress a redundant visual bullet while ordered task items retain meaningful numbering; existing task-row alignment, checked styling, and constrained containment remain readable.
+- Untouched fixture and footnote task Markdown remains byte-identical. Text edits and checked-state changes retain bounded serialization, hierarchy, ordered starts, loose state, LF/CRLF, source/rich switching, and truthful saving.
+- Existing list Enter/Backspace/Tab/Shift+Tab, nested paste, footnote task, rich fidelity, targeted serialization, security, public API, architecture, demo, and full-suite gates pass.
+- Browser verification at the human-facing demo URL proves valid direct-child tags, content isolation, pointer and keyboard state changes, source output, and desktop/constrained presentation; artifacts are stored under `docs/internal/visual-checks/MME-0077/`.
+- `docs/internal/build-log.md` records RED/GREEN evidence, visual impact, reviewer or fallback result, tests, residual risks, commit, push status, and next issue.
+
+### Test-first plan
+
+- RED: add `tests/rich-todo-dom-semantics.test.mjs` and a root focused script. Prove the current serializer emits `<ul><div data-type="todo-item">` and DOM reparse imports the checked glyph into task content.
+- RED: prove parsed bullet/ordered/nested/footnote tasks, top-level task command/input-rule creation, content-only DOM round-trip, native button state, legacy wrapper parsing, and orphan-task schema rejection.
+- RED: prove pointer/Enter/Space toggles, one-step history, Markdown identity, bounded checked/text changes, ordered starts, loose state, LF/CRLF, and existing list-editing compatibility.
+- RED: add browser assertions and screenshots for direct `<li>` ownership, no redundant unordered marker, ordered numbering, focus/state updates, exact Source, and 390 px containment.
+- GREEN: change only the `todo_item` schema/DOM contract, task-creation wrapping, and demo task-row selectors required by the proof.
+- REFACTOR: share task DOM attribute/content helpers only where they prevent parse/serialize drift without introducing a custom node view or host dependency.
+
+### Manual verification
+
+- Start the reference demo on `http://127.0.0.1:5174/` with fixture 018 plus ordered and nested tasks.
+- Inspect live DOM to confirm every bullet/ordered list has native `<li>` direct children, then focus one task toggle and activate it by pointer, Enter, and Space.
+- Create a task through the command/input-rule path, edit text, nest/outdent it, undo/redo, save, and inspect exact Source Markdown.
+- Repeat at desktop and 390 px width, capture structure/state/source/containment artifacts, and record the exact command and paths.
+
+### Visual impact
+
+Task rows retain the existing checkbox-led appearance but use a native list-item wrapper and inner layout row. Unordered tasks lose any redundant bullet marker; ordered tasks keep numbering. No general topbar, docs site, source editor, preview, AI, file, or status UI changes.
+
+### Implementation notes
+
+Read first: `packages/md-core/src/index.ts`, `packages/md-format/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-rich-prosemirror/package.json`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `fixtures/018-nested-lists-todos`, `fixtures/027-task-list-footnote-editing`, `tests/rich-list-editing.test.mjs`, `tests/rich-core-interactions.test.mjs`, `tests/rich-footnote-task-lists.test.mjs`, `tests/rich-roundtrip-fidelity.test.mjs`, `tests/rich-targeted-serialization.test.mjs`, `tests/rich-security.test.mjs`, `tests/save-engine.test.mjs`, `scripts/visual-check-mme0021.mjs`, `scripts/visual-check-mme0063.mjs`, and the MME-0021/MME-0042/MME-0063 build-log and visual evidence.
+
+Direct feasibility proof on the current built package serializes checked tasks as `<ul><div data-type="todo-item">…</div></ul>`, which is invalid native list structure. Reparsing that DOM also creates an extra paragraph containing the visible check glyph because the task parse rule has no `contentElement`. Existing Markdown parsing already produces `bullet_list` or `ordered_list` parents for source task lists; orphan top-level tasks come only from command/input-rule creation. Therefore normalize those creation paths into a one-item bullet list, remove top-level block admission from `todo_item`, render task nodes as `<li>`, parse only the explicit content container, and keep the existing transaction/serializer model. Do not introduce parent-sensitive node views or alter canonical Markdown parsing.
+
+### Out of scope
+
+- Final checkbox/todo visual redesign, new icon assets, drag handles, mobile touch redesign, task due dates, assignees, priorities, tri-state controls, task metadata, or task database behavior.
+- Broad list-schema replacement, custom parent-sensitive node views, parser/model contract changes, serializer normalization outside changed task lists, source-mode behavior, or a new task-list package.
+- Localization architecture changes for ProseMirror node labels, toolbar/slash redesign, command naming changes, docs-content construction, or public-launch review.
+- Changing Markdown marker/case preservation rules for intentionally edited lists.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Accessibility Reviewer, Security Reviewer, and UX Reviewer allowed; inspect-only.
+- Code review must use exactly `gpt-5.3-codex-spark` at `xhigh` when available; no substitute code-review model.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible task styling/product review is queued for the end-of-run human review block unless native semantics, content isolation, accessibility state, source fidelity, or visual proof remains unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, Accessibility Reviewer, Security Reviewer, and UX Reviewer.
+
+### Blocked by
+
+- None. MME-0021 established task editing and native toggle interaction; MME-0042 added core list/paste/history hardening; MME-0063 extended the same package-owned task node to nested footnote lists and explicitly queued this semantic DOM audit. Current built-package proof identifies a bounded invalid-list/content-isolation defect whose fix stays inside the rich view and demo styling.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.
