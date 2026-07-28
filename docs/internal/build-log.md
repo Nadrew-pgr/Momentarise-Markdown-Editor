@@ -7529,3 +7529,52 @@
   - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
 - Next issue:
   - `MME-0079 — Agent retrieval and adoption-content hardening`.
+
+## MME-0079 — Agent retrieval and adoption-content hardening
+
+- Date: 2026-07-28.
+- Previous issue status:
+  - `MME-0078` accepted for code continuation and committed (`098e85c` implementation/status, `cef4df4` evidence).
+  - `MME-0079` was promoted and committed in checkpoint `098b27f` (`fe8c946` evidence).
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, latest build-log entries, clean `git status --short`, every README/public-doc/generator/agent/static-sync/test file named by the issue, and Andrew's supplied AI-search transcript.
+  - MME-0076 already provided safe public discovery. The bounded gap was retrieval content: no canonical adoption guide, incomplete direct FAQ boundaries, no deterministic product profile, no adoption-evaluation skill, and weak decision/citation routes in the short index.
+- Transcript assessment:
+  - Used only its observable question intents: product identity, developer/end-user audience, installation, alternatives, Payload separation, AI-assisted development, and agent citation.
+  - Rejected its false or unsupported prescriptions: a monolithic published package, invented component API, zero-config/lightweight claims, Payload coupling, MIT framework license, badges, competitor ranking, citation guarantees, and “vibe coding” as quality evidence.
+- RED proof before implementation:
+  - Added `tests/agent-retrieval-content.test.mjs` and registered `test:agent-retrieval-content` in focused/full-suite scripts.
+  - First run failed with `README must include ## Who MME Is For.`
+  - Expanded the contract to cover adoption/non-fit sections, direct FAQ answers, LLM decision/citation routes, product-profile schema/truth/source boundaries, adoption skill, static copy, and forbidden claims.
+- Change:
+  - Reworked README into a bounded public entrypoint with direct framework identity, adopter-versus-host-app end users, choose/non-fit guidance, verified capabilities, workspace-only installation truth, integration paths, executable evidence, and stable product/agent URLs.
+  - Added `docs/public/choosing-mme.md` with persistence-model comparison, framework/end-user boundaries, integration routing, current proof, and citation limits. Linked it from the public overview and FAQ.
+  - Expanded FAQ with independently extractable answers for finished-app/non-developer use, rich/WYSIWYG semantics, public npm availability, Payload status, hosted AI, AI-assisted development, and citation guarantees.
+  - Reorganized Agentic Experience into docs-site actions, machine-readable discovery, and local tooling; documented the product profile and adoption skill.
+  - Extended generated `llms.txt` with decision summary, citation-safe claims, question routes, and the product-profile endpoint while keeping `llms-full.txt` public-Markdown-only.
+  - Added generated `docs/agent/product.json` with identity, audiences and host-app boundary, durable-source model, experimental/publication status, integration paths, shipped guarantees, explicit non-capabilities, licensing, canonical URLs, source docs, package metadata, and discovery limits.
+  - Added generated `mme-adoption-evaluation` skill and direct product/status answers to the generated agent index. Manifest/profile/actions share the deterministic public-doc/package input hash.
+  - Kept existing safe generator output ownership and static sync; `.json` agent artifacts are copied and stale/unallowlisted files remain removed.
+- Visual impact:
+  - No visible editing or general UI changes. README/public docs copy, one docs route, generated LLM/agent files, and static raw endpoints changed; docs layout/styling did not.
+- Checks run:
+  - `npm run test:agent-retrieval-content` — RED first, then green after source, generator, profile, skill, static-copy, and truth-boundary implementation.
+  - `npm run test:agent-artifacts`, `npm run test:agent-discovery`, `npm run test:llms-sync`, `node scripts/docs-lint.mjs`, and `git diff --check` — green.
+  - `npm run test:docs`, `npm run test:docs-site`, `npm run test:docs-launch`, `npm run test:publishability`, and `npm run test:public-api` — green. Next.js produced 45 static routes including `/docs/choosing-mme`.
+  - Local docs server command: `npm run dev -w @momentarise/docs-site -- --hostname 127.0.0.1 --port 5178`.
+  - Local HTTP proof returned `200` with correct MIME types for `/docs/choosing-mme`, `/docs/choosing-mme.md`, `/llms.txt`, `/agent/README.md`, `/agent/product.json`, `/agent/manifest.json`, and `/agent/skills/mme-adoption-evaluation/SKILL.md`; content probes confirmed citation-safe, npm, Payload, durable-source, and experimental-status fields.
+  - Final `npm test` — green end-to-end, including contracts, architecture, security, preservation, performance 10/10, rich/list/table/footnote regressions, CLI/adapters, demo build, new retrieval gates, and 45-route Next.js docs build; existing Vite chunk-size warning only.
+- Reviewer result:
+  - Exact inspect-only generator/code review with `gpt-5.3-codex-spark` at `xhigh` was attempted; the subagent service rejected that model. No substitute code-review model was used.
+  - Fallback self-review covered claim derivation, deterministic hashes, output-path ownership, public/private boundaries, static-sync behavior, stale output, schema/profile consistency, package/license/publication truth, source links, test quality, and runtime/UI non-impact. No remaining code finding.
+  - Classic documentation-only reviewer found P2 ambiguity around hosted AI and host-app end users plus P3 weak direct answers in the agent index and flat AX grouping. Builder fixed all four; re-review found no remaining P0-P3.
+- Residual risks:
+  - Local source/build/HTTP proof cannot establish production deployment, DNS, crawler ingestion, search ranking, LLM training, retrieval frequency, citations, backlinks, traffic, or adoption.
+  - Public npm packages remain unpublished; Payload/CMS adapters remain future work. Every new entrypoint states these boundaries.
+  - Product-profile taxonomy, public wording, comparison neutrality, direct-answer density, and launch acceptance remain queued in `docs/internal/BACKLOG.md` for Andrew's consolidated review block.
+- Commit status:
+  - Issue-scoped implementation/status commit pending.
+- Push status:
+  - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0079`. The next unblocked must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.

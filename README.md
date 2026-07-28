@@ -1,8 +1,8 @@
 # Momentarise Markdown Editor
 
-Momentarise Markdown Editor (MME) is an experimental TypeScript framework for building modern document editors where Markdown remains the durable source.
+Momentarise Markdown Editor (MME) is an experimental TypeScript framework for developers building modern editors where persisted documents remain real Markdown.
 
-It combines source editing, rich editing, safe rendering, truthful persistence, extensible UI, and policy-gated AI without replacing user files with a hidden JSON or block database.
+It combines source editing, rich editing, safe rendering, truthful persistence, extensible UI, and policy-gated AI without replacing user files with a hidden JSON or block database. MME is a framework, not a hosted editor app, CMS, or finished writing product.
 
 - **Docs:** [momentarise.dev/docs](https://momentarise.dev/docs)
 - **Agent index:** [llms.txt](https://momentarise.dev/llms.txt)
@@ -17,7 +17,16 @@ Most rich-text frameworks make an editor-owned model the real document and treat
 
 That gives developers a reusable editor foundation while keeping documents portable, inspectable, diffable, and recoverable outside the host application.
 
-Use MME when you need:
+## Who MME Is For
+
+MME has two distinct audiences:
+
+- **Framework adopters:** developers and product teams integrating editor packages into vanilla, React, Next.js, headless, browser-file, or IDE-shell hosts.
+- **End users of those hosts:** developers, writers, and non-developers who need rich editing without losing access to portable Markdown.
+
+End users do not install MME directly. A host application selects packages, persistence, policy, credentials, and final UX.
+
+## Choose MME When
 
 - real `.md` files plus optional YAML frontmatter;
 - CodeMirror 6 source editing and a ProseMirror rich view;
@@ -28,6 +37,18 @@ Use MME when you need:
 - sanitized Markdown rendering and sandboxed HTML artifacts;
 - staged, policy-gated AI writing with host-owned credentials;
 - host adapters that do not leak into core document contracts.
+
+## Choose Another Approach When
+
+Choose another architecture when:
+
+- an editor-owned JSON/block database should be the canonical document;
+- Markdown is only an import/export format and exact source preservation does not matter;
+- you need a ready-hosted collaborative writing app instead of framework packages;
+- you require production collaboration/CRDT, managed AI billing, or a shipped CMS adapter today;
+- you need public npm installation before MME packages are released.
+
+See [Choosing MME](docs/public/choosing-mme.md) for the full adoption decision.
 
 ## What Ships
 
@@ -47,7 +68,7 @@ Shipped means implemented and tested in this repository. It does not mean every 
 
 ## Start Building
 
-Public npm artifacts are **not published yet**. The commands below build the current workspace; consumer installation snippets document the intended package interface and are validated against packed workspace tarballs.
+Public npm artifacts are **not published yet**. The commands below build the current workspace. Package quickstarts document intended interfaces validated against packed workspace tarballs; they are not registry-installation claims.
 
 ```bash
 git clone https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor.git
@@ -57,13 +78,16 @@ npm run build
 npm test
 ```
 
-Choose the integration path:
+## Integration Paths
 
-- [Vanilla](docs/public/quickstart/vanilla.md): framework-free browser and custom-shell integration.
-- [React](docs/public/quickstart/react.md): thin lifecycle binding around MME sessions and views.
-- [Next.js](docs/public/quickstart/next.md): client-boundary integration for App Router hosts.
-- [Headless](docs/public/quickstart/headless.md): document orchestration without rendered UI.
-- [CLI](docs/public/packages/md-cli.md): local checks, inspection, formatting, and agent workflows.
+| Need | Start here |
+| --- | --- |
+| Framework-free browser or custom shell | [Vanilla quickstart](docs/public/quickstart/vanilla.md) |
+| React lifecycle binding | [React quickstart](docs/public/quickstart/react.md) |
+| Next.js App Router client boundary | [Next.js quickstart](docs/public/quickstart/next.md) |
+| Sessions and document orchestration without UI | [Headless quickstart](docs/public/quickstart/headless.md) |
+| Local inspection, validation, and agent workflows | [CLI reference](docs/public/packages/md-cli.md) |
+| Migration or architecture decision | [Choosing MME](docs/public/choosing-mme.md) |
 
 Useful workspace commands:
 
@@ -106,6 +130,22 @@ MME development is gated by:
 
 See [Document Model](docs/public/concepts/document-model.md), [Preservation](docs/public/concepts/preservation.md), and [Save Truthfulness](docs/public/concepts/save-truthfulness.md).
 
+## Verified Evidence
+
+Claims in this README map to executable repository gates:
+
+```bash
+npm run test:roundtrip
+npm run test:rich-fidelity
+npm run test:rich-targeted-serialization
+npm run test:save-engine
+npm run test:publishability
+npm run test:public-api
+npm run test:agent-discovery
+```
+
+Use [Compatibility Promise](docs/public/compatibility-promise.md) for release status, [package docs](docs/public/index.md#reference) for public API checkpoints, and [Agentic Experience](docs/public/concepts/agentic-experience.md) for discovery boundaries. Passing local gates proves repository behavior; it does not prove registry publication, production deployment, adoption, indexing, or citation.
+
 ## For Coding Agents
 
 Use public source files instead of screenshots or inferred product claims:
@@ -113,15 +153,17 @@ Use public source files instead of screenshots or inferred product claims:
 1. Read this README for the repository-level overview.
 2. Read [`llms.txt`](llms.txt) for the short public index.
 3. Read [`llms-full.txt`](llms-full.txt) when complete public documentation context is required.
-4. Use [`docs/agent/manifest.json`](docs/agent/manifest.json) to discover reusable actions and skills.
-5. Use [`docs/public/`](docs/public/) as the canonical public documentation source.
-6. For repository changes, start with [`AGENTS.md`](AGENTS.md), which routes to the mandatory build protocol.
+4. Read [`docs/agent/product.json`](docs/agent/product.json) for a machine-readable product/status profile.
+5. Use [`docs/agent/manifest.json`](docs/agent/manifest.json) to discover reusable actions and skills.
+6. Use [`docs/public/`](docs/public/) as the canonical public documentation source.
+7. For repository changes, start with [`AGENTS.md`](AGENTS.md), which routes to the mandatory build protocol.
 
 Stable web endpoints:
 
 - `https://momentarise.dev/llms.txt`
 - `https://momentarise.dev/llms-full.txt`
 - `https://momentarise.dev/agent/README.md`
+- `https://momentarise.dev/agent/product.json`
 - `https://momentarise.dev/agent/manifest.json`
 - `https://momentarise.dev/agent/actions.json`
 - `https://momentarise.dev/agent/skills/<skill-id>/SKILL.md`
@@ -136,7 +178,7 @@ MME is experimental `0.x` software. Public APIs are audited, but minor releases 
 Do not assume these are shipped:
 
 - a stable public package release;
-- a shipped CMS integration;
+- a shipped Payload CMS or other CMS integration;
 - hosted Ask AI or semantic documentation search;
 - production collaboration or CRDT;
 - managed AI billing or browser-owned production secrets;
@@ -144,6 +186,8 @@ Do not assume these are shipped:
 - SaaS sync, desktop/mobile applications, or non-Markdown office-file round trips.
 
 See the [public roadmap](docs/public/roadmap.md) for direction. Internal issue history and build evidence remain separate from public product documentation.
+
+Public source structure can help agents retrieve and verify MME facts. It does not guarantee search indexing or citation by any model or service.
 
 ## Repository Structure
 

@@ -45,7 +45,14 @@ for (const truth of [
 }
 assert(!readme.includes("Completed slices:"), "README must not expose the internal completed-issue ledger.");
 assert(!readme.includes("vibe-coded"), "README must not use vibe coding as a quality or discovery claim.");
-assert(!readme.includes("Payload CMS"), "README must not present an unshipped Payload integration.");
+assert(
+  readme.includes("shipped Payload CMS or other CMS integration"),
+  "README must explicitly keep Payload/CMS integration under unshipped boundaries."
+);
+assert(
+  !readme.includes("MME integrates with Payload CMS"),
+  "README must not present an unshipped Payload integration."
+);
 assert(readme.split("\n").length <= 260, "README must remain a bounded public entrypoint.");
 
 const agents = await readText("AGENTS.md");
@@ -91,6 +98,7 @@ const manifest = await readJson("docs/agent/manifest.json");
 assert.equal(manifest.publicUrl, `${siteOrigin}/agent/manifest.json`);
 assert.equal(manifest.actionsUrl, `${siteOrigin}/agent/actions.json`);
 assert.equal(manifest.readmeUrl, `${siteOrigin}/agent/README.md`);
+assert.equal(manifest.productProfileUrl, `${siteOrigin}/agent/product.json`);
 for (const skill of manifest.skills) {
   assert.equal(skill.publicUrl, `${siteOrigin}/agent/skills/${skill.id}/SKILL.md`);
   assert(skill.path.startsWith("docs/agent/skills/"), `${skill.id} must keep a repository path.`);
@@ -98,6 +106,9 @@ for (const skill of manifest.skills) {
 
 const agentIndex = await readText("docs/agent/README.md");
 assert(agentIndex.includes(`${siteOrigin}/agent/manifest.json`), "agent index must expose the public manifest.");
+assert(agentIndex.includes(`${siteOrigin}/agent/product.json`), "agent index must expose the public product profile.");
+assert(agentIndex.includes("## Product Answer"), "agent index must provide a direct product answer.");
+assert(agentIndex.includes("public npm packages are not published"), "agent index must state npm publication truth.");
 assert(agentIndex.includes("not installed automatically"), "agent index must state the installation boundary.");
 assert(agentIndex.includes("generated"), "agent index must state that artifacts are generated.");
 
@@ -121,6 +132,7 @@ for (const [source, builtPublic] of [
   ["llms.txt", join(appRoot, "public/llms.txt")],
   ["llms-full.txt", join(appRoot, "public/llms-full.txt")],
   ["docs/agent/README.md", join(appRoot, "public/agent/README.md")],
+  ["docs/agent/product.json", join(appRoot, "public/agent/product.json")],
   ["docs/agent/manifest.json", join(appRoot, "public/agent/manifest.json")],
   ["docs/agent/actions.json", join(appRoot, "public/agent/actions.json")]
 ]) {
@@ -136,6 +148,7 @@ const publicArtifacts = [
   await readText(join(appRoot, "public/llms.txt")),
   await readText(join(appRoot, "public/llms-full.txt")),
   await readText(join(appRoot, "public/agent/README.md")),
+  await readText(join(appRoot, "public/agent/product.json")),
   await readText(join(appRoot, "public/agent/manifest.json")),
   await readText(join(appRoot, "public/agent/actions.json")),
   ...await Promise.all(
@@ -147,6 +160,7 @@ for (const forbidden of ["docs/internal", "/Users/", "vibe-coded"]) {
 }
 const installableAgentArtifacts = [
   await readText(join(appRoot, "public/agent/README.md")),
+  await readText(join(appRoot, "public/agent/product.json")),
   await readText(join(appRoot, "public/agent/manifest.json")),
   await readText(join(appRoot, "public/agent/actions.json")),
   ...await Promise.all(

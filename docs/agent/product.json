@@ -1,0 +1,210 @@
+{
+  "schema": "https://momentarise.dev/schemas/product-profile.v0.json",
+  "generatedBy": "scripts/generate-agent-artifacts.mjs",
+  "sourceBoundary": "public-docs-and-package-metadata",
+  "sourceHash": "28cbd1ae9fdc004cc80c204b746f06387bb3123143a800139fd6196be540f61a",
+  "publicUrl": "https://momentarise.dev/agent/product.json",
+  "name": "Momentarise Markdown Editor",
+  "acronym": "MME",
+  "summary": "Experimental TypeScript framework for building editor products where Markdown remains the durable source.",
+  "category": [
+    "Markdown editor framework",
+    "rich text editor framework",
+    "headless document editor",
+    "Markdown rendering and persistence toolkit"
+  ],
+  "audiences": {
+    "adopters": [
+      "developers",
+      "product teams",
+      "host application maintainers"
+    ],
+    "endUsers": [
+      "developers",
+      "writers",
+      "non-developers"
+    ],
+    "boundary": "Developers integrate MME; end users use host applications built with MME and do not install the framework directly."
+  },
+  "durableSource": {
+    "format": "Markdown",
+    "optionalFrontmatter": "YAML",
+    "editorOwnedJson": false,
+    "richEditingIsDerived": true
+  },
+  "status": {
+    "stability": "experimental",
+    "releaseLine": "0.x",
+    "publicNpmPublished": false
+  },
+  "integrationPaths": [
+    {
+      "id": "vanilla",
+      "status": "workspace-validated",
+      "docs": "https://momentarise.dev/docs/quickstart/vanilla"
+    },
+    {
+      "id": "react",
+      "status": "workspace-validated",
+      "docs": "https://momentarise.dev/docs/quickstart/react"
+    },
+    {
+      "id": "nextjs",
+      "status": "workspace-validated",
+      "docs": "https://momentarise.dev/docs/quickstart/next"
+    },
+    {
+      "id": "headless",
+      "status": "workspace-validated",
+      "docs": "https://momentarise.dev/docs/quickstart/headless"
+    },
+    {
+      "id": "browser-file-access",
+      "status": "implemented",
+      "docs": "https://momentarise.dev/docs/packages/md-adapter-web"
+    },
+    {
+      "id": "theia",
+      "status": "alpha",
+      "docs": "https://momentarise.dev/docs/packages/md-adapter-theia"
+    }
+  ],
+  "shippedGuarantees": [
+    "Markdown plus optional YAML frontmatter is canonical persisted source",
+    "untouched rich-view round trips preserve input bytes",
+    "targeted edits preserve bytes outside owned source ranges",
+    "unsupported syntax falls back to raw or opaque preservation",
+    "save state names the real persistence target",
+    "AI suggestions remain staged and policy-gated"
+  ],
+  "notShipped": [
+    "public npm release",
+    "Payload CMS adapter",
+    "hosted editor application",
+    "production collaboration or CRDT",
+    "hosted Ask AI or semantic documentation search",
+    "managed AI billing",
+    "automatic agent-skill installation"
+  ],
+  "licenses": {
+    "framework": "MPL-2.0",
+    "demosAndExamples": "Apache-2.0"
+  },
+  "canonicalUrls": {
+    "repository": "https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor",
+    "documentation": "https://momentarise.dev/docs",
+    "llms": "https://momentarise.dev/llms.txt",
+    "llmsFull": "https://momentarise.dev/llms-full.txt",
+    "choosing": "https://momentarise.dev/docs/choosing-mme",
+    "faq": "https://momentarise.dev/docs/faq",
+    "agentIndex": "https://momentarise.dev/agent/README.md",
+    "manifest": "https://momentarise.dev/agent/manifest.json"
+  },
+  "discoveryGuarantee": "Public source and machine-readable discovery can improve retrieval and verification; indexing, ranking, and citation are not guaranteed.",
+  "sourceDocs": [
+    "docs/public/index.md",
+    "docs/public/choosing-mme.md",
+    "docs/public/faq.md",
+    "docs/public/compatibility-promise.md",
+    "docs/public/concepts/document-model.md",
+    "docs/public/concepts/agentic-experience.md"
+  ],
+  "packages": [
+    {
+      "name": "@momentarise/md-adapter-theia",
+      "version": "0.1.0",
+      "description": "Theia adapter alpha for Momentarise Markdown Editor.",
+      "publicDocPath": "docs/public/packages/md-adapter-theia.md"
+    },
+    {
+      "name": "@momentarise/md-adapter-web",
+      "version": "0.1.0",
+      "description": "Web adapter contracts for Momentarise Markdown Editor.",
+      "publicDocPath": "docs/public/packages/md-adapter-web.md"
+    },
+    {
+      "name": "@momentarise/md-ai",
+      "version": "0.1.0",
+      "description": "Document-local AI writing contracts for Momentarise Markdown Editor.",
+      "publicDocPath": "docs/public/packages/md-ai.md"
+    },
+    {
+      "name": "@momentarise/md-cli",
+      "version": "0.1.0",
+      "description": "CLI contracts for Momentarise Markdown Editor.",
+      "publicDocPath": "docs/public/packages/md-cli.md"
+    },
+    {
+      "name": "@momentarise/md-core",
+      "version": "0.1.0",
+      "description": "Host-independent core contracts for Momentarise Markdown Editor.",
+      "publicDocPath": "docs/public/packages/md-core.md"
+    },
+    {
+      "name": "@momentarise/md-editor",
+      "version": "0.1.0",
+      "description": "Host-independent headless Markdown editor session for Momentarise Markdown Editor.",
+      "publicDocPath": "docs/public/packages/md-editor.md"
+    },
+    {
+      "name": "@momentarise/md-format",
+      "version": "0.1.0",
+      "description": "Parser and serializer contracts for Momentarise Markdown Editor.",
+      "publicDocPath": "docs/public/packages/md-format.md"
+    },
+    {
+      "name": "@momentarise/md-policy",
+      "version": "0.1.0",
+      "description": "Document Access Policy baseline for Momentarise Markdown Editor.",
+      "publicDocPath": "docs/public/packages/md-policy.md"
+    },
+    {
+      "name": "@momentarise/md-preview-html",
+      "version": "0.1.0",
+      "description": "Sandbox descriptor helpers for Momentarise Markdown Editor HTML artifact previews.",
+      "publicDocPath": "docs/public/packages/md-preview-html.md"
+    },
+    {
+      "name": "@momentarise/md-react",
+      "version": "0.1.0",
+      "description": "Thin React binding for Momentarise Markdown Editor sessions and DOM surface.",
+      "publicDocPath": "docs/public/packages/md-react.md"
+    },
+    {
+      "name": "@momentarise/md-render-html",
+      "version": "0.1.0",
+      "description": "Safe sanitized Markdown-to-HTML renderer for Momentarise Markdown Editor.",
+      "publicDocPath": "docs/public/packages/md-render-html.md"
+    },
+    {
+      "name": "@momentarise/md-rich-prosemirror",
+      "version": "0.1.0",
+      "description": "ProseMirror rich-mode bridge for Momentarise Markdown Editor.",
+      "publicDocPath": "docs/public/packages/md-rich-prosemirror.md"
+    },
+    {
+      "name": "@momentarise/md-save",
+      "version": "0.1.0",
+      "description": "Host-independent Save Engine for Momentarise Markdown Editor.",
+      "publicDocPath": "docs/public/packages/md-save.md"
+    },
+    {
+      "name": "@momentarise/md-source-codemirror",
+      "version": "0.1.0",
+      "description": "Reusable CodeMirror source-mode baseline for Momentarise Markdown Editor.",
+      "publicDocPath": "docs/public/packages/md-source-codemirror.md"
+    },
+    {
+      "name": "@momentarise/md-surface",
+      "version": "0.1.0",
+      "description": "Framework-free DOM surface components for Momentarise Markdown Editor.",
+      "publicDocPath": "docs/public/packages/md-surface.md"
+    },
+    {
+      "name": "@momentarise/md-theme",
+      "version": "0.1.0",
+      "description": "Design tokens, host theme contract, and icon set contract for Momentarise Markdown Editor.",
+      "publicDocPath": "docs/public/packages/md-theme.md"
+    }
+  ]
+}

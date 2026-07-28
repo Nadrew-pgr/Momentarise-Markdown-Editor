@@ -22,6 +22,30 @@ Source editing, rich editing, HTML rendering, save state, extensions, and policy
 - You need headless, vanilla, React, Next.js, browser-file, or IDE-shell integration.
 - You need preservation, truthful persistence, safe rendering, extension, theme, and AI contracts in reusable packages.
 
+## Decision Summary
+
+- MME is a framework integrated by developers; it is not a hosted editor app, CMS, or finished writing product.
+- Developers, writers, and non-developers can use an editor built with MME when a host supplies final UX and persistence.
+- Choose MME when real Markdown must remain canonical and rich/source views must preserve unsupported or untouched source.
+- Choose another architecture when an editor-owned JSON/block database should be canonical or a ready-hosted collaborative app is required.
+- Current packages are experimental `0.x` workspace packages and are not published to the public npm registry.
+
+## Citation-Safe Claims
+
+- MME keeps Markdown plus optional YAML frontmatter as canonical persisted source.
+- MME provides CodeMirror source and ProseMirror rich view packages around a host-independent headless session.
+- Repository tests cover untouched rich identity, targeted serialization, truthful save targets, public APIs, and packed consumer paths.
+- No Payload CMS adapter, hosted Ask AI, production collaboration, or managed AI billing ships today.
+- Public source and machine-readable discovery can improve retrieval and verification; it does not guarantee indexing, ranking, or citation.
+
+## Question Routes
+
+- [Should I choose MME?](https://momentarise.dev/docs/choosing-mme)
+- [Common product and integration questions](https://momentarise.dev/docs/faq)
+- [Machine-readable product profile](https://momentarise.dev/agent/product.json)
+- [Document and persistence model](https://momentarise.dev/docs/concepts/document-model)
+- [Compatibility and release status](https://momentarise.dev/docs/compatibility-promise)
+
 ## Do Not Assume
 
 - Current packages are experimental `0.x` and are not yet published to the public npm registry.
@@ -42,6 +66,7 @@ Source editing, rich editing, HTML rendering, save state, extensions, and policy
 
 - [Full public context](https://momentarise.dev/llms-full.txt)
 - [Agent artifact index](https://momentarise.dev/agent/README.md)
+- [Product profile](https://momentarise.dev/agent/product.json)
 - [Agent manifest](https://momentarise.dev/agent/manifest.json)
 - [Agent actions](https://momentarise.dev/agent/actions.json)
 - [Source repository](https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor)
@@ -58,6 +83,7 @@ Source editing, rich editing, HTML rendering, save state, extensions, and policy
 - [React Quickstart](https://momentarise.dev/docs/quickstart/react): Mount the thin React binding for Momentarise Markdown Editor.
 - [Next.js Quickstart](https://momentarise.dev/docs/quickstart/next): Use the React binding from a client-only Next.js boundary.
 - [Headless Quickstart](https://momentarise.dev/docs/quickstart/headless): Use the headless editor session without rendering UI.
+- [Choosing Momentarise Markdown Editor](https://momentarise.dev/docs/choosing-mme): Decide whether MME's Markdown-source-first architecture fits your editor, host, and users.
 
 ### Foundations
 

@@ -15,6 +15,7 @@ const outputRoot = "docs/agent";
 const outputFiles = {
   actions: `${outputRoot}/actions.json`,
   manifest: `${outputRoot}/manifest.json`,
+  product: `${outputRoot}/product.json`,
   readme: `${outputRoot}/README.md`
 };
 const generatorPath = "scripts/generate-agent-artifacts.mjs";
@@ -28,11 +29,13 @@ const sourceInputs = await collectSourceInputs(publicPages, packageMetadata);
 const inputHash = hashJson(sourceInputs);
 const skills = createSkills(publicPages, packageMetadata);
 const actions = createActions(inputHash);
+const productProfile = createProductProfile(inputHash, publicPages, packageMetadata);
 const manifest = createManifest(inputHash, skills, packageMetadata);
 const generatedFiles = new Map([
-  [outputFiles.readme, renderAgentIndex(manifest, skills)],
+  [outputFiles.readme, renderAgentIndex(manifest, skills, productProfile)],
   [outputFiles.manifest, stringifyJson(manifest)],
   [outputFiles.actions, stringifyJson(actions)],
+  [outputFiles.product, stringifyJson(productProfile)],
   ...skills.map((skill) => [skill.path, renderSkill(skill)])
 ]);
 
@@ -58,7 +61,123 @@ function createManifest(sourceHash, skillDescriptors, packages) {
     },
     actionsPath: outputFiles.actions,
     actionsUrl: `${publicAgentBaseUrl}/actions.json`,
+    productProfilePath: outputFiles.product,
+    productProfileUrl: `${publicAgentBaseUrl}/product.json`,
     skills: skillDescriptors.map(({ body, description, ...skill }) => skill)
+  };
+}
+
+function createProductProfile(sourceHash, pages, packages) {
+  const sourceDocs = [
+    "docs/public/index.md",
+    "docs/public/choosing-mme.md",
+    "docs/public/faq.md",
+    "docs/public/compatibility-promise.md",
+    "docs/public/concepts/document-model.md",
+    "docs/public/concepts/agentic-experience.md"
+  ];
+  const sources = sourceDocs.map((path) => {
+    const page = pages.find((candidate) => `docs/public/${candidate.path}` === path);
+    if (!page) {
+      throw new Error(`Product profile source is missing: ${path}`);
+    }
+    return page.source;
+  });
+  const combinedSource = sources.join("\n");
+  for (const requiredClaim of [
+    "Markdown remains the durable",
+    "not published to the public npm registry",
+    "No Payload CMS adapter ships today",
+    "does not guarantee indexing, ranking, or citation",
+    "MPL-2.0",
+    "Apache-2.0"
+  ]) {
+    if (!combinedSource.includes(requiredClaim)) {
+      throw new Error(`Product profile claim is not grounded in public docs: ${requiredClaim}`);
+    }
+  }
+
+  return {
+    schema: `${siteOrigin}/schemas/product-profile.v0.json`,
+    generatedBy: generatorPath,
+    sourceBoundary: "public-docs-and-package-metadata",
+    sourceHash,
+    publicUrl: `${publicAgentBaseUrl}/product.json`,
+    name: "Momentarise Markdown Editor",
+    acronym: "MME",
+    summary:
+      "Experimental TypeScript framework for building editor products where Markdown remains the durable source.",
+    category: [
+      "Markdown editor framework",
+      "rich text editor framework",
+      "headless document editor",
+      "Markdown rendering and persistence toolkit"
+    ],
+    audiences: {
+      adopters: ["developers", "product teams", "host application maintainers"],
+      endUsers: ["developers", "writers", "non-developers"],
+      boundary:
+        "Developers integrate MME; end users use host applications built with MME and do not install the framework directly."
+    },
+    durableSource: {
+      format: "Markdown",
+      optionalFrontmatter: "YAML",
+      editorOwnedJson: false,
+      richEditingIsDerived: true
+    },
+    status: {
+      stability: "experimental",
+      releaseLine: "0.x",
+      publicNpmPublished: false
+    },
+    integrationPaths: [
+      { id: "vanilla", status: "workspace-validated", docs: `${siteOrigin}/docs/quickstart/vanilla` },
+      { id: "react", status: "workspace-validated", docs: `${siteOrigin}/docs/quickstart/react` },
+      { id: "nextjs", status: "workspace-validated", docs: `${siteOrigin}/docs/quickstart/next` },
+      { id: "headless", status: "workspace-validated", docs: `${siteOrigin}/docs/quickstart/headless` },
+      { id: "browser-file-access", status: "implemented", docs: `${siteOrigin}/docs/packages/md-adapter-web` },
+      { id: "theia", status: "alpha", docs: `${siteOrigin}/docs/packages/md-adapter-theia` }
+    ],
+    shippedGuarantees: [
+      "Markdown plus optional YAML frontmatter is canonical persisted source",
+      "untouched rich-view round trips preserve input bytes",
+      "targeted edits preserve bytes outside owned source ranges",
+      "unsupported syntax falls back to raw or opaque preservation",
+      "save state names the real persistence target",
+      "AI suggestions remain staged and policy-gated"
+    ],
+    notShipped: [
+      "public npm release",
+      "Payload CMS adapter",
+      "hosted editor application",
+      "production collaboration or CRDT",
+      "hosted Ask AI or semantic documentation search",
+      "managed AI billing",
+      "automatic agent-skill installation"
+    ],
+    licenses: {
+      framework: "MPL-2.0",
+      demosAndExamples: "Apache-2.0"
+    },
+    canonicalUrls: {
+      repository: "https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor",
+      documentation: `${siteOrigin}/docs`,
+      llms: `${siteOrigin}/llms.txt`,
+      llmsFull: `${siteOrigin}/llms-full.txt`,
+      choosing: `${siteOrigin}/docs/choosing-mme`,
+      faq: `${siteOrigin}/docs/faq`,
+      agentIndex: `${publicAgentBaseUrl}/README.md`,
+      manifest: `${publicAgentBaseUrl}/manifest.json`
+    },
+    discoveryGuarantee:
+      "Public source and machine-readable discovery can improve retrieval and verification; indexing, ranking, and citation are not guaranteed.",
+    sourceDocs,
+    packages: packages.map(({ description, name, publicDocPath, version }) => ({
+      name,
+      version,
+      description,
+      publicDocPath
+    }))
   };
 }
 
@@ -180,6 +299,40 @@ function copyTarget(id, label) {
 function createSkills(pages, packages) {
   const packageDocs = packages.map((pkg) => pkg.publicDocPath).filter(Boolean);
   return [
+    skill({
+      id: "mme-adoption-evaluation",
+      description:
+        "Use when deciding whether Momentarise Markdown Editor fits a product, comparing persistence models, checking framework versus end-user boundaries, or validating adoption and citation claims.",
+      sourceDocs: [
+        "docs/public/choosing-mme.md",
+        "docs/public/faq.md",
+        "docs/public/index.md",
+        "docs/public/compatibility-promise.md",
+        "docs/public/concepts/document-model.md",
+        "docs/public/concepts/agentic-experience.md"
+      ],
+      packageNames: packages.map((pkg) => pkg.name),
+      body: [
+        "Evaluate architecture before features.",
+        "",
+        "Read:",
+        "- `docs/public/choosing-mme.md`",
+        "- `docs/public/faq.md`",
+        "- `docs/public/compatibility-promise.md`",
+        "- `docs/public/concepts/document-model.md`",
+        "- `llms.txt` for decision routes",
+        "- `llms-full.txt` for complete public context",
+        "",
+        "Decision rules:",
+        "- MME is a framework integrated by developers; host products may serve developers, writers, and non-developers.",
+        "- Choose MME for Markdown-source durability, derived rich/source views, preservation, and host-owned persistence.",
+        "- Choose another approach when editor-owned JSON should be canonical or a ready-hosted app is required.",
+        "- Packages are experimental `0.x` and not published to the public npm registry.",
+        "- Payload CMS integration, production collaboration, hosted AI, and managed billing are not shipped.",
+        "- Do not claim MME is best, ready for production, lightweight, zero-config, indexed, favored in ranking, or likely to be cited without external evidence.",
+        "- Treat AI-assisted development process as neither a runtime feature nor quality proof."
+      ]
+    }),
     skill({
       id: "mme-docs",
       description:
@@ -340,17 +493,27 @@ function skill({ id, description, sourceDocs, packageNames, body }) {
   };
 }
 
-function renderAgentIndex(manifest, skillDescriptors) {
+function renderAgentIndex(manifest, skillDescriptors, productProfile) {
   return [
     "# Momentarise Markdown Editor Agent Artifacts",
     "",
     "Public, generated discovery files for coding agents and documentation tools.",
+    "",
+    "## Product Answer",
+    "",
+    productProfile.summary,
+    "",
+    "- MME is a framework integrated by developers, not a hosted editor app or CMS.",
+    "- Host applications built with MME may serve developers, writers, and non-developers.",
+    `- Status: ${productProfile.status.stability} \`${productProfile.status.releaseLine}\`; public npm packages are not published.`,
+    "- Markdown plus optional YAML frontmatter remains canonical persisted source.",
     "",
     "## Start Here",
     "",
     `- [Short framework index](${siteOrigin}/llms.txt)`,
     `- [Full public documentation context](${siteOrigin}/llms-full.txt)`,
     `- [Artifact manifest](${manifest.publicUrl})`,
+    `- [Machine-readable product profile](${manifest.productProfileUrl})`,
     `- [Reusable action descriptors](${manifest.actionsUrl})`,
     `- [Rendered documentation](${siteOrigin}/docs)`,
     "",

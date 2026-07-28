@@ -5045,6 +5045,10 @@ DX Reviewer, Documentation Reviewer, Architecture Reviewer, Security Reviewer, a
 
 - None. MME-0076 established safe public discovery, raw/static endpoints, deterministic generators, and truth-boundary tests. Current public docs, package metadata, and API fixtures provide enough verified source material to harden retrieval content without changing editor behavior or making a new product decision.
 
+### Status: completed
+
+Accepted for code continuation 2026-07-28 after restructuring the public README around adopter/end-user, fit/non-fit, integration, evidence, and agent-discovery questions; adding a canonical adoption guide and direct FAQ boundaries; extending `llms.txt` with decision, citation-safe, and question routes; generating a public product profile and adoption-evaluation skill; publishing those artifacts through the existing safe static boundary; and passing focused, HTTP, docs-site, package, public-API, and full-suite proof. Exact `gpt-5.3-codex-spark` at `xhigh` was unavailable and no substitute code-review model was used. Fallback generator/security review found no remaining code issue. A classic documentation-only reviewer found four P2/P3 clarity gaps around hosted AI, host-app end users, direct agent-index answers, and AX category grouping; all were fixed, and re-review found no P0-P3. Production indexing/ranking/citation, npm publication, Payload integration, deployment, final public copy acceptance, and launch remain outside this issue and queued for Andrew's consolidated review.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

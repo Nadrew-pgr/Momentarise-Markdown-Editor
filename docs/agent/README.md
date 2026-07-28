@@ -2,16 +2,27 @@
 
 Public, generated discovery files for coding agents and documentation tools.
 
+## Product Answer
+
+Experimental TypeScript framework for building editor products where Markdown remains the durable source.
+
+- MME is a framework integrated by developers, not a hosted editor app or CMS.
+- Host applications built with MME may serve developers, writers, and non-developers.
+- Status: experimental `0.x`; public npm packages are not published.
+- Markdown plus optional YAML frontmatter remains canonical persisted source.
+
 ## Start Here
 
 - [Short framework index](https://momentarise.dev/llms.txt)
 - [Full public documentation context](https://momentarise.dev/llms-full.txt)
 - [Artifact manifest](https://momentarise.dev/agent/manifest.json)
+- [Machine-readable product profile](https://momentarise.dev/agent/product.json)
 - [Reusable action descriptors](https://momentarise.dev/agent/actions.json)
 - [Rendered documentation](https://momentarise.dev/docs)
 
 ## Skills
 
+- [mme-adoption-evaluation](https://momentarise.dev/agent/skills/mme-adoption-evaluation/SKILL.md): Use when deciding whether Momentarise Markdown Editor fits a product, comparing persistence models, checking framework versus end-user boundaries, or validating adoption and citation claims.
 - [mme-docs](https://momentarise.dev/agent/skills/mme-docs/SKILL.md): Use when answering questions about Momentarise Markdown Editor docs, public Markdown source, llms files, docs-site behavior, or framework capabilities from public documentation.
 - [mme-migration-help](https://momentarise.dev/agent/skills/mme-migration-help/SKILL.md): Use when helping migrate from Markdown textareas, Tiptap, BlockNote, MDX docs, CMS editors, or host-specific rich editors to Momentarise Markdown Editor.
 - [mme-package-selection](https://momentarise.dev/agent/skills/mme-package-selection/SKILL.md): Use when selecting Momentarise Markdown Editor packages, explaining package responsibilities, or choosing APIs for vanilla, React, Next.js, CLI, renderer, save, policy, AI, and host-adapter integrations.

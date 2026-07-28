@@ -29,11 +29,44 @@
       "packages/md-surface/package.json",
       "packages/md-theme/package.json"
     ],
-    "inputHash": "e0f0273570ba7b881daf2290e70a69718d04567294496d61e344b4192b956120"
+    "inputHash": "28cbd1ae9fdc004cc80c204b746f06387bb3123143a800139fd6196be540f61a"
   },
   "actionsPath": "docs/agent/actions.json",
   "actionsUrl": "https://momentarise.dev/agent/actions.json",
+  "productProfilePath": "docs/agent/product.json",
+  "productProfileUrl": "https://momentarise.dev/agent/product.json",
   "skills": [
+    {
+      "id": "mme-adoption-evaluation",
+      "path": "docs/agent/skills/mme-adoption-evaluation/SKILL.md",
+      "publicUrl": "https://momentarise.dev/agent/skills/mme-adoption-evaluation/SKILL.md",
+      "sourceDocs": [
+        "docs/public/choosing-mme.md",
+        "docs/public/faq.md",
+        "docs/public/index.md",
+        "docs/public/compatibility-promise.md",
+        "docs/public/concepts/document-model.md",
+        "docs/public/concepts/agentic-experience.md"
+      ],
+      "packageNames": [
+        "@momentarise/md-adapter-theia",
+        "@momentarise/md-adapter-web",
+        "@momentarise/md-ai",
+        "@momentarise/md-cli",
+        "@momentarise/md-core",
+        "@momentarise/md-editor",
+        "@momentarise/md-format",
+        "@momentarise/md-policy",
+        "@momentarise/md-preview-html",
+        "@momentarise/md-react",
+        "@momentarise/md-render-html",
+        "@momentarise/md-rich-prosemirror",
+        "@momentarise/md-save",
+        "@momentarise/md-source-codemirror",
+        "@momentarise/md-surface",
+        "@momentarise/md-theme"
+      ]
+    },
     {
       "id": "mme-docs",
       "path": "docs/agent/skills/mme-docs/SKILL.md",

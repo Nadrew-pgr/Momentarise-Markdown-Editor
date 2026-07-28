@@ -34,6 +34,7 @@ assert(
 assert(manifest.actionsPath === "docs/agent/actions.json", "manifest must point to reusable action descriptors.");
 
 const requiredSkills = [
+  "mme-adoption-evaluation",
   "mme-docs",
   "mme-migration-help",
   "mme-package-selection",
@@ -56,6 +57,28 @@ for (const skillId of requiredSkills) {
   assert(source.includes("llms-full.txt"), `${skillId} must point agents to llms-full.txt.`);
   assert(!source.includes("TODO"), `${skillId} must not keep template TODOs.`);
 }
+
+assert(manifest.productProfilePath === "docs/agent/product.json", "manifest must point to the product profile.");
+assert(
+  manifest.productProfileUrl === "https://momentarise.dev/agent/product.json",
+  "manifest must expose the product profile URL."
+);
+const productProfile = await readJson(manifest.productProfilePath);
+assert(
+  productProfile.sourceHash === manifest.sources.inputHash,
+  "product profile must share the manifest input hash."
+);
+assert(productProfile.sourceBoundary === "public-docs-and-package-metadata", "product profile boundary must be explicit.");
+assert(productProfile.status.publicNpmPublished === false, "product profile must keep npm publication truth.");
+assert(productProfile.notShipped.includes("Payload CMS adapter"), "product profile must keep Payload unshipped.");
+assert(
+  productProfile.audiences.boundary.includes("host applications"),
+  "product profile must distinguish adopters from host-app end users."
+);
+assert(
+  productProfile.sourceDocs.every((path) => path.startsWith("docs/public/")),
+  "product profile must cite only public docs."
+);
 
 const packageSelection = skillsById.get("mme-package-selection");
 assert(packageSelection.packageNames.length >= 8, "package selection skill must derive from package metadata.");

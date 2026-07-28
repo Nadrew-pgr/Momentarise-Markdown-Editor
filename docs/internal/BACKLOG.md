@@ -180,7 +180,7 @@ Tags: `future-adapter`, `product-differentiator`, `research`, `conversion`, `mon
 Tags: `public-release`, `dx`, `ax`, `research`
 
 - Agent-indexable repository/docs discovery was implemented in `MME-0076`: concise public README, root agent compatibility entrypoint, stable `llms` and `/agent/*` URLs, static artifact serving, robots/sitemap, metadata, and truthful source-code structured data.
-- Agent retrieval/adoption content hardening is promoted as `MME-0079`: query-oriented README/public guidance, direct FAQ boundaries, citation-safe LLM routes, a generated product profile, and an adoption-evaluation skill. Search ranking, citation guarantees, package publication, Payload integration, and public launch remain outside the slice.
+- Agent retrieval/adoption content hardening was implemented in `MME-0079`: query-oriented README/public guidance, direct FAQ boundaries, citation-safe LLM routes, a generated product profile, and an adoption-evaluation skill. Search ranking, citation guarantees, package publication, Payload integration, and public launch remain outside the slice.
 
 ### End-Of-Run Human Review Queue
 
@@ -221,6 +221,7 @@ Tags: `public-release`, `human-review`, `ui`, `ax`
 - MME-0075 spreadsheet/TSV paste review: implementation accepted for code continuation; review paste discoverability, replacement/expansion behavior, final-cell focus feedback, literal punctuation display, undo/redo feel, nested table reachability, large-matrix and wide-table horizontal scrolling, the observed dominant full-editor focus outline, diagnostics-chip placement, intentionally far-right-scrolled wide-table composition, and constrained layout.
 - MME-0077 todo semantics review: implementation accepted for code continuation; review unordered marker suppression, ordered numbering, checkbox alignment/density, checked styling, pointer/keyboard focus treatment, nested hierarchy, task creation/nesting/undo flow, Source visibility, and constrained layout.
 - MME-0078 mobile viewport/touch review: review phone/tablet density, 44 px touch-target composition, safe-area spacing, coarse-pointer block-affordance visibility/taste, toolbar/menu reachability, reduced-height Source/Rich composition, and real browser/OS virtual-keyboard behavior.
+- MME-0079 agent retrieval/content review: review final README/adoption/FAQ wording, product-profile taxonomy, direct-answer density, adopter-versus-end-user framing, comparison neutrality, generated adoption skill, and whether public copy is ready for launch.
 - Future visible/UI/HITL slices in this autonomous run should be added here instead of blocking code continuation, per the 2026-07-19 human instruction to review visible work in one final block.
 
 - Visible asset upload UX and demo provider follow-up for image paste/drop, building on the promoted MME-0051 provider contract while keeping real storage host-owned. First visible upload UX slice promoted as `MME-0054`.

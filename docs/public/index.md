@@ -8,7 +8,7 @@ tags:
   - overview
   - markdown
 llms: include
-updated: 2026-07-08
+updated: 2026-07-28
 ---
 
 # Momentarise Markdown Editor
@@ -31,6 +31,7 @@ That changes the integration model:
 
 ## Start Building
 
+- [Choosing MME](choosing-mme.md): decide whether Markdown-source-first persistence fits your product.
 - [Vanilla Quickstart](quickstart/vanilla.md): mount MME without a framework.
 - [React Quickstart](quickstart/react.md): use the thin React lifecycle binding.
 - [Next.js Quickstart](quickstart/next.md): isolate the editor behind a client boundary.

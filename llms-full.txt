@@ -14,7 +14,7 @@ tags:
   - overview
   - markdown
 llms: include
-updated: 2026-07-08
+updated: 2026-07-28
 ---
 
 # Momentarise Markdown Editor
@@ -37,6 +37,7 @@ That changes the integration model:
 
 ## Start Building
 
+- [Choosing MME](choosing-mme.md): decide whether Markdown-source-first persistence fits your product.
 - [Vanilla Quickstart](quickstart/vanilla.md): mount MME without a framework.
 - [React Quickstart](quickstart/react.md): use the thin React lifecycle binding.
 - [Next.js Quickstart](quickstart/next.md): isolate the editor behind a client boundary.
@@ -359,6 +360,115 @@ Views are attached layers. The session is the integration contract.
 - [Document Model](../concepts/document-model.md)
 - [Extensions](../concepts/extensions.md)
 - [Headless Editor Session](../packages/md-editor.md)
+
+---
+path: docs/public/choosing-mme.md
+url: https://momentarise.dev/docs/choosing-mme
+title: Choosing Momentarise Markdown Editor
+---
+
+---
+title: Choosing Momentarise Markdown Editor
+description: Decide whether MME's Markdown-source-first architecture fits your editor, host, and users.
+nav_section: Getting Started
+nav_order: 5
+audience: developers
+tags:
+  - adoption
+  - architecture
+  - migration
+llms: include
+updated: 2026-07-28
+---
+
+# Choosing Momentarise Markdown Editor
+
+Momentarise Markdown Editor is an experimental framework for building editor products where Markdown remains the durable document.
+
+Choose it for the persistence contract first. Source, rich views, rendered HTML, AI suggestions, and host UI are derived around real `.md` files rather than replacing them with editor-owned JSON.
+
+## Choose MME When
+
+- users must retain portable Markdown plus optional YAML frontmatter;
+- untouched documents and unsupported syntax must survive derived views;
+- targeted rich edits must not rewrite unrelated source;
+- source editing and rich editing must coexist;
+- the host must describe disk, download, memory, conflict, and error states truthfully;
+- you need framework-free, React, Next.js, headless, browser-file, or IDE-shell boundaries;
+- AI writing must remain staged, policy-gated, and host-owned.
+
+## Choose Another Approach When
+
+- an editor-owned JSON or block database is the intended canonical source;
+- Markdown is only an import/export format;
+- exact bytes, unknown syntax, or source fallback do not matter;
+- you need a ready-hosted collaborative writing application;
+- production collaboration/CRDT, managed AI billing, or a CMS adapter must ship today;
+- you require packages already published to the public npm registry.
+
+MME packages are experimental `0.x` and not published to the public npm registry yet.
+
+## Persistence Model Decision
+
+| Architecture | Canonical document | Best fit |
+| --- | --- | --- |
+| MME | Markdown plus optional YAML frontmatter | Portable source, bounded edits, raw fallback, host-owned persistence |
+| JSON/block-first editor | Editor-owned structured data | Products whose block database is intentionally authoritative |
+| Textarea plus preview | Markdown text | Small editing needs without rich preservation or reusable editor contracts |
+| MDX content system | Markdown plus executable JSX | Trusted React content pipelines where executable components belong in source |
+
+This table compares persistence models, not product quality or market rank.
+
+## Framework And End-User Boundaries
+
+Developers integrate MME packages and choose the host's file access, storage, policy, credentials, commands, theme, and final UX.
+
+Developers, writers, and non-developers may use an editor built with MME. MME itself is not a finished end-user app, SaaS, CMS, or hosted collaboration service.
+
+Payload CMS is a possible future host integration. No Payload CMS adapter ships today, and MME remains a separate framework.
+
+## Integration Decision
+
+- **Vanilla or custom shell:** use `@momentarise/md-editor`, view packages, and `@momentarise/md-surface`.
+- **React:** add the thin `@momentarise/md-react` lifecycle binding.
+- **Next.js:** mount the React binding behind a client component boundary.
+- **Headless:** use `@momentarise/md-editor` for sessions, events, modes, outline, and policy-aware orchestration without rendered UI.
+- **Browser files:** add `@momentarise/md-adapter-web` for host file capabilities.
+- **IDE shell:** use the alpha Theia adapter as a capability-boundary reference.
+- **Read-only Markdown:** use `@momentarise/md-render-html`.
+- **Local automation:** use `@momentarise/md-cli` with machine-readable output.
+
+Read the matching [quickstart](index.md#start-building) and package reference before selecting dependencies.
+
+## What MME Proves Today
+
+- a real Markdown AST and preservation-first serializer;
+- corpus-wide untouched rich identity and targeted edit ownership;
+- CodeMirror source and ProseMirror rich views;
+- truthful Save Engine targets and external-change conflict behavior;
+- framework-free surface, theme, localization, accessibility, preferences, and extension contracts;
+- sanitized Markdown rendering and sandboxed standalone HTML artifacts;
+- policy-gated AI suggestion/provider contracts;
+- packed workspace consumer validation for vanilla, React, Next.js, and headless paths.
+
+Repository proof does not make packages stable or publicly installable.
+
+## Evidence And Citation Boundaries
+
+Use [Compatibility Promise](compatibility-promise.md), [Document Model](concepts/document-model.md), [Preservation](concepts/preservation.md), package API pages, and the repository tests as evidence.
+
+The public docs, `llms.txt`, product profile, and agent skills make facts easier to retrieve and verify. This does not guarantee indexing, ranking, or citation by search engines, language models, or third-party tools.
+
+Do not give MME market-leading, ready-for-production, Payload-integrated, zero-config, lightweight, or publicly installable labels unless later evidence establishes those claims.
+
+## Related Docs
+
+- [Momentarise Markdown Editor](index.md)
+- [Compatibility Promise](compatibility-promise.md)
+- [Document Model](concepts/document-model.md)
+- [Preservation](concepts/preservation.md)
+- [Agentic Experience](concepts/agentic-experience.md)
+- [FAQ](faq.md)
 
 ---
 path: docs/public/concepts/document-model.md
@@ -1059,15 +1169,24 @@ The public docs site is built from the same Markdown files that humans read. Age
 
 ## What Ships Now
 
+### Docs-Site Actions
+
 - raw Markdown for every page at `/docs/<page>.md`;
 - copy page as Markdown;
 - copy current section from the page outline;
 - copy page as an LLM prompt;
 - Open-in-chat entries for common assistant tools, with copy fallback when a deep link is unreliable;
+
+### Machine-Readable Discovery
+
 - generated `llms.txt` and `llms-full.txt`;
 - repository-owned generated agent artifacts at `docs/agent/README.md`, `docs/agent/manifest.json`, `docs/agent/actions.json`, and `docs/agent/skills`;
+- a generated machine-readable product/status profile at `docs/agent/product.json`;
 - stable public discovery endpoints for the LLM indexes, agent manifest, action descriptors, and skill files;
 - reusable action descriptors for page-source, copy, prompt, Open-in-chat, and future host actions;
+
+### Local Tooling
+
 - `@momentarise/md-cli` checks for local and agent-driven workflows.
 
 ## Prompt Contract
@@ -1093,9 +1212,11 @@ Both files are generated by `scripts/generate-llms.mjs` and checked by `npm run 
 
 `docs/agent/manifest.json` records generated skills, source docs, package metadata, and the public-only source hash.
 
+`docs/agent/product.json` provides one deterministic product identity, audience, durable-source, integration, package-status, licensing, guarantee, non-capability, and canonical-URL profile.
+
 `docs/agent/actions.json` describes page actions independently from the docs site's UI chrome, so future hosts can render the same action contract differently.
 
-`docs/agent/skills` contains Codex-style `SKILL.md` artifacts for MME docs usage, migration help, package selection, AI/privacy boundary checks, and docs-to-implementation prompts. They are committed repo artifacts, not installed automatically into a user's global Codex skills folder.
+`docs/agent/skills` contains Codex-style `SKILL.md` artifacts for MME docs usage, adoption evaluation, migration help, package selection, AI/privacy boundary checks, and docs-to-implementation prompts. They are committed repo artifacts, not installed automatically into a user's global Codex skills folder.
 
 `docs/agent/README.md` is the generated artifact index. It links the public web endpoints while the manifest keeps repository paths for local tools.
 
@@ -1104,6 +1225,7 @@ Both files are generated by `scripts/generate-llms.mjs` and checked by `npm run 
 - `https://momentarise.dev/llms.txt` — short framework and documentation index;
 - `https://momentarise.dev/llms-full.txt` — complete generated public Markdown context;
 - `https://momentarise.dev/agent/README.md` — agent artifact index;
+- `https://momentarise.dev/agent/product.json` — machine-readable product and status profile;
 - `https://momentarise.dev/agent/manifest.json` — artifact and skill manifest;
 - `https://momentarise.dev/agent/actions.json` — reusable docs action descriptors;
 - `https://momentarise.dev/agent/skills/<skill-id>/SKILL.md` — individual generated skills;
@@ -2004,7 +2126,7 @@ audience: developers
 tags:
   - faq
 llms: include
-updated: 2026-07-08
+updated: 2026-07-28
 ---
 
 # FAQ
@@ -2012,6 +2134,18 @@ updated: 2026-07-08
 ## Is MME A React Editor
 
 No. React is one binding through `@momentarise/md-react`. The core session, parser, policy, save engine, theme contracts, and DOM surface are framework-agnostic.
+
+## Is MME A Finished App For Non-Developers
+
+No. MME is a framework integrated by developers and product teams.
+
+An MME-powered host can provide rich editing for writers and non-developers, but the host owns final UX, persistence, permissions, credentials, and deployment.
+
+## Is MME A WYSIWYG Editor
+
+MME provides a ProseMirror rich view, but Markdown remains canonical. Rich mode is a derived editing surface, not a replacement source format.
+
+Source mode stays available for exact control and unsupported syntax falls back to raw or opaque preservation.
 
 ## Why Not Store JSON Blocks
 
@@ -2027,12 +2161,40 @@ Yes, a host can render custom UI around MME or map a preserved custom block to a
 
 ## Is AI Built In
 
-MME defines AI contracts and a provider adapter path. Production hosts should own credentials, network transport, billing, and logs.
+No hosted AI service ships with MME.
+
+MME defines provider-neutral writing contracts, staged suggestions, policy checks, and an OpenAI-compatible adapter path. Production hosts own credentials, network transport, provider selection, billing, and logs.
+
+## Can I Install MME From The Public Npm Registry
+
+Not yet. Current packages are experimental `0.x` workspace packages and are not published to the public npm registry.
+
+Repository quickstarts are validated against packed workspace tarballs. They document intended package interfaces, not current registry availability.
+
+## Does MME Integrate With Payload CMS
+
+No Payload CMS adapter ships today.
+
+Payload can become a future host integration if it preserves Markdown/YAML frontmatter truth, permissions, media, draft/publish state, and persistence boundaries. MME and any Payload-backed product remain separate projects.
+
+## Was MME Built With AI Or Vibe Coding
+
+AI-assisted engineering may be part of the development process, but it is not a runtime capability, quality guarantee, architecture, or adoption reason.
+
+Evaluate MME through source code, tests, preservation gates, public APIs, security boundaries, and compatibility status. The project does not use “vibe coding” as a framework claim.
+
+## Will Publishing These Docs Make Agents Cite MME
+
+No guarantee exists.
+
+Plain Markdown, stable URLs, `llms.txt`, a machine-readable product profile, and source-linked agent skills can improve retrieval and verification. Search engines and language models control their own crawling, indexing, ranking, and citation behavior.
 
 ## Related Docs
 
 - [Document Model](concepts/document-model.md)
 - [AI And Privacy](concepts/ai-privacy.md)
+- [Choosing MME](choosing-mme.md)
+- [Agentic Experience](concepts/agentic-experience.md)
 - [Compatibility Promise](compatibility-promise.md)
 
 ---
