@@ -25,7 +25,7 @@ Tags: `baseline/hygiene`, `markdown`, `rich-mode`, `live-preview`, `round-trip`
 - Render tables properly in read mode and live preview.
 - Keep source mode as the truth and fallback for every table form.
 - Rich mode must never silently convert a table into lossy paragraphs.
-- Rich cell editing, keyboard navigation, final-cell row append, explicit body-row insert/delete, explicit column insert/delete, row/column reorder, and strict spreadsheet/TSV clipboard paste are implemented in MME-0055/MME-0072/MME-0073/MME-0074/MME-0075. Quoted CSV/HTML-table paste and file conversion remain backlog.
+- Rich cell editing, keyboard navigation, final-cell row append, explicit body-row insert/delete, explicit column insert/delete, row/column reorder, and strict spreadsheet/TSV clipboard paste are implemented in MME-0055/MME-0072/MME-0073/MME-0074/MME-0075. Quoted CSV clipboard paste is promoted as `MME-0080`; HTML-table paste and file conversion remain backlog.
 - Tests must include real table fixtures, edited-neighbor preservation, and round-trip proof.
 
 ### Footnotes / Endnotes
@@ -222,6 +222,7 @@ Tags: `public-release`, `human-review`, `ui`, `ax`
 - MME-0077 todo semantics review: implementation accepted for code continuation; review unordered marker suppression, ordered numbering, checkbox alignment/density, checked styling, pointer/keyboard focus treatment, nested hierarchy, task creation/nesting/undo flow, Source visibility, and constrained layout.
 - MME-0078 mobile viewport/touch review: review phone/tablet density, 44 px touch-target composition, safe-area spacing, coarse-pointer block-affordance visibility/taste, toolbar/menu reachability, reduced-height Source/Rich composition, and real browser/OS virtual-keyboard behavior.
 - MME-0079 agent retrieval/content review: review final README/adoption/FAQ wording, product-profile taxonomy, direct-answer density, adopter-versus-end-user framing, comparison neutrality, generated adoption skill, and whether public copy is ready for launch.
+- MME-0080 quoted-CSV paste review: review CSV paste discoverability, quoted/empty/literal cell presentation, replacement/expansion feedback, final-cell focus, undo/redo feel, constrained/wide-table reachability, and compatibility across real spreadsheet clipboard sources.
 - Future visible/UI/HITL slices in this autonomous run should be added here instead of blocking code continuation, per the 2026-07-19 human instruction to review visible work in one final block.
 
 - Visible asset upload UX and demo provider follow-up for image paste/drop, building on the promoted MME-0051 provider contract while keeping real storage host-owned. First visible upload UX slice promoted as `MME-0054`.
@@ -311,6 +312,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - `MME-0077 — Rich todo semantic DOM and accessibility integrity`.
 - `MME-0078 — Mobile viewport and touch reachability baseline`.
 - `MME-0079 — Agent retrieval and adoption-content hardening`.
+- `MME-0080 — Rich table quoted-CSV clipboard paste baseline`.
 
 - Editor live preview parity.
 - Toolbar/slash/menu final UX.
@@ -322,7 +324,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - Document status/save truth UI.
 - Footnotes/endnotes preservation, rendering, backlink navigation, and editing UX.
 - First rich footnote definition editing baseline promoted as `MME-0056`; insertion is promoted as `MME-0057`; identifier rename is promoted as `MME-0058`; top-level continuation-line editing is promoted as `MME-0059`; top-level multi-paragraph editing is promoted as `MME-0060`; standard list-block editing is promoted as `MME-0061`; nested standard lists are promoted as `MME-0062`; task lists are promoted as `MME-0063`; loose/list-spread and multi-paragraph list items are promoted as `MME-0064`; safe paragraph-only blockquotes are promoted as `MME-0065`; safe fenced code blocks are promoted as `MME-0066`; safe indented code blocks are promoted as `MME-0067`; safe table blocks are promoted as `MME-0068`; safe paragraph-only Obsidian callouts are promoted as `MME-0069`; inert block-HTML source editing is promoted as `MME-0070`; inert inline-HTML paragraph source editing is promoted as `MME-0071`; other arbitrary nested blocks remain future splits.
-- Table rendering and first rich table editing baseline promoted as `MME-0040` and `MME-0055`; explicit body-row operations are implemented as `MME-0072`; explicit column operations are implemented as `MME-0073`; row/column reorder is implemented as `MME-0074`; strict spreadsheet/TSV clipboard paste is implemented as `MME-0075`; quoted CSV/HTML-table paste remains backlog.
+- Table rendering and first rich table editing baseline promoted as `MME-0040` and `MME-0055`; explicit body-row operations are implemented as `MME-0072`; explicit column operations are implemented as `MME-0073`; row/column reorder is implemented as `MME-0074`; strict spreadsheet/TSV clipboard paste is implemented as `MME-0075`; quoted CSV clipboard paste is promoted as `MME-0080`; HTML-table paste remains backlog.
 - Nested GFM table rich editing requires container-specific bounded serialization. MME-0068 covers the safe footnote-definition and standard/task-list subset; blockquote-contained and other generic nested tables remain source-only instead of rewriting container syntax.
 - Inline slash AI prompt surface.
 - LiteLLM / OpenAI-compatible AI provider adapter.

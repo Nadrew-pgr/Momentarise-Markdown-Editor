@@ -7578,3 +7578,35 @@
   - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0079`. The next unblocked must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.
+
+## Backlog promotion checkpoint — MME-0080
+
+- Date: 2026-07-28.
+- Context:
+  - `MME-0079` is accepted for code continuation and committed (`fe8db49` implementation/status, `00f4bc2` evidence).
+  - No executable normal issue remained after MME-0079.
+  - Andrew instructed autonomous continuation, must-haves first, strict issue formatting, issue-scoped commits, exact Spark/xhigh code review when available, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Feasibility proof:
+  - MME-0075 already separates strict TSV decoding from one-transaction table replacement/expansion and proves literal-cell safety, exact outside-table bytes, nested ownership, history, and Save Engine truth.
+  - Native Rich paste currently admits explicit TSV or tab-containing plain text only; explicit `text/csv` remains unhandled, and ordinary comma text is not misclassified.
+  - `csv-parse` 7.0.1 provides a typed `browser/esm/sync` parser under MIT licensing. It supports quoted CSV without hand-written quote grammar and fits the approved MPL-2.0/Apache-2.0/MIT dependency policy.
+  - A CSV decoder can reuse current matrix bounds and transformation while rejecting multiline cells because GFM pipe tables have no lossless literal multiline-cell representation.
+- Change:
+  - Promoted `MME-0080 — Rich table quoted-CSV clipboard paste baseline` into strict normal issue form.
+  - Required explicit CSV format/API admission, licensed parser use, deterministic MIME precedence, quoted/escaped/empty/BOM handling, typed atomic refusal, literal safety, exact preservation, history/save compatibility, browser evidence, and full regression gates.
+  - Kept HTML-table paste, delimiter inference, file conversion, multiline-cell representation, spreadsheet semantics, new UI, parser/model changes, package publication, and final visual acceptance outside the slice.
+  - Updated `docs/internal/BACKLOG.md` promotion and end-of-run review tracking.
+- Checks required before checkpoint commit:
+  - `npm run test:alignment`.
+  - `node scripts/docs-lint.mjs`.
+  - `git diff --check`.
+- Reviewer plan:
+  - Implementation code review will use exactly `gpt-5.3-codex-spark` at `xhigh` if available; no substitute code-review model.
+  - Review will inspect CSV parser configuration, dependency/license boundary, MIME precedence, matrix limits, control/multiline rejection, literal safety, transaction atomicity, exact ownership, pass-through, history, Save Engine truth, and browser proof.
+- Commit status:
+  - Promotion checkpoint commit to be created.
+- Push status:
+  - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - `MME-0080 — Rich table quoted-CSV clipboard paste baseline`.

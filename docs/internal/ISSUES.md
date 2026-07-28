@@ -5049,6 +5049,91 @@ DX Reviewer, Documentation Reviewer, Architecture Reviewer, Security Reviewer, a
 
 Accepted for code continuation 2026-07-28 after restructuring the public README around adopter/end-user, fit/non-fit, integration, evidence, and agent-discovery questions; adding a canonical adoption guide and direct FAQ boundaries; extending `llms.txt` with decision, citation-safe, and question routes; generating a public product profile and adoption-evaluation skill; publishing those artifacts through the existing safe static boundary; and passing focused, HTTP, docs-site, package, public-API, and full-suite proof. Exact `gpt-5.3-codex-spark` at `xhigh` was unavailable and no substitute code-review model was used. Fallback generator/security review found no remaining code issue. A classic documentation-only reviewer found four P2/P3 clarity gaps around hosted AI, host-app end users, direct agent-index answers, and AX category grouping; all were fixed, and re-review found no P0-P3. Production indexing/ranking/citation, npm publication, Payload integration, deployment, final public copy acceptance, and launch remain outside this issue and queued for Andrew's consolidated review.
 
+## MME-0080 — Rich table quoted-CSV clipboard paste baseline
+
+### Goal
+
+Extend the preservation-first Rich table matrix-paste contract so a framework consumer or native editor paste can safely import quoted comma-separated clipboard data into an existing supported Markdown table without misclassifying ordinary prose, hand-rolling CSV grammar, weakening literal-cell safety, or rewriting bytes outside the owned table.
+
+### Scope
+
+- Extend the reusable table-matrix paste API with an explicit `csv` input format while keeping strict `tsv` as the default and preserving existing callers.
+- Parse CSV through the maintained MIT-licensed `csv-parse` browser sync entrypoint rather than custom quote/delimiter logic.
+- Accept native clipboard CSV only from an explicit `text/csv` payload while selection is inside a supported semantic table and no file payload is present.
+- Keep clipboard precedence deterministic: file payloads pass through; explicit TSV remains preferred; explicit CSV is handled next; ordinary `text/plain`, comma-containing prose, HTML, images, source-only tables, and outside-table paste remain untouched.
+- Support quoted commas, escaped double quotes, empty cells, LF/CRLF row endings, optional UTF-8 BOM, and at most one terminal record ending.
+- Reject malformed quoting, inconsistent row widths, empty/all-empty matrices, embedded cell line breaks, unsafe control characters, unsupported parser values, and over-limit matrices without mutation.
+- Reuse the existing 1,000-row, 256-column, 10,000-cell, and 1,000,000-code-unit bounds before constructing a ProseMirror transaction.
+- Reuse the existing one-transaction table replacement/expansion, literal Markdown-safe serialization, final-cell selection, undo/redo, nested-table ownership, LF/CRLF preservation, and Save Engine truth.
+- Add focused API/plugin/security/preservation proof plus real clipboard-event browser proof for quoted values, expansion, pass-through, history, source truth, and constrained containment.
+- Queue final CSV discoverability, replacement feedback, clipboard-source compatibility, and constrained-layout taste for Andrew's consolidated end-of-run review block.
+
+### Acceptance criteria
+
+- `runRichTableMatrixPaste` accepts an explicit CSV format and imports valid quoted CSV into a selected or explicitly indexed supported table cell while the existing default TSV behavior remains source-compatible.
+- CSV decoding uses `csv-parse/browser/esm/sync`, with the package and lockfile recording its MIT license-compatible dependency boundary.
+- Quoted commas, doubled quotes, empty cells, UTF-8 BOM, LF, CRLF, and one terminal line ending decode deterministically to literal cell text.
+- Malformed quotes, ragged rows, empty/all-empty data, embedded line breaks inside a cell, NUL/unsafe controls, non-string cells, oversized input, stale state, invalid coordinates, source-only tables, and outside-table selection refuse atomically with typed failure state.
+- Native Rich paste intercepts explicit `text/csv` only after file and TSV checks. Plain comma-separated prose without `text/csv`, HTML payloads, images, and outside-table paste are not swallowed; `preventDefault` runs only after an accepted transaction.
+- Accepted CSV replaces/expands the table rightward and downward, preserves header/body types and existing alignment, gives new columns neutral alignment, and selects the final pasted cell in one undoable transaction.
+- Literal CSV values containing Markdown punctuation, links, HTML-like text, backslashes, formulas, and escaped quotes remount as the same visible text without active marks, links, HTML, footnotes, or script behavior.
+- Untouched tables remain byte-identical. Changed top-level and existing safe direct/list/task footnote tables preserve exact bytes outside the table, hierarchy, prefixes, indentation, ordered starts, task/loose state, sibling syntax, and LF/CRLF convention.
+- Existing strict TSV paste, cell editing/navigation, row/column insert/delete/reorder, final-cell Tab append, rich paste sanitization, asset paste, security, Save Engine, public API, architecture, and full-suite gates pass.
+- Browser verification at the human-facing demo URL dispatches a real `ClipboardEvent` carrying `text/csv`, proves quoted import, expansion, literal safety, undo/redo, exact Source, clean save, rejection/pass-through, and constrained containment, and stores artifacts under `docs/internal/visual-checks/MME-0080/`.
+- `docs/internal/build-log.md` records RED/GREEN evidence, dependency/license decision, visual impact, reviewer or fallback result, tests, residual risks, commit, push status, and next issue.
+
+### Test-first plan
+
+- RED: add `tests/rich-table-csv-paste.test.mjs` and a focused root script that fail because `runRichTableMatrixPaste` has no CSV format and the native plugin ignores `text/csv`.
+- RED: prove quoted commas/quotes, empty cells, BOM, LF/CRLF, terminal line ending, selected/explicit targets, deterministic expansion, shape/types/alignment, final-cell selection, and one-step history.
+- RED: prove malformed/ragged/empty/multiline/control/oversized/non-string/stale/source-only/invalid/outside cases return typed refusal without mutation.
+- RED: prove ordinary comma text, HTML, images, file payloads, and outside-table payloads remain unhandled; explicit TSV wins when TSV and CSV formats coexist.
+- RED: prove literal Markdown/HTML/link/formula text remounts inertly and top-level plus safe direct/list/task ownership, LF/CRLF, and Save Engine truth remain exact.
+- RED: add browser assertions for real `text/csv` paste, quoted expansion, literal safety, undo/redo, exact Source/clean save, pass-through, and constrained containment.
+- GREEN: add the licensed CSV parser dependency, explicit format option, bounded decoder, and native MIME routing only.
+- REFACTOR: share matrix validation and limit checks between TSV and CSV only where it reduces drift without changing their distinct grammar or admission rules.
+
+### Manual verification
+
+- Start the reference demo at `http://127.0.0.1:5174/` with the spreadsheet-paste fixture.
+- Dispatch a real clipboard paste with `text/csv` containing quoted commas, escaped quotes, empty cells, Markdown-significant text, and formulas into middle/final cells.
+- Verify replacement/expansion/final-cell focus, one-step undo/redo, dirty-to-clean save, exact Source, and no active link/HTML/script semantics.
+- Confirm comma-containing plain text, HTML, image/file, malformed CSV, and outside-table paste remain on existing paths; repeat at constrained width and capture artifacts under `docs/internal/visual-checks/MME-0080/`.
+
+### Visual impact
+
+Pasting explicit quoted CSV into a supported Rich table fills and expands cells through the existing table UI, selects the final imported cell, and updates dirty/save state without new persistent chrome. Rejected and non-CSV paste remains visually unchanged. Final CSV discoverability and product feel remain queued for consolidated human review.
+
+### Implementation notes
+
+Read first: `packages/md-core/src/index.ts`, `packages/md-format/src/index.ts`, `packages/md-editor/src/index.ts`, `packages/md-rich-prosemirror/src/index.ts`, `packages/md-rich-prosemirror/README.md`, `packages/md-rich-prosemirror/package.json`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `fixtures/039-table-spreadsheet-paste`, `tests/rich-table-spreadsheet-paste.test.mjs`, `tests/rich-table-editing.test.mjs`, `tests/rich-table-row-operations.test.mjs`, `tests/rich-table-column-operations.test.mjs`, `tests/rich-table-reorder.test.mjs`, `tests/rich-footnote-tables.test.mjs`, `tests/rich-security.test.mjs`, `tests/rich-core-interactions.test.mjs`, `tests/save-engine.test.mjs`, `scripts/visual-check-mme0075.mjs`, and the MME-0055/MME-0068/MME-0072/MME-0073/MME-0074/MME-0075 build-log evidence.
+
+Current MME-0075 code already separates matrix decoding from one-transaction table transformation and keeps literal values inert through changed-table serialization. Native paste currently accepts only explicit TSV or tab-containing plain text and deliberately passes `text/csv`/HTML through. `csv-parse` 7.0.1 exposes a typed browser ESM sync entrypoint and uses MIT licensing, matching the human-approved license policy. Extend only matrix decoding and MIME routing; do not alter parser/model/save contracts or infer CSV from ordinary comma text. Multiline CSV cells remain unsupported because GFM pipe-table cells cannot persist literal line breaks without a new representation decision.
+
+### Out of scope
+
+- HTML `<table>` clipboard import, delimiter inference, semicolon/locale-specific CSV, plain-text comma sniffing, paste-to-create-table outside an existing table, `.csv` file conversion, spreadsheet export, or clipboard-copy formatting.
+- Multiline CSV cell representation, formula evaluation, number/date typing, style/color/font import, merged cells, rowspan/colspan, multi-table paste, multi-selection paste, sorting/filtering, drag fill, or external spreadsheet sync.
+- Generic unsupported nested-table admission, malformed Markdown table repair, active Markdown interpretation of imported cells, full-document normalization, new toolbar/slash commands, persistent paste UI, or docs-content construction.
+- New parser/model/Save Engine/policy behavior, package consolidation, public npm publication, or final visual product acceptance.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Security Reviewer, Accessibility Reviewer, and UX Reviewer allowed; inspect-only.
+- Code review must use exactly `gpt-5.3-codex-spark` at `xhigh` when available; no substitute code-review model.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final visible CSV-paste product review is queued for the end-of-run human review block unless parser correctness, literal safety, bounded transformation, pass-through, history, save truth, or browser proof remains unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, Security Reviewer, Accessibility Reviewer, and UX Reviewer.
+
+### Blocked by
+
+- None. MME-0075 established strict TSV admission, bounded matrix transforms, literal-cell safety, nested ownership, history, and native event handling. The maintained MIT CSV parser provides a bounded grammar extension without changing durable Markdown or package architecture.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.
