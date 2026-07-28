@@ -6942,10 +6942,10 @@
 - Rationale:
   - Advanced table editing is the first unfinished `baseline/hygiene` requirement in backlog order after the completed semantic table and footnote slices.
   - Row operations are a bounded vertical slice over already-proven ownership and serialization; columns and spreadsheet paste carry separate parser/UX risk and should remain later issues.
-- Checks run before checkpoint commit:
-  - `npm run test:alignment` — green.
-  - `node scripts/docs-lint.mjs` — green.
-  - `git diff --check` — green.
+- Checks required before checkpoint commit:
+  - `npm run test:alignment`.
+  - `node scripts/docs-lint.mjs`.
+  - `git diff --check`.
 - Reviewer plan:
   - Implementation review will use exactly `gpt-5.3-codex-spark` at `xhigh` if available; no substitute code-review model.
   - If unavailable, perform and document a fallback self-review covering header protection, target resolution, one-transaction history, alignment, selection, exact ownership, nested serialization, command availability, accessibility, save truth, and regressions.
@@ -7264,10 +7264,10 @@
   - Bounded the slice to truthful repository entrypoints, generated discovery indexes, stable public endpoints, safe static copying, crawler metadata/routes, structured source-code metadata, and focused proof.
   - Explicitly excluded ranking guarantees, marketing strategy, Payload integration, hosted AI/search, package publication, schema hosting, public launch, visual redesign, and internal-doc publication.
   - Updated `README.md` current slice and `docs/internal/BACKLOG.md` promotion tracking.
-- Checks required before checkpoint commit:
-  - `npm run test:alignment`.
-  - `node scripts/docs-lint.mjs`.
-  - `git diff --check`.
+- Checks run before checkpoint commit:
+  - `npm run test:alignment` — green.
+  - `node scripts/docs-lint.mjs` — green.
+  - `git diff --check` — green.
 - Reviewer plan:
   - Implementation review will use exactly `gpt-5.3-codex-spark` at `xhigh`; no substitute code-review model.
   - Reviewer will inspect truthfulness, public/private boundaries, URL stability, generator determinism, static-sync path safety, crawler metadata, structured data, tests, and documentation usability.
