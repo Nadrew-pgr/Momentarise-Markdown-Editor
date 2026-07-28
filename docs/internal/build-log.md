@@ -7438,3 +7438,17 @@
   - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
 - Next issue:
   - `MME-0078 — Mobile viewport and touch reachability baseline`.
+
+### MME-0078 promotion commit evidence
+
+- Date: 2026-07-28.
+- Checks:
+  - `npm run test:alignment` — green.
+  - `node scripts/docs-lint.mjs` — green.
+  - `git diff --check` — green.
+- Commit status:
+  - Promotion checkpoint committed as `6cee6db` (`docs: promote mme-0078 mobile baseline`).
+- Push status:
+  - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - `MME-0078 — Mobile viewport and touch reachability baseline`.
