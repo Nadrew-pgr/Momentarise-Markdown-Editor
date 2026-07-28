@@ -7354,7 +7354,7 @@
   - Implementation review will use exactly `gpt-5.3-codex-spark` at `xhigh` if available; no substitute code-review model.
   - Reviewer will inspect schema validity, specialized parse priority, content isolation, command/input-rule normalization, native control semantics, DOM round-trip, list/history/preservation/save regressions, and browser proof.
 - Commit status:
-  - Promotion checkpoint commit pending.
+  - Promotion checkpoint committed as `53c2a74` (`docs: promote mme-0077 todo semantics`).
 - Push status:
   - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
 - Next issue:
