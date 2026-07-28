@@ -6942,10 +6942,10 @@
 - Rationale:
   - Advanced table editing is the first unfinished `baseline/hygiene` requirement in backlog order after the completed semantic table and footnote slices.
   - Row operations are a bounded vertical slice over already-proven ownership and serialization; columns and spreadsheet paste carry separate parser/UX risk and should remain later issues.
-- Checks required before checkpoint commit:
-  - `npm run test:alignment`.
-  - `node scripts/docs-lint.mjs`.
-  - `git diff --check`.
+- Checks run before checkpoint commit:
+  - `npm run test:alignment` — green.
+  - `node scripts/docs-lint.mjs` — green.
+  - `git diff --check` — green.
 - Reviewer plan:
   - Implementation review will use exactly `gpt-5.3-codex-spark` at `xhigh` if available; no substitute code-review model.
   - If unavailable, perform and document a fallback self-review covering header protection, target resolution, one-transaction history, alignment, selection, exact ownership, nested serialization, command availability, accessibility, save truth, and regressions.
@@ -7272,7 +7272,7 @@
   - Implementation review will use exactly `gpt-5.3-codex-spark` at `xhigh`; no substitute code-review model.
   - Reviewer will inspect truthfulness, public/private boundaries, URL stability, generator determinism, static-sync path safety, crawler metadata, structured data, tests, and documentation usability.
 - Commit status:
-  - Promotion checkpoint commit pending.
+  - Promotion checkpoint committed as `4192b7d` (`docs: promote mme-0076 agent discovery`).
 - Push status:
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
