@@ -7322,7 +7322,7 @@
   - Payload/CMS adapters, hosted Ask AI, semantic search, schema hosting, automatic skill installation, analytics, and public launch remain outside this slice.
   - Public docs visual/content acceptance and launch review remain queued for Andrew's consolidated end-of-run review block.
 - Commit status:
-  - Issue-scoped implementation/status commit pending.
+  - Issue-scoped implementation/status commit created: `e095ef0` (`docs: harden agent discovery`).
 - Push status:
   - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
 - Next issue:
