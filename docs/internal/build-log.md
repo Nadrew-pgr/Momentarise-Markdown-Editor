@@ -7404,3 +7404,37 @@
   - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0077`. The next unblocked must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.
+
+## Backlog promotion checkpoint — MME-0078
+
+- Date: 2026-07-28.
+- Context:
+  - `MME-0077` is accepted for code continuation and committed (`0e3616a` implementation/status, `faecdb0` evidence).
+  - No executable normal issue remained after MME-0077.
+  - Andrew instructed autonomous continuation, must-haves first, strict issue formatting, issue-scoped commits, and one deferred final human/UI review block.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 forbids implementation directly from backlog.
+- Backlog truth correction:
+  - The apparent final-block click-insertion gap is stale: `MME-0042` already shipped package-owned ArrowDown/ArrowRight and true editor-root click insertion after eligible final code, table, opaque/callout, raw-HTML, and media blocks, with preservation and browser proof.
+  - `docs/internal/BACKLOG.md` now records that implementation instead of promoting duplicate work.
+- Feasibility proof:
+  - Existing 390 px visual checks prove containment, but the reference shell still uses fixed `100vh`, the phone breakpoint reduces essential controls to 30 px, and rich block affordances remain 22 px and primarily hover-revealed.
+  - No package or host wiring uses `visualViewport`; no reusable reduced-viewport/keyboard-inset state exists; the demo viewport meta omits `viewport-fit=cover`; safe-area insets are not consumed.
+  - `@momentarise/md-surface` already owns injected framework-free DOM component lifecycles and explicitly forbids direct browser globals, so an injected viewport source/controller is a bounded reusable package contract. Browser discovery stays in the host demo and sizing tokens stay in `@momentarise/md-theme`.
+- Change:
+  - Promoted `MME-0078 — Mobile viewport and touch reachability baseline` into strict normal issue form.
+  - Required injected viewport lifecycle/cleanup, dynamic visual-height and keyboard-inset state, safe-area/dynamic sizing, coarse-pointer targets, no hover-only required action, phone/tablet/reduced-height browser proof, focus/editability, exact Markdown/save truth, and full regression gates.
+  - Explicitly excluded a full mobile rich editor, native shell, platform keyboard engine, gestures, touch drag/drop, core document changes, docs mobile redesign, and final product styling.
+  - Updated `docs/internal/BACKLOG.md` promotion and end-of-run review tracking.
+- Checks required before checkpoint commit:
+  - `npm run test:alignment`.
+  - `node scripts/docs-lint.mjs`.
+  - `git diff --check`.
+- Reviewer plan:
+  - Implementation review will use exactly `gpt-5.3-codex-spark` at `xhigh` if available; no substitute code-review model.
+  - Review will inspect package/global boundaries, measurement clamping, listener cleanup, fallback behavior, safe-area/dynamic sizing, coarse-pointer reachability, focus/editability, overflow/scroll ownership, save truth, and browser proof.
+- Commit status:
+  - Promotion checkpoint commit to be created.
+- Push status:
+  - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - `MME-0078 — Mobile viewport and touch reachability baseline`.

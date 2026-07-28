@@ -4883,6 +4883,86 @@ Architecture Reviewer, Test Reviewer, Accessibility Reviewer, Security Reviewer,
 
 Accepted for code continuation 2026-07-28 after replacing invalid task `div` roots with native `li` nodes, isolating editable task content from toggle chrome, prioritizing specialized task parsing, retaining safe legacy-wrapper parsing, rejecting orphan top-level task nodes, normalizing command/input-rule task creation into semantic bullet lists, preserving ordered numbering and unordered marker suppression, moving list block-affordance widgets out of direct list-child position, and proving pointer/Enter/Space activation, focus, source identity, bounded serialization, narrow containment, and full-suite compatibility. The requested exact `gpt-5.3-codex-spark` reviewer at `xhigh` was rejected by the subagent tool and no substitute model was used. Fallback review plus runtime DOM inspection found and fixed the additional `ul/ol > span` block-affordance defect and closed the explicit legacy-wrapper and Space-key proof gaps; no P0-P3 issue remains. Final checkbox density/styling, numbering, nested hierarchy, focus treatment, task creation/nesting/undo feel, Source visibility, and constrained-layout taste remain queued for Andrew's consolidated end-of-run review block.
 
+## MME-0078 — Mobile viewport and touch reachability baseline
+
+### Goal
+
+Make MME's reusable DOM surfaces and reference editor remain operable on phone/tablet viewports, coarse pointers, safe-area devices, and reduced visual viewports without claiming or building a full mobile rich-editor product.
+
+### Scope
+
+- Add a package-owned, framework-free viewport controller contract that receives host-injected layout/visual viewport measurements instead of importing browser globals.
+- Publish current visual viewport height/offset and keyboard inset through stable host CSS properties/data state, update them on injected resize/scroll events, and remove listeners/state on destroy.
+- Wire the reference demo to the browser `visualViewport` capability with an `innerHeight` fallback while preserving package and host boundaries.
+- Replace reference-shell `100vh` assumptions with dynamic-viewport-safe sizing and add safe-area padding where editor chrome or document content can meet device edges.
+- Make essential editor, toolbar, mode, status, slash, and block-affordance controls reachable by coarse pointer with stable touch targets and no hover-only required action.
+- Keep dense command surfaces horizontally or vertically reachable without document-level horizontal overflow at representative phone and tablet widths.
+- Prove Source and Rich focus survive viewport reduction, command surfaces remain inside the visible viewport, and Markdown/save/history behavior is unchanged.
+- Queue final mobile visual density, toolbar composition, block-handle taste, browser/OS keyboard feel, and gesture design for Andrew's consolidated end-of-run review block.
+
+### Acceptance criteria
+
+- `@momentarise/md-surface` exports a typed viewport controller that uses only injected host/viewport capabilities, writes deterministic visual-height/offset/keyboard-inset state, responds to viewport resize/scroll, and fully cleans up on destroy.
+- The controller has no import-time DOM/browser dependency, does not read storage, does not own document content, and safely falls back when no visual viewport exists.
+- The reference demo uses the reusable controller and `viewport-fit=cover`; shell, overlays, menus, and editor regions size from dynamic visual-viewport state rather than fixed `100vh` assumptions.
+- Safe-area insets are applied to edge chrome/document padding without changing desktop spacing when every inset is zero.
+- At coarse-pointer phone width, essential visible controls and rich block affordances have at least 44 by 44 CSS-pixel hit areas or an equivalent non-overlapping hit target; no required action depends only on hover.
+- Phone and tablet proofs show no document-level horizontal overflow, clipped active command surface, unreachable primary file/mode/save action, or nested page/editor scroll trap.
+- Source and Rich editors can receive focus before and after a simulated visual-viewport reduction; the active editor remains mounted, visible, and editable.
+- Existing keyboard navigation, pointer activation, source/rich switching, dirty/save truth, exact Markdown, history, command, accessibility, theme, architecture, public API, and full-suite gates pass.
+- Browser verification uses touch emulation at representative phone and tablet dimensions, exercises a reduced-height keyboard-like state, captures artifacts under `docs/internal/visual-checks/MME-0078/`, and records structural measurements plus console/runtime errors.
+- `docs/internal/build-log.md` records RED/GREEN evidence, visual impact, reviewer or fallback result, tests, residual risks, commit, push status, and next issue.
+
+### Test-first plan
+
+- RED: add `tests/surface-mobile-viewport.test.mjs` and a root focused script that fail because the typed viewport controller and stable CSS/data contract do not exist.
+- RED: prove injected initial/fallback measurements, resize/scroll updates, non-negative keyboard inset, rounding/clamping, listener cleanup, prior-style restoration, and zero global/storage access.
+- RED: extend demo/theme structural tests for dynamic viewport properties, `viewport-fit=cover`, safe-area use, coarse-pointer touch targets, no hover-only block action, and removal of fixed mobile `100vh` sizing.
+- RED: add browser assertions for phone/tablet touch emulation, 44 px essential targets, command-surface containment, document overflow, Source/Rich focus, reduced visible height, and unchanged Markdown/save truth.
+- GREEN: implement only the injected viewport controller, reference wiring, theme variables, and responsive/touch CSS required by those proofs.
+- REFACTOR: share viewport measurement/state helpers only where this keeps fallback and cleanup behavior deterministic without introducing a browser adapter into core/editor/save packages.
+
+### Manual verification
+
+- Start the reference demo at `http://127.0.0.1:5174/`, load representative Markdown with headings, tasks, a code block, a table, and a final opaque/callout block.
+- At phone and tablet dimensions with touch emulation, open toolbar More, slash, mode, status, and block insertion/menu paths; verify every visible required control is reachable and no page-level horizontal scrolling appears.
+- Focus and edit Source, switch to Rich, focus/edit near document end, reduce the visible viewport to a keyboard-like height, then verify focus/editability, exact Markdown, undo/redo, save, and clean state.
+- Capture phone, tablet, reduced-height Rich, reduced-height Source, and touch block-affordance states plus a machine-readable result under `docs/internal/visual-checks/MME-0078/`.
+
+### Visual impact
+
+Phone/tablet shells use the current visual viewport and safe areas, essential coarse-pointer controls gain usable hit areas, and block affordances no longer require hover. Desktop layout and styling remain materially unchanged. Final mobile composition and platform keyboard feel remain deferred for human review.
+
+### Implementation notes
+
+Read first: `packages/md-surface/src/index.ts`, `packages/md-surface/README.md`, `packages/md-surface/package.json`, `packages/md-theme/src/tokens.css`, `packages/md-theme/src/index.ts`, `apps/md-demo/index.html`, `apps/md-demo/src/main.ts`, `apps/md-demo/src/styles.css`, `tests/surface-components.test.mjs`, `tests/demo-reference-surface-baseline.test.mjs`, `tests/default-theme-v1.test.mjs`, `tests/public-api-report.test.mjs`, `tests/fixtures/public-api-approved.json`, `scripts/visual-check-mme0018.mjs`, `scripts/visual-check-mme0039.mjs`, `scripts/visual-check-mme0045.mjs`, and the MME-0039/MME-0045/MME-0077 build-log and visual evidence.
+
+Current phone-width checks prove containment but emulate only viewport width. The reference shell still uses fixed `100vh`, the mobile breakpoint drops essential controls to 30 px, block affordances are primarily hover-revealed at 22 px, no `visualViewport`/safe-area contract exists, and the viewport meta omits `viewport-fit=cover`. A host-injected controller fits `@momentarise/md-surface` because that package already owns framework-free DOM surface lifecycles and forbids direct browser globals. Keep browser capability discovery/wiring in the host demo; keep sizing tokens in `@momentarise/md-theme`.
+
+### Out of scope
+
+- A full mobile rich editor, native iOS/Android shell, virtual-keyboard engine, IME/composition rewrite, mobile browser compatibility matrix, gesture system, swipe actions, long-press selection replacement, handwriting, dictation, or OS-specific toolbar.
+- Touch drag/drop or table row/column drag handles, multi-touch selection, collaborative cursors, offline/PWA installation, service workers, orientation locking, or adaptive desktop redesign.
+- Final toolbar/mode/status information architecture, final block-handle visual redesign, final typography/theme review, docs-site mobile redesign, or public-launch acceptance.
+- Parser/model/serializer/Save Engine/policy behavior changes, full-document rewrite, new persistence semantics, or demo-only viewport hacks that bypass the reusable package contract.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer allowed; inspect-only.
+- Code review must use exactly `gpt-5.3-codex-spark` at `xhigh` when available; no substitute code-review model.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final mobile density/composition, touch feel, block-affordance taste, and real browser/OS keyboard behavior are queued for Andrew's consolidated end-of-run review block unless viewport ownership, focus, reachability, containment, or save truth remains unresolved.
+
+### Reviewer
+
+Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer.
+
+### Blocked by
+
+- None. MME-0039 established compact phone source chrome, MME-0045 established package-owned command/mode surfaces and representative constrained reachability, and MME-0077 closed invalid task/list DOM. Current code inspection exposes a bounded missing viewport/touch contract without requiring a full mobile editor or core document changes.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

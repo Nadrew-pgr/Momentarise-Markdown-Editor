@@ -60,9 +60,8 @@ Tags: `baseline/hygiene`, `editing`, `mobile`, `desktop`
 - Enter, Backspace, paste, selection, and undo/redo must remain predictable around headings, lists, todos, quotes, code blocks, callouts, opaque blocks, inserted media, and document end.
 - Indentation/outdent with Tab/Shift+Tab must work across nested bullet lists, ordered lists, and todos.
 - Shared `todo_item` DOM semantics for standalone, bullet/ordered, nested, and footnote tasks are implemented as `MME-0077`, including native list structure, content-isolated parsing, list-wrapped creation, and native button focus/state behavior.
-- Block insertion affordances are needed before and after framed blocks, opaque blocks, code blocks, and at the end of the document.
-- Clicking in the empty space below the final block should create/focus a paragraph after that block, especially after code fences, opaque extension blocks, callouts, and inserted media. This should be handled as part of the block-affordance pass rather than as a demo-only hack.
-- Mobile/tablet must not be an afterthought: touch selection, virtual keyboard behavior, viewport sizing, and toolbar reachability need a dedicated pass.
+- Package-owned block insertion before/after current framed blocks and keyboard/root-click insertion after final framed content are implemented in MME-0013.5/MME-0042; exact final-block preservation and browser proof cover code, opaque/callout, table, raw HTML, and inserted-media cases.
+- The first mobile/tablet viewport and coarse-pointer reachability baseline is promoted as `MME-0078`; full mobile rich-editor, platform keyboard, gesture, and native-shell work remains backlog.
 
 ## Core Product Differentiators
 
@@ -220,6 +219,7 @@ Tags: `public-release`, `human-review`, `ui`, `ax`
 - MME-0074 table reorder review: implementation accepted for code continuation; review row-up/down and column-left/right placement and labels, More/slash density, first/last boundary clarity, moved-cell focus continuity, undo/redo feel, interaction with insert/delete and final-cell Tab, nested table reachability, wide-table horizontal scrolling, the observed dominant full-editor blue focus outline, the observed diagnostics-chip overlap at constrained width, the intentionally far-right-scrolled wide-table composition, and constrained layout.
 - MME-0075 spreadsheet/TSV paste review: implementation accepted for code continuation; review paste discoverability, replacement/expansion behavior, final-cell focus feedback, literal punctuation display, undo/redo feel, nested table reachability, large-matrix and wide-table horizontal scrolling, the observed dominant full-editor focus outline, diagnostics-chip placement, intentionally far-right-scrolled wide-table composition, and constrained layout.
 - MME-0077 todo semantics review: implementation accepted for code continuation; review unordered marker suppression, ordered numbering, checkbox alignment/density, checked styling, pointer/keyboard focus treatment, nested hierarchy, task creation/nesting/undo flow, Source visibility, and constrained layout.
+- MME-0078 mobile viewport/touch review: review phone/tablet density, 44 px touch-target composition, safe-area spacing, coarse-pointer block-affordance visibility/taste, toolbar/menu reachability, reduced-height Source/Rich composition, and real browser/OS virtual-keyboard behavior.
 - Future visible/UI/HITL slices in this autonomous run should be added here instead of blocking code continuation, per the 2026-07-19 human instruction to review visible work in one final block.
 
 - Visible asset upload UX and demo provider follow-up for image paste/drop, building on the promoted MME-0051 provider contract while keeping real storage host-owned. First visible upload UX slice promoted as `MME-0054`.
@@ -305,6 +305,9 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - `MME-0073 — Rich Markdown table column operations baseline`.
 - `MME-0074 — Rich Markdown table row and column reorder baseline`.
 - `MME-0075 — Rich table spreadsheet/TSV paste baseline`.
+- `MME-0076 — Agent-indexable repository and docs discovery`.
+- `MME-0077 — Rich todo semantic DOM and accessibility integrity`.
+- `MME-0078 — Mobile viewport and touch reachability baseline`.
 
 - Editor live preview parity.
 - Toolbar/slash/menu final UX.
@@ -322,7 +325,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - LiteLLM / OpenAI-compatible AI provider adapter.
 - Dedicated issue promoted: `MME-0028.5 — Inline AI prompt surface and usable writing flow`.
 - Dedicated issue promoted: `MME-0028.6 — Real AI provider adapter path`.
-- Mobile/tablet input and layout pass.
+- First mobile/tablet viewport and touch-reachability baseline promoted as `MME-0078`; full mobile editor, native shell, platform keyboard, and gesture work remains backlog.
 - Performance budgets and large-document benchmarks.
 
 ## Promotion Rules
