@@ -7491,7 +7491,7 @@
   - Local horizontal command scrolling is machine-proven; final swipe feel, density, toolbar composition, block affordances, and real-device keyboard behavior remain in `docs/internal/BACKLOG.md`.
   - Existing demo bundle-size warning remains outside this issue.
 - Commit status:
-  - Issue-scoped implementation/status commit pending.
+  - Issue-scoped implementation/status commit created: `098e85c` (`feat: add mobile viewport baseline`).
 - Push status:
   - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
 - Next issue:
