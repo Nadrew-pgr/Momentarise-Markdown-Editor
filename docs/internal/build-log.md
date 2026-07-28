@@ -7399,7 +7399,7 @@
   - Broad list-model redesign, custom node views, task metadata, touch-specific UX, localization architecture, and command redesign remain outside this slice.
   - Existing demo bundle-size warning remains outside this issue.
 - Commit status:
-  - Pending issue-scoped implementation/status commit after this closeout update.
+  - Issue-scoped implementation/status commit created: `0e3616a` (`fix: restore semantic todo list DOM`).
 - Push status:
   - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
 - Next issue:
