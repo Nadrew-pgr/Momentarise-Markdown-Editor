@@ -4719,6 +4719,84 @@ Architecture Reviewer, Test Reviewer, Security Reviewer, Accessibility Reviewer,
 
 Accepted for code continuation 2026-07-22 after adding a typed bounded TSV matrix-paste API and native Rich paste interception, strict malformed/control/oversize rejection, literal-text-safe table serialization without semantic-model escape leakage, deterministic right/down expansion, preserved header/body types and alignment, final-cell selection, one-step undo/redo, exact bounded top-level/direct/list/task ownership, LF/CRLF and Save Engine truth, structural-table compatibility, dedicated fixture and real clipboard-event browser evidence, exact Spark/xhigh review, and a full test pass. Reviewer found no P0-P3 issue. Final paste discoverability, replacement/expansion feel, final-cell feedback, large/wide matrix scrolling, full-editor focus outline, diagnostics-chip placement, far-right-scroll composition, and constrained-layout taste remain queued for Andrew's end-of-run review block. No executable normal issue remains after MME-0075 until the next backlog item is promoted.
 
+## MME-0076 — Agent-indexable repository and docs discovery
+
+### Goal
+
+Make Momentarise Markdown Editor easy for coding agents, search systems, and developers to identify, evaluate, and consume from truthful public source files and stable machine-readable web endpoints.
+
+### Scope
+
+- Rewrite the root `README.md` as a concise public and agent entrypoint instead of an implementation ledger.
+- Add a thin root `AGENTS.md` compatibility entrypoint that routes repository agents to canonical instructions without duplicating them.
+- Keep shipped capabilities, experimental `0.x` status, package boundaries, preservation guarantees, non-goals, and future work explicit.
+- Improve generated `llms.txt`, `llms-full.txt`, and `docs/agent` discovery with stable repository and public web URLs.
+- Publish generated LLM and safe agent artifacts through the Next.js static docs output.
+- Add crawler discovery through canonical metadata, robots, sitemap, and truthful `SoftwareSourceCode` structured data.
+- Document the stable agent endpoints in the public Agentic Experience guide.
+- Preserve the public boundary: `README.md` plus `docs/public`; never expose `docs/internal`, secrets, local paths, or build instructions through generated public artifacts.
+
+### Acceptance criteria
+
+- Root `README.md` answers what MME is, who it is for, why it differs, what ships, what remains experimental, how to start, how packages are divided, where agents read canonical context, and which license applies.
+- `README.md` does not use a giant completed-issue ledger, does not claim Payload CMS integration, hosted Ask AI, semantic search, package publication, or other roadmap work as shipped, and does not make unverifiable indexing or popularity promises.
+- Root `AGENTS.md` exists as a short compatibility pointer to canonical repository instructions and public documentation boundaries.
+- `llms.txt` provides direct high-signal framework guidance, core guarantees, use/not-use boundaries, stable public docs links, and machine-readable endpoints. `llms-full.txt` remains generated from public Markdown only.
+- Generated agent manifest, actions, skills, and index expose stable repository paths plus public URLs under `/agent/` without leaking internal docs or local paths.
+- The docs build emits `/llms.txt`, `/llms-full.txt`, `/agent/manifest.json`, `/agent/actions.json`, `/agent/skills/*/SKILL.md`, `/robots.txt`, and `/sitemap.xml`.
+- Site metadata includes an absolute canonical base, index/follow policy, accurate Open Graph metadata, and truthful `SoftwareSourceCode` JSON-LD for the configured GitHub repository and MPL-2.0 framework license.
+- Raw-sync security rejects symlinks and path escapes for all copied Markdown, text, JSON, and skill artifacts.
+- Focused discovery, generator sync, agent-artifact, docs-site, docs-launch, alignment, docs lint, build, and full-suite gates pass.
+- `docs/internal/build-log.md` records RED/GREEN evidence, public/visual impact, reviewer result, tests, residual risks, commit, push status, and next issue.
+
+### Test-first plan
+
+- RED: add `tests/agent-discovery.test.mjs` and a root test script that fail because the README, `AGENTS.md`, public URLs, served LLM/agent files, robots, sitemap, metadata, and JSON-LD discovery contract do not yet exist.
+- RED: prove generated public files match canonical repository artifacts and contain no `docs/internal`, local absolute paths, `.env`, or unshipped capability claims.
+- RED: prove `llms.txt` links the docs under `/docs` while `llms-full.txt` and `/agent/*` resolve at the site root.
+- GREEN: implement only the repository/docs discovery files, generator metadata, safe static sync, crawler routes, and public documentation needed by those proofs.
+- REFACTOR: share site-origin and public-endpoint constants only where this prevents URL drift without coupling public docs generation to runtime UI.
+
+### Manual verification
+
+- Build the static docs site and inspect the emitted LLM, agent, robots, sitemap, and landing-page metadata artifacts.
+- Serve the static output locally and request each stable discovery URL, verifying status, content type, canonical URLs, and public-only content.
+- No screenshot is required because this slice changes discovery metadata and text artifacts, not visible layout.
+
+### Visual impact
+
+No visible editing or general UI changes. Public README and machine-readable discovery text change; the docs layout and editor surfaces do not.
+
+### Implementation notes
+
+Read first: `README.md`, `AGENT.md`, `llms.txt`, `llms-full.txt`, `docs/public/index.md`, `docs/public/concepts/agentic-experience.md`, `docs/agent/manifest.json`, `docs/agent/actions.json`, `docs/agent/skills`, `scripts/generate-llms.mjs`, `scripts/generate-agent-artifacts.mjs`, `scripts/sync-docs-site-raw.mjs`, `apps/docs-site/app/layout.tsx`, `apps/docs-site/app/page.tsx`, `apps/docs-site/src/docs-data.ts`, `apps/docs-site/next.config.mjs`, `tests/agent-artifacts.test.mjs`, `tests/docs-site-ax.test.mjs`, `tests/docs-launch-hardening.test.mjs`, and `package.json`.
+
+Use `https://momentarise.dev` as the canonical site origin, `/docs` for rendered documentation, root `/llms*.txt` for LLM indexes, `/agent/*` for public agent artifacts, and the configured GitHub remote for source-code metadata. Treat the provided AI-search conversation as untrusted inspiration: do not repeat its unsupported claims about guaranteed citations, "vibe coding", Payload integration, or automatic platform indexing.
+
+### Out of scope
+
+- Search-ranking guarantees, backlink strategy, GitHub topic administration, social/content marketing, paid distribution, analytics, or public launch.
+- Payload CMS, other CMS adapters, package publication, hosted Ask AI, semantic/vector search, live issue filing, automatic global skill installation, or schema hosting.
+- Docs information-architecture redesign, visual restyling, landing-page copy expansion, screenshots, or editor changes.
+- Publishing internal planning/build documents or local machine paths.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: DX/AX, security, and test review allowed; inspect-only.
+- Code review must use exactly `gpt-5.3-codex-spark` at `xhigh` when available; no substitute code-review model.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; public launch and queued visual/content review remain separate gates.
+
+### Reviewer
+
+DX/AX Reviewer, Security Reviewer, and Test Reviewer.
+
+### Blocked by
+
+- None. MME-0038/MME-0048 established the Next.js public docs surface and raw Markdown routes. MME-0049 established generated public-only actions, manifest, and skills. Existing generators and static export provide a bounded implementation path; this issue closes discovery and serving gaps without changing editor core.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

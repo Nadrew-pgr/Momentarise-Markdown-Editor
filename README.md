@@ -93,7 +93,7 @@ Completed slices:
 Current slice:
 
 - MME-0038 remains code-complete with explicit public-face validation debt; it is committed as pending-status, not accepted as final public validation.
-- No executable normal issue remains after MME-0075. The next unblocked must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.
+- MME-0076 is promoted and ready: agent-indexable repository and docs discovery.
 
 Next planned slices (public framework readiness sequence, 2026-06-09):
 
@@ -108,6 +108,7 @@ Next planned slices (public framework readiness sequence, 2026-06-09):
 - Phase I — lightweight and visual source formats: MME-0052 plain text and source-like file support; MME-0053 SVG source reader and sanitized preview.
 - Phase J — media workflow UX: MME-0054 visible asset upload UX and demo provider.
 - Phase K — rich Markdown structures: MME-0055 rich GFM table editing baseline; MME-0056 rich GFM footnote definition editing baseline; MME-0057 rich GFM footnote insertion baseline; MME-0058 rich GFM footnote identifier rename baseline; MME-0059 rich multiline GFM footnote definition editing baseline; MME-0060 rich multi-paragraph GFM footnote definition editing baseline; MME-0061 rich list-block GFM footnote definition editing baseline; MME-0062 rich nested-list GFM footnote definition editing baseline; MME-0063 rich task-list GFM footnote definition editing baseline; MME-0064 rich loose-list-item GFM footnote definition editing baseline; MME-0065 rich blockquote GFM footnote definition editing baseline; MME-0066 rich fenced-code GFM footnote definition editing baseline; MME-0067 rich indented-code GFM footnote definition editing baseline; MME-0068 rich table GFM footnote definition editing baseline; MME-0069 rich Obsidian callout footnote definition editing baseline; MME-0070 rich inert raw-HTML footnote block editing baseline; MME-0071 rich inert inline-HTML footnote paragraph source editing baseline; MME-0072 rich Markdown table row operations baseline; MME-0073 rich Markdown table column operations baseline; MME-0074 rich Markdown table row and column reorder baseline; MME-0075 rich table spreadsheet/TSV paste baseline.
+- Phase L — public discovery: MME-0076 agent-indexable repository and docs discovery.
 
 See `docs/internal/build-log.md` for the latest completed issue and current progress.
 

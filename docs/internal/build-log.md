@@ -7246,3 +7246,34 @@
   - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0075`. The next unblocked must-have backlog candidate requires fresh feasibility proof and strict promotion before implementation.
+
+## Backlog promotion checkpoint — MME-0076
+
+- Date: 2026-07-28.
+- Context:
+  - `MME-0075` is accepted for code continuation and committed (`09b7376` implementation/status, `dbfd341` evidence).
+  - No executable normal issue remained after MME-0075.
+  - Andrew redirected the next slice to rebuilding README and related public files for agent indexability while autonomous issue discipline remains active.
+  - `docs/internal/QUALITY_GATES.md` Gate 0.62 requires backlog promotion before implementation.
+- Feasibility proof:
+  - MME already has a Next.js static docs site, public raw Markdown routes, generated `llms.txt`/`llms-full.txt`, and generated public-only actions/manifest/skills.
+  - The root README is dominated by an internal completed-issue ledger, generated agent artifacts expose repository paths but not public URLs, root LLM and `/agent/*` artifacts are not copied into the static docs output, and crawler metadata/routes are absent.
+  - Existing generators, static sync, shared docs metadata, and public-boundary tests provide a bounded path without editor-core or visible-layout changes.
+- Change:
+  - Promoted `MME-0076 — Agent-indexable repository and docs discovery` into strict normal issue form.
+  - Bounded the slice to truthful repository entrypoints, generated discovery indexes, stable public endpoints, safe static copying, crawler metadata/routes, structured source-code metadata, and focused proof.
+  - Explicitly excluded ranking guarantees, marketing strategy, Payload integration, hosted AI/search, package publication, schema hosting, public launch, visual redesign, and internal-doc publication.
+  - Updated `README.md` current slice and `docs/internal/BACKLOG.md` promotion tracking.
+- Checks required before checkpoint commit:
+  - `npm run test:alignment`.
+  - `node scripts/docs-lint.mjs`.
+  - `git diff --check`.
+- Reviewer plan:
+  - Implementation review will use exactly `gpt-5.3-codex-spark` at `xhigh`; no substitute code-review model.
+  - Reviewer will inspect truthfulness, public/private boundaries, URL stability, generator determinism, static-sync path safety, crawler metadata, structured data, tests, and documentation usability.
+- Commit status:
+  - Promotion checkpoint commit pending.
+- Push status:
+  - Not pushed. Final public/product review debt remains queued; push stays deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - `MME-0076 — Agent-indexable repository and docs discovery`.
