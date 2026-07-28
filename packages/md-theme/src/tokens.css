@@ -28,6 +28,11 @@
   --mme-space-5: 20px;
   --mme-space-6: 24px;
   --mme-density: 1;
+  --mme-touch-target-size: 44px;
+  --mme-visual-viewport-height: 100dvh;
+  --mme-visual-viewport-width: 100vw;
+  --mme-visual-viewport-offset-top: 0px;
+  --mme-keyboard-inset: 0px;
   --mme-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.36);
   --mme-shadow-md: 0 12px 36px rgba(0, 0, 0, 0.44);
   --mme-z-toolbar: 20;
@@ -78,6 +83,7 @@
   --mme-space-5: 20px;
   --mme-space-6: 24px;
   --mme-density: 1;
+  --mme-touch-target-size: 44px;
   --mme-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.36);
   --mme-shadow-md: 0 12px 36px rgba(0, 0, 0, 0.44);
   --mme-z-toolbar: 20;
@@ -128,6 +134,7 @@
   --mme-space-5: 20px;
   --mme-space-6: 24px;
   --mme-density: 1;
+  --mme-touch-target-size: 44px;
   --mme-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
   --mme-shadow-md: 0 12px 36px rgba(15, 23, 42, 0.14);
   --mme-z-toolbar: 20;

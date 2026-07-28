@@ -63,6 +63,7 @@ for (const tokenVariable of [
   "--mme-space-5",
   "--mme-space-6",
   "--mme-density",
+  "--mme-touch-target-size",
   "--mme-shadow-sm",
   "--mme-shadow-md",
   "--mme-z-toolbar",

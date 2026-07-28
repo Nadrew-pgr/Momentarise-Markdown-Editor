@@ -30,6 +30,7 @@ const expectedTokenVariables = [
   "--mme-space-5",
   "--mme-space-6",
   "--mme-density",
+  "--mme-touch-target-size",
   "--mme-shadow-sm",
   "--mme-shadow-md",
   "--mme-z-toolbar",
@@ -76,7 +77,8 @@ const hostVariables = theme.resolveThemeToCssVariables(
     },
     spacing: {
       density: "1.2",
-      space4: "18px"
+      space4: "18px",
+      touchTargetSize: "48px"
     },
     typography: {
       fontScale: "1.08",
@@ -91,6 +93,7 @@ assert(hostVariables["--mme-color-text"] === "#101010", "host color partial must
 assert(hostVariables["--mme-radius-md"] === "10px", "host shape partial must override radius.");
 assert(hostVariables["--mme-density"] === "1.2", "host spacing partial must override density.");
 assert(hostVariables["--mme-space-4"] === "18px", "host spacing partial must override space tokens.");
+assert(hostVariables["--mme-touch-target-size"] === "48px", "host spacing partial must override touch target size.");
 assert(hostVariables["--mme-font-scale"] === "1.08", "host typography partial must override font scale.");
 assert(
   hostVariables["--mme-font-family-content"] === "Georgia, serif",

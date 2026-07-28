@@ -7452,3 +7452,47 @@
   - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
 - Next issue:
   - `MME-0078 — Mobile viewport and touch reachability baseline`.
+
+## MME-0078 — Mobile viewport and touch reachability baseline
+
+- Date: 2026-07-28.
+- Previous issue status:
+  - `MME-0077` accepted for code continuation and committed (`0e3616a` implementation/status, `faecdb0` evidence).
+  - `MME-0078` was promoted and committed in checkpoint `6cee6db` (`eb2e990` evidence).
+- Pre-issue context:
+  - Rebuilt context from `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md`, `docs/internal/BACKLOG.md`, current build-log entries, clean `git status --short`, and every surface/theme/demo/test/visual file named by the issue.
+  - Existing phone-width checks proved basic containment but exposed fixed `100vh`, 30 px mobile controls, 22 px hover-led block affordances, no reusable `visualViewport` contract, no safe-area consumption, and no `viewport-fit=cover`.
+- RED proof before implementation:
+  - Added `tests/surface-mobile-viewport.test.mjs` and registered focused/full-suite scripts.
+  - First `npm run test:surface-mobile-viewport` failed with `MME-0078 requires createSurfaceViewportController.`
+- Change:
+  - Added typed, host-injected `createSurfaceViewportController` support in `@momentarise/md-surface`. It resolves layout/visual measurements, clamps and rounds state, avoids treating pinch zoom as a keyboard inset, updates stable CSS properties/data attributes, restores prior host state, and removes its subscription idempotently.
+  - Added `--mme-touch-target-size` plus default visual-viewport variables to `@momentarise/md-theme`; approved the intentional public API addition.
+  - Wired browser capability discovery through the demo host only, using `window.visualViewport` with `innerHeight`/`innerWidth` fallback and page lifecycle cleanup.
+  - Added `viewport-fit=cover`, dynamic shell/overlay/menu sizing, safe-area padding, bounded local command scrolling, 44 px coarse-pointer controls, always-reachable coarse-pointer block affordances, reduced keyboard-open editor padding, and contained status/More/block/slash surfaces.
+  - Kept parser, document model, serializer, Save Engine, policy, history, durable Markdown ownership, and desktop styling materially unchanged.
+- Visual impact:
+  - Phone/tablet editor chrome now follows the visible viewport, keeps primary command groups locally scrollable, exposes 44 px touch targets, contains status/More/block/slash overlays, and keeps Rich/Source editable in a reduced-height keyboard-like state.
+  - Artifacts: `docs/internal/visual-checks/MME-0078/mobile-touch-rich.png`, `mobile-touch-commands.png`, `tablet-touch-rich.png`, `mobile-keyboard-rich.png`, `mobile-keyboard-source.png`, `result.json`, and `README.md`.
+  - Permissioned Playwright proof at `http://127.0.0.1:5174/` used phone/tablet coarse-pointer emulation and a 844-to-460 px injected visual viewport. It recorded no console errors, failed responses, or document-level overflow; every required measured target was at least 44 px; Rich/Source focus and exact writable-target save passed.
+  - Final mobile density, real OS keyboard behavior, gesture feel, and block-affordance taste remain queued for Andrew's consolidated review block.
+- Checks run:
+  - `npm run test:surface-mobile-viewport` — RED first, then green for initial/fallback measurement, clamping, update, pinch-scale handling, cleanup/restoration, global-boundary, demo wiring, dynamic sizing, safe areas, and coarse-pointer structure.
+  - `npm run test:theme`, `npm run test:surface`, `npm run test:contracts`, `npm run test:architecture`, `npm run test:default-theme`, `npm run test:public-api`, `npm run test:demo-reference-surface`, `npm run test:demo-commands`, `npm run test:demo-rich-ux`, `npm run test:source-codemirror`, `npm run test:save-engine`, and `npm run build:demo` — green.
+  - `npm run visual:mme-0078` — green after fixing reduced-height Source framing, partially clipped phone controls, and tablet command-label collisions.
+  - Final `npm test` — green end-to-end, including contracts, architecture, security, preservation, performance 10/10, rich/list/table/footnote regressions, CLI/adapters, demo build, agent/docs gates, and 44-route Next.js docs build; existing Vite chunk-size warning only.
+  - `git diff --check` — green before closeout docs.
+- Reviewer result:
+  - Exact inspect-only code review with `gpt-5.3-codex-spark` at `xhigh` could not run because that model was unavailable. No substitute code-review model was used.
+  - Fallback self-review covered measurement validity, fallback/clamping, listener cleanup, package/global boundaries, CSS scroll ownership, target sizes, focus, save truth, and proof quality. It found and fixed zero visual dimensions collapsing state instead of falling back to layout measurements.
+  - Classic visual reviewers found reduced-height Source clipping, a partially exposed phone control, and tablet command-label collisions. All were fixed. Final reviewer reported no remaining P0-P2 visual finding.
+- Residual risks:
+  - Browser emulation does not prove native iOS/Android browser behavior, real virtual-keyboard/IME composition, gestures, touch drag/drop, orientation changes, or platform-specific safe-area quirks.
+  - Local horizontal command scrolling is machine-proven; final swipe feel, density, toolbar composition, block affordances, and real-device keyboard behavior remain in `docs/internal/BACKLOG.md`.
+  - Existing demo bundle-size warning remains outside this issue.
+- Commit status:
+  - Issue-scoped implementation/status commit pending.
+- Push status:
+  - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - No executable normal issue remains after `MME-0078`. Andrew requested a fresh agent-indexable README/docs pass; it requires canonical content comparison, feasibility proof, and strict issue promotion before edits.

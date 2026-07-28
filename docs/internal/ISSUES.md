@@ -4963,6 +4963,10 @@ Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer.
 
 - None. MME-0039 established compact phone source chrome, MME-0045 established package-owned command/mode surfaces and representative constrained reachability, and MME-0077 closed invalid task/list DOM. Current code inspection exposes a bounded missing viewport/touch contract without requiring a full mobile editor or core document changes.
 
+### Status: completed
+
+Accepted for code continuation 2026-07-28 after adding a host-injected `@momentarise/md-surface` viewport controller, stable visual-viewport and keyboard-inset CSS/data state, cleanup and fallback behavior, theme-owned touch sizing, demo `visualViewport` wiring, dynamic/safe-area shell sizing, coarse-pointer targets, non-hover block affordances, and bounded phone/tablet command-surface scrolling. Focused tests, touch-emulated browser proof, exact Rich/Source Markdown saving, full-suite regression proof, and final classic-model visual review passed. Exact `gpt-5.3-codex-spark` at `xhigh` remained unavailable, so no substitute code-review model was used; fallback self-review found and fixed invalid zero-dimension handling, reduced-height Source framing, partially clipped phone controls, and tablet command-label collisions. Final mobile density, real OS keyboard behavior, gesture feel, and block-affordance taste remain queued for Andrew's consolidated end-of-run review block.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

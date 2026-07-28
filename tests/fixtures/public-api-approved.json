@@ -192,6 +192,7 @@
     "createSelectionBubbleToolbar",
     "createSlashMenu",
     "createSurfaceDocumentState",
+    "createSurfaceViewportController",
     "createToolbar",
     "defaultMmeStrings",
     "dirtyStateLabel",

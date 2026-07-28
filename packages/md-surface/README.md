@@ -24,6 +24,15 @@ inside the editor session or host callback boundary.
   compact tabs, a single cycling toggle, or hide the built-in control when a
   host-provided mode switcher is used.
 
+## Viewport Controller
+
+- `createSurfaceViewportController` turns host-injected layout and visual
+  viewport measurements into stable CSS properties and keyboard-inset state.
+- The host owns browser capability discovery and event subscription. The
+  package never reads `window`, `visualViewport`, storage, or application state.
+- Resize/scroll updates are deterministic, pinch-zoom scale is not mistaken for
+  a software keyboard, and `destroy()` restores prior host styles/data.
+
 ## Host Contract
 
 - Markdown remains the durable source; surfaces dispatch commands only.

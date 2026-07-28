@@ -24,6 +24,35 @@ export interface SurfaceComponent {
   update(): void;
 }
 
+export interface SurfaceViewportMeasurement {
+  readonly layoutHeight: number;
+  readonly layoutWidth: number;
+  readonly visualHeight?: number;
+  readonly visualOffsetTop?: number;
+  readonly visualScale?: number;
+  readonly visualWidth?: number;
+}
+
+export interface SurfaceViewportAdapter {
+  measure(): SurfaceViewportMeasurement;
+  subscribe?(listener: () => void): () => void;
+}
+
+export interface SurfaceViewportState {
+  readonly keyboardInset: number;
+  readonly layoutHeight: number;
+  readonly layoutWidth: number;
+  readonly mode: "layout" | "visual";
+  readonly visualHeight: number;
+  readonly visualOffsetTop: number;
+  readonly visualWidth: number;
+}
+
+export interface CreateSurfaceViewportControllerOptions {
+  readonly host: HTMLElement;
+  readonly viewport: SurfaceViewportAdapter;
+}
+
 export interface SurfacePreferences {
   readonly aiEntryPoints: readonly string[];
   readonly layoutDensity?: "compact" | "comfortable" | "spacious" | string;
@@ -406,6 +435,68 @@ export function applyMmeThemeToElement(
   }
 }
 
+export function createSurfaceViewportController(
+  options: CreateSurfaceViewportControllerOptions
+): SurfaceComponent & {
+  getState(): SurfaceViewportState;
+} {
+  const styleProperties = [
+    "--mme-visual-viewport-height",
+    "--mme-visual-viewport-width",
+    "--mme-visual-viewport-offset-top",
+    "--mme-keyboard-inset"
+  ] as const;
+  const dataAttributes = ["data-mme-viewport-mode", "data-mme-keyboard-open"] as const;
+  const previousStyles = new Map(styleProperties.map((name) => [name, options.host.style.getPropertyValue(name)]));
+  const previousData = new Map(dataAttributes.map((name) => [name, options.host.getAttribute(name)]));
+  let destroyed = false;
+  let state = resolveSurfaceViewportState(options.viewport.measure());
+
+  const update = (): void => {
+    if (destroyed) {
+      return;
+    }
+    state = resolveSurfaceViewportState(options.viewport.measure());
+    options.host.style.setProperty("--mme-visual-viewport-height", `${state.visualHeight}px`);
+    options.host.style.setProperty("--mme-visual-viewport-width", `${state.visualWidth}px`);
+    options.host.style.setProperty("--mme-visual-viewport-offset-top", `${state.visualOffsetTop}px`);
+    options.host.style.setProperty("--mme-keyboard-inset", `${state.keyboardInset}px`);
+    options.host.dataset.mmeViewportMode = state.mode;
+    options.host.dataset.mmeKeyboardOpen = String(state.keyboardInset > 1);
+  };
+
+  update();
+  const unsubscribe = options.viewport.subscribe?.(update) ?? (() => {});
+
+  return {
+    destroy() {
+      if (destroyed) {
+        return;
+      }
+      destroyed = true;
+      unsubscribe();
+      for (const [name, value] of previousStyles) {
+        if (value) {
+          options.host.style.setProperty(name, value);
+        } else {
+          options.host.style.removeProperty(name);
+        }
+      }
+      for (const [name, value] of previousData) {
+        if (value === null) {
+          options.host.removeAttribute(name);
+        } else {
+          options.host.setAttribute(name, value);
+        }
+      }
+    },
+    getState() {
+      return state;
+    },
+    update
+  };
+}
+
 export function createSurfaceDocumentState(options: CreateSurfaceDocumentStateOptions): SurfaceDocumentState {
   const pathLabel = options.path ?? options.targetLabel;
   const defaults: SurfaceDocumentState = {
@@ -418,6 +509,54 @@ export function createSurfaceDocumentState(options: CreateSurfaceDocumentStateOp
     ...defaults,
     ...options.overrides
   };
+}
+
+function resolveSurfaceViewportState(measurement: SurfaceViewportMeasurement): SurfaceViewportState {
+  const layoutHeight = roundedViewportDimension(measurement.layoutHeight, 0);
+  const layoutWidth = roundedViewportDimension(measurement.layoutWidth, 0);
+  const hasVisualViewport =
+    isFinitePositive(measurement.visualHeight) && isFinitePositive(measurement.visualWidth);
+  const visualHeight = hasVisualViewport
+    ? roundedViewportDimension(measurement.visualHeight, layoutHeight)
+    : layoutHeight;
+  const visualWidth = hasVisualViewport
+    ? roundedViewportDimension(measurement.visualWidth, layoutWidth)
+    : layoutWidth;
+  const visualOffsetTop = hasVisualViewport
+    ? Math.min(layoutHeight, roundedViewportValue(measurement.visualOffsetTop, 0))
+    : 0;
+  const visualScale = isFinitePositive(measurement.visualScale)
+    ? measurement.visualScale
+    : 1;
+  const keyboardInset =
+    hasVisualViewport && Math.abs(visualScale - 1) < 0.01
+      ? Math.max(0, layoutHeight - visualHeight - visualOffsetTop)
+      : 0;
+  return {
+    keyboardInset,
+    layoutHeight,
+    layoutWidth,
+    mode: hasVisualViewport ? "visual" : "layout",
+    visualHeight,
+    visualOffsetTop,
+    visualWidth
+  };
+}
+
+function roundedViewportDimension(value: number | undefined, fallback: number): number {
+  return isFinitePositive(value) ? Math.round(value) : fallback;
+}
+
+function roundedViewportValue(value: number | undefined, fallback: number): number {
+  return isFiniteNonNegative(value) ? Math.round(value) : fallback;
+}
+
+function isFinitePositive(value: number | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+function isFiniteNonNegative(value: number | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
 
 export function surfaceDocumentModeFromSaveTarget(target: SaveState["target"]): SurfaceDocumentState["mode"] {

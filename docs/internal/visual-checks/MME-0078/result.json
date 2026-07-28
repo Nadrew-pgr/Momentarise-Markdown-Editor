@@ -1,0 +1,1216 @@
+{
+  "consoleErrors": [],
+  "blockOverlay": {
+    "bottom": 389,
+    "left": 46,
+    "open": true,
+    "right": 266,
+    "targets": [
+      {
+        "height": 44,
+        "width": 206
+      },
+      {
+        "height": 44,
+        "width": 206
+      },
+      {
+        "height": 44,
+        "width": 206
+      }
+    ],
+    "top": 216
+  },
+  "commands": {
+    "activeElement": "ProseMirror ProseMirror-focused",
+    "blockAffordanceOpacity": 1,
+    "brandRect": {
+      "left": 12,
+      "width": 366
+    },
+    "coarsePointer": true,
+    "cssKeyboardInset": "0px",
+    "cssVisualHeight": "844px",
+    "documentOverflowX": false,
+    "documentOverflowY": false,
+    "keyboardOpen": "false",
+    "markdown": "> [!NOTE] Touch viewport proof\n>\n\nEdit this Markdown without replacing the durable source.\n\n- [ ] Reach task controls\n\n```ts\nconst viewport = \"host-owned\";\n```\n\n| Surface | State |\n| --- | --- |\n| Mobile | reachable |\n\n> [!NOTE] Final boundary\n> Keep this source exact.\n",
+    "shellHeight": 844,
+    "shellScrollLeft": 0,
+    "targetSizes": [
+      {
+        "height": 44,
+        "testid": "new-file-button",
+        "width": 86
+      },
+      {
+        "height": 44,
+        "testid": "open-file-button",
+        "width": 86
+      },
+      {
+        "height": 44,
+        "testid": "save-as-button",
+        "width": 86
+      },
+      {
+        "height": 44,
+        "testid": "asset-upload-button",
+        "width": 121
+      },
+      {
+        "height": 44,
+        "testid": "source-mode-button",
+        "width": 58
+      },
+      {
+        "height": 44,
+        "testid": "rich-mode-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "live-preview-mode-button",
+        "width": 94
+      },
+      {
+        "height": 44,
+        "testid": "editor-ai-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-continue",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-draft",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-rewrite",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-improve",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-summarize",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-checklist",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-table",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "command-palette-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "editor-status-button",
+        "width": 160
+      },
+      {
+        "height": 44,
+        "testid": "memory-save-button",
+        "width": 72
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-heading1",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-heading2",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-bold",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-italic",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-todo",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-bulletList",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-blockquote",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-codeBlock",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-link",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-divider",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-ai-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-extension-host:callout-card",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-extension-host:insert-image-asset",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-more-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-0",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-0",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-1",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-1",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-2",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-2",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-3",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-3",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-4",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-4",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-5",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-5",
+        "width": 44
+      }
+    ],
+    "topbarClientWidth": 366,
+    "topbarScrollLeft": 0,
+    "topbarScrollWidth": 982,
+    "topbarScrollable": true,
+    "viewportHeight": 844,
+    "viewportMode": "visual",
+    "viewportWidth": 390
+  },
+  "demoUrl": "http://127.0.0.1:5174/",
+  "failedResponses": [],
+  "mobile": {
+    "activeElement": "BODY",
+    "blockAffordanceOpacity": 1,
+    "brandRect": {
+      "left": 12,
+      "width": 366
+    },
+    "coarsePointer": true,
+    "cssKeyboardInset": "0px",
+    "cssVisualHeight": "844px",
+    "documentOverflowX": false,
+    "documentOverflowY": false,
+    "keyboardOpen": "false",
+    "markdown": "# Touch viewport proof\n\nEdit this Markdown without replacing the durable source.\n\n- [ ] Reach task controls\n\n```ts\nconst viewport = \"host-owned\";\n```\n\n| Surface | State |\n| --- | --- |\n| Mobile | reachable |\n\n> [!NOTE] Final boundary\n> Keep this source exact.\n",
+    "shellHeight": 844,
+    "shellScrollLeft": 0,
+    "targetSizes": [
+      {
+        "height": 44,
+        "testid": "new-file-button",
+        "width": 86
+      },
+      {
+        "height": 44,
+        "testid": "open-file-button",
+        "width": 86
+      },
+      {
+        "height": 44,
+        "testid": "save-as-button",
+        "width": 86
+      },
+      {
+        "height": 44,
+        "testid": "asset-upload-button",
+        "width": 121
+      },
+      {
+        "height": 44,
+        "testid": "source-mode-button",
+        "width": 58
+      },
+      {
+        "height": 44,
+        "testid": "rich-mode-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "live-preview-mode-button",
+        "width": 94
+      },
+      {
+        "height": 44,
+        "testid": "editor-ai-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-continue",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-draft",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-rewrite",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-improve",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-summarize",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-checklist",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-table",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "command-palette-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "editor-status-button",
+        "width": 163
+      },
+      {
+        "height": 44,
+        "testid": "memory-save-button",
+        "width": 72
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-heading1",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-heading2",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-bold",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-italic",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-todo",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-bulletList",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-blockquote",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-codeBlock",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-link",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-divider",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-ai-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-extension-host:callout-card",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-extension-host:insert-image-asset",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-more-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-0",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-0",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-1",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-1",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-2",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-2",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-3",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-3",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-4",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-4",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-5",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-5",
+        "width": 44
+      }
+    ],
+    "topbarClientWidth": 366,
+    "topbarScrollLeft": 0,
+    "topbarScrollWidth": 985,
+    "topbarScrollable": true,
+    "viewportHeight": 844,
+    "viewportMode": "visual",
+    "viewportWidth": 390
+  },
+  "reducedRich": {
+    "activeElement": "ProseMirror ProseMirror-focused",
+    "blockAffordanceOpacity": 1,
+    "brandRect": {
+      "left": 12,
+      "width": 366
+    },
+    "coarsePointer": true,
+    "cssKeyboardInset": "384px",
+    "cssVisualHeight": "460px",
+    "documentOverflowX": false,
+    "documentOverflowY": false,
+    "keyboardOpen": "true",
+    "markdown": "# Touch viewport proof\n\nEdit this Markdown without replacing the durable source.Rich touch edit.\n\n- [ ] Reach task controls\n\n```ts\nconst viewport = \"host-owned\";\n```\n\n| Surface | State |\n| --- | --- |\n| Mobile | reachable |\n\n> [!NOTE] Final boundary\n> Keep this source exact.\n",
+    "shellHeight": 460,
+    "shellScrollLeft": 0,
+    "targetSizes": [
+      {
+        "height": 44,
+        "testid": "new-file-button",
+        "width": 86
+      },
+      {
+        "height": 44,
+        "testid": "open-file-button",
+        "width": 86
+      },
+      {
+        "height": 44,
+        "testid": "save-as-button",
+        "width": 86
+      },
+      {
+        "height": 44,
+        "testid": "asset-upload-button",
+        "width": 121
+      },
+      {
+        "height": 44,
+        "testid": "source-mode-button",
+        "width": 58
+      },
+      {
+        "height": 44,
+        "testid": "rich-mode-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "live-preview-mode-button",
+        "width": 94
+      },
+      {
+        "height": 44,
+        "testid": "editor-ai-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-continue",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-draft",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-rewrite",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-improve",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-summarize",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-checklist",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-table",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "command-palette-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "editor-status-button",
+        "width": 174
+      },
+      {
+        "height": 44,
+        "testid": "memory-save-button",
+        "width": 72
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-heading1",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-heading2",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-bold",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-italic",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-todo",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-bulletList",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-blockquote",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-codeBlock",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-link",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-divider",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-ai-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-extension-host:callout-card",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-extension-host:insert-image-asset",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-more-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-0",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-0",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-1",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-1",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-2",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-2",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-3",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-3",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-4",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-4",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-5",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-5",
+        "width": 44
+      }
+    ],
+    "topbarClientWidth": 366,
+    "topbarScrollLeft": 0,
+    "topbarScrollWidth": 996,
+    "topbarScrollable": true,
+    "viewportHeight": 844,
+    "viewportMode": "visual",
+    "viewportWidth": 390
+  },
+  "reducedSource": {
+    "activeElement": "cm-content cm-lineWrapping",
+    "blockAffordanceOpacity": 1,
+    "brandRect": {
+      "left": 12,
+      "width": 366
+    },
+    "coarsePointer": true,
+    "cssKeyboardInset": "384px",
+    "cssVisualHeight": "460px",
+    "documentOverflowX": false,
+    "documentOverflowY": false,
+    "keyboardOpen": "true",
+    "markdown": "# Touch viewport proof\n\nEdit this Markdown without replacing the durable source.Rich touch edit.\n\n- [ ] Reach task controls\n\n```ts\nconst viewport = \"host-owned\";\n```\n\n| Surface | State |\n| --- | --- |\n| Mobile | reachable |\n\n> [!NOTE] Final boundary\n> Keep this source exact.\n\nSource touch edit.",
+    "shellHeight": 460,
+    "shellScrollLeft": 0,
+    "targetSizes": [
+      {
+        "height": 44,
+        "testid": "new-file-button",
+        "width": 86
+      },
+      {
+        "height": 44,
+        "testid": "open-file-button",
+        "width": 86
+      },
+      {
+        "height": 44,
+        "testid": "save-as-button",
+        "width": 86
+      },
+      {
+        "height": 44,
+        "testid": "asset-upload-button",
+        "width": 121
+      },
+      {
+        "height": 44,
+        "testid": "source-mode-button",
+        "width": 60
+      },
+      {
+        "height": 44,
+        "testid": "rich-mode-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "live-preview-mode-button",
+        "width": 94
+      },
+      {
+        "height": 44,
+        "testid": "editor-ai-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-continue",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-draft",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-rewrite",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-improve",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-summarize",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-checklist",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-table",
+        "width": 346
+      },
+      {
+        "height": 44,
+        "testid": "command-palette-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "editor-status-button",
+        "width": 174
+      },
+      {
+        "height": 44,
+        "testid": "memory-save-button",
+        "width": 72
+      }
+    ],
+    "topbarClientWidth": 366,
+    "topbarScrollLeft": 0,
+    "topbarScrollWidth": 998,
+    "topbarScrollable": true,
+    "viewportHeight": 844,
+    "viewportMode": "visual",
+    "viewportWidth": 390
+  },
+  "screenshots": 5,
+  "statusOverlay": {
+    "bottom": 407,
+    "left": 12,
+    "open": true,
+    "right": 378,
+    "top": 104
+  },
+  "status": "passed",
+  "moreOverlay": {
+    "bottom": 836,
+    "left": 222,
+    "open": true,
+    "right": 390,
+    "targets": [
+      {
+        "height": 44,
+        "width": 156
+      },
+      {
+        "height": 44,
+        "width": 156
+      },
+      {
+        "height": 44,
+        "width": 156
+      },
+      {
+        "height": 44,
+        "width": 156
+      },
+      {
+        "height": 44,
+        "width": 156
+      },
+      {
+        "height": 44,
+        "width": 156
+      },
+      {
+        "height": 44,
+        "width": 156
+      },
+      {
+        "height": 44,
+        "width": 156
+      },
+      {
+        "height": 44,
+        "width": 156
+      },
+      {
+        "height": 44,
+        "width": 156
+      },
+      {
+        "height": 44,
+        "width": 156
+      },
+      {
+        "height": 44,
+        "width": 156
+      },
+      {
+        "height": 44,
+        "width": 156
+      },
+      {
+        "height": 44,
+        "width": 156
+      },
+      {
+        "height": 44,
+        "width": 156
+      },
+      {
+        "height": 44,
+        "width": 156
+      },
+      {
+        "height": 44,
+        "width": 156
+      },
+      {
+        "height": 44,
+        "width": 156
+      }
+    ],
+    "top": 8
+  },
+  "tablet": {
+    "activeElement": "BODY",
+    "blockAffordanceOpacity": 1,
+    "brandRect": {
+      "left": 14,
+      "width": 132
+    },
+    "coarsePointer": true,
+    "cssKeyboardInset": "0px",
+    "cssVisualHeight": "1024px",
+    "documentOverflowX": false,
+    "documentOverflowY": false,
+    "keyboardOpen": "false",
+    "markdown": "# Touch viewport proof\n\nEdit this Markdown without replacing the durable source.\n\n- [ ] Reach task controls\n\n```ts\nconst viewport = \"host-owned\";\n```\n\n| Surface | State |\n| --- | --- |\n| Mobile | reachable |\n\n> [!NOTE] Final boundary\n> Keep this source exact.\n",
+    "shellHeight": 1024,
+    "shellScrollLeft": 0,
+    "targetSizes": [
+      {
+        "height": 44,
+        "testid": "new-file-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "open-file-button",
+        "width": 71
+      },
+      {
+        "height": 44,
+        "testid": "save-as-button",
+        "width": 64
+      },
+      {
+        "height": 44,
+        "testid": "asset-upload-button",
+        "width": 113
+      },
+      {
+        "height": 44,
+        "testid": "source-mode-button",
+        "width": 58
+      },
+      {
+        "height": 44,
+        "testid": "rich-mode-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "live-preview-mode-button",
+        "width": 94
+      },
+      {
+        "height": 44,
+        "testid": "editor-ai-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-continue",
+        "width": 298
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-draft",
+        "width": 298
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-rewrite",
+        "width": 298
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-improve",
+        "width": 298
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-summarize",
+        "width": 298
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-checklist",
+        "width": 298
+      },
+      {
+        "height": 44,
+        "testid": "ai-action-table",
+        "width": 298
+      },
+      {
+        "height": 44,
+        "testid": "command-palette-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "editor-status-button",
+        "width": 159
+      },
+      {
+        "height": 44,
+        "testid": "memory-save-button",
+        "width": 46
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-heading1",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-heading2",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-bold",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-italic",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-todo",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-bulletList",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-blockquote",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-codeBlock",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-link",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-command-divider",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-ai-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-extension-host:callout-card",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-extension-host:insert-image-asset",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "toolbar-more-button",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-0",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-0",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-1",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-1",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-2",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-2",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-3",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-3",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-4",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-4",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-insert-after-5",
+        "width": 44
+      },
+      {
+        "height": 44,
+        "testid": "rich-block-drag-handle-5",
+        "width": 44
+      }
+    ],
+    "topbarClientWidth": 600,
+    "topbarScrollLeft": 0,
+    "topbarScrollWidth": 789,
+    "topbarScrollable": true,
+    "viewportHeight": 1024,
+    "viewportMode": "visual",
+    "viewportWidth": 768
+  }
+}

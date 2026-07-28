@@ -42,6 +42,7 @@ export interface MmeSpacingTokens {
   readonly space5: string;
   readonly space6: string;
   readonly density: string;
+  readonly touchTargetSize: string;
 }
 
 export interface MmeElevationTokens {
@@ -139,6 +140,7 @@ export const MME_TOKEN_VARIABLES = [
   "--mme-space-5",
   "--mme-space-6",
   "--mme-density",
+  "--mme-touch-target-size",
   "--mme-shadow-sm",
   "--mme-shadow-md",
   "--mme-z-toolbar",
@@ -183,7 +185,8 @@ export const DEFAULT_MME_THEME: Readonly<Record<MmeScheme, ResolvedMmeTheme>> = 
       space4: "16px",
       space5: "20px",
       space6: "24px",
-      density: "1"
+      density: "1",
+      touchTargetSize: "44px"
     },
     elevation: {
       shadowSm: "0 1px 2px rgba(0, 0, 0, 0.36)",
@@ -229,7 +232,8 @@ export const DEFAULT_MME_THEME: Readonly<Record<MmeScheme, ResolvedMmeTheme>> = 
       space4: "16px",
       space5: "20px",
       space6: "24px",
-      density: "1"
+      density: "1",
+      touchTargetSize: "44px"
     },
     elevation: {
       shadowSm: "0 1px 2px rgba(15, 23, 42, 0.06)",
@@ -276,6 +280,7 @@ export function resolveThemeToCssVariables(
     "--mme-space-5": resolved.spacing.space5,
     "--mme-space-6": resolved.spacing.space6,
     "--mme-density": resolved.spacing.density,
+    "--mme-touch-target-size": resolved.spacing.touchTargetSize,
     "--mme-shadow-sm": resolved.elevation.shadowSm,
     "--mme-shadow-md": resolved.elevation.shadowMd,
     "--mme-z-toolbar": resolved.layers.zToolbar,

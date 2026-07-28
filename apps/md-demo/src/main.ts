@@ -130,6 +130,7 @@ import {
   createModeControl,
   createSelectionBubbleToolbar,
   createSlashMenu,
+  createSurfaceViewportController,
   createToolbar,
   defaultMmeStrings,
   type SurfaceAiAction,
@@ -142,7 +143,10 @@ import {
   type SurfaceInlineAiPromptSubmitEvent,
   type SurfaceSelectionBubbleState,
   type SurfaceSlashState,
-  type SurfaceToolbarState
+  type SurfaceToolbarState,
+  type SurfaceViewportAdapter,
+  type SurfaceViewportMeasurement,
+  type SurfaceViewportState
 } from "@momentarise/md-surface";
 import { NodeSelection, Plugin, PluginKey, TextSelection, type EditorState as ProseMirrorEditorState } from "prosemirror-state";
 import type { Node as ProseMirrorNode } from "prosemirror-model";
@@ -448,6 +452,7 @@ app.innerHTML = `
   </main>
 `;
 
+const referenceEditorShell = queryRequired<HTMLElement>('[data-testid="reference-editor-shell"]');
 const editorHost = queryRequired<HTMLDivElement>("[data-editor-host]");
 const editorRegion = queryRequired<HTMLDivElement>(".editor-region");
 const richEditorHost = queryRequired<HTMLDivElement>('[data-testid="rich-editor-host"]');
@@ -528,6 +533,43 @@ const htmlPreviewStatusBlock = queryRequired<HTMLElement>('[data-testid="html-pr
 const htmlPreviewStatusElement = queryRequired<HTMLElement>('[data-testid="html-preview-status"]');
 const aiCommandSurface = queryRequired<HTMLDetailsElement>('[data-testid="ai-command-surface"]');
 const editorAiMenu = queryRequired<HTMLDivElement>('[data-testid="editor-ai-menu"]');
+
+let surfaceViewportMeasurementOverride: SurfaceViewportMeasurement | null = null;
+const browserSurfaceViewportAdapter: SurfaceViewportAdapter = {
+  measure() {
+    if (surfaceViewportMeasurementOverride) {
+      return surfaceViewportMeasurementOverride;
+    }
+    const visualViewport = window.visualViewport;
+    return {
+      layoutHeight: window.innerHeight,
+      layoutWidth: window.innerWidth,
+      ...(visualViewport
+        ? {
+            visualHeight: visualViewport.height,
+            visualOffsetTop: visualViewport.offsetTop,
+            visualScale: visualViewport.scale,
+            visualWidth: visualViewport.width
+          }
+        : {})
+    };
+  },
+  subscribe(listener) {
+    const visualViewport = window.visualViewport;
+    window.addEventListener("resize", listener);
+    visualViewport?.addEventListener("resize", listener);
+    visualViewport?.addEventListener("scroll", listener);
+    return () => {
+      window.removeEventListener("resize", listener);
+      visualViewport?.removeEventListener("resize", listener);
+      visualViewport?.removeEventListener("scroll", listener);
+    };
+  }
+};
+const surfaceViewportController = createSurfaceViewportController({
+  host: referenceEditorShell,
+  viewport: browserSurfaceViewportAdapter
+});
 const selectedTextAiAction = queryRequired<HTMLButtonElement>('[data-testid="selected-text-ai-action"]');
 const commandPaletteButton = queryRequired<HTMLButtonElement>('[data-testid="command-palette-button"]');
 const findReplaceHost = queryRequired<HTMLDivElement>('[data-testid="find-replace-host"]');
@@ -2276,6 +2318,7 @@ window.addEventListener("beforeunload", (event) => {
   event.preventDefault();
   event.returnValue = "";
 });
+window.addEventListener("pagehide", () => surfaceViewportController.destroy(), { once: true });
 
 logEvent("Loaded built-in fixture in memory-only mode.");
 renderAiWritingState();
@@ -2525,6 +2568,9 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   getSaveState() {
     return session.getSaveState();
   },
+  getSurfaceViewportState() {
+    return surfaceViewportController.getState();
+  },
   getPropertiesState() {
     return {
       hiddenText: propertiesHiddenElement.textContent ?? "",
@@ -2536,6 +2582,10 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
   },
   getTestDiskContent() {
     return activeDocument.readDiskContent?.() ?? null;
+  },
+  setSurfaceViewportMeasurementForTest(measurement: SurfaceViewportMeasurement | null) {
+    surfaceViewportMeasurementOverride = measurement;
+    surfaceViewportController.update();
   },
   forceStatusRefresh() {
     updateRoundTripStatus();
@@ -6421,6 +6471,7 @@ declare global {
         readonly selectedText: string;
       };
       getSaveState: () => SaveState;
+      getSurfaceViewportState: () => SurfaceViewportState;
       getRichText: () => string;
       getSelectionRange: () => {
         readonly anchor: number;
@@ -6486,6 +6537,7 @@ declare global {
       setCursorAfterText: (text: string) => void;
       setCursorToEnd: () => void;
       setReferenceSurfacePreferencesForTest: (preferences: ReferenceEditorPreferenceInput) => void;
+      setSurfaceViewportMeasurementForTest: (measurement: SurfaceViewportMeasurement | null) => void;
       showInlineAiProviderStateForTest: (kind: SurfaceAiProviderKind) => void;
       setRichSelectionAfterText: (text: string) => void;
       setRichSelectionForText: (text: string) => void;

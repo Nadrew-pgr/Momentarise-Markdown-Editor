@@ -61,7 +61,7 @@ Tags: `baseline/hygiene`, `editing`, `mobile`, `desktop`
 - Indentation/outdent with Tab/Shift+Tab must work across nested bullet lists, ordered lists, and todos.
 - Shared `todo_item` DOM semantics for standalone, bullet/ordered, nested, and footnote tasks are implemented as `MME-0077`, including native list structure, content-isolated parsing, list-wrapped creation, and native button focus/state behavior.
 - Package-owned block insertion before/after current framed blocks and keyboard/root-click insertion after final framed content are implemented in MME-0013.5/MME-0042; exact final-block preservation and browser proof cover code, opaque/callout, table, raw HTML, and inserted-media cases.
-- The first mobile/tablet viewport and coarse-pointer reachability baseline is promoted as `MME-0078`; full mobile rich-editor, platform keyboard, gesture, and native-shell work remains backlog.
+- The first mobile/tablet viewport and coarse-pointer reachability baseline was implemented in `MME-0078`; full mobile rich-editor, platform keyboard, gesture, and native-shell work remains backlog.
 
 ## Core Product Differentiators
 
@@ -325,7 +325,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - LiteLLM / OpenAI-compatible AI provider adapter.
 - Dedicated issue promoted: `MME-0028.5 — Inline AI prompt surface and usable writing flow`.
 - Dedicated issue promoted: `MME-0028.6 — Real AI provider adapter path`.
-- First mobile/tablet viewport and touch-reachability baseline promoted as `MME-0078`; full mobile editor, native shell, platform keyboard, and gesture work remains backlog.
+- First mobile/tablet viewport and touch-reachability baseline implemented in `MME-0078`; full mobile editor, native shell, platform keyboard, and gesture work remains backlog.
 - Performance budgets and large-document benchmarks.
 
 ## Promotion Rules
