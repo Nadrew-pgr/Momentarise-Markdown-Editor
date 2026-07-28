@@ -4967,6 +4967,84 @@ Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer.
 
 Accepted for code continuation 2026-07-28 after adding a host-injected `@momentarise/md-surface` viewport controller, stable visual-viewport and keyboard-inset CSS/data state, cleanup and fallback behavior, theme-owned touch sizing, demo `visualViewport` wiring, dynamic/safe-area shell sizing, coarse-pointer targets, non-hover block affordances, and bounded phone/tablet command-surface scrolling. Focused tests, touch-emulated browser proof, exact Rich/Source Markdown saving, full-suite regression proof, and final classic-model visual review passed. Exact `gpt-5.3-codex-spark` at `xhigh` remained unavailable, so no substitute code-review model was used; fallback self-review found and fixed invalid zero-dimension handling, reduced-height Source framing, partially clipped phone controls, and tablet command-label collisions. Final mobile density, real OS keyboard behavior, gesture feel, and block-affordance taste remain queued for Andrew's consolidated end-of-run review block.
 
+## MME-0079 — Agent retrieval and adoption-content hardening
+
+### Goal
+
+Make MME's public repository entrypoint and generated agent discovery surfaces answer common adoption, comparison, integration, and citation questions from verified public evidence without implying package publication, Payload coupling, ranking guarantees, or unsupported product capabilities.
+
+### Scope
+
+- Rework the root README as a bounded, query-oriented public entrypoint with a direct product answer, intended adopter/end-user distinction, verified differentiators, adoption criteria, non-fit criteria, package/integration routes, current installation truth, evidence links, and stable agent discovery paths.
+- Add one canonical public adoption guide that answers when to choose MME, when not to choose it, how it differs by durable-source model, which host path fits, and what remains experimental.
+- Expand the public FAQ with direct, standalone answers for non-developer end users, WYSIWYG/rich editing, React/Next/headless support, package availability, CMS/Payload status, AI assistance, “vibe coding”/AI-assisted development claims, and citation/indexing limits.
+- Extend `llms.txt` with concise decision routes and citation-safe claims generated from the public docs while keeping `llms-full.txt` public-docs-only.
+- Generate a stable public machine-readable product profile covering product identity, canonical summary, audience, durable source, supported integration categories, package/publication status, licensing, shipped guarantees, explicit non-capabilities, canonical URLs, and source docs.
+- Add a generated adoption-evaluation skill that routes agents to public comparison/compatibility evidence and forbids unsupported “best”, ranking, production-ready, package-published, CMS-integrated, or non-developer-app claims.
+- Publish and verify the new product profile through the existing static Next.js output without weakening public/private boundaries, deterministic generation, path safety, or stale-output cleanup.
+- Keep product copy grounded in current code, public API fixtures, package metadata, tests, and public docs. Treat the supplied AI-search transcript as a list of user intents only, not as authoritative technical or SEO evidence.
+
+### Acceptance criteria
+
+- README's opening section answers what MME is, who integrates it, who may use an MME-powered editor, and why Markdown durability matters without an internal issue ledger, invented badges, vague “vibe-coded” quality claims, false zero-config/lightweight claims, or unshipped install snippets.
+- README exposes clear `Choose MME when` and `Choose another approach when` guidance, separates the standalone framework from future CMS/Payload adapters, and links each deeper claim to canonical public Markdown.
+- A public adoption guide compares persistence models and integration categories without unverifiable competitor rankings, explains framework-versus-finished-app boundaries, and gives query-shaped routes for React, Next.js, vanilla, headless, CLI, rendering, file access, AI/privacy, and migration questions.
+- FAQ answers are independently extractable and truthful: public npm packages are not yet published; Payload is not shipped; React is optional; rich editing is derived from Markdown; non-developers use host-built editor products rather than integrating the framework; AI-assisted development process is not a runtime feature or proof of quality.
+- Generated `llms.txt` includes stable decision and citation-safe sections, canonical adoption/FAQ URLs, current package-publication status, and explicit no-guarantee wording for indexing, ranking, or citation.
+- Generated `docs/agent/product.json` is deterministic, public-docs/package-metadata-derived, schema-labelled, internally consistent with README/compatibility docs, free of private paths and secrets, copied to `/agent/product.json`, and linked from README, `llms.txt`, agent index, and manifest.
+- Generated `mme-adoption-evaluation` skill cites only public docs, distinguishes framework capability from host UX, and prevents unsupported package, CMS, ranking, “best editor”, production-readiness, and citation claims.
+- Existing agent manifests/actions/skills, static discovery sync, symlink/path/stale-file safety, robots/sitemap/metadata, docs rendering, public API, package publishability, and full-suite gates pass.
+- No editor, parser, serializer, Save Engine, policy, package API, docs layout, or visible application behavior changes.
+- `docs/internal/build-log.md` records comparison findings, RED/GREEN evidence, generated artifacts, reviewer or fallback result, tests, residual risks, commit, push status, and next issue.
+
+### Test-first plan
+
+- RED: add `tests/agent-retrieval-content.test.mjs` plus a root focused script. Fail on missing README adoption/non-fit sections, missing public adoption guide/FAQ answers, absent decision/citation sections in `llms.txt`, absent product profile, and absent adoption-evaluation skill.
+- RED: prove product profile schema, deterministic generation, public-only source references, package/publication/license truth, canonical URLs, static copy, stale-output cleanup, and forbidden private/unsupported claims.
+- RED: prove generated agent files state that indexing/citation is not guaranteed and reject the unsafe claims found in the supplied transcript: published monolithic package, zero-config, lightweight, Payload integration, built-in finished app, MIT framework license, and “vibe coding” as quality evidence.
+- GREEN: update public Markdown and existing generators/static sync only enough to satisfy the retrieval contract.
+- REFACTOR: centralize stable product facts inside the generator only where this prevents README/LLM/profile drift; do not create a second manually maintained product database.
+
+### Manual verification
+
+- Inspect README, adoption guide, FAQ, `llms.txt`, `docs/agent/README.md`, `docs/agent/product.json`, manifest, and adoption skill as raw files.
+- Build the static docs site and verify `/llms.txt`, `/agent/README.md`, `/agent/product.json`, `/agent/manifest.json`, `/agent/skills/mme-adoption-evaluation/SKILL.md`, `/docs/choosing-mme`, and raw `/docs/choosing-mme.md` resolve with correct content types.
+- Run bounded question probes against local artifacts: “What is MME?”, “Should I use MME instead of a JSON-first editor?”, “Can non-developers use it?”, “Can I install it from npm?”, “Does it integrate with Payload?”, “Is it production-ready?”, and “Why might an agent cite it?” Confirm every answer is supportable from public sources.
+
+### Visual impact
+
+No visible editing or general UI changes. Public README/docs copy and machine-readable discovery artifacts change; docs layout and styling stay unchanged, so no screenshot gate is required.
+
+### Implementation notes
+
+Read first: `README.md`, `AGENTS.md`, `llms.txt`, `llms-full.txt`, `docs/public/index.md`, `docs/public/faq.md`, `docs/public/compatibility-promise.md`, `docs/public/concepts/agentic-experience.md`, `docs/public/quickstart/vanilla.md`, `docs/public/quickstart/react.md`, `docs/public/quickstart/next.md`, `docs/public/quickstart/headless.md`, `docs/agent/README.md`, `docs/agent/manifest.json`, `docs/agent/actions.json`, `docs/agent/skills/*/SKILL.md`, package manifests, public API approval fixtures, `scripts/generate-llms.mjs`, `scripts/generate-agent-artifacts.mjs`, `scripts/generate-public-discovery.mjs`, `scripts/sync-docs-site-raw.mjs`, `tests/agent-discovery.test.mjs`, `tests/agent-artifacts.test.mjs`, `tests/docs-launch-hardening.test.mjs`, `scripts/docs-lint.mjs`, the MME-0048/MME-0049/MME-0076 build-log evidence, and Andrew's supplied AI-search transcript.
+
+Current discovery already publishes a bounded README, public Markdown, LLM indexes, generated skills/actions, robots/sitemap metadata, and stable agent endpoints. Direct inspection still finds a bounded retrieval gap: product facts are prose-only, the README and short index do not answer major adoption/non-fit queries, the FAQ omits package/CMS/non-developer/process boundaries, and no agent artifact provides one deterministic product profile. Extend the existing public-only generator and static-sync boundary; do not replace it with SEO folklore, duplicated hand-maintained facts, or private issue history.
+
+### Out of scope
+
+- Search-ranking, model-training, crawler-ingestion, citation, backlink, GitHub-topic, marketplace, npm-publication, launch, analytics, or traffic guarantees.
+- Brand positioning around “vibe coding”, Andrew's agency, luxury-car rental, Payload implementation, CMS publishing, case studies, fabricated usage numbers, testimonials, badges, awards, or competitor rankings.
+- Public docs visual redesign, landing-page storytelling, navigation/search UI, hosted Ask AI, semantic retrieval, RAG, automatic skill installation, deployment/DNS, or public-release acceptance.
+- New editor/package runtime behavior, package consolidation, API changes, parser/model/serializer/save/policy changes, or examples that cannot run against current workspace packages.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: DX Reviewer, Documentation Reviewer, Architecture Reviewer, Security Reviewer, and Test Reviewer allowed; inspect-only.
+- Code/generator review must use exactly `gpt-5.3-codex-spark` at `xhigh` when available; no substitute code-review model.
+- Parallel implementation: forbidden unless human-approved.
+- Human review required: no for code continuation; final public copy, positioning, visual docs quality, and launch acceptance remain in Andrew's consolidated end-of-run review block.
+
+### Reviewer
+
+DX Reviewer, Documentation Reviewer, Architecture Reviewer, Security Reviewer, and Test Reviewer.
+
+### Blocked by
+
+- None. MME-0076 established safe public discovery, raw/static endpoints, deterministic generators, and truth-boundary tests. Current public docs, package metadata, and API fixtures provide enough verified source material to harden retrieval content without changing editor behavior or making a new product decision.
+
 ## MME-BACKLOG — Future split candidates
 
 This is not a normal implementation issue and does not need the strict issue template. It is a holding area for product, UX, adapter, and DX ideas that should later be split into real MME issues when we decide to execute them.

@@ -7496,3 +7496,36 @@
   - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
 - Next issue:
   - No executable normal issue remains after `MME-0078`. Andrew requested a fresh agent-indexable README/docs pass; it requires canonical content comparison, feasibility proof, and strict issue promotion before edits.
+
+## Backlog promotion checkpoint — MME-0079
+
+- Date: 2026-07-28.
+- Context:
+  - `MME-0078` accepted for code continuation and committed (`098e85c` implementation/status, `cef4df4` evidence).
+  - Andrew requested rebuilding README and related public files for agent indexability and supplied an AI-search transcript as context.
+  - No executable normal issue remained after MME-0078; Gate 0.62 requires strict promotion before implementation.
+- Feasibility proof:
+  - MME-0076 already provides safe public-only LLM indexes, generated agent skills/actions/manifest, static root/agent endpoints, crawler metadata, and deterministic/symlink/stale-output checks.
+  - Current README and `llms.txt` accurately explain the framework but do not directly cover adoption/non-fit, finished-app versus framework, non-developer usage, package availability, CMS/Payload status, or citation-safe query routes.
+  - Current FAQ omits those major extractable answers, and no generated machine-readable artifact provides one canonical product identity/audience/status/guarantee profile.
+  - Existing public Markdown, package manifests, public API fixtures, generators, static sync, and discovery tests make the gap bounded without editor/package API or visible-layout work.
+- Supplied transcript assessment:
+  - Retained only its user-intent categories: what the project is, who it serves, installation, alternatives, Payload separation, AI-assisted development, and citation questions.
+  - Rejected its unsupported prescriptions: a monolithic published package, zero-config/lightweight claims, invented component API, Payload coupling, MIT license, badges, competitor ranking, citation guarantees, and “vibe coding” as technical evidence.
+- Change:
+  - Promoted `MME-0079 — Agent retrieval and adoption-content hardening` into strict normal issue form.
+  - Bounded work to README/public Markdown, existing discovery generators, one generated product profile, one generated adoption-evaluation skill, static publication, and focused/full proof.
+  - Kept SEO/ranking/citation guarantees, npm publication, CMS/Payload implementation, brand strategy, visual redesign, deployment, and runtime editor changes outside the slice.
+- Checks required before checkpoint commit:
+  - `npm run test:alignment`.
+  - `node scripts/docs-lint.mjs`.
+  - `git diff --check`.
+- Reviewer plan:
+  - Generator/code review will use exactly `gpt-5.3-codex-spark` at `xhigh` if available; no substitute code-review model.
+  - Review will inspect truthfulness, public/private boundaries, source derivation, profile schema, deterministic generation, static-sync safety, query usefulness, non-duplication, package/license/publication claims, and no runtime/UI impact.
+- Commit status:
+  - Promotion checkpoint commit to be created.
+- Push status:
+  - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
+- Next issue:
+  - `MME-0079 — Agent retrieval and adoption-content hardening`.

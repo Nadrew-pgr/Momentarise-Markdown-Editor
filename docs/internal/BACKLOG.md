@@ -180,6 +180,7 @@ Tags: `future-adapter`, `product-differentiator`, `research`, `conversion`, `mon
 Tags: `public-release`, `dx`, `ax`, `research`
 
 - Agent-indexable repository/docs discovery was implemented in `MME-0076`: concise public README, root agent compatibility entrypoint, stable `llms` and `/agent/*` URLs, static artifact serving, robots/sitemap, metadata, and truthful source-code structured data.
+- Agent retrieval/adoption content hardening is promoted as `MME-0079`: query-oriented README/public guidance, direct FAQ boundaries, citation-safe LLM routes, a generated product profile, and an adoption-evaluation skill. Search ranking, citation guarantees, package publication, Payload integration, and public launch remain outside the slice.
 
 ### End-Of-Run Human Review Queue
 
@@ -308,6 +309,7 @@ Promoted 2026-07-19 into normal `docs/internal/ISSUES.md` entries:
 - `MME-0076 — Agent-indexable repository and docs discovery`.
 - `MME-0077 — Rich todo semantic DOM and accessibility integrity`.
 - `MME-0078 — Mobile viewport and touch reachability baseline`.
+- `MME-0079 — Agent retrieval and adoption-content hardening`.
 
 - Editor live preview parity.
 - Toolbar/slash/menu final UX.
