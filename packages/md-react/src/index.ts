@@ -82,44 +82,62 @@ export function useMarkdownEditor(options: MarkdownEditorReactOptions): UseMarkd
   optionsRef.current = options;
 
   const sessionRef = useRef<MarkdownEditorSession | null>(null);
+  const destroyedRef = useRef(false);
   if (!sessionRef.current) {
     sessionRef.current = createMarkdownEditorSession(sessionOptions(options));
   }
   const session = sessionRef.current;
   const mountRef = useRef<ReactEditorMount | null>(null);
+  const containerElementRef = useRef<HTMLElement | null>(null);
   const [state, setState] = useState<MarkdownEditorReactState>(() => readSessionState(session));
 
+  // React StrictMode (React 18/19 dev) double-invokes this effect's setup/cleanup
+  // (setup -> cleanup -> setup) synchronously, without re-rendering and without
+  // re-invoking `containerRef`. The setup below must therefore be able to detect
+  // that a previous cleanup destroyed the session and container mount, and
+  // recreate both from refs alone before resubscribing.
   useEffect(() => {
+    let liveSession = sessionRef.current;
+    if (liveSession === null || destroyedRef.current) {
+      liveSession = createMarkdownEditorSession(sessionOptions(optionsRef.current));
+      sessionRef.current = liveSession;
+      destroyedRef.current = false;
+      setState(readSessionState(liveSession));
+      if (containerElementRef.current) {
+        mountRef.current?.destroy();
+        mountRef.current = mountReactEditor(containerElementRef.current, liveSession, optionsRef.current);
+      }
+    }
     const update = (): void => {
-      setState(readSessionState(session));
+      setState(readSessionState(liveSession));
     };
     const cleanups = [
-      session.on("mode", update),
-      session.on("save-state", update),
-      session.on("change", update)
+      liveSession.on("mode", update),
+      liveSession.on("save-state", update),
+      liveSession.on("change", update)
     ];
     return () => {
       for (const cleanup of cleanups) {
         cleanup();
       }
-    };
-  }, [session]);
-
-  useEffect(() => {
-    return () => {
       mountRef.current?.destroy();
       mountRef.current = null;
-      session.destroy();
+      liveSession.destroy();
+      destroyedRef.current = true;
     };
-  }, [session]);
+    // Deliberately empty: this effect's only reactive reads are refs (stable identities), so it
+    // is meant to run exactly once per real mount/unmount, and recreates a live session inline
+    // at effect-time if a prior StrictMode-simulated cleanup already destroyed it.
+  }, []);
 
   const containerRef = useCallback((element: HTMLElement | null): void => {
+    containerElementRef.current = element;
     mountRef.current?.destroy();
     mountRef.current = null;
-    if (element) {
-      mountRef.current = mountReactEditor(element, session, optionsRef.current);
+    if (element && sessionRef.current && !destroyedRef.current) {
+      mountRef.current = mountReactEditor(element, sessionRef.current, optionsRef.current);
     }
-  }, [session]);
+  }, []);
 
   return {
     containerRef,
