@@ -7610,3 +7610,17 @@
   - Not pushed. Push remains deferred unless Andrew explicitly changes policy.
 - Next issue:
   - `MME-0080 — Rich table quoted-CSV clipboard paste baseline`.
+
+## Human-directed vision and consumability planning — 2026-07-30
+
+- Date: 2026-07-30.
+- Context:
+  - Andrew supplied external integrator feedback (CallInt agent evaluation) stating MME is not consumable today, and asked for a vision statement, gap analysis, and forward plan, authorizing documentation updates.
+  - Repository verification confirmed the feedback: no npm publication, `dist/` gitignored with no `prepare`/`prepack`, remote 151 commits behind local `main`, `DocumentRevision` is a brand type only, no public diff/patch or revision-store contract, and `useMarkdownEditor` in `packages/md-react/src/index.ts` creates the session during render without resetting `sessionRef.current` after destroy (StrictMode reuse of a destroyed session).
+- Change:
+  - Added `docs/internal/VISION.md` as a human-directed north-star record: audiences (developers, AI agents, non-developers via future Obsidian-class apps), product layers, benchmark quality bar, host-adoption requirements, and priority pressure on issue selection.
+  - Added a `Consumability, Distribution, And Host Adoption` section to `docs/internal/BACKLOG.md`: package publication pipeline, remote push discipline, React StrictMode session lifecycle bug (must-have promotion candidate), public diff/patch and revision-store contracts, and benchmark UX audits.
+- Visual impact: No visible editing or general UI changes. Internal documentation only.
+- Checks run: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
+- Commit status: Andrew validated commit and push on 2026-07-30; docs-only commit created (VISION.md, BACKLOG.md, build log). MME-0080 implementation remains uncommitted mid-closeout from the prior autonomous run.
+- Push status: pushed to the configured remote on Andrew's instruction, clearing the 151-commit backlog.

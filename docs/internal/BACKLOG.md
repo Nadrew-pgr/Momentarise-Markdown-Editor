@@ -175,6 +175,45 @@ Tags: `future-adapter`, `product-differentiator`, `research`, `conversion`, `mon
 - Consider adjacent Markdown tools after the core converter works: batch conversion, cleanup/normalization, metadata/frontmatter extraction, Markdown-to-format export, and targeted document modifications.
 - Preserve MME truthfulness: converted output is a new Markdown artifact unless a real adapter can write back to the source format.
 
+## Consumability, Distribution, And Host Adoption
+
+Source: external integrator feedback (CallInt agent evaluation, 2026-07-30) plus repository verification. See `docs/internal/VISION.md` for the vision-level framing.
+
+### Package Publication And Consumability
+
+Tags: `public-release`, `baseline/hygiene`, `dx`, `must-have`
+
+- Verified 2026-07-30: nothing is published on npm, `dist/` is gitignored and absent from any installable artifact, no package defines `prepare`/`prepack`, and the configured remote is 151 commits (about one month) behind local `main`. The framework is currently consumable only from this machine.
+- Push the remote and keep it pushed; the local laptop must not be the only copy of the repository.
+- Build a release pipeline: version management (changesets or equivalent), tarball packing with built `dist/` and types, CI that builds, tests, packs, and smoke-installs the tarballs.
+- Publish `0.x` alpha packages under the `@momentarise/` scope once the pipeline proves tarball correctness; keep the compatibility promise truthful about instability.
+- After first publication, consumer smoke tests must also run against the registry artifacts, not only packed workspace tarballs.
+
+### React StrictMode Session Lifecycle
+
+Tags: `baseline/hygiene`, `react`, `bug`, `must-have`
+
+- Verified 2026-07-30 in `packages/md-react/src/index.ts`: `useMarkdownEditor` creates the session lazily during render and the unmount effect calls `session.destroy()` without resetting `sessionRef.current`. Under React StrictMode double-invocation (React 18/19, Next.js App Router default), the remounted component reuses a destroyed session.
+- Reproduce with a StrictMode React fixture first (RED), then fix the lifecycle so session creation/destruction is StrictMode-safe.
+- Add React 19 / current-Next integration coverage to consumer smoke tests.
+- Strong promotion candidate for the next must-have implementation issue.
+
+### Host Document APIs — Diff, Patch, And Revisions
+
+Tags: `product-differentiator`, `host-adoption`, `research`
+
+- Expose a public diff/patch contract over documents. The bounded-serialization and edited-range machinery already exists internally; the gap is a stable public API hosts can call.
+- Make `DocumentRevision` a usable contract: today it is only a brand type in `md-core`. Define a minimal revision/version-store interface with host-owned storage, aligned with the existing `SaveState`/hash vocabulary.
+- External integrators already mirror `DocumentSnapshot`, `DocumentHash`, `SaveState` (`dirty|saving|saved|conflict|error`), and `PolicyCapability`; treat that vocabulary as a de facto public contract and keep it stable.
+- Collaboration/CRDT remains future work, but these contracts must not close that door.
+
+### World-Class UX Benchmark Audits
+
+Tags: `public-release`, `ux`, `human-review`
+
+- Before public launch, audit each user-facing surface (toolbar, slash menu, tables, lists, live preview, mobile, folding, status chrome) side by side against BlockNote, Notion, and Obsidian, not only against internal acceptance criteria.
+- Record per-surface parity gaps as backlog items with screenshots of both MME and the benchmark.
+
 ## Public Framework Follow-Ups
 
 Tags: `public-release`, `dx`, `ax`, `research`
