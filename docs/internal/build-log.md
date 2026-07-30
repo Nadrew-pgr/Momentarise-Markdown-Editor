@@ -7624,3 +7624,24 @@
 - Checks run: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
 - Commit status: Andrew validated commit and push on 2026-07-30; docs-only commit created (VISION.md, BACKLOG.md, build log). MME-0080 implementation remains uncommitted mid-closeout from the prior autonomous run.
 - Push status: pushed to the configured remote on Andrew's instruction, clearing the 151-commit backlog.
+
+## Human-directed queue re-plan and UX tour — 2026-07-30
+
+- Date: 2026-07-30.
+- Context:
+  - Andrew asked for: a content-strategy documentation proposal (vault, proposals only, no vault edits), an answer on consumer upgrade paths, a UX tour, an `ISSUES.md` reorganization precise enough for small builder models with per-issue model tags, docs direction toward Vercel/BlockNote tier, Notion x Obsidian editing feel, and SEO/AI-citability including a blog.
+- UX tour findings (demo at `127.0.0.1:5174`, Rich mode, recorded for MME-0086-0091):
+  - Full-editor blue focus outline on any Rich focus.
+  - Selection bubble toolbar survives editor blur (stale overlay) and offers only Bold/Italic/code/AI with drifting anchor placement.
+  - Code-block `LANGUAGE/META` editor renders pinned at content top, far from its block; typing `/` inside a fenced code block inserts the character and still opens the slash menu.
+  - Block handles render statically/misaligned for some blocks instead of hover-per-block; empty paragraphs have no slash placeholder.
+  - Frontmatter is invisible in Rich mode (no properties surface); top-right file chip + `CLEAN` + `Save` collide; `TECHNICAL DIAGNOSTICS` chip floats over content; one `Live Preview` click did not switch modes during the tour.
+- Change:
+  - Archived the pre-replan issue file to `docs/internal/archive/ISSUES-2026-07-30-pre-replan.md` (verbatim copy, 5230 lines).
+  - Rewrote `docs/internal/ISSUES.md` head: new `Active Queue — Re-Plan 2026-07-30` with queue table, builder-model tag convention (haiku-4.5 / sonnet-5 / opus-4.8 / opus-5), explicit re-plan corrections (removed the unavailable `gpt-5.3-codex-spark` exact-reviewer requirement; deprioritized HTML-table paste, deeper nested-container slices, and further agent-SEO content until publication), and strict new issues `MME-0081`-`MME-0097`. Historical `MME-0000`-`MME-0080` content kept verbatim under a completed-run heading.
+  - Updated `docs/internal/BACKLOG.md` promotion status for the consumability section.
+  - Added `.claude/launch.json` dev-server launch config for the demo and docs site.
+- Visual impact: No visible editing or general UI changes. Planning documents only.
+- Checks run: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
+- Commit status: docs-only issue-planning commit; MME-0080 implementation remains uncommitted mid-closeout and excluded from staging.
+- Push status: pushed per Andrew's 2026-07-30 instruction.

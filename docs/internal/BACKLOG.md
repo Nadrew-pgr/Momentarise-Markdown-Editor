@@ -179,6 +179,8 @@ Tags: `future-adapter`, `product-differentiator`, `research`, `conversion`, `mon
 
 Source: external integrator feedback (CallInt agent evaluation, 2026-07-30) plus repository verification. See `docs/internal/VISION.md` for the vision-level framing.
 
+Promotion status 2026-07-30: this section's items were promoted into the `ISSUES.md` Active Queue re-plan — StrictMode fix as `MME-0081`; CI/publish-readiness/publication as `MME-0082`/`MME-0083`/`MME-0084`; registry consumer example as `MME-0085`; diff/patch as `MME-0092`; revision store as `MME-0093`. Editor UX corrections from the 2026-07-30 tour are `MME-0086`-`MME-0091`; docs/site/blog tier work is `MME-0094`-`MME-0097`. Benchmark audits below remain a pre-launch review gate.
+
 ### Package Publication And Consumability
 
 Tags: `public-release`, `baseline/hygiene`, `dx`, `must-have`

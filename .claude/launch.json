@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "md-demo",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "-w", "@momentarise/md-demo", "--", "--host", "127.0.0.1", "--port", "5174"],
+      "port": 5174
+    },
+    {
+      "name": "docs-site",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "-w", "@momentarise/docs-site", "--", "--hostname", "127.0.0.1", "--port", "5178"],
+      "port": 5178
+    }
+  ]
+}
