@@ -48,28 +48,29 @@ A stronger model may always take a weaker-tagged issue. A weaker model must not 
 - Deferred: `MME-0080` final closeout remains uncommitted from the prior run; it must be finished and committed before any queue issue below starts (finish proofs, fallback review record, issue-scoped commit).
 - The queue order below overrides the old "next unblocked backlog must-have" heuristic.
 
-### Queue order
+### Conversation blocks and queue order
 
-| Order | Issue | Title | Model |
-| --- | --- | --- | --- |
-| 0 | MME-0080 | Finish CSV paste closeout (uncommitted) | sonnet-5 |
-| 1 | MME-0081 | React StrictMode-safe session lifecycle | sonnet-5 |
-| 2 | MME-0082 | GitHub Actions CI pipeline | sonnet-5 |
-| 3 | MME-0083 | Package publish readiness and tarball smoke install | sonnet-5 |
-| 4 | MME-0084 | First npm alpha publication (human-gated) | sonnet-5 + human |
-| 5 | MME-0085 | Registry consumer example (Next.js App Router) | sonnet-5 |
-| 6 | MME-0086 | Editor focus and overlay hygiene | sonnet-5 |
-| 7 | MME-0087 | Notion-style block handles and empty-block placeholder | sonnet-5 |
-| 8 | MME-0088 | Slash trigger correctness | sonnet-5 |
-| 9 | MME-0089 | Selection bubble toolbar expansion | opus-4.8 |
-| 10 | MME-0090 | Frontmatter properties panel in Rich mode | opus-4.8 |
-| 11 | MME-0091 | Top bar, mode control, and status chrome redesign | opus-4.8 |
-| 12 | MME-0092 | Public document diff/patch API | opus-5 |
-| 13 | MME-0093 | DocumentRevision contract and revision store | opus-5 |
-| 14 | MME-0094 | Docs site shell redesign (Vercel/BlockNote-class) | opus-4.8 |
-| 15 | MME-0095 | Docs information architecture and interactive examples | sonnet-5 |
-| 16 | MME-0096 | Public landing page with live editor | opus-4.8 |
-| 17 | MME-0097 | Blog infrastructure and SEO baseline | sonnet-5 |
+Execution model chosen by Andrew (2026-07-30): **one conversation per block**. The conversation's main model implements every issue of its block sequentially (normal per-issue context rebuilds, reviewer subagents allowed for review only).
+
+**Hard stop rule — non-negotiable.** When the last issue of the assigned block is committed (or a blocker stops the run), the agent must: write the final report, commit, push, and **STOP**. Crossing a block boundary is forbidden even if the next issue looks unblocked, even in autonomous mode, even if gates all pass. Block boundaries are HITL gates: Andrew reviews between blocks.
+
+| Block | Issues | Theme | Conversation model | Exit gate (before next block) |
+| --- | --- | --- | --- | --- |
+| A | MME-0080 closeout, 0081, 0082, 0083 | Adoption foundations | sonnet-5 | CI green on GitHub; tarball smoke green |
+| B | MME-0084, 0085 | npm publication + registry example | sonnet-5, Andrew present | Andrew confirms install works |
+| C | MME-0086, 0087, 0088 | Editor UX correctness | sonnet-5 | screenshots produced |
+| D | MME-0089, 0090, 0091 | Editor UX surfaces | opus-4.8 | Andrew visual review of C+D screenshots |
+| E | MME-0098 | AI writing surface (BlockNote tier) | opus-5 / fable-5 | Andrew tries the AI flow |
+| F | MME-0092, 0093 | Host contracts (diff/patch, revisions) | opus-5 / fable-5 | Andrew API sign-off |
+| G | MME-0094, 0095 | Docs site tier (shell + IA) | opus-4.8 | Andrew screenshot review vs benchmarks |
+| H | MME-0096, 0097 | Landing + blog/SEO | opus-4.8 | Andrew copy review before public deploy |
+| I | MME-0099 | Payload CMS integration baseline | opus-4.8 | Andrew tries MME inside Payload admin |
+
+### Launcher prompts (copy-paste one per new conversation)
+
+> Read CLAUDE.md, then docs/internal/ISSUES.md (Active Queue). Execute ONLY Block <X> (<issue ids>), autonomously, issue by issue, with the full per-issue protocol (context rebuild, Pre-Issue Execution Plan, TDD, reviewer, build log, issue-scoped commit, push). When the block's last issue is committed and pushed — or at the first blocker — write the final report and STOP. Never start an issue outside Block <X>.
+
+Replace `<X>` and `<issue ids>` with the block row above. Use the conversation model from the table.
 
 ## MME-0081 — React StrictMode-safe session lifecycle
 
@@ -854,6 +855,101 @@ New public `/blog` section.
 ### Blocked by
 
 - MME-0094, MME-0095.
+
+## MME-0098 — AI writing surface at BlockNote/Notion tier
+
+### Goal
+
+Bring MME's AI writing from "policy-gated contracts + side panel" to the in-document experience users know from Notion AI and BlockNote's `xl-ai`: an inline prompt anchored at the block, streaming suggestions rendered in place, explicit accept/reject — all while keeping MME's policy gates, BYOK truthfulness, and Markdown-source safety.
+
+### Benchmark reference
+
+Study BlockNote's `xl-ai` package (github.com/TypeCellOS/BlockNote, `packages/xl-ai`) before designing: slash and toolbar AI entry points, AI menu with prompt input plus quick commands, streaming into the document with pending-state styling, accept/reject/retry controls, Vercel AI SDK-based provider wiring. Copy the interaction patterns, not the code; MME differs by writing suggestions as staged Markdown edits, never as editor-owned blocks.
+
+### Acceptance criteria
+
+- Entry points: `/ai` in the slash menu, AI button in the selection bubble (MME-0089) and toolbar — all opening one inline AI prompt surface anchored under the current block/selection (not the side panel).
+- Prompt surface: free-text input plus quick actions (continue writing, improve, fix spelling/grammar, shorten, lengthen, summarize, translate, make checklist, make table); keyboard-first; `Escape` dismisses cleanly.
+- Streaming: suggestion text streams into a visually distinct pending region (muted/highlighted), document remains scrollable, caret preserved; `Accept` applies one bounded, one-transaction undoable Markdown edit; `Reject` restores exact prior bytes; `Retry` re-runs with the same prompt.
+- Policy: every request passes the existing Document Access Policy; refusal states render honestly; no request leaves without an explicit configured provider.
+- Providers: keep the existing OpenAI-compatible adapter; add a host-adapter interface compatible with a Vercel AI SDK route handler (host owns the backend/keys); demo keeps BYOK memory-only key with the existing "not persisted" truth; keys never logged (existing gate).
+- Mock provider powers all automated tests and the demo default; real-provider path proven manually once with a BYOK key (never committed).
+- Docs: a Features/AI page at BlockNote docs tier — entry points, streaming, accept/reject, provider wiring for Next.js host backend, BYOK vs backend vs disabled modes, policy boundaries.
+- Browser proof: full flow (prompt → stream → accept → undo → reject) desktop + 390px under `docs/internal/visual-checks/MME-0098/`.
+
+### Test-first plan
+
+- RED: `tests/rich-ai-inline-surface.test.mjs` — entry-point availability per context, prompt state machine, streamed pending-region isolation from durable content, accept produces one bounded transaction with exact outside bytes, reject restores bytes, policy refusal path.
+- GREEN: inline surface in `md-rich-prosemirror`/`md-surface`, streaming plumbing in `md-ai`, host-adapter interface, demo wiring.
+
+### Implementation notes
+
+Read first: `packages/md-ai/src/index.ts` (suggestion contracts, staged apply), existing AI panel in `apps/md-demo/src/main.ts`, slash/bubble plugins after MME-0089, policy gates in `packages/md-policy`. Streaming must buffer into suggestion state, not directly into the durable document; the pending region is a decoration/preview, and only Accept serializes.
+
+### Visual impact
+
+AI becomes an in-document surface: inline prompt, streaming preview, accept/reject controls. Side panel demoted to provider settings/status.
+
+### Out of scope
+
+- Hosted/paid managed AI service and billing (future dedicated issue + human decision), agent workflows, RAG, multi-document context, voice.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: UX Reviewer, Security Reviewer, Architecture Reviewer; fallback self-review allowed.
+- Recommended builder model: opus-5 / fable-5 (streaming + preservation + policy interplay).
+- Human review required: yes — Andrew tries the flow before the block closes.
+
+### Blocked by
+
+- MME-0089 (bubble/slash surfaces), MME-0086 (overlay hygiene).
+
+## MME-0099 — Payload CMS integration baseline
+
+### Goal
+
+A Payload CMS custom field that embeds the MME editor in Payload's admin UI, storing canonical Markdown in the field value — the first real CMS adapter, aligned with Andrew's plan to run his Next.js site on Payload with MME as the content editor.
+
+### Acceptance criteria
+
+- New package `@momentarise/md-payload` (or `examples/payload-app` first if a package is premature — builder decides with the Architecture Reviewer and records why): a Payload custom field type `markdownEditor` rendering `@momentarise/md-react` in the admin, value = canonical Markdown string (+ optional stored `DocumentHash`).
+- Save truthfulness mapped to Payload semantics: MME dirty state → Payload unsaved-changes; Payload draft/publish owns persistence; the editor never claims `saved` beyond what Payload confirms; external-change conflict surfaces Payload's version.
+- Preservation intact: frontmatter and unknown syntax survive the Payload round trip byte-exact (fixture-proven through the field's serialize path).
+- Example project `examples/payload-app/`: minimal Payload + Next.js app with one collection (`posts`) using the field, running locally with SQLite; README under 40 lines.
+- Works against published `@momentarise/*@alpha` registry packages (same rule as MME-0085).
+- Docs page: Integrations/Payload with honest status (baseline field, no media pipeline yet).
+- Browser proof: editing + draft save + publish inside Payload admin, screenshots under `docs/internal/visual-checks/MME-0099/`.
+
+### Test-first plan
+
+- RED: field serialize/deserialize round-trip tests on the fixture corpus + save-state mapping tests; example-app build test (temp-dir, registry installs).
+- GREEN: field component, value plumbing, example app.
+
+### Implementation notes
+
+Read first: Payload v3 custom field component docs (React server/client boundaries in Payload admin), `packages/md-react` (post-MME-0081 lifecycle), MME-0085 example patterns. StrictMode fix (MME-0081) is a hard prerequisite — Payload admin runs React StrictMode. Keep the field thin: no Payload-side Markdown transformation; MME owns the document, Payload owns persistence and permissions.
+
+### Visual impact
+
+MME editor appears inside Payload's admin UI in the example app.
+
+### Out of scope
+
+- Media/upload pipeline through Payload, live preview of the front site, blocks-field interop, migration tooling, hosted deployment.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, DX Reviewer; fallback self-review allowed.
+- Recommended builder model: opus-4.8.
+- Human review required: yes — Andrew tries MME inside Payload admin.
+
+### Blocked by
+
+- MME-0081 (StrictMode), MME-0084/0085 (registry packages).
 
 ## Completed V0 Run — MME-0000 to MME-0080 (historical evidence)
 

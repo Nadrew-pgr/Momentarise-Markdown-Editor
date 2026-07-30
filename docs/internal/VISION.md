@@ -18,8 +18,8 @@ MME aims to become the reference Markdown-native editor framework: BlockNote-cla
 
 1. **Core framework** — open source, host-independent packages (current repository).
 2. **Bindings and adapters** — React today; Vue/Svelte, IDE shells, desktop/mobile shells later.
-3. **Reference applications** — an Obsidian-class standalone/mobile app for non-developers; also the best real-world test bench for the framework. Future work.
-4. **Monetized services** — hosted document converter, sync, managed AI, and similar paid surfaces layered above the open core. Future work; requires dedicated issues and human decisions per existing rules.
+3. **Reference applications** — an Obsidian-class standalone app (desktop + mobile + tablet) for non-developers: local `.md` vault, slash-first editing, rich/live-preview modes, AI writing. Also the best real-world test bench for the framework. Future work.
+4. **Monetized services** — convenience layers above the open core: managed sync and managed AI for users who do not want to configure their own (BYOK and self-configured paths always remain possible and free), plus a hosted document converter. Pricing philosophy: paid to make life easier, not to gate the core. Future work; requires dedicated issues and human decisions per existing rules.
 
 ## Quality bar and benchmarks
 

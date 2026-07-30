@@ -7645,3 +7645,17 @@
 - Checks run: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
 - Commit status: docs-only issue-planning commit; MME-0080 implementation remains uncommitted mid-closeout and excluded from staging.
 - Push status: pushed per Andrew's 2026-07-30 instruction.
+
+## Conversation blocks, AI/Payload promotion, vision refinement — 2026-07-30
+
+- Date: 2026-07-30.
+- Context: Andrew confirmed the Momentarise name (bought momentarise.dev/.com + callint.app, created npm org `momentarise`, enabled 2FA, npm login done as `andrew_pougary`), chose one-conversation-per-block execution, and asked for the missing Payload CMS and BlockNote-tier AI issues.
+- Change:
+  - `docs/internal/ISSUES.md`: replaced the flat queue table with conversation blocks A-I, each with model, exit gate, a non-negotiable block-boundary hard-stop rule, and a copy-paste launcher prompt. Added strict issues `MME-0098` (AI writing surface at BlockNote/Notion tier, benchmark: BlockNote `xl-ai`) and `MME-0099` (Payload CMS custom-field integration baseline + example app).
+  - `AGENT.md`: block boundaries added as mandatory HITL stops in autonomous mode.
+  - `docs/internal/VISION.md`: reference app sharpened (Obsidian-class desktop/mobile standalone, slash-first, local vault); monetization stance clarified (paid sync/managed AI as convenience, BYOK/self-config always free).
+  - `docs/internal/BACKLOG.md`: promotion status extended for MME-0098/0099.
+- Visual impact: No visible editing or general UI changes. Planning documents only.
+- Checks run: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
+- Commit status: docs-only planning commit; MME-0080 implementation still uncommitted mid-closeout (Block A order 0).
+- Push status: pushed per standing 2026-07-30 instruction.

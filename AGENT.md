@@ -175,6 +175,8 @@ Implement issues one by one in the order listed in `docs/internal/ISSUES.md`, un
 
 When the human asks for autonomous issue-by-issue execution, keep going through every subsequent unblocked issue after each issue-scoped commit until a HITL gate, blocker, or uncertainty requires stopping. Do not stop at the first issue merely because it was the current starting point.
 
+When `docs/internal/ISSUES.md` defines conversation blocks, a block boundary is a mandatory HITL stop: finish the block's last issue, commit, push, report, and stop. Never start an issue outside the assigned block, even in autonomous mode.
+
 Do not run multiple implementation agents in parallel on separate issues unless explicit human approval is given.
 
 Reviewer subagents are allowed in parallel because they do not implement production code. Their role is limited to review, verification, test analysis, UX screenshot review, architecture review, security review, or DX/docs review.
