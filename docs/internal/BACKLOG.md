@@ -190,6 +190,7 @@ Tags: `public-release`, `baseline/hygiene`, `dx`, `must-have`
 - Build a release pipeline: version management (changesets or equivalent), tarball packing with built `dist/` and types, CI that builds, tests, packs, and smoke-installs the tarballs.
 - Publish `0.x` alpha packages under the `@momentarise/` scope once the pipeline proves tarball correctness; keep the compatibility promise truthful about instability.
 - After first publication, consumer smoke tests must also run against the registry artifacts, not only packed workspace tarballs.
+- Verified 2026-07-30 (MME-0082): `scripts/consumer-smoke.mjs`'s pnpm-strict consumer leg (`npx pnpm install --strict-peer-dependencies`) fails on real GitHub Actions ubuntu-latest with `[ERR_PNPM_PEER_DEP_ISSUES]` — `@emnapi/core`/`@emnapi/runtime` installed at `1.11.1` but wanted `^2.0.0-alpha.3` by `@napi-rs/wasm-runtime@1.2.0` (a transitive native dependency, likely pulled in by Next.js's optional platform binaries in the Vite-vanilla-ts-pnpm-strict consumer leg). Reproduces consistently, not a flake. The CI workflow's "Consumer matrix" step was removed (see `.github/workflows/ci.yml` comment) rather than left red, since it is outside MME-0082's own acceptance criteria. MME-0083 must fix this pnpm peer-dependency mismatch and re-add the consumer-matrix step to CI as part of its own TDD work before it can claim tarball/consumer-install correctness.
 
 ### React StrictMode Session Lifecycle
 
