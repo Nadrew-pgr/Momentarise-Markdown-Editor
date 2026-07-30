@@ -1,6 +1,12 @@
 const rich = await import("../packages/md-rich-prosemirror/dist/index.js");
 const { NodeSelection, TextSelection } = await import("prosemirror-state");
 
+// prosemirror-keymap resolves "Mod-" to Meta (Cmd) on Mac platforms and Ctrl elsewhere, based on
+// the host's navigator.platform at module load time. Simulated key events must match whichever
+// modifier the current process's platform actually resolves to, or the keymap plugin silently
+// never matches the binding (no error, no throw — the keydown is just left unhandled).
+const isMacPlatform = typeof navigator !== "undefined" && /Mac|iP(hone|[oa]d)/.test(navigator.platform);
+
 const requiredExports = [
   "canInsertParagraphAfterFinalBlock",
   "insertParagraphAfterFinalBlock"
@@ -164,16 +170,18 @@ function pressKeyInRichState(state, key, eventOverrides = {}) {
 
 function pressUndoInRichState(state) {
   return pressKeyInRichState(state, "z", {
+    ctrlKey: !isMacPlatform,
     keyCode: 90,
-    metaKey: true,
+    metaKey: isMacPlatform,
     which: 90
   });
 }
 
 function pressRedoInRichState(state) {
   return pressKeyInRichState(state, "Z", {
+    ctrlKey: !isMacPlatform,
     keyCode: 90,
-    metaKey: true,
+    metaKey: isMacPlatform,
     shiftKey: true,
     which: 90
   });
