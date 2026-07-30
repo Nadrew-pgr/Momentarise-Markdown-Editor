@@ -299,6 +299,8 @@ Required reviewer roles by issue type:
 
 Do not rely only on the implementation agent’s own review. If subagents are unavailable, record that in `docs/internal/build-log.md` and label the review as fallback verification.
 
+No specific review model is imposed. Use the smallest model that can review honestly: a small fast model for mechanical checks, the builder's own tier for standard code review, the builder's tier or above for preservation, security, and public-API review. See the Reviewer policy in `docs/internal/ISSUES.md`.
+
 Normal reviewer loop:
 
 1. builder implements;

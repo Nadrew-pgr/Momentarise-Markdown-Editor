@@ -41,9 +41,38 @@ Every issue declares `Recommended builder model` in its execution model. Meaning
 
 A stronger model may always take a weaker-tagged issue. A weaker model must not take a stronger-tagged issue without human approval.
 
+### Reviewer policy (2026-07-30)
+
+No specific review model is imposed anywhere in this repository. The previous `gpt-5.3-codex-spark` requirement was written for a different agent runtime, was never available in practice, and is removed from every instruction line.
+
+Rules:
+
+- Reviewers are inspect-only subagents. They never modify production code unless the human explicitly asks.
+- Use the smallest model that can do the review honestly. Suggested tiers: `haiku-4.5` for mechanical checks (evidence cross-check, test registration, docs lint follow-up, artifact diffing); the builder's own tier for standard code review; the builder's tier or above for preservation, security, and public-API review.
+- Default when unsure: let the reviewer subagent inherit the conversation model. Cost is not a reason to skip review.
+- If no reviewer subagent is available, run a documented fallback self-review and record it in the build log. This remains an acceptable outcome, not a blocker.
+- Reviewer roles stay as defined in `AGENT.md` (Architecture, Test, UX, Security, DX, Accessibility).
+
+### Parallel execution policy (2026-07-30)
+
+Blocks are not all interdependent, but they are not freely parallel either.
+
+Hard dependencies: B needs A. D needs C. E needs C and D. H needs G. I needs MME-0081 (in A) and B.
+
+Independent by subject matter: A, C, F, and G touch mostly disjoint code (A: `md-react`/CI/manifests; C: `md-rich-prosemirror`/demo; F: `md-core`/`md-format`/`md-save`; G: `apps/docs-site`).
+
+However, every block writes to the same shared files: `docs/internal/build-log.md`, `docs/internal/ISSUES.md` status lines, `docs/internal/BACKLOG.md`, and root `package.json` test scripts. Two agents committing to `main` at once will conflict there.
+
+Approved arrangement:
+
+- **Default: sequential.** One block at a time on `main`. The human review between blocks is the real bottleneck, so parallelism buys less than it appears to.
+- **Approved exception:** Block G (docs site) may run in parallel with Block A or Block C, because `apps/docs-site` is disjoint from both. It must run on its own branch (`block-g-docs`) in a separate git worktree, rebase onto `main` before pushing, and resolve `build-log.md` conflicts by keeping both entries.
+- Any other parallel pair requires a fresh explicit human approval, per the `AGENT.md` sequential implementation rule.
+- Never run two agents on the same package or the same app directory at the same time, regardless of branch.
+
 ### Re-plan corrections (removals and changes, recorded explicitly)
 
-- Removed requirement: code review "must use exactly `gpt-5.3-codex-spark` at `xhigh`". That model is unavailable and every recent issue fell back anyway. New rule: use any available inspect-only code reviewer; otherwise documented fallback self-review. This applies to all queue issues below and retroactively to review language in historical issues.
+- Removed requirement: code review "must use exactly `gpt-5.3-codex-spark` at `xhigh`". That model belongs to a different agent runtime and was never actually available; every recent issue fell back anyway. All nine instruction lines carrying it were rewritten on 2026-07-30 to the Reviewer policy above. Historical `Accepted for code continuation` lines still mention it because they record what was attempted at the time; that is evidence, not instruction, and must not be rewritten.
 - Deprioritized (not deleted, still in `docs/internal/BACKLOG.md`): HTML-table clipboard paste, further deep nested-container editing slices (beyond MME-0071), further agent-SEO/retrieval content work (sufficient until packages are actually installable), delimiter-inference paste, additional footnote container matrices.
 - Deferred: `MME-0080` final closeout remains uncommitted from the prior run; it must be finished and committed before any queue issue below starts (finish proofs, fallback review record, issue-scoped commit).
 - The queue order below overrides the old "next unblocked backlog must-have" heuristic.
@@ -5379,7 +5408,7 @@ Direct feasibility probes confirm upstream `addRowBefore`, `addRowAfter`, and `d
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer allowed; code review must use exactly `gpt-5.3-codex-spark` at `xhigh` when available.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer allowed; inspect-only. No specific review model is imposed (see Reviewer policy).
 - Parallel implementation: forbidden unless human-approved.
 - Human review required: no for code continuation; final visible table-row command/product review is queued for the end-of-run human review block unless source ownership, header protection, bounded serialization, history, or save truth remains unresolved.
 
@@ -5463,7 +5492,7 @@ Direct feasibility probes confirm upstream `addColumnBefore`, `addColumnAfter`, 
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer allowed; code review must use exactly `gpt-5.3-codex-spark` at `xhigh` when available.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer allowed; inspect-only. No specific review model is imposed (see Reviewer policy).
 - Parallel implementation: forbidden unless human-approved.
 - Human review required: no for code continuation; final visible table-column command/product review is queued for the end-of-run human review block unless source ownership, cell-type preservation, bounded serialization, history, or save truth remains unresolved.
 
@@ -5549,7 +5578,7 @@ Direct feasibility probes confirm installed MIT-licensed `prosemirror-tables` `m
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer allowed; code review must use exactly `gpt-5.3-codex-spark` at `xhigh` when available.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer allowed; inspect-only. No specific review model is imposed (see Reviewer policy).
 - Parallel implementation: forbidden unless human-approved.
 - Human review required: no for code continuation; final visible reorder command/product review is queued for the end-of-run human review block unless header protection, validated indices, bounded serialization, history, or save truth remains unresolved.
 
@@ -5636,7 +5665,7 @@ Direct feasibility confirms current ProseMirror table nodes can be cloned, expan
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: Architecture Reviewer, Test Reviewer, Security Reviewer, Accessibility Reviewer, and UX Reviewer allowed; code review must use exactly `gpt-5.3-codex-spark` at `xhigh` when available.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Security Reviewer, Accessibility Reviewer, and UX Reviewer allowed; inspect-only. No specific review model is imposed (see Reviewer policy).
 - Parallel implementation: forbidden unless human-approved.
 - Human review required: no for code continuation; final visible spreadsheet-paste product review is queued for the end-of-run human review block unless literal-text safety, bounded transformation, paste pass-through, history, or save truth remains unresolved.
 
@@ -5716,7 +5745,7 @@ Use `https://momentarise.dev` as the canonical site origin, `/docs` for rendered
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
 - Reviewer subagents: DX/AX, security, and test review allowed; inspect-only.
-- Code review must use exactly `gpt-5.3-codex-spark` at `xhigh` when available; no substitute code-review model.
+- Code review: inspect-only reviewer subagent; no specific model imposed (see Reviewer policy in the Active Queue).
 - Parallel implementation: forbidden unless human-approved.
 - Human review required: no for code continuation; public launch and queued visual/content review remain separate gates.
 
@@ -5800,7 +5829,7 @@ Direct feasibility proof on the current built package serializes checked tasks a
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
 - Reviewer subagents: Architecture Reviewer, Test Reviewer, Accessibility Reviewer, Security Reviewer, and UX Reviewer allowed; inspect-only.
-- Code review must use exactly `gpt-5.3-codex-spark` at `xhigh` when available; no substitute code-review model.
+- Code review: inspect-only reviewer subagent; no specific model imposed (see Reviewer policy in the Active Queue).
 - Parallel implementation: forbidden unless human-approved.
 - Human review required: no for code continuation; final visible task styling/product review is queued for the end-of-run human review block unless native semantics, content isolation, accessibility state, source fidelity, or visual proof remains unresolved.
 
@@ -5882,7 +5911,7 @@ Current phone-width checks prove containment but emulate only viewport width. Th
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
 - Reviewer subagents: Architecture Reviewer, Test Reviewer, Accessibility Reviewer, and UX Reviewer allowed; inspect-only.
-- Code review must use exactly `gpt-5.3-codex-spark` at `xhigh` when available; no substitute code-review model.
+- Code review: inspect-only reviewer subagent; no specific model imposed (see Reviewer policy in the Active Queue).
 - Parallel implementation: forbidden unless human-approved.
 - Human review required: no for code continuation; final mobile density/composition, touch feel, block-affordance taste, and real browser/OS keyboard behavior are queued for Andrew's consolidated end-of-run review block unless viewport ownership, focus, reachability, containment, or save truth remains unresolved.
 
@@ -5964,7 +5993,7 @@ Current discovery already publishes a bounded README, public Markdown, LLM index
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
 - Reviewer subagents: DX Reviewer, Documentation Reviewer, Architecture Reviewer, Security Reviewer, and Test Reviewer allowed; inspect-only.
-- Code/generator review must use exactly `gpt-5.3-codex-spark` at `xhigh` when available; no substitute code-review model.
+- Code/generator review: inspect-only reviewer subagent; no specific model imposed (see Reviewer policy in the Active Queue).
 - Parallel implementation: forbidden unless human-approved.
 - Human review required: no for code continuation; final public copy, positioning, visual docs quality, and launch acceptance remain in Andrew's consolidated end-of-run review block.
 
@@ -6053,7 +6082,7 @@ Current MME-0075 code already separates matrix decoding from one-transaction tab
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
 - Reviewer subagents: Architecture Reviewer, Test Reviewer, Security Reviewer, Accessibility Reviewer, and UX Reviewer allowed; inspect-only.
-- Code review must use exactly `gpt-5.3-codex-spark` at `xhigh` when available; no substitute code-review model.
+- Code review: inspect-only reviewer subagent; no specific model imposed (see Reviewer policy in the Active Queue).
 - Parallel implementation: forbidden unless human-approved.
 - Human review required: no for code continuation; final visible CSV-paste product review is queued for the end-of-run human review block unless parser correctness, literal safety, bounded transformation, pass-through, history, save truth, or browser proof remains unresolved.
 

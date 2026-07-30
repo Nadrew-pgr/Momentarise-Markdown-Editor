@@ -7700,3 +7700,18 @@
 - Push status: pushed to `origin/main` per the 2026-07-30 standing instruction (commit each issue, push to `origin/main`).
 - Next issue: `MME-0081 — React StrictMode-safe session lifecycle` (Block A, per `docs/internal/ISSUES.md`).
 - Push status: pushed.
+
+## Reviewer policy and parallel execution policy — 2026-07-30
+
+- Date: 2026-07-30.
+- Context: Andrew noted the repository still demanded a reviewer model (`gpt-5.3-codex-spark`) that belongs to another agent runtime, and asked whether blocks can run in parallel.
+- Change:
+  - Rewrote all nine remaining instruction lines in `docs/internal/ISSUES.md` that imposed `gpt-5.3-codex-spark` at `xhigh`. Historical `Accepted for code continuation` lines keep the mention because they record what was attempted; they are evidence, not instruction.
+  - Added a `Reviewer policy` section: inspect-only subagents, no imposed model, smallest honest model per review type (small/fast for mechanical checks, builder tier for standard code review, builder tier or above for preservation/security/public-API), documented fallback self-review still acceptable.
+  - Added a `Parallel execution policy` section recording the dependency graph (B needs A; D needs C; E needs C+D; H needs G; I needs MME-0081+B), the shared-file conflict surface (build-log, ISSUES status lines, BACKLOG, root package.json scripts), the sequential default, and one human-approved exception: Block G on branch `block-g-docs` in a separate worktree alongside Block A or C.
+  - `AGENT.md` reviewer protocol now states no imposed review model.
+  - `docs/internal/LAUNCHER-PROMPTS.md` restates both policies.
+- Visual impact: No visible editing or general UI changes.
+- Checks run: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
+- Commit status: docs-only commit. MME-0080 implementation still uncommitted (Block A order 0).
+- Push status: pushed.

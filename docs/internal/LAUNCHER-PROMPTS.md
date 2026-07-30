@@ -7,6 +7,8 @@ Rules that apply to every block:
 - The agent implements only its own block, then stops.
 - Block boundaries are HITL gates. Andrew reviews between blocks.
 - Standing policy since 2026-07-30: commit each issue and push to `origin/main`.
+- Reviewers are inspect-only subagents; no review model is imposed (see Reviewer policy in `docs/internal/ISSUES.md`).
+- Default execution is sequential, one block at a time. The only pre-approved parallel arrangement is Block G on its own branch alongside Block A or C (see Parallel execution policy).
 
 Progress tracking: tick a block here once its exit gate passed.
 
