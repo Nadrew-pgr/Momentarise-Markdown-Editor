@@ -66,11 +66,9 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | H | MME-0096, 0097 | Landing + blog/SEO | opus-4.8 | Andrew copy review before public deploy |
 | I | MME-0099 | Payload CMS integration baseline | opus-4.8 | Andrew tries MME inside Payload admin |
 
-### Launcher prompts (copy-paste one per new conversation)
+### Launcher prompts
 
-> Read CLAUDE.md, then docs/internal/ISSUES.md (Active Queue). Execute ONLY Block <X> (<issue ids>), autonomously, issue by issue, with the full per-issue protocol (context rebuild, Pre-Issue Execution Plan, TDD, reviewer, build log, issue-scoped commit, push). When the block's last issue is committed and pushed — or at the first blocker — write the final report and STOP. Never start an issue outside Block <X>.
-
-Replace `<X>` and `<issue ids>` with the block row above. Use the conversation model from the table.
+Ready-to-paste prompts for each block live in `docs/internal/LAUNCHER-PROMPTS.md`, one per conversation, with the block's model, constraints, and exit gate. Use them verbatim; they encode the hard-stop rule.
 
 ## MME-0081 — React StrictMode-safe session lifecycle
 

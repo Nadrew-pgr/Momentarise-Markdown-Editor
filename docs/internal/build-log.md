@@ -7659,3 +7659,13 @@
 - Checks run: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
 - Commit status: docs-only planning commit; MME-0080 implementation still uncommitted mid-closeout (Block A order 0).
 - Push status: pushed per standing 2026-07-30 instruction.
+
+## Launcher prompts recorded — 2026-07-30
+
+- Date: 2026-07-30.
+- Context: Andrew asked for ready-to-paste conversation prompts for every block.
+- Change: added `docs/internal/LAUNCHER-PROMPTS.md` with one verbatim prompt per block A-I (model, ordered issues, block-specific constraints, benchmarks, visual-proof requirements, hard-stop rule, exit gate) plus a checkbox progress list. `docs/internal/ISSUES.md` now points to it instead of carrying a generic template.
+- Visual impact: No visible editing or general UI changes.
+- Checks run: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
+- Commit status: docs-only commit. MME-0080 implementation still uncommitted (Block A order 0).
+- Push status: pushed.
