@@ -33,10 +33,14 @@
   },
   "files": [
     "dist",
-    "src/tokens.css"
+    "!dist/tsconfig.tsbuildinfo",
+    "src/tokens.css",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b",
+    "prepack": "node ../../scripts/copy-package-license.mjs && tsc -b --force"
   },
   "momentarise": {
     "releaseStatus": "experimental",

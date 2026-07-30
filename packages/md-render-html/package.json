@@ -30,10 +30,13 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "!dist/tsconfig.tsbuildinfo",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b",
+    "prepack": "node ../../scripts/copy-package-license.mjs && tsc -b --force"
   },
   "dependencies": {
     "rehype-raw": "^7.0.0",

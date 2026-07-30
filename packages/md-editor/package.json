@@ -28,10 +28,14 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "!dist/tsconfig.tsbuildinfo",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b",
+    "prepack": "node ../../scripts/copy-package-license.mjs && tsc -b --force"
   },
   "dependencies": {
     "@momentarise/md-ai": "^0.1.0",

@@ -61,6 +61,17 @@ const nextDevDependencies = {
 const vanillaPackageNames = packageNames.filter((packageName) => packageName !== "@momentarise/md-react");
 const offlineMode = process.env.MME_CONSUMER_MATRIX_OFFLINE === "1";
 
+// Upstream dependency-graph drift, unrelated to any @momentarise/* package: vite@^8's bundled
+// Rolldown pulls @napi-rs/wasm-runtime@1.2.0, whose peerDependencies want
+// @emnapi/core/@emnapi/runtime@^2.0.0-alpha.3, but pnpm's default resolution installs 1.11.1
+// (a separate, unrelated consumer elsewhere in Vite's own tree requests ^1.x). Verified in
+// isolation (a bare `vite` devDependency alone reproduces the same [ERR_PNPM_PEER_DEP_ISSUES]),
+// so this override belongs in every pnpm-strict consumer leg, not just ours.
+const externalPeerOverrides = {
+  "@emnapi/core": "^2.0.0-alpha.3",
+  "@emnapi/runtime": "^2.0.0-alpha.3"
+};
+
 const tempRoot = await mkdtemp(join(tmpdir(), "mme-consumer-matrix-"));
 try {
   run("npm", ["run", "build"], { cwd: workspaceRoot });
@@ -265,11 +276,12 @@ function internalDependencyMap(tarballs, names) {
 }
 
 async function writePnpmOverrides(targetDir, internalDependencies) {
+  const overrides = { ...externalPeerOverrides, ...internalDependencies };
   await writeFile(
     join(targetDir, "pnpm-workspace.yaml"),
     [
       "overrides:",
-      ...Object.entries(internalDependencies).map(([packageName, spec]) => `  ${JSON.stringify(packageName)}: ${JSON.stringify(spec)}`),
+      ...Object.entries(overrides).map(([packageName, spec]) => `  ${JSON.stringify(packageName)}: ${JSON.stringify(spec)}`),
       ""
     ].join("\n")
   );
