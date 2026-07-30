@@ -7696,7 +7696,7 @@
   - The whitespace-escaping fix changes byte-for-byte serialization of any table cell with literal edge whitespace, including cells never touched by CSV paste, if that table is otherwise edited. This is intentional (preservation correctness) and regression-tested, but is a wider blast radius than a CSV-only change and should be watched for surprise diffs in real documents with such cells.
   - Browser visual proof was captured in the prior session, not recaptured in this closeout; only a static code-vs-script consistency check was performed for the closeout's own (comment-only) edit.
   - Final CSV discoverability, replacement feedback, and clipboard-source compatibility taste remain queued for Andrew's consolidated end-of-run review block, per the original issue scope.
-- Commit status: committed as part of this closeout (see commit hash below).
+- Commit status: committed as `ec2a854` (`feat: add rich table quoted-CSV clipboard paste (MME-0080)`).
 - Push status: pushed to `origin/main` per the 2026-07-30 standing instruction (commit each issue, push to `origin/main`).
 - Next issue: `MME-0081 — React StrictMode-safe session lifecycle` (Block A, per `docs/internal/ISSUES.md`).
 - Push status: pushed.
