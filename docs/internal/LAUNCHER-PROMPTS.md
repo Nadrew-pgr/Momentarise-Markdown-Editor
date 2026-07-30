@@ -12,7 +12,7 @@ Rules that apply to every block:
 
 Progress tracking: tick a block here once its exit gate passed.
 
-- [ ] Block A — adoption foundations
+- [x] Block A — adoption foundations (2026-07-30: CI green on GitHub for `main` — https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor/actions/runs/30577501210 — and tarball smoke install green, both exit-gate conditions met)
 - [ ] Block B — npm publication + registry example
 - [ ] Block C — editor UX correctness
 - [ ] Block D — editor UX surfaces
