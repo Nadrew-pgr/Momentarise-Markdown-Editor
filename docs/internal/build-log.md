@@ -7742,6 +7742,6 @@
   - `react-dom`/`@types/react-dom` were added as `md-react` devDependencies purely to test this fix; they hoist to root `node_modules` at `18.3.1` alongside the pre-existing `react@18.3.1` devDependency, distinct from `apps/docs-site`'s nested `react@19.2.7`/`react-dom@19.2.7` — no conflict observed, but this is the first devDependency-driven `npm install` in this repo during active development; watch for any hoisting drift in future installs.
   - No in-repo consumer currently uses `MarkdownEditor`'s `onChange` prop in production code (only the new test and the not-CI-wired `examples/consumer-next-app-router` example use `md-react` at all), so the fixed path has test coverage but no real host usage yet.
   - StrictMode timing was verified empirically against React 18.3.1 specifically; React 19's StrictMode ref-callback double-invoke behavior (mentioned as a documented change for callback refs that return a cleanup function) was not independently probed since this component's ref callback doesn't return a cleanup function, but should be spot-checked if/when the workspace's React 19 usage (currently isolated to `apps/docs-site`) ever becomes relevant to `md-react`.
-- Commit status: committed as part of this closeout (see commit hash below).
+- Commit status: committed as `5f49a74` (`fix: survive React StrictMode double-mount in md-react session lifecycle (MME-0081)`).
 - Push status: pushed to `origin/main` per the 2026-07-30 standing instruction.
 - Next issue: `MME-0082 — GitHub Actions CI pipeline` (Block A, per `docs/internal/ISSUES.md`).
