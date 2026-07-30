@@ -7819,3 +7819,22 @@
 - Commit status: one issue-scoped commit `9d7c827` (`feat: publish-ready package manifests and tarball smoke install (MME-0083)`).
 - Push status: pushed to `origin/main` per the 2026-07-30 standing instruction, verified against real CI before considering the issue complete.
 - Next issue: none in Block A — MME-0083 was the last issue in Block A (`MME-0080` closeout, `0081`, `0082`, `0083`). Per the hard-stop rule in `docs/internal/ISSUES.md`, the agent must write the final report and **STOP** here; Block B (`MME-0084`, `MME-0085` — npm publication + registry example) requires Andrew present and is out of scope for this conversation.
+
+## Block A review (human-side, Andrew's reviewer) — 2026-07-30
+
+- Date: 2026-07-30.
+- Scope reviewed: commits `ec2a854`, `43a01e0` (MME-0080 closeout), `5f49a74`, `7291fd2` (MME-0081), `3906a32`, `827393b`, `b2a9708`, `1c7ca72` (MME-0082), `9d7c827`, `0ecf6a3` (MME-0083).
+- Verification performed: read `packages/md-react/src/index.ts` lifecycle, `tests/react-strictmode-lifecycle.test.mjs`, `tests/consumer-tarball-install.test.mjs`, `.github/workflows/ci.yml`, every publishable manifest, `scripts/pack-all.mjs`, `scripts/consumer-smoke.mjs` package coverage; re-ran `node tests/react-strictmode-lifecycle.test.mjs` independently (passed); inspected GitHub Actions history (`30554611163` failed, then `30555217430`, `30574888961`, `30577501210`, `30578228356` succeeded on Node 20 and 22).
+- Verdict: Block A accepted. Exit gate satisfied.
+- Positive findings:
+  - The StrictMode test proves the real path (drives a CodeMirror dispatch through `EditorView.findFromDOM` rather than calling `setContent`), asserts destroy-exactly-once, post-destroy write rejection, and no render after destruction, and checks DOM-free importability for server-component boundaries.
+  - The Mod-key test change (`827393b`) is a genuine cross-platform correctness fix reproduced in a Linux container, not a weakened assertion. CI produced real value on day one by catching it.
+  - The tarball test asserts a per-file allowlist, rejects stray `dist/` extensions, tsbuildinfo, sources and tests, and verifies LICENSE byte-equality with the repository root; `test:consumer-matrix` covers all 15 packages with real installs and a tree-shake check.
+  - Build-log honesty held: the temporary removal of the consumer-matrix CI step during MME-0082 was documented with the exact error and handed to MME-0083, which re-added it.
+- Findings carried into Block B (recorded in the issues themselves, not only in the review):
+  1. Medium — React 19 unverified. MME-0081 exists because of external React 19 / Next 16 feedback, but the workspace installs React 18.3.1 and the proof runs there. React 19 re-invokes callback refs under StrictMode, which interacts with the `destroyedRef` guard in `containerRef`. Added to MME-0085 acceptance criteria: prove on React 19 in the example plus a React 19 leg in the lifecycle test.
+  2. Low — `@momentarise/md-react` declares `peerDependencies.react: ">=18"`, an unbounded range baked into published tarballs. Added to MME-0084: bound to `^18 || ^19` before the first publish.
+  3. Low — packages are ESM-only with no `require` condition, which is the right call but undocumented. Added to MME-0084: state it in the compatibility promise and install docs.
+- Visual impact: No visible editing or general UI changes.
+- Checks run: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
+- Push status: pushed.

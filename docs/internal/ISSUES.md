@@ -259,6 +259,9 @@ The agent must stop and ask if any of these is missing. Credentials must never b
 - A clean temp project outside the repo: `npm install @momentarise/md-core@alpha @momentarise/md-react@alpha ...` succeeds and the consumer smoke usage file runs.
 - README "Start Building" and `docs/public/` install claims updated from "not published" to truthful alpha-install commands with an experimental warning; `test:agent-discovery`, `test:agent-retrieval-content`, and `test:publishability` updated in the same slice so truth gates match the new reality.
 - Build log records versions, dist-tags, and registry URLs.
+- Block A review follow-ups, fixed BEFORE the first publish because both are baked into the published tarball:
+  - `@momentarise/md-react` `peerDependencies.react` becomes an explicit bounded range (`^18 || ^19`) instead of the open-ended `>=18`, so a future major cannot silently claim compatibility. Apply the same rule to any other open-ended peer range found in the workspace.
+  - Packages are ESM-only (`"type": "module"`, no `require` condition in `exports`). State this explicitly in `docs/public/compatibility-promise.md` and in the install docs updated by this issue, so CommonJS consumers are not surprised. Do not add a CJS build.
 
 ### Test-first plan
 
@@ -299,6 +302,7 @@ A standalone `examples/next-app/` project installs published alpha packages from
 
 - `examples/next-app/` is a self-contained Next.js (current stable) project whose `package.json` depends on `@momentarise/*@alpha` registry versions (no `workspace:`/`file:` links).
 - One page renders `MarkdownEditor` from `@momentarise/md-react` in a client component with Source/Rich toggle and honest memory-save status; StrictMode stays enabled.
+- Block A review follow-up — React 19 coverage (the original reason MME-0081 existed): MME-0081 was implemented and proven against React 18.3.1 only, because that is what the workspace installs. React 19 changes StrictMode ref behavior (callback refs are re-invoked, and cleanup functions are supported), which interacts directly with the `destroyedRef` guard in `containerRef`. This issue must close that gap: the example must run React 19 (current Next.js ships it), keep StrictMode on, and prove the session survives a dev double-mount — an editor that still accepts edits and reports state after mount, verified in the browser, not only by a successful build. Additionally, add a React 19 leg to `tests/react-strictmode-lifecycle.test.mjs` (or a sibling test) so the regression is caught in CI, installing React 19 as a dev dependency where needed. If React 19 exposes a real defect in the MME-0081 fix, fix it here and record it as a MME-0081 follow-up in the build log.
 - `npm install && npm run build` succeeds inside the example with the repo's `node_modules` unavailable (temp-dir copy test).
 - A CI job (extends MME-0082 workflow) builds the example weekly and on demand, catching registry drift.
 - Example README explains install + run in under 30 lines, copy-paste runnable.

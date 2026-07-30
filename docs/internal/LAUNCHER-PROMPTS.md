@@ -57,7 +57,11 @@ Human prerequisites are already satisfied (confirm before publishing, do not ask
 
 Stop and ask me if any publish step fails for a reason that needs an account decision (scope taken, permissions, 2FA prompt).
 
+Before the first publish, apply the two Block A review follow-ups now written into MME-0084's acceptance criteria: bound the md-react react peer range to `^18 || ^19` instead of `>=18`, and document the ESM-only boundary in the compatibility promise and install docs. Both are baked into published tarballs, so they cannot wait.
+
 After publication, update every install claim in README.md and docs/public/ to the truthful alpha commands, and update the truth gates (test:agent-discovery, test:agent-retrieval-content, test:publishability) in the same slice. Then build MME-0085, the Next.js App Router example consuming the published registry packages.
+
+MME-0085 carries the third Block A review follow-up: MME-0081's StrictMode fix was only ever proven against React 18.3.1, and React 19 changes StrictMode ref behavior in a way that touches that exact code path. Prove it on React 19 in the example (StrictMode on, real browser check that the editor still edits and reports state), and add a React 19 leg to the lifecycle test so CI catches regressions.
 
 Follow the full per-issue protocol: context rebuild, Pre-Issue Execution Plan, test-first, review, build log, issue-scoped commit, push.
 
