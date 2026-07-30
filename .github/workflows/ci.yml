@@ -1,3 +1,15 @@
+# MME-0082: CI builds and tests the repository on every push to main and every pull request,
+# on a Node 20/22 matrix, so correctness no longer depends on one laptop.
+#
+# Scope boundary: this workflow runs only the deterministic suite. It deliberately does NOT run
+# any `visual:mme-*` script (scripts/visual-check-mme*.mjs) or anything under `docs/internal/
+# visual-checks/` generation — those scripts drive a real local browser via the Claude_Browser
+# preview tooling and are for human/agent-in-the-loop visual verification (see AGENT.md's UI
+# visual verification gate), not headless CI. `npm test` itself contains zero `visual:*` entries,
+# so no exclusion filtering is needed here; this comment documents that boundary explicitly per
+# the MME-0082 acceptance criteria. The Next.js docs-site build inside `npm test` (`build:docs-site`)
+# is a static-site build (no browser, no network fetch beyond local generation) and runs headless
+# on Ubuntu without special handling.
 name: CI
 
 on:
@@ -9,6 +21,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -16,7 +31,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node-version }}
           cache: npm
 
       - name: Cache npm data
@@ -29,6 +44,14 @@ jobs:
 
       - name: Install
         run: npm ci
+
+      # `npm run build` must run before `npm test`: the first test script (`test:contracts`)
+      # type-checks packages (e.g. md-cli) that import @momentarise/md-render-html by real
+      # package resolution (it is not in tsconfig.tests.json's path-mapping), which requires
+      # that package's gitignored `dist/` to already exist. `dist/` only survives locally
+      # because of prior local builds; a clean `npm ci` checkout has none.
+      - name: Build
+        run: npm run build
 
       - name: Test
         run: npm test
