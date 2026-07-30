@@ -41,6 +41,7 @@ import {
   tableEditing,
   tableNodes
 } from "prosemirror-tables";
+import { parse as parseCsv } from "csv-parse/browser/esm/sync";
 import { parseFragment } from "parse5";
 
 export interface MomentariseRichProseMirrorContract {
@@ -387,16 +388,19 @@ export type RichTableReorderResult =
 export type RichTableMatrixPasteFailureReason =
   | "cell-not-found"
   | "command-rejected"
+  | "invalid-csv"
   | "invalid-tsv"
   | "matrix-too-large"
   | "row-not-found"
   | "selection-outside-table"
   | "stale-source"
   | "table-not-found"
+  | "unsupported-multiline-cell"
   | "unsafe-control-character";
 
 export interface RunRichTableMatrixPasteOptions {
   readonly columnIndex?: number;
+  readonly format?: "csv" | "tsv";
   readonly rowIndex?: number;
   readonly tableIndex?: number;
   readonly text: string;
@@ -1014,7 +1018,7 @@ export function runRichTableMatrixPaste(
   if ("reason" in target) {
     return rejectedRichTableMatrixPaste(state, target.reason);
   }
-  const parsed = parseRichTableMatrix(options.text);
+  const parsed = parseRichTableMatrix(options.text, options.format ?? "tsv");
   if ("reason" in parsed) {
     return rejectedRichTableMatrixPaste(state, parsed.reason);
   }
@@ -1892,7 +1896,8 @@ function resolveRichTableMatrixPasteTarget(
 }
 
 function parseRichTableMatrix(
-  text: string
+  text: string,
+  format: "csv" | "tsv"
 ): ParsedRichTableMatrix | { readonly reason: RichTableMatrixPasteFailureReason } {
   if (text.length > RICH_TABLE_MATRIX_MAX_CODE_UNITS) {
     return { reason: "matrix-too-large" };
@@ -1900,6 +1905,15 @@ function parseRichTableMatrix(
   if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/.test(text) || /\r(?!\n)/.test(text)) {
     return { reason: "unsafe-control-character" };
   }
+  if (format === "csv") {
+    return parseRichTableCsvMatrix(text);
+  }
+  return parseRichTableTsvMatrix(text);
+}
+
+function parseRichTableTsvMatrix(
+  text: string
+): ParsedRichTableMatrix | { readonly reason: RichTableMatrixPasteFailureReason } {
   if (!text.includes("\t")) {
     return { reason: "invalid-tsv" };
   }
@@ -1915,14 +1929,55 @@ function parseRichTableMatrix(
   if (lines.length === 0 || lines.length > RICH_TABLE_MATRIX_MAX_ROWS) {
     return { reason: lines.length > RICH_TABLE_MATRIX_MAX_ROWS ? "matrix-too-large" : "invalid-tsv" };
   }
-  const matrix = lines.map((line) => line.split("\t"));
+  return validateRichTableMatrix(lines.map((line) => line.split("\t")), "invalid-tsv");
+}
+
+function parseRichTableCsvMatrix(
+  text: string
+): ParsedRichTableMatrix | { readonly reason: RichTableMatrixPasteFailureReason } {
+  let matrix: string[][];
+  try {
+    matrix = parseCsv(text, {
+      bom: true,
+      cast: false,
+      delimiter: ",",
+      escape: "\"",
+      max_record_size: RICH_TABLE_MATRIX_MAX_CODE_UNITS,
+      quote: "\"",
+      record_delimiter: ["\r\n", "\n"],
+      relax_column_count: false,
+      relax_quotes: false,
+      skip_empty_lines: false,
+      skip_records_with_error: false,
+      trim: false
+    });
+  } catch {
+    return { reason: "invalid-csv" };
+  }
+  if (
+    matrix.some((row) =>
+      row.some((cell) => typeof cell !== "string" || cell.includes("\n") || cell.includes("\r"))
+    )
+  ) {
+    return { reason: "unsupported-multiline-cell" };
+  }
+  return validateRichTableMatrix(matrix, "invalid-csv");
+}
+
+function validateRichTableMatrix(
+  matrix: readonly (readonly string[])[],
+  invalidReason: "invalid-csv" | "invalid-tsv"
+): ParsedRichTableMatrix | { readonly reason: RichTableMatrixPasteFailureReason } {
+  if (matrix.length === 0 || matrix.length > RICH_TABLE_MATRIX_MAX_ROWS) {
+    return { reason: matrix.length > RICH_TABLE_MATRIX_MAX_ROWS ? "matrix-too-large" : invalidReason };
+  }
   const columns = matrix[0]?.length ?? 0;
   if (
     columns < 2 ||
     matrix.some((row) => row.length !== columns) ||
     !matrix.some((row) => row.some((cell) => cell.length > 0))
   ) {
-    return { reason: "invalid-tsv" };
+    return { reason: invalidReason };
   }
   if (columns > RICH_TABLE_MATRIX_MAX_COLUMNS || matrix.length * columns > RICH_TABLE_MATRIX_MAX_CELLS) {
     return { reason: "matrix-too-large" };
@@ -4337,15 +4392,15 @@ function createRichPasteSanitizerPlugin(): Plugin {
   return new Plugin({
     props: {
       handlePaste(view, event) {
-        const text = richTableMatrixClipboardText(event.clipboardData);
-        if (text === null) {
+        const payload = richTableMatrixClipboardPayload(event.clipboardData);
+        if (!payload) {
           return false;
         }
         const coordinates = richTableCellCoordinatesInEditorState(view.state);
         if (!coordinates) {
           return false;
         }
-        const parsed = parseRichTableMatrix(text);
+        const parsed = parseRichTableMatrix(payload.text, payload.format);
         if ("reason" in parsed) {
           return false;
         }
@@ -4372,7 +4427,9 @@ function createRichPasteSanitizerPlugin(): Plugin {
   });
 }
 
-function richTableMatrixClipboardText(clipboardData: DataTransfer | null): string | null {
+function richTableMatrixClipboardPayload(
+  clipboardData: DataTransfer | null
+): { readonly format: "csv" | "tsv"; readonly text: string } | null {
   if (!clipboardData) {
     return null;
   }
@@ -4384,13 +4441,22 @@ function richTableMatrixClipboardText(clipboardData: DataTransfer | null): strin
   }
   const types = Array.from(clipboardData.types);
   if (types.includes("text/tab-separated-values")) {
-    return clipboardData.getData("text/tab-separated-values");
+    return {
+      format: "tsv",
+      text: clipboardData.getData("text/tab-separated-values")
+    };
+  }
+  if (types.includes("text/csv")) {
+    return {
+      format: "csv",
+      text: clipboardData.getData("text/csv")
+    };
   }
   if (!types.includes("text/plain")) {
     return null;
   }
   const plainText = clipboardData.getData("text/plain");
-  return plainText.includes("\t") ? plainText : null;
+  return plainText.includes("\t") ? { format: "tsv", text: plainText } : null;
 }
 
 function sanitizePastedHtml(html: string): string {
@@ -7539,10 +7605,17 @@ function escapeRichTablePlainText(value: string): string {
   const escaped = value
     .replace(/\\/g, "\\\\")
     .replace(/([*_[\]\x60<>~&^])/g, "\\$1");
-  return escaped
+  const safeText = escaped
     .replace(/\b(https?):(?=\/\/)/gi, "$1&#58;")
     .replace(/\bwww\.(?=[a-z0-9])/gi, "www&#46;")
     .replace(/([a-z0-9._%+-]+)@(?=[a-z0-9.-]+\.[a-z]{2,})/gi, "$1&#64;");
+  // Encode leading/trailing whitespace as numeric character references so `escapeRichTableCellMarkdown`'s
+  // `.trim()` cannot silently drop literal edge whitespace. This applies to every serialized table cell
+  // (MME-0080 quoted-CSV paste can legitimately produce cells like `"  padded  "`), not only CSV-pasted
+  // ones, because the prior behavior was a preservation defect for any cell with literal edge whitespace.
+  return safeText.replace(/^[^\S\r\n]+|[^\S\r\n]+$/gu, (whitespace) =>
+    Array.from(whitespace, (character) => `&#${character.codePointAt(0)};`).join("")
+  );
 }
 
 function tableDelimiterForAlignment(alignment: TableAlignment): string {
