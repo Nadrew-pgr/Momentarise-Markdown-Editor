@@ -14,6 +14,7 @@ Progress tracking: tick a block here once its exit gate passed.
 
 - [x] Block A — adoption foundations (2026-07-30: CI green on GitHub for `main` — https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor/actions/runs/30577501210 — and tarball smoke install green, both exit-gate conditions met)
 - [ ] Block B — npm publication + registry example
+- [ ] Block B2 — package parity (styles + React rich mode)
 - [ ] Block C — editor UX correctness
 - [ ] Block D — editor UX surfaces
 - [ ] Block E — AI writing surface
@@ -72,6 +73,28 @@ Exit gate: Andrew installs the packages in a scratch project and it works.
 
 ---
 
+## Block B2 — Package parity (model: Opus 4.8)
+
+```text
+Read CLAUDE.md, then docs/internal/ISSUES.md (Active Queue — Re-Plan 2026-07-30).
+
+Execute ONLY Block B2: MME-0100 then MME-0101.
+
+Context, from the Block B review: the packages are now published and installable, but a consumer who installs them gets an unstyled editor with an inert Rich button. All 2757 lines of MME's visual design live in apps/md-demo/src/styles.css, which ships nowhere; the only packaged CSS is 156 lines of custom properties that style nothing on their own. And packages/md-react never mounts the rich view at all. Compare docs/internal/visual-checks/MME-0085/01-mounted-after-strictmode-remount.png (what adopters get) with the reference demo (what MME actually looks like) before you start.
+
+MME-0100 is a move and tokenization, not a redesign: the demo must look identical afterward, and the registry example must look like the demo. Prove both with before/after screenshots at 1280 and 390 widths. Fix examples/next-app/app/globals.css, which references custom properties that do not exist in the theme, so its var() calls all fall back silently.
+
+MME-0101 must leave no inert control: if a mode is offered by the binding's default mode control, it mounts a real surface, otherwise it is not offered. Keep the binding thin, dynamically import the rich view, keep StrictMode (React 18 and 19) and SSR safety intact, and correct the react.md/next.md capability wording to match what actually ships.
+
+Follow the full per-issue protocol: context rebuild, Pre-Issue Execution Plan, test-first, review, build log, issue-scoped commit, push.
+
+When MME-0101 is committed and pushed, or at the first blocker, write the final report and STOP. Never start an issue outside Block B2.
+```
+
+Exit gate: Andrew sees the registry example look and behave like the demo.
+
+---
+
 ## Block C — Editor UX correctness (model: Sonnet 5)
 
 ```text
@@ -80,6 +103,8 @@ Read CLAUDE.md, then docs/internal/ISSUES.md (Active Queue — Re-Plan 2026-07-3
 Execute ONLY Block C: MME-0086, MME-0087, MME-0088.
 
 These fix real defects observed in the 2026-07-30 UX tour (full-editor blue focus outline, overlays that survive blur, code meta bar pinned at content top, static/misaligned block handles, no empty-block placeholder, slash triggering inside code blocks). The benchmark for feel is Notion and Obsidian.
+
+Styling ownership rule (binding since MME-0100): any CSS for a package-owned surface goes in the packaged stylesheet, not in the demo's private stylesheet. Visual work that only a person running this repo's demo can see does not count as finished.
 
 Visual verification is mandatory for each issue: start the demo with `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`, run the manual scenario in a browser, capture screenshots at desktop and 390px widths under docs/internal/visual-checks/<issue-id>/, and record what each screenshot proves.
 

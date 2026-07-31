@@ -53,6 +53,14 @@ Rules:
 - If no reviewer subagent is available, run a documented fallback self-review and record it in the build log. This remains an acceptable outcome, not a blocker.
 - Reviewer roles stay as defined in `AGENT.md` (Architecture, Test, UX, Security, DX, Accessibility).
 
+### Styling ownership rule (2026-07-31)
+
+Discovered during the Block B review: every visual quality of MME lived in `apps/md-demo/src/styles.css`, which ships to nobody. `MME-0100` moves package-owned styles into a published stylesheet.
+
+From `MME-0100` onward, this rule is binding for every issue that changes how a package-owned surface looks: **the CSS goes in the packaged stylesheet, not in the demo.** A rule belongs to the demo only when it styles the demo's own page shell, fixtures, or diagnostics. If an issue's visual work would only be visible to someone running this repository's demo, the issue is not finished.
+
+This applies directly to `MME-0086`, `MME-0087`, `MME-0089`, `MME-0090`, `MME-0091`, and `MME-0098`.
+
 ### Parallel execution policy (2026-07-30)
 
 Blocks are not all interdependent, but they are not freely parallel either.
@@ -87,6 +95,7 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | --- | --- | --- | --- | --- |
 | A | MME-0080 closeout, 0081, 0082, 0083 | Adoption foundations | sonnet-5 | CI green on GitHub; tarball smoke green |
 | B | MME-0084, 0085 | npm publication + registry example | sonnet-5, Andrew present | Andrew confirms install works |
+| B2 | MME-0100, 0101 | Package parity (published packages deliver what the demo shows) | opus-4.8 | Andrew sees the example look and behave like the demo |
 | C | MME-0086, 0087, 0088 | Editor UX correctness | sonnet-5 | screenshots produced |
 | D | MME-0089, 0090, 0091 | Editor UX surfaces | opus-4.8 | Andrew visual review of C+D screenshots |
 | E | MME-0098 | AI writing surface (BlockNote tier) | opus-5 / fable-5 | Andrew tries the AI flow |
@@ -886,6 +895,115 @@ New public `/blog` section.
 ### Blocked by
 
 - MME-0094, MME-0095.
+
+## MME-0100 — Framework component stylesheet (packaged, not demo-only)
+
+### Goal
+
+Ship the editor's visual design as an importable stylesheet from a published package, so a consumer who installs `@momentarise/*` gets the editor that the reference demo shows — instead of unstyled browser defaults.
+
+### Defect (verified 2026-07-31, Block B review)
+
+- `apps/md-demo/src/styles.css` is 2757 lines with 440 `mme-` class rules. Every visual quality of MME — toolbar, slash menu, block handles, tables, callouts, code blocks, focus treatment, mobile layout — lives there. It is a demo app file and is published nowhere.
+- The only CSS in any package is `packages/md-theme/src/tokens.css`: 156 lines of CSS custom properties. Design tokens style nothing on their own; they are values waiting for rules that do not ship.
+- Consequence, visible in `docs/internal/visual-checks/MME-0085/01-mounted-after-strictmode-remount.png`: the registry-installed Next.js example renders raw grey browser buttons and unstyled chrome. That screenshot is what every adopter gets today.
+- Compounding bug in the example: `examples/next-app/app/globals.css` imports the real tokens file but then references custom properties that do not exist in it (`--mme-color-surface-canvas`, `--mme-color-text-primary`, `--mme-font-family-sans`, `--mme-color-border-default`, `--mme-radius-md`). Every `var()` silently falls back to its hardcoded default, so the imported theme has no effect at all. Real token names are `--mme-color-bg`, `--mme-color-text`, `--mme-font-family-ui`, `--mme-color-border`, `--mme-radius-*` (verify each against the file).
+
+### Acceptance criteria
+
+- A published stylesheet exists that styles every package-owned surface: source view chrome, rich view content, toolbar, selection bubble, slash menu, block handles, tables, callouts, code blocks, footnotes, task lists, status/mode controls, and mobile/coarse-pointer behavior from MME-0078.
+- Package ownership is decided explicitly and recorded: either `@momentarise/md-theme` gains a component stylesheet next to its tokens, or a new package is created. Whichever is chosen, importing exactly one CSS entrypoint (plus tokens) must produce the demo's look. Prefer extending `md-theme` unless a reviewer-recorded reason favors a new package.
+- Styles are token-driven: rules consume `--mme-*` custom properties, so hosts restyle by overriding tokens without patching selectors. Any hardcoded value in the new stylesheet must be justified in a comment or promoted to a token.
+- Light and dark both work. Today `tokens.css` hardcodes `color-scheme: dark`; the shipped stylesheet must support both, defaulting to the host's `prefers-color-scheme` with an explicit override hook.
+- `apps/md-demo` consumes the packaged stylesheet instead of its private copy. The demo's remaining CSS is only demo chrome (page shell, diagnostics panel, fixtures) — assert the reduction and state the final demo-only line count in the build log. Demo appearance must not regress: before/after screenshots at 1280 and 390 widths.
+- `examples/next-app` imports the packaged stylesheet, its non-existent token references are fixed, and its screenshots show a styled editor comparable to the demo. Replace the stale MME-0085 screenshots.
+- The stylesheet ships in the package tarball (`files`, export path such as `./styles.css`), is covered by the tarball allowlist test, and is documented in a public Theming/Styling docs page with the exact import lines for vanilla, React, and Next.js.
+- No CSS-in-JS, no build-step requirement: a plain `.css` file importable by any bundler, and usable via `<link>` for framework-free hosts.
+
+### Test-first plan
+
+- RED: a test asserting the packaged stylesheet exists, is exported, ships in the tarball, defines rules for a required list of package-owned class names, and that `examples/next-app/app/globals.css` references only custom properties actually defined by the theme (parse both files and diff the token sets — this alone fails today).
+- RED: a demo-parity check asserting the demo's private stylesheet no longer defines package-owned component classes.
+- GREEN: extract, tokenize, and wire; iterate against screenshots until the demo is visually unchanged and the example matches it.
+
+### Implementation notes
+
+Read first: `apps/md-demo/src/styles.css` in full, `packages/md-theme/src/tokens.css`, `packages/md-surface/src/index.ts` (class names the components actually emit), `packages/md-rich-prosemirror/src/index.ts` (rich content class names), `examples/next-app/app/globals.css`, `tests/consumer-tarball-install.test.mjs` (allowlist), MME-0078's mobile CSS sections.
+
+Extraction rule: a rule belongs in the package when it styles markup a package emits; it stays in the demo when it styles the demo's own page shell. When in doubt, check who renders the element. Do not redesign anything in this issue — this is a move plus tokenization, with byte-comparable visual output. Redesign happens in MME-0086-0091 and MME-0094.
+
+### Visual impact
+
+The demo must look the same. The registry example goes from unstyled browser defaults to the real MME editor. This is the issue that makes MME look like a product for anyone who installs it.
+
+### Out of scope
+
+- Visual redesign, new components, docs-site styling (MME-0094), theme presets/variants beyond light/dark, Tailwind or CSS-framework integrations.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, UX Reviewer; inspect-only; fallback self-review allowed.
+- Recommended builder model: opus-4.8 (package-boundary decision plus visual fidelity).
+- Human review required: yes — Andrew compares demo and example screenshots.
+
+### Blocked by
+
+- None. MME-0084 published the packages this stylesheet must ship alongside.
+
+## MME-0101 — Rich mode in the React binding
+
+### Goal
+
+Make `@momentarise/md-react` mount the rich editing surface when the session mode is rich, so the React and Next.js integration paths expose the same editing capability as the reference demo.
+
+### Defect (verified 2026-07-31, Block B review)
+
+`packages/md-react/src/index.ts` contains no reference to rich mode or ProseMirror: `mountReactEditor` only ever mounts the CodeMirror source view. The mode control rendered by `md-surface` still shows Source / Rich / Live Preview, and `session.setMode()` updates session state, so a user clicks "Rich" and nothing changes. The registry example therefore ships a visible control that does nothing.
+
+Truthfulness gap in the same area: `docs/public/quickstart/react.md` states that MME owns "source and rich view coordination" in the React binding section, which reads as a rich-mode capability claim. Either the capability ships (this issue) or the sentence must be corrected.
+
+### Acceptance criteria
+
+- Switching session mode to rich mounts the rich view in the React binding and unmounts the source view; switching back restores source; content stays canonical Markdown across every switch with byte-exact round trips for untouched documents.
+- Live Preview follows the same rule: it either mounts the live-preview surface or the mode is not offered by the binding's default mode control. No visible control may be inert.
+- The rich view is dynamically imported so React consumers who never enter rich mode do not pay the ProseMirror bundle cost; document the resulting peer/optional dependency boundary explicitly.
+- Session lifecycle stays StrictMode-safe (MME-0081): mode switches during a StrictMode double-mount must not leak views or subscribe to a destroyed session. Extend both the React 18 and React 19 lifecycle tests with a mode-switch leg.
+- SSR safety holds: the module still imports with no DOM globals present, and the rich view is only ever constructed client-side.
+- `examples/next-app` proves it in a real browser: click Rich, type, switch to Source, verify the Markdown, screenshots under `docs/internal/visual-checks/MME-0101/`.
+- `docs/public/quickstart/react.md` and `next.md` state exactly what the binding supports after this issue; if Live Preview remains unsupported, say so plainly rather than leaving an inert button.
+
+### Test-first plan
+
+- RED: a React-binding mode test asserting that setting rich mode mounts the rich surface and unmounts source, that content survives round trips, and that no listener or view leaks across switches; fails today because the rich surface never mounts.
+- GREEN: wire dynamic rich mounting into `mountReactEditor`, keeping the binding thin.
+
+### Implementation notes
+
+Read first: `packages/md-react/src/index.ts` (`mountReactEditor`), `apps/md-demo/src/main.ts` for how the demo mounts and swaps source/rich/live-preview views (that is the reference wiring to mirror, minus demo chrome), `packages/md-editor/src/index.ts` mode events, `packages/md-rich-prosemirror/src/index.ts` mount API.
+
+Keep the binding thin: it should orchestrate mount/unmount on mode events, not reimplement view logic. If mounting logic is duplicated between demo and binding, extract the shared part into a package rather than copying it.
+
+### Visual impact
+
+React and Next.js hosts gain a working rich editing surface; the Rich button stops being decorative.
+
+### Out of scope
+
+- New rich features, editor redesign, Vue/Svelte bindings, live-preview parity work beyond mounting an existing surface.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer; inspect-only; fallback self-review allowed.
+- Recommended builder model: opus-4.8.
+- Human review required: yes — Andrew clicks Rich in the example.
+
+### Blocked by
+
+- MME-0100 (the rich surface needs the packaged stylesheet to look right in a consumer app).
 
 ## MME-0098 — AI writing surface at BlockNote/Notion tier
 

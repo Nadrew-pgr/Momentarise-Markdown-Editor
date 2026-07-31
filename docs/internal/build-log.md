@@ -7908,3 +7908,24 @@
 - Commit status: committed as `ddbb74a` (`feat: add Next.js App Router registry consumer example (MME-0085)`).
 - Push status: pushed to `origin/main` per the 2026-07-30 standing instruction.
 - Next issue: none in Block B — MME-0085 was the last issue in Block B (`MME-0084`, `MME-0085`). Per the hard-stop rule in `docs/internal/ISSUES.md`, the agent must write the final report and **STOP** here; Block C (`MME-0086`, `0087`, `0088` — Editor UX correctness) requires a fresh conversation and is out of scope for this one.
+
+## Block B review (human-side, Andrew's reviewer) — 2026-07-31
+
+- Date: 2026-07-31.
+- Scope reviewed: commits `1900cbc`, `564be55` (MME-0084), `ddbb74a`, `336e2b7` (MME-0085), plus the live npm registry state.
+- Independent verification: `npm view` dist-tags/versions for all 16 packages; a clean temp-project `npm install` of `@momentarise/md-core`, `@momentarise/md-react`, `@momentarise/md-editor` from the registry with working ESM imports; read of `examples/next-app` sources, `apps/md-demo/src/styles.css`, `packages/md-theme/src/tokens.css`, `packages/md-react/src/index.ts`, and the MME-0085 screenshots.
+- Verdict: Block B accepted. Publication is real and complete: all 16 `@momentarise/*` packages live at `0.1.0-alpha.1`, installable by anyone.
+- Registry state clarification recorded for future runs: both `alpha` and `latest` point to `0.1.0-alpha.1`. npm always assigns `latest` to a package's first published version regardless of `--tag`, and `npm dist-tag rm <pkg> latest` is forbidden by the registry (HTTP 400) — the failed removal attempts during the run were unnecessary and must not be retried. `latest` moves on the first stable release. The E403 on `md-render-html` was a duplicate publish of an already-published version, harmless.
+- Positive findings:
+  - The agent caught a real pre-publish defect on its own: internal `^0.1.0` dependency ranges do not satisfy a `0.1.0-alpha.1` prerelease, which would have broken every multi-package install. Fixed with a regression test before publishing.
+  - React 19 coverage (the Block A review finding) was closed properly and in isolation: an isolated fixture proving StrictMode survival against the published alpha, after correctly reverting an aliasing attempt that had corrupted root dependency resolution.
+  - A live Next.js API break (`next/dynamic({ssr:false})` from a Server Component) was found and fixed in both the example and the stale quickstart doc.
+  - Honest reporting throughout, including flagging the md-react rich-mode gap instead of silently patching or ignoring it, and correcting my own note about the peer-range fix after verifying the published tarball.
+- Findings, promoted into new issues rather than left in the backlog:
+  1. Critical, structural — the framework ships no component styling. `apps/md-demo/src/styles.css` is 2757 lines with 440 `mme-` rules and ships nowhere; the only packaged CSS is `md-theme/src/tokens.css`, 156 lines of custom properties that style nothing on their own. The MME-0085 screenshot is therefore an accurate picture of what every adopter currently gets: raw browser controls. Promoted as `MME-0100`.
+  2. Compounding bug — `examples/next-app/app/globals.css` imports the real tokens file but references custom properties that do not exist in it (`--mme-color-surface-canvas`, `--mme-color-text-primary`, `--mme-font-family-sans`, `--mme-color-border-default`, `--mme-radius-md`), so every `var()` falls back silently and the imported theme has no effect. Folded into `MME-0100`.
+  3. Major — `@momentarise/md-react` never mounts the rich view, so the example ships a visible Rich button that does nothing, while `docs/public/quickstart/react.md` claims the binding covers "source and rich view coordination". Promoted as `MME-0101` with the wording correction.
+- Sequencing correction made as a result: a `Styling ownership rule` was added to the Active Queue. Without it, `MME-0086`-`MME-0091` would have polished `apps/md-demo/src/styles.css` again and left the published packages naked — repeating the exact defect this review found. New Block B2 (`MME-0100`, `MME-0101`, opus-4.8) runs before Block C.
+- Visual impact: No visible editing or general UI changes from this review itself. Planning documents only.
+- Checks run: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
+- Push status: pushed.
