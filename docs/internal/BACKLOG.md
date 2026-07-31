@@ -247,7 +247,23 @@ Tags: `public-release`, `dx`
 
 - Verified 2026-07-31: `apps/docs-site` genuinely depends on `@momentarise/md-render-html`, `md-editor`, `md-save`, `md-source-codemirror`, and `md-theme` at `^0.1.0-alpha.3`, and renders documentation through `DocsPageView`. A "Built with Momentarise Markdown Editor" footer line is therefore a truthful claim, not marketing. Add it.
 - Andrew's readability concern: the docs read as machine-organized rather than human. Schedule a joint human pass with Andrew over the docs IA and copy — his judgment is the acceptance criterion, and he has said he is not the technical audience, so unexplained jargon is a defect.
-- Console noise: the docs-site hydration warning Andrew reported comes from a browser extension injecting `cz-shortcut-listen="true"` on `<body>` (ColorZilla-class), not from application code — `<html>` already carries `suppressHydrationWarning`. Adding the same attribute to `<body>` silences third-party attribute injection without hiding real mismatches.
+### Dogfooding goal: the docs site should be buildable from published packages alone
+
+Tags: `public-release`, `product-differentiator`, `dx`, `must-have`
+
+Andrew, 2026-07-31: "is the site made purely with MME? we should be able to build this kind of thing with MME — it would be the first tangible proof."
+
+Measured state on that date. What is genuinely MME: every documentation page's content is rendered by `renderMarkdownToHtml` from `@momentarise/md-render-html` (canonical Markdown in, HTML out — the core claim, dogfooded); design tokens come from `@momentarise/md-theme/tokens.css`; the live editor embeds are real `md-editor`/`md-save`/`md-source-codemirror` sessions. What is not: the entire shell (top bar, sidebar, breadcrumbs, on-this-page, search, theme toggle, mobile nav) is bespoke docs-site React; 1711 lines of docs-site CSS of which only 359 references consume `--mme-*` tokens, and the site imports `tokens.css` but not the packaged `styles.css`; and `rendered-html.ts` is 95 lines of regex post-processing over MME's HTML output — stripping the first `h1`, injecting heading anchors, rewriting internal links, decorating external ones.
+
+So today the site proves MME renders Markdown well. It does not yet prove MME gives you the pieces to build a documentation product. Making the second claim true is a strong differentiator and a strong public proof — "this documentation site is built entirely from published `@momentarise/*` packages" is a sentence competitors cannot copy cheaply.
+
+Target, to be split into issues alongside `MME-0094`/`MME-0095`:
+
+- Promote the `rendered-html.ts` post-processors into a package (heading anchors, safe in-doc link rewriting, external-link decoration, section metadata), so hosts stop reimplementing DOM rewriting. This supersedes the existing "Reusable docs rendering post-processors" backlog line.
+- Provide docs content primitives expressible from Markdown or safe extensions — callouts, steps, tabbed code blocks, comparison tables, card grids — instead of docs-site-only React fragments. Supersedes the existing "Native docs content primitives" line.
+- Make the docs site consume the packaged `styles.css`, not just tokens, and cut bespoke CSS down to genuine site chrome.
+- Define explicitly what stays host-owned (routing, navigation data, search index, deployment) so the claim is precise rather than overstated.
+- Acceptance for the claim: a fresh project can reproduce a docs page with anchors, internal links, callouts, and a live editor using published packages only, proven by a temp-dir build like the registry consumer tests.
 
 ## Public Framework Follow-Ups
 

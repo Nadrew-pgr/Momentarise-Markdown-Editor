@@ -265,6 +265,8 @@ The local URL used for visual verification must be the same URL the human review
 
 If browser or screenshot tooling is unavailable, the issue must not be marked visually verified. It must be marked `code-complete, visual verification pending`.
 
+Third-party browser extensions inject attributes into the page before the application runs, which produces console noise that is not an application defect. A React hydration mismatch whose only difference is an injected attribute such as `cz-shortcut-listen` (ColorZilla-class) is extension noise: do not chase it, do not "fix" application code for it, and reproduce in a clean profile before treating any console error as a defect. Applying `suppressHydrationWarning` to the element receiving the injected attribute is the correct response when the noise is worth silencing.
+
 Store UI screenshots and visual verification artifacts under `docs/internal/visual-checks/<issue-id>/`.
 
 Each UI issue must include a short `README.md` in its visual-checks folder or a build-log entry explaining what each screenshot proves.
