@@ -44,7 +44,7 @@ For behavior changes, use test-first/TDD:
 2. Confirm it fails or documents the missing behavior.
 3. Implement the smallest serious solution.
 4. Run the check again.
-5. Run reviewer/subagent verification when available.
+5. Run reviewer subagent verification. This is mandatory when the issue names a reviewer — self-review is not a reviewer pass, and "subagents are disabled by default" is not a valid reason to skip it (stop and ask the human to enable them). See the reviewer protocol in `AGENT.md`.
 6. Update `docs/internal/build-log.md`.
 7. Commit the completed issue before starting another issue.
 8. Push the committed issue after human validation/acceptance unless a documented blocker applies.
@@ -61,6 +61,7 @@ For behavior changes, use test-first/TDD:
 - commit every completed issue after reviewer/fallback validation and before starting the next issue;
 - push after human validation/acceptance when a remote is configured and no blocker applies;
 - reviewers/subagents review only unless explicitly asked to implement;
+- a reviewer subagent is mandatory when an issue names one; fallback self-review requires a genuine capability failure plus recorded evidence and human acknowledgement;
 - do not continue to the next issue unless the human explicitly asks for autonomous issue-by-issue execution and the continuation gates below are satisfied;
 - do not mark an issue done unless every acceptance criterion has evidence.
 - continuing in the same session is allowed when the human explicitly asks for autonomy, but every new issue still requires a fresh context rebuild and a Pre-Issue Execution Plan before editing.

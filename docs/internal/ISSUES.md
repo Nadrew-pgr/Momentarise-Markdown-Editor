@@ -50,7 +50,7 @@ Rules:
 - Reviewers are inspect-only subagents. They never modify production code unless the human explicitly asks.
 - Use the smallest model that can do the review honestly. Suggested tiers: `haiku-4.5` for mechanical checks (evidence cross-check, test registration, docs lint follow-up, artifact diffing); the builder's own tier for standard code review; the builder's tier or above for preservation, security, and public-API review.
 - Default when unsure: let the reviewer subagent inherit the conversation model. Cost is not a reason to skip review.
-- If no reviewer subagent is available, run a documented fallback self-review and record it in the build log. This remains an acceptable outcome, not a blocker.
+- Spawning the reviewer subagent is mandatory whenever an issue's execution model names a reviewer. Self-review by the implementing agent is not a reviewer pass. "Subagents are disabled by default in this session", cost, and self-assessed low risk are explicitly NOT valid reasons to skip it — the agent must stop and ask the human to enable subagents instead. See the reviewer protocol in `AGENT.md` for the full rule and the evidence a fallback must carry. Every "fallback self-review allowed" phrase in the issues below is read subject to that rule.
 - Reviewer roles stay as defined in `AGENT.md` (Architecture, Test, UX, Security, DX, Accessibility).
 
 ### Styling ownership rule (2026-07-31)
