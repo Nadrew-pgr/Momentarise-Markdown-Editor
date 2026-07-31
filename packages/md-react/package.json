@@ -46,11 +46,24 @@
     "@momentarise/md-theme": "^0.1.0-alpha.1"
   },
   "peerDependencies": {
+    "@momentarise/md-rich-prosemirror": "^0.1.0-alpha.1",
+    "prosemirror-view": "^1.0.0",
     "react": "^18 || ^19"
   },
+  "peerDependenciesMeta": {
+    "@momentarise/md-rich-prosemirror": {
+      "optional": true
+    },
+    "prosemirror-view": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@momentarise/md-rich-prosemirror": "^0.1.0-alpha.1",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "prosemirror-state": "^1.4.4",
+    "prosemirror-view": "^1.41.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

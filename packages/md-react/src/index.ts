@@ -8,8 +8,10 @@ import {
 import type { SaveState } from "@momentarise/md-save";
 import {
   createMomentariseSourceView,
-  type MomentariseSourcePreferences
+  type MomentariseSourcePreferences,
+  type MomentariseSourceView
 } from "@momentarise/md-source-codemirror";
+import type { ReactRichViewHandle } from "./rich-view.js";
 import {
   applyMmeThemeToElement,
   createDocumentStatus,
@@ -195,6 +197,7 @@ function mountReactEditor(
   const modeHost = doc.createElement("div");
   const statusHost = doc.createElement("div");
   const sourceHost = doc.createElement("div");
+  const richHost = doc.createElement("div");
   const icons = options.icons ?? defaultIconSet;
   const strings = options.strings ?? defaultMmeStrings;
   const preferences: SurfacePreferences = {
@@ -209,30 +212,111 @@ function mountReactEditor(
   modeHost.dataset.mmeReactMode = "";
   statusHost.dataset.mmeReactStatus = "";
   sourceHost.dataset.mmeReactSource = "";
+  richHost.dataset.mmeReactRich = "";
   applyMmeThemeToElement(root, options.theme, options.scheme);
-  root.append(modeHost, statusHost, sourceHost);
+  root.append(modeHost, statusHost, sourceHost, richHost);
   element.replaceChildren(root);
 
-  const sourceView = createMomentariseSourceView({
-    doc: session.getContent(),
-    parent: sourceHost,
-    onChange(content) {
-      if (!syncingFromSession) {
-        session.setContent(content, "source-view");
-      }
-    },
-    onSave() {
-      void session.flush("manual");
-      return true;
-    },
-    ...(options.sourcePreferences === undefined ? {} : { preferences: options.sourcePreferences })
-  });
+  // --- Editing surfaces: source and rich are mounted/unmounted per mode, never both at once. ---
+  let sourceView: MomentariseSourceView | null = null;
+  let richView: ReactRichViewHandle | null = null;
+  // Guards the async rich import: only the newest request may mount, and only if still in rich mode.
+  let richMountToken = 0;
+
+  const mountSourceView = (): void => {
+    if (sourceView || destroyed) {
+      return;
+    }
+    sourceView = createMomentariseSourceView({
+      doc: session.getContent(),
+      parent: sourceHost,
+      onChange(content) {
+        if (!syncingFromSession) {
+          session.setContent(content, "source-view");
+        }
+      },
+      onSave() {
+        void session.flush("manual");
+        return true;
+      },
+      ...(options.sourcePreferences === undefined ? {} : { preferences: options.sourcePreferences })
+    });
+  };
+  const unmountSourceView = (): void => {
+    sourceView?.destroy();
+    sourceView = null;
+    sourceHost.replaceChildren();
+  };
+  const unmountRichView = (): void => {
+    richView?.destroy();
+    richView = null;
+    richHost.replaceChildren();
+  };
+  const mountRichView = (): void => {
+    if (richView || destroyed) {
+      return;
+    }
+    const token = ++richMountToken;
+    // Dynamic import: consumers who never enter rich mode never load prosemirror-view. The rich
+    // module only touches the DOM here (client-side), keeping the top-level binding SSR-safe.
+    void import("./rich-view.js")
+      .then(({ createReactRichView }) => {
+        // The mode may have changed, or the session may have been destroyed (StrictMode remount),
+        // while the import was in flight — discard a stale mount.
+        if (destroyed || token !== richMountToken || session.getMode() !== "rich") {
+          return;
+        }
+        richView = createReactRichView({
+          host: richHost,
+          doc: session.getContent(),
+          onChange(markdown) {
+            if (!syncingFromSession) {
+              session.setContent(markdown, "rich-view");
+            }
+          }
+        });
+      })
+      .catch((error: unknown) => {
+        // Rich mode needs the optional peers (@momentarise/md-rich-prosemirror + prosemirror-view).
+        // If they are not installed the import rejects: surface a clear reason instead of an
+        // unhandled rejection, and fall back to source so the editor never shows a blank rich pane.
+        if (destroyed || token !== richMountToken) {
+          return;
+        }
+        // eslint-disable-next-line no-console -- one-time diagnostic for a missing optional peer.
+        console.error(
+          "[@momentarise/md-react] Rich mode is unavailable. Install its optional peers " +
+            "'@momentarise/md-rich-prosemirror' and 'prosemirror-view' to enable it. Falling back to source.",
+          error
+        );
+        if (session.getMode() === "rich") {
+          session.setMode("source");
+        }
+      });
+  };
+
+  const applyMode = (): void => {
+    if (destroyed) {
+      return;
+    }
+    if (session.getMode() === "rich") {
+      unmountSourceView();
+      mountRichView();
+    } else {
+      // Any non-rich mode (only source is offered by this binding) shows the source view.
+      richMountToken += 1;
+      unmountRichView();
+      mountSourceView();
+    }
+  };
 
   const modeControl = createModeControl({
     host: modeHost,
     icons,
     preferences,
     session,
+    // This binding mounts source and rich only; do not offer an inert live-preview control.
+    availableModes: ["source", "rich"],
     state: {
       documentKind: "markdown",
       editorMode: session.getMode()
@@ -265,23 +349,29 @@ function mountReactEditor(
       saveState: session.getSaveState()
     });
   };
-  const syncSourceFromSession = (content: string): void => {
-    if (sourceView.getContent() === content) {
-      return;
-    }
+  const syncActiveViewFromSession = (content: string, origin: string): void => {
     syncingFromSession = true;
-    sourceView.replaceContent(content);
-    syncingFromSession = false;
+    try {
+      if (sourceView && origin !== "source-view" && sourceView.getContent() !== content) {
+        sourceView.replaceContent(content);
+      }
+      if (richView && origin !== "rich-view") {
+        richView.setDoc(content);
+      }
+    } finally {
+      syncingFromSession = false;
+    }
   };
 
   const cleanups = [
     session.on("change", (payload) => {
-      if (payload.origin !== "source-view") {
-        syncSourceFromSession(payload.content);
-      }
+      syncActiveViewFromSession(payload.content, payload.origin);
       updateSurfaces();
     }),
-    session.on("mode", updateSurfaces),
+    session.on("mode", () => {
+      applyMode();
+      updateSurfaces();
+    }),
     session.on("save-state", updateSurfaces),
     session.on("destroy", () => {
       destroy();
@@ -293,15 +383,18 @@ function mountReactEditor(
       return;
     }
     destroyed = true;
+    richMountToken += 1;
     for (const cleanup of cleanups.splice(0)) {
       cleanup();
     }
     documentStatus.destroy();
     modeControl.destroy();
-    sourceView.destroy();
+    unmountSourceView();
+    unmountRichView();
     root.remove();
   };
 
+  applyMode();
   updateSurfaces();
   return { destroy };
 }

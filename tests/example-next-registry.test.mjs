@@ -9,26 +9,33 @@ import { join } from "node:path";
 // access to this repo's node_modules or workspace symlinks), install its committed dependencies
 // from the real npm registry, and build it with Next.js.
 //
-// One overlay (MME-0100): the example imports @momentarise/md-theme/styles.css, the packaged
-// component stylesheet added in this issue. That export does not exist in the currently published
-// md-theme alpha yet, so after the registry install we overlay the *workspace* md-theme pack — the
-// exact artifact that will be published next — proving the example builds and is styled against the
-// real to-be-published package. When md-theme is republished with styles.css, this overlay can be
+// Overlays (MME-0100 + MME-0101): the example imports @momentarise/md-theme/styles.css (the
+// packaged component stylesheet) and uses the rich-mode-capable md-react + md-surface. Those
+// changes are not in the currently published alphas yet, so after the registry install we overlay
+// the *workspace* packs — the exact artifacts to be published next — proving the example builds
+// against the real to-be-published packages. When the alphas are republished, these overlays can be
 // dropped and the example becomes a pure-registry install again.
 const exampleDir = "examples/next-app";
 assert(existsSync(exampleDir), `${exampleDir} must exist.`);
 
-const themePack = packWorkspaceTheme();
+const overlayPacks = ["packages/md-theme", "packages/md-surface", "packages/md-react"].map(packWorkspace);
 const tempDir = await mktempExampleCopy();
 try {
   const install = run("npm", ["install"], tempDir);
   assert.equal(install.status, 0, `npm install failed in the copied example:\n${install.output}`);
 
-  const overlay = run("npm", ["install", themePack, "--no-save"], tempDir);
-  assert.equal(overlay.status, 0, `overlaying the workspace md-theme pack failed:\n${overlay.output}`);
+  // Install all overlay packs in one command so npm resolves them together — installing them one
+  // at a time lets a later pack's dependency resolution re-pull an earlier overlaid package from
+  // the registry and clobber it.
+  const overlay = run("npm", ["install", ...overlayPacks, "--no-save"], tempDir);
+  assert.equal(overlay.status, 0, `overlaying workspace packs failed:\n${overlay.output}`);
   assert(
     existsSync(join(tempDir, "node_modules/@momentarise/md-theme/src/styles.css")),
     "the overlaid md-theme must ship src/styles.css (the packaged component stylesheet)."
+  );
+  assert(
+    existsSync(join(tempDir, "node_modules/@momentarise/md-react/dist/rich-view.js")),
+    "the overlaid md-react must ship dist/rich-view.js (the rich-mode surface)."
   );
 
   const typecheck = run("npm", ["run", "typecheck"], tempDir);
@@ -38,16 +45,16 @@ try {
   assert.equal(build.status, 0, `next build failed in the copied example:\n${build.output}`);
   assert(existsSync(join(tempDir, ".next")), "next build must produce a .next output directory.");
 
-  console.log("example-next-registry: registry install + workspace md-theme overlay + build passed.");
+  console.log("example-next-registry: registry install + workspace overlays + build passed.");
 } finally {
   await rm(tempDir, { force: true, recursive: true });
 }
 
-function packWorkspaceTheme() {
+function packWorkspace(pkgDir) {
   const outDir = mkdtempSyncSafe();
-  execFileSync("npm", ["pack", "./packages/md-theme", "--pack-destination", outDir], { encoding: "utf8" });
+  execFileSync("npm", ["pack", `./${pkgDir}`, "--pack-destination", outDir], { encoding: "utf8" });
   const tgz = readdirSync(outDir).find((f) => f.endsWith(".tgz"));
-  assert(tgz, "npm pack must produce an md-theme tarball.");
+  assert(tgz, `npm pack must produce a tarball for ${pkgDir}.`);
   return join(outDir, tgz);
 }
 

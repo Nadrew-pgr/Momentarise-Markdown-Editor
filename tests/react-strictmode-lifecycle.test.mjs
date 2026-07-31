@@ -88,6 +88,25 @@ function assertField(condition, message) {
   assertField(latest.state.saveState !== undefined, "state must reflect the post-remount session's save state.");
   assert.equal(liveSession.getContent(), "# Strict\n\nEdited after remount.\n", "content edits after remount must apply to the live session.");
 
+  // MME-0101: a mode switch after the StrictMode double-mount must mount the rich surface against
+  // the live (not destroyed) session, then restore source, with no leaked view.
+  async function waitForMode(predicate, message) {
+    const start = Date.now();
+    while (Date.now() - start < 4000) {
+      if (predicate()) return;
+      await act(async () => { await new Promise((r) => setTimeout(r, 15)); });
+    }
+    assert.fail(`timed out waiting for: ${message}`);
+  }
+  act(() => { liveSession.setMode("rich"); });
+  await waitForMode(() => Boolean(container.querySelector(".ProseMirror")), "rich view to mount after StrictMode remount");
+  assertField(container.querySelector(".ProseMirror") !== null, "rich view must mount on mode switch after a StrictMode remount.");
+  assertField(container.querySelector("[data-mme-react-source] .cm-editor") === null, "source view must unmount when rich mounts.");
+  act(() => { liveSession.setMode("source"); });
+  await waitForMode(() => Boolean(container.querySelector("[data-mme-react-source] .cm-editor")), "source view to remount");
+  assertField(container.querySelector(".ProseMirror") === null, "rich view must unmount when switching back to source (no leak).");
+  assert.equal(liveSession.getContent(), "# Strict\n\nEdited after remount.\n", "content must survive the rich round trip.");
+
   // Final (real) unmount: session must be destroyed exactly once and truly dead afterward.
   let destroyCalls = 0;
   const originalDestroy = liveSession.destroy.bind(liveSession);

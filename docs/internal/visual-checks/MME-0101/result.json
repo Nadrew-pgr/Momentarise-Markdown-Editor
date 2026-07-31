@@ -1,0 +1,10 @@
+{
+  "exampleUrl": "http://127.0.0.1:5179/",
+  "modesOffered": [
+    "source",
+    "rich"
+  ],
+  "roundTripped": true,
+  "consoleErrors": [],
+  "status": "passed"
+}

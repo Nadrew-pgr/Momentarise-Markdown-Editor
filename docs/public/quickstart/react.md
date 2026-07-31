@@ -67,9 +67,21 @@ MME owns:
 - extension registry;
 - source and rich view coordination.
 
+## Editing Modes
+
+The binding mounts a real editing surface for every mode its mode control offers: **Source** (CodeMirror) and **Rich** (ProseMirror). Switching modes swaps the surface while the session keeps canonical Markdown; untouched documents round-trip byte-for-byte.
+
+The rich view is dynamically imported the first time a user enters rich mode, so consumers who stay in source never load the ProseMirror bundle. Rich mode therefore needs two optional peers installed — `@momentarise/md-rich-prosemirror` and `prosemirror-view`:
+
+```bash
+npm install @momentarise/md-rich-prosemirror@alpha prosemirror-view
+```
+
+If those peers are not installed, entering rich mode logs a clear error and the editor falls back to Source (which works fully) rather than showing a blank pane. **Live Preview is not offered by this binding** (it has no surface to mount), so no inert control appears.
+
 ## Working Example
 
-`examples/next-app/` in the repository is a complete, registry-installed working project built on this binding, with React 19 and StrictMode on.
+`examples/next-app/` in the repository is a complete, registry-installed working project built on this binding, with React 19, StrictMode, and a working Source/Rich toggle.
 
 ## Related Docs
 

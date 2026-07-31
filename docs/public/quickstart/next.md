@@ -65,9 +65,19 @@ export default function Page() {
 }
 ```
 
+## Editing Modes
+
+The binding mounts a real surface for both modes it offers — Source (CodeMirror) and Rich (ProseMirror) — and swaps them while the session keeps canonical Markdown. The rich view is dynamically imported on first use, so it never enters the server bundle and never runs during SSR; add its optional peers to enable it:
+
+```bash
+npm install @momentarise/md-rich-prosemirror@alpha prosemirror-view
+```
+
+Live Preview is not offered by this binding (no surface to mount), so no inert control appears.
+
 ## Working Example
 
-`examples/next-app/` in the repository is a complete, registry-installed Next.js App Router project built from exactly this pattern, with React 19 and StrictMode on. See its `app/page.tsx` and `app/markdown-editor-client.tsx`.
+`examples/next-app/` in the repository is a complete, registry-installed Next.js App Router project built from exactly this pattern, with React 19, StrictMode, and a working Source/Rich toggle. See its `app/page.tsx` and `app/markdown-editor-client.tsx`.
 
 ## Production Notes
 

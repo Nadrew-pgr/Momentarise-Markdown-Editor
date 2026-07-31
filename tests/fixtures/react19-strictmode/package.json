@@ -5,8 +5,10 @@
   "type": "module",
   "dependencies": {
     "@momentarise/md-react": "0.1.0-alpha.1",
+    "@momentarise/md-rich-prosemirror": "0.1.0-alpha.1",
     "@momentarise/md-save": "0.1.0-alpha.1",
     "jsdom": "^29.1.1",
+    "prosemirror-view": "^1.41.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   }

@@ -16,6 +16,9 @@
       "path": "../md-save"
     },
     {
+      "path": "../md-rich-prosemirror"
+    },
+    {
       "path": "../md-source-codemirror"
     },
     {

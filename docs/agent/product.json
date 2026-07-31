@@ -2,7 +2,7 @@
   "schema": "https://momentarise.dev/schemas/product-profile.v0.json",
   "generatedBy": "scripts/generate-agent-artifacts.mjs",
   "sourceBoundary": "public-docs-and-package-metadata",
-  "sourceHash": "70ec0156b1198901c4a324ecc6bb4915395230d503a80a5b6dd854b4392b5c22",
+  "sourceHash": "1ff6837a4c3a5b18f62937fce520422b834f3a4195970a33435c60a40b7a3b33",
   "publicUrl": "https://momentarise.dev/agent/product.json",
   "name": "Momentarise Markdown Editor",
   "acronym": "MME",

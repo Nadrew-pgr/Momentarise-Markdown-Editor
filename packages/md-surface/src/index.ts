@@ -413,6 +413,14 @@ export interface SurfaceModeControlState {
 export interface CreateModeControlOptions extends SurfaceComponentContext {
   readonly onSwitchMode: (mode: SurfaceEditorMode) => void;
   readonly state: SurfaceModeControlState;
+  /**
+   * Restrict the offered modes to a subset of what the document kind supports. A host that only
+   * mounts some surfaces (e.g. the React binding, which mounts source and rich) passes the modes
+   * it can actually mount so the control never shows an inert button. Order and document-kind
+   * availability are still enforced; unknown modes are ignored. Omit to offer every mode the
+   * document kind supports (the default).
+   */
+  readonly availableModes?: readonly SurfaceEditorMode[];
 }
 
 export interface CreateDiagnosticsSurfaceOptions extends SurfaceComponentContext {
@@ -1895,7 +1903,7 @@ export function createModeControl(options: CreateModeControlOptions): SurfaceCom
       root.replaceChildren(modeCycleButton(options, state));
       return;
     }
-    root.replaceChildren(...surfaceModesForDocumentKind(state.documentKind).map((mode) => modeButton(options, state, mode)));
+    root.replaceChildren(...offeredModes(options, state).map((mode) => modeButton(options, state, mode)));
   };
 
   const onClick = (event: Event): void => {
@@ -2473,8 +2481,19 @@ function modeButton(options: CreateModeControlOptions, state: SurfaceModeControl
   return button;
 }
 
+function offeredModes(options: CreateModeControlOptions, state: SurfaceModeControlState): readonly SurfaceEditorMode[] {
+  const supported = surfaceModesForDocumentKind(state.documentKind);
+  if (!options.availableModes) {
+    return supported;
+  }
+  const allowed = new Set(options.availableModes);
+  const filtered = supported.filter((mode) => allowed.has(mode));
+  // Never render an empty control: fall back to the full set if the restriction excludes everything.
+  return filtered.length > 0 ? filtered : supported;
+}
+
 function modeCycleButton(options: CreateModeControlOptions, state: SurfaceModeControlState): HTMLButtonElement {
-  const modes = surfaceModesForDocumentKind(state.documentKind);
+  const modes = offeredModes(options, state);
   const currentIndex = Math.max(0, modes.indexOf(state.editorMode));
   const current = modes[currentIndex] ?? modes[0] ?? "source";
   const next = modes[(currentIndex + 1) % Math.max(1, modes.length)] ?? current;

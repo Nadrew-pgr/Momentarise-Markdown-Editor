@@ -92,6 +92,25 @@ assert.equal(
   "content edits after remount must apply to the live session."
 );
 
+// MME-0101: mode switch after a React 19 StrictMode double-mount must mount the rich surface
+// against the live session and restore source with no leaked view.
+async function waitForMode(predicate, message) {
+  const start = Date.now();
+  while (Date.now() - start < 4000) {
+    if (predicate()) return;
+    await act(async () => { await new Promise((r) => setTimeout(r, 15)); });
+  }
+  assert.fail(`timed out waiting for: ${message}`);
+}
+act(() => { liveSession.setMode("rich"); });
+await waitForMode(() => Boolean(container.querySelector(".ProseMirror")), "rich view to mount (React 19)");
+assert.ok(container.querySelector(".ProseMirror") !== null, "rich view must mount on mode switch after a React 19 StrictMode remount.");
+assert.ok(container.querySelector("[data-mme-react-source] .cm-editor") === null, "source view must unmount when rich mounts (React 19).");
+act(() => { liveSession.setMode("source"); });
+await waitForMode(() => Boolean(container.querySelector("[data-mme-react-source] .cm-editor")), "source view to remount (React 19)");
+assert.ok(container.querySelector(".ProseMirror") === null, "rich view must unmount when switching back to source under React 19 (no leak).");
+assert.equal(liveSession.getContent(), "# Strict React 19\n\nEdited after remount.\n", "content must survive the rich round trip (React 19).");
+
 let destroyCalls = 0;
 const originalDestroy = liveSession.destroy.bind(liveSession);
 liveSession.destroy = (...args) => {
