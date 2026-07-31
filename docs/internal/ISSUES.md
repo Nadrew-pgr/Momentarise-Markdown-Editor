@@ -96,6 +96,7 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | A | MME-0080 closeout, 0081, 0082, 0083 | Adoption foundations | sonnet-5 | CI green on GitHub; tarball smoke green |
 | B | MME-0084, 0085 | npm publication + registry example | sonnet-5, Andrew present | Andrew confirms install works |
 | B2 | MME-0100, 0101 | Package parity (published packages deliver what the demo shows) | opus-4.8 | Andrew sees the example look and behave like the demo |
+| B3 | MME-0102 (+ alpha.2 republish) | Design foundation — premium by default | opus-5 / fable-5 | Andrew approves the look; packages republished |
 | C | MME-0086, 0087, 0088 | Editor UX correctness | sonnet-5 | screenshots produced |
 | D | MME-0089, 0090, 0091 | Editor UX surfaces | opus-4.8 | Andrew visual review of C+D screenshots |
 | E | MME-0098 | AI writing surface (BlockNote tier) | opus-5 / fable-5 | Andrew tries the AI flow |
@@ -1004,6 +1005,85 @@ React and Next.js hosts gain a working rich editing surface; the Rich button sto
 ### Blocked by
 
 - MME-0100 (the rich surface needs the packaged stylesheet to look right in a consumer app).
+
+## MME-0102 — Design foundation: premium by default
+
+### Goal
+
+Replace the accumulated, unmanaged visual values with a formal design system — typography scale, spacing ladder, radius/elevation/motion scales, color architecture — applied through the packaged stylesheet so that the demo, the registry example, and every future consumer are premium by default. Direction approved by Andrew (2026-07-31): a hybrid — **Notion's content warmth** (large, comfortable, readable document text) with **Vercel/Linear's chrome precision** (compact, exact, quiet interface). The bar: someone who installs the packages should ask why this is free.
+
+### Why (verified 2026-07-31)
+
+The current system was never designed, only accumulated: base font size 13px (IDE-tier, not document-tier; Notion/Obsidian/Vercel use 16px for content); a dozen arbitrary UI font sizes in use (9.5, 11, 11.5, 12, 13, 14…); only 6 spacing tokens capped at 24px, which makes generous whitespace mathematically impossible; no heading type scale (headings sized ad hoc); content and UI share one font role. 80 issues of acceptance criteria said "no overlap, 44px targets, nothing clipped" — correctness criteria that can never produce beauty. This issue introduces the missing decisions as numbers, because numbers are what builder agents can reproduce exactly.
+
+### The system (normative — these numbers are the spec; deviations require a recorded reason)
+
+**Typography.**
+
+- Content: `--mme-font-size-content: 16px`, line-height 1.65. UI: `--mme-font-size-ui: 13px` (line-height 1.45), `--mme-font-size-ui-sm: 12px`, `--mme-font-size-ui-xs: 11px` (floor; only for uppercase labels with `letter-spacing: 0.05em`). Nothing below 11px anywhere.
+- Content heading scale (em, relative to content size): H1 `1.875em`, weight 700, `letter-spacing -0.021em`, margin-top `2em`, margin-bottom `0.5em`; H2 `1.5em`/600/`-0.017em`, top `1.75em`; H3 `1.25em`/600/`-0.012em`, top `1.5em`; H4 `1.125em`/600; H5 `1em`/600; H6 `0.875em`/600, muted. First block of the document gets `margin-top: 0`. Bottom margins `0.5em` for all headings.
+- Block rhythm: paragraphs and list blocks separated by `0.625em`; list items by `0.25em`; blockquotes/callouts/tables/code by `1em`.
+- Font roles: keep the system stack, but split roles — `--mme-font-family-content` (document), `--mme-font-family-ui` (chrome), `--mme-font-family-mono`. Weight tokens: 400/500/600/700.
+
+**Spacing.** One ladder, tokens only: `2, 4, 6, 8, 12, 16, 20, 24, 32, 40, 48, 64, 80` px (`--mme-space-*`). Every padding/margin/gap in the packaged stylesheet uses a ladder token. Content measure: `708px` (Notion's). Editor content padding: top 64px desktop / 24px mobile, horizontal minimum 24px.
+
+**Chrome (Linear/Vercel discipline).**
+
+- Top bar: height 48px, 1px bottom hairline (`border-subtle`), translucent background with `backdrop-filter: blur(20px) saturate(1.8)` where supported.
+- Buttons: height 28px, padding 0 10px, radius 6px, 13px/500. Three variants only: `primary` (accent), `secondary` (raised surface + 1px `border-default`), `ghost` (transparent, hover raises). Icon buttons 28×28 with 16px icons.
+- Inputs: height 28px, radius 6px, 1px `border-default`; focus = 2px accent ring at 2px offset, `:focus-visible` only.
+- Menus/popovers (slash, More, block menu, status): radius 10px, container padding 6px, item height 32px (44px under coarse pointer), item radius 6px, 13px text, 16px icons, group labels 11px uppercase muted, 1px separators with 6px margins, elevation-3 shadow.
+- Selection bubble: height 32px, radius 8px, elevation-2, 4px padding.
+
+**Radius scale.** `--mme-radius-xs/sm/md/lg/xl` = 4/6/8/10/12, `--mme-radius-full: 999px`. No other radii.
+
+**Elevation.** Three levels, light: e1 `0 1px 2px rgba(0,0,0,.05)`; e2 `0 0 0 1px rgba(0,0,0,.05), 0 4px 12px rgba(0,0,0,.09)`; e3 `0 0 0 1px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.12), 0 20px 48px rgba(0,0,0,.09)`. Dark: same geometry, deeper alphas plus a 1px inner `border-strong`. All popovers use exactly one of these.
+
+**Color architecture (structure now; final hues are a later Andrew decision).** Restructure into ramps: `--mme-neutral-1..12` and `--mme-accent-1..12` (Radix-scale semantics: 1-2 backgrounds, 3-5 interactive surfaces, 6-8 borders, 9-10 solid, 11-12 text), seeded from the current palette. All existing semantic tokens (`--mme-color-bg`, `-surface`, `-border`, `-text`…) become aliases into the ramps, so a future rebrand is a ramp swap. **Accent scarcity rule:** accent color appears only on the primary action, active mode, links, selection, focus, and checked todos — never as decorative chrome. Contrast floors, machine-checked in both schemes: primary text ≥ 7:1, secondary ≥ 4.6:1, muted/disabled ≥ 3:1.
+
+**Motion.** `--mme-motion-fast: 100ms`, `base: 150ms`, `slow: 200ms`, easing `cubic-bezier(0.2, 0, 0, 1)`. Overlays enter with opacity 0→1 plus scale 0.98→1 from their anchor; hovers transition color/background/border only, at fast. Zero animation on the typing path. `prefers-reduced-motion: reduce` disables all of it.
+
+**Density and customization.** `--mme-density` keeps scaling control heights/paddings (comfortable 1 / compact 0.875), documented. Scheme override stays `data-mme-scheme`. Hosts customize by overriding tokens only — never selectors.
+
+### Acceptance criteria
+
+- `tokens.css` rewritten as the formal system above; `styles.css` consumes it everywhere. A new automated check enforces token discipline: in `styles.css`, any numeric px/shadow/radius/duration/color literal outside the ladders fails the check unless it appears on a short, commented allowlist.
+- Old token names keep working during this issue (aliases) or every usage is migrated in the same slice — no consumer-visible break either way; record which.
+- Demo, `examples/next-app`, and the packaged stylesheet all inherit the new look with no per-app CSS additions beyond page shell.
+- Contrast check runs in the suite for both schemes against the floors above.
+- Machine-readable tokens: generate `tokens.json` from `tokens.css` (name, value, role) shipped in `md-theme` and mirrored under `docs/agent/`, so tools and agents can read the system (AX).
+- Public theming docs updated: full token table, the scales, the accent-scarcity rule, density, scheme override, and a "restyle in 5 minutes" example.
+- Proof: side-by-side screenshots — MME content vs Notion, MME chrome vs Linear/Vercel, MME menus vs BlockNote — at 1280/768/390, both schemes, under `docs/internal/visual-checks/MME-0102/`. Existing behavior/preservation suites stay green (this issue changes appearance, not behavior).
+- The visual result is judged by Andrew — that judgment, not the tests, is the exit gate.
+
+### Test-first plan
+
+- RED: token-schema test (ladders exist, monotonic, roles complete; content size is 16px; no font-size below 11px anywhere in `styles.css`; spacing values ⊆ ladder), contrast test, tokens.json generation test — all failing against today's tokens.
+- GREEN: rewrite tokens, apply through `styles.css` section by section (content typography → chrome → menus/overlays → motion), re-screenshot per section.
+
+### Implementation notes
+
+Read first: `packages/md-theme/src/tokens.css`, `packages/md-theme/src/styles.css` (the MME-0100 extraction — this issue redesigns its values, not its selector architecture), `packages/md-source-codemirror`'s JS theme (align its values with the same tokens), MME-0078 mobile sections (keep the 44px coarse-pointer contract). Benchmark references: Notion document typography, Linear settings UI chrome, Vercel docs surfaces, BlockNote menus. Imitate the math, never copy assets or code. Where this spec conflicts with an old demo pixel value, this spec wins — the MME-0100 "byte-identical demo" constraint is explicitly lifted for this issue.
+
+### Visual impact
+
+Everything: content becomes 16px document-grade with a real heading scale; chrome becomes compact and exact; menus gain real elevation; the whole system breathes. Demo, example, and every consumer change together.
+
+### Out of scope
+
+- Final brand hues (structure ships now, recolor is a later decision), docs-site shell (MME-0094), new components or behavior changes, theme marketplace/presets, Tailwind integration.
+
+### Execution model
+
+- Implementation: sequential only.
+- Fresh context rebuild required: yes.
+- Reviewer subagents: UX Reviewer, Accessibility Reviewer, Architecture Reviewer; inspect-only; fallback self-review allowed.
+- Recommended builder model: opus-5 / fable-5 (the entire product's taste rides on this issue).
+- Human review required: yes — Andrew approves the look before the block closes.
+
+### Blocked by
+
+- MME-0100/MME-0101 (done). Blocks C and D must not start before this lands: polishing on the old foundation would be rework.
 
 ## MME-0098 — AI writing surface at BlockNote/Notion tier
 

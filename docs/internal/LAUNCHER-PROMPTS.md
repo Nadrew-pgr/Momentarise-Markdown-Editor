@@ -14,7 +14,8 @@ Progress tracking: tick a block here once its exit gate passed.
 
 - [x] Block A — adoption foundations (2026-07-30: CI green on GitHub for `main` — https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor/actions/runs/30577501210 — and tarball smoke install green, both exit-gate conditions met)
 - [ ] Block B — npm publication + registry example
-- [ ] Block B2 — package parity (styles + React rich mode)
+- [x] Block B2 — package parity (2026-07-31: reviewed and accepted — packaged stylesheet token-clean, demo 0-pixel diff, example styled, rich round-trip proven; alpha.2 republish deferred to Block B3's close)
+- [ ] Block B3 — design foundation (premium by default) + alpha.2 republish
 - [ ] Block C — editor UX correctness
 - [ ] Block D — editor UX surfaces
 - [ ] Block E — AI writing surface
@@ -92,6 +93,30 @@ When MME-0101 is committed and pushed, or at the first blocker, write the final 
 ```
 
 Exit gate: Andrew sees the registry example look and behave like the demo.
+
+---
+
+## Block B3 — Design foundation (model: Opus 5 or Fable 5)
+
+```text
+Read CLAUDE.md, then docs/internal/ISSUES.md (Active Queue — Re-Plan 2026-07-30).
+
+Execute ONLY Block B3: MME-0102 — Design foundation: premium by default.
+
+The issue contains a normative numeric spec (type scale, spacing ladder, radius/elevation/motion scales, color ramp architecture, accent scarcity, contrast floors). Those numbers ARE the design decisions, approved by Andrew — implement them exactly; any deviation needs a recorded reason. Direction: Notion's content warmth (16px document text, real heading scale, generous breathing room) combined with Vercel/Linear's chrome precision (28px controls, hairlines, quiet elevation). Final brand hues are explicitly deferred: build the ramp architecture, seed it from current colors.
+
+The MME-0100 "byte-identical demo" constraint is lifted for this issue: appearance is SUPPOSED to change everywhere — demo, example, and packaged stylesheet together. Behavior and preservation suites must stay green. Keep the 44px coarse-pointer contract and the styling ownership rule (all of it lands in the packaged stylesheet, not the demo).
+
+Work section by section (content typography → chrome → menus/overlays → motion), re-screenshotting after each. Produce the side-by-side benchmark comparisons the issue requires (vs Notion, Linear/Vercel, BlockNote) at 1280/768/390 in both schemes.
+
+After MME-0102 is committed and pushed, one more step inside this block, with me present: republish the changed packages. Bump every @momentarise/* package to 0.1.0-alpha.2 (keeping internal ranges consistent, same ordering as MME-0084), publish with --tag alpha --access public, verify a clean registry-only install renders the styled editor with working rich mode, update install docs if versions are quoted anywhere, and record the registry state in the build log. Ask me to be at the keyboard for the 2FA prompts before you start publishing.
+
+Follow the full per-issue protocol: context rebuild, Pre-Issue Execution Plan, test-first, review, build log, issue-scoped commit, push.
+
+When the republish is verified and recorded, or at the first blocker, write the final report and STOP. Never start an issue outside Block B3.
+```
+
+Exit gate: Andrew approves the look; registry-only install shows the premium editor.
 
 ---
 

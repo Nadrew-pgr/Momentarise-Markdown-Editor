@@ -7990,3 +7990,15 @@
 - Commit status: committed as `6653d85` (`feat: mount rich mode in the React binding (MME-0101)`).
 - Push status: pushed to `origin/main`.
 - Next issue: none — MME-0101 is the last issue in Block B2 (`MME-0100`, `MME-0101`). Per the hard-stop rule, write the final report and **STOP**; Block C requires a fresh conversation.
+
+## Block B2 review (human-side, Andrew's reviewer) + MME-0102 promotion — 2026-07-31
+
+- Date: 2026-07-31.
+- Scope reviewed: commits `e2b49f7`, `f7b0490` (MME-0100), `6653d85`, `3f38bbe` (MME-0101). Clean tree, all pushed.
+- Independent verification: `packages/md-theme/src/styles.css` exists (1672 lines), exported (`./styles.css`) and shipped in `files`; zero hardcoded hex colors and 281 `--mme-*` var() consumptions (token discipline is real); demo stylesheet reduced 2757→1195 lines; MME-0101 artifacts inspected — the example renders the styled dark editor with a working Rich mode and the rich edit proven present in the Markdown source after switching back.
+- Verdict: Block B2 accepted. The extraction methodology was notably strong: package-emission-based ownership classification, grouped-selector splitting, and a 0-pixel before/after diff at both widths and both modes. MME-0101's design (dynamic import, optional peers, `availableModes` to remove the inert Live Preview button, graceful missing-peer fallback found by the reviewer) is the right architecture for a thin binding.
+- Deferred from B2, folded into Block B3: the alpha.2 republish of changed packages (`md-theme`, `md-surface`, `md-react`). Deliberate: MME-0102 changes `md-theme` again immediately, so one republish after the design foundation avoids a double 2FA session and a stale-by-design alpha.2.
+- Promotion, per Andrew's explicit direction and approval (2026-07-31): `MME-0102 — Design foundation: premium by default`. Andrew's requirements recorded: hybrid direction mixing Notion's content warmth with Vercel/Linear's chrome precision ("the strengths of both"); premium by default from package to demo to example ("so good you ask why it's free"); everything centralized in the packaged system (themes to come later); beauty formalized as math that builder agents can reproduce (explicit type scale, spacing ladder, radius/elevation/motion scales, ramp-based color architecture, accent scarcity, contrast floors); DX/AX/customization respected (token-only overrides, tokens.json for agents, documented density/scheme hooks); final hues deferred to a later Andrew decision. New Block B3 (opus-5/fable-5) sequenced before Blocks C and D so polish lands on the new foundation instead of the old one.
+- Visual impact: No visible editing or general UI changes from this review itself. Planning documents only.
+- Checks run: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
+- Push status: pushed.
