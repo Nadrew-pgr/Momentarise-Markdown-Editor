@@ -39,7 +39,7 @@ for (const truth of [
   "Apache-2.0",
   "llms.txt",
   "docs/agent/manifest.json",
-  "not published"
+  "alpha` dist-tag"
 ]) {
   assert(readme.includes(truth), `README must state ${truth}.`);
 }
@@ -108,7 +108,7 @@ const agentIndex = await readText("docs/agent/README.md");
 assert(agentIndex.includes(`${siteOrigin}/agent/manifest.json`), "agent index must expose the public manifest.");
 assert(agentIndex.includes(`${siteOrigin}/agent/product.json`), "agent index must expose the public product profile.");
 assert(agentIndex.includes("## Product Answer"), "agent index must provide a direct product answer.");
-assert(agentIndex.includes("public npm packages are not published"), "agent index must state npm publication truth.");
+assert(agentIndex.includes("public npm packages are published under the alpha dist-tag"), "agent index must state npm publication truth.");
 assert(agentIndex.includes("not installed automatically"), "agent index must state the installation boundary.");
 assert(agentIndex.includes("generated"), "agent index must state that artifacts are generated.");
 

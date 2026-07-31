@@ -105,8 +105,8 @@ assert(
 
 const reactManifest = manifests["@momentarise/md-react"];
 assert(
-  reactManifest.peerDependencies?.react === ">=18",
-  "@momentarise/md-react must expose react >=18 as a peer dependency."
+  reactManifest.peerDependencies?.react === "^18 || ^19",
+  "@momentarise/md-react must expose a bounded react ^18 || ^19 peer dependency range."
 );
 assert(
   !reactManifest.dependencies?.react,

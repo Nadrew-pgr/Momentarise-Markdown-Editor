@@ -8,7 +8,7 @@
     "start": "theia start --hostname 127.0.0.1 --port 5176"
   },
   "dependencies": {
-    "@momentarise/md-adapter-theia": "^0.1.0",
+    "@momentarise/md-adapter-theia": "^0.1.0-alpha.1",
     "@theia/core": "1.73.0",
     "@theia/editor": "1.73.0",
     "@theia/filesystem": "1.73.0",

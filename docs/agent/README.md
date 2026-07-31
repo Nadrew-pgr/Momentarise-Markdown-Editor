@@ -8,7 +8,7 @@ Experimental TypeScript framework for building editor products where Markdown re
 
 - MME is a framework integrated by developers, not a hosted editor app or CMS.
 - Host applications built with MME may serve developers, writers, and non-developers.
-- Status: experimental `0.x`; public npm packages are not published.
+- Status: experimental `0.x`; public npm packages are published under the alpha dist-tag, not latest.
 - Markdown plus optional YAML frontmatter remains canonical persisted source.
 
 ## Start Here

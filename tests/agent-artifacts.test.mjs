@@ -69,7 +69,8 @@ assert(
   "product profile must share the manifest input hash."
 );
 assert(productProfile.sourceBoundary === "public-docs-and-package-metadata", "product profile boundary must be explicit.");
-assert(productProfile.status.publicNpmPublished === false, "product profile must keep npm publication truth.");
+assert(productProfile.status.publicNpmPublished === true, "product profile must keep npm publication truth.");
+assert(productProfile.status.npmDistTag === "alpha", "product profile must state the current npm dist-tag.");
 assert(productProfile.notShipped.includes("Payload CMS adapter"), "product profile must keep Payload unshipped.");
 assert(
   productProfile.audiences.boundary.includes("host applications"),

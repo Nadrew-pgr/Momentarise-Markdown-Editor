@@ -9,7 +9,7 @@ const cliPath = resolve("packages/md-cli/dist/index.js");
 const cliSource = readFileSync("packages/md-cli/src/index.ts", "utf8");
 const cliPackage = JSON.parse(readFileSync("packages/md-cli/package.json", "utf8"));
 
-if (cliPackage.bin?.mme !== "./dist/index.js") {
+if (cliPackage.bin?.mme !== "dist/index.js") {
   throw new Error("md-cli package must expose the mme binary.");
 }
 

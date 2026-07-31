@@ -17,7 +17,13 @@ updated: 2026-07-28
 
 MME packages avoid DOM globals at module import where required, but the editor itself is an interactive client surface. In Next.js App Router, mount it from a client component.
 
-The packages are experimental and not published to the public npm registry yet. The imports below describe the intended consumer API and are validated against packed workspace tarballs.
+The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.
+
+```bash
+npm install @momentarise/md-react@alpha @momentarise/md-save@alpha
+```
+
+`@momentarise/md-react` declares a peer dependency range of `react: "^18 || ^19"`, which covers the React version Next.js App Router ships by default. Packages are ESM-only (`"type": "module"`, no CommonJS build). See [Compatibility Promise](../compatibility-promise.md).
 
 ## Client Component
 

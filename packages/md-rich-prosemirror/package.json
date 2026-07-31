@@ -1,6 +1,6 @@
 {
   "name": "@momentarise/md-rich-prosemirror",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
   "type": "module",
   "description": "ProseMirror rich-mode bridge for Momentarise Markdown Editor.",
   "license": "MPL-2.0",
@@ -38,8 +38,8 @@
     "prepack": "node ../../scripts/copy-package-license.mjs && tsc -b --force"
   },
   "dependencies": {
-    "@momentarise/md-core": "^0.1.0",
-    "@momentarise/md-format": "^0.1.0",
+    "@momentarise/md-core": "^0.1.0-alpha.1",
+    "@momentarise/md-format": "^0.1.0-alpha.1",
     "csv-parse": "^7.0.1",
     "parse5": "^7.3.0"
   },

@@ -21,7 +21,7 @@ for (const heading of [
 for (const boundary of [
   "framework",
   "non-developers",
-  "not published",
+  "alpha` dist-tag",
   "Payload",
   "indexing or citation"
 ]) {
@@ -57,7 +57,7 @@ for (const phrase of [
   "React",
   "Next.js",
   "headless",
-  "not published",
+  "alpha` dist-tag",
   "Payload",
   "does not guarantee indexing, ranking, or citation"
 ]) {
@@ -109,7 +109,8 @@ assert.equal(product.name, "Momentarise Markdown Editor");
 assert.equal(product.acronym, "MME");
 assert.equal(product.status.stability, "experimental");
 assert.equal(product.status.releaseLine, "0.x");
-assert.equal(product.status.publicNpmPublished, false);
+assert.equal(product.status.publicNpmPublished, true);
+assert.equal(product.status.npmDistTag, "alpha");
 assert.equal(product.durableSource.format, "Markdown");
 assert.equal(product.durableSource.editorOwnedJson, false);
 assert.equal(product.licenses.framework, "MPL-2.0");
@@ -141,7 +142,7 @@ for (const required of [
   "docs/public/choosing-mme.md",
   "llms.txt",
   "llms-full.txt",
-  "not published",
+  "alpha` dist-tag",
   "Payload",
   "ranking",
   "framework"
@@ -154,7 +155,7 @@ assert(agentIndex.includes(`${siteOrigin}/agent/product.json`), "agent index mus
 for (const directAnswer of [
   "## Product Answer",
   "framework integrated by developers",
-  "public npm packages are not published",
+  "public npm packages are published under the alpha dist-tag",
   "Markdown plus optional YAML frontmatter"
 ]) {
   assert(agentIndex.includes(directAnswer), `agent index must include direct answer ${directAnswer}.`);

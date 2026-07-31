@@ -48,9 +48,9 @@ MME defines provider-neutral writing contracts, staged suggestions, policy check
 
 ## Can I Install MME From The Public Npm Registry
 
-Not yet. Current packages are experimental `0.x` workspace packages and are not published to the public npm registry.
+Yes, as an experimental alpha. `@momentarise/*` packages are published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`. Install with the `@alpha` tag, for example `npm install @momentarise/md-core@alpha`.
 
-Repository quickstarts are validated against packed workspace tarballs. They document intended package interfaces, not current registry availability.
+This is a first alpha release for early feedback, not a stable release ready for production use. Repository quickstarts document the real published package interfaces and are also validated against packed workspace tarballs and a consumer install matrix.
 
 ## Does MME Integrate With Payload CMS
 

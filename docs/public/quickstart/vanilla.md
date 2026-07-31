@@ -21,11 +21,13 @@ Use the vanilla path when your host is a browser app, Vite app, web component, I
 
 ## Install
 
-The packages are experimental and not published to the public npm registry yet. This is the intended consumer command; current release proof uses packed workspace tarballs.
+The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.
 
 ```bash
-npm install @momentarise/md-editor @momentarise/md-save @momentarise/md-source-codemirror @momentarise/md-surface
+npm install @momentarise/md-editor@alpha @momentarise/md-save@alpha @momentarise/md-source-codemirror@alpha @momentarise/md-surface@alpha
 ```
+
+Packages are ESM-only (`"type": "module"`, no CommonJS build). Import with `import`, not `require`. See [Compatibility Promise](../compatibility-promise.md).
 
 ## Create A Session
 

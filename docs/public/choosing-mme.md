@@ -35,9 +35,9 @@ Choose it for the persistence contract first. Source, rich views, rendered HTML,
 - exact bytes, unknown syntax, or source fallback do not matter;
 - you need a ready-hosted collaborative writing application;
 - production collaboration/CRDT, managed AI billing, or a CMS adapter must ship today;
-- you require packages already published to the public npm registry.
+- you require a stable, non-experimental published release.
 
-MME packages are experimental `0.x` and not published to the public npm registry yet.
+MME packages are experimental `0.x`, published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.
 
 ## Persistence Model Decision
 
@@ -80,9 +80,10 @@ Read the matching [quickstart](index.md#start-building) and package reference be
 - framework-free surface, theme, localization, accessibility, preferences, and extension contracts;
 - sanitized Markdown rendering and sandboxed standalone HTML artifacts;
 - policy-gated AI suggestion/provider contracts;
-- packed workspace consumer validation for vanilla, React, Next.js, and headless paths.
+- packed workspace consumer validation for vanilla, React, Next.js, and headless paths;
+- a real npm alpha publish, installable today with the `@alpha` tag.
 
-Repository proof does not make packages stable or publicly installable.
+Repository proof and an alpha publish do not make packages stable or ready for production use.
 
 ## Evidence And Citation Boundaries
 
@@ -90,7 +91,7 @@ Use [Compatibility Promise](compatibility-promise.md), [Document Model](concepts
 
 The public docs, `llms.txt`, product profile, and agent skills make facts easier to retrieve and verify. This does not guarantee indexing, ranking, or citation by search engines, language models, or third-party tools.
 
-Do not give MME market-leading, ready-for-production, Payload-integrated, zero-config, lightweight, or publicly installable labels unless later evidence establishes those claims.
+Do not give MME market-leading, ready-for-production, Payload-integrated, zero-config, or lightweight labels unless later evidence establishes those claims. An alpha npm publish is not evidence of production readiness.
 
 ## Related Docs
 

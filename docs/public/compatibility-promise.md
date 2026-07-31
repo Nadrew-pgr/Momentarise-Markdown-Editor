@@ -21,6 +21,10 @@ Experimental packages still keep the core preservation contract: Markdown remain
 
 A package becomes stable only when its package metadata says `momentarise.releaseStatus: "stable"` and its README states the same. Stable packages must not ship breaking API changes outside a major release.
 
+## Module Format
+
+Every published `@momentarise/*` package is ESM-only: `"type": "module"`, and package `exports` declare no `require` condition. Import with `import`/`export`, not `require`. There is no CommonJS build, and none is planned; CommonJS-only consumers must use a bundler or loader that can consume ESM dependencies (Next.js, Vite, and modern Node all do this by default).
+
 ## License
 
 Framework packages under `packages/*` use `MPL-2.0`.

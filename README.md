@@ -68,7 +68,13 @@ Shipped means implemented and tested in this repository. It does not mean every 
 
 ## Start Building
 
-Public npm artifacts are **not published yet**. The commands below build the current workspace. Package quickstarts document intended interfaces validated against packed workspace tarballs; they are not registry-installation claims.
+`@momentarise/*` packages are published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`. This is a first experimental alpha for early feedback, not a stable release.
+
+```bash
+npm install @momentarise/md-editor@alpha @momentarise/md-save@alpha @momentarise/md-source-codemirror@alpha @momentarise/md-surface@alpha
+```
+
+To build the workspace from source instead:
 
 ```bash
 git clone https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor.git

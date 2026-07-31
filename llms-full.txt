@@ -96,11 +96,13 @@ Use the vanilla path when your host is a browser app, Vite app, web component, I
 
 ## Install
 
-The packages are experimental and not published to the public npm registry yet. This is the intended consumer command; current release proof uses packed workspace tarballs.
+The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.
 
 ```bash
-npm install @momentarise/md-editor @momentarise/md-save @momentarise/md-source-codemirror @momentarise/md-surface
+npm install @momentarise/md-editor@alpha @momentarise/md-save@alpha @momentarise/md-source-codemirror@alpha @momentarise/md-surface@alpha
 ```
+
+Packages are ESM-only (`"type": "module"`, no CommonJS build). Import with `import`, not `require`. See [Compatibility Promise](../compatibility-promise.md).
 
 ## Create A Session
 
@@ -170,11 +172,13 @@ The React binding is lifecycle glue. It does not make MME React-only, and it doe
 
 ## Install
 
-The packages are experimental and not published to the public npm registry yet. This is the intended consumer command; current release proof uses packed workspace tarballs.
+The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.
 
 ```bash
-npm install @momentarise/md-react @momentarise/md-save react react-dom
+npm install @momentarise/md-react@alpha @momentarise/md-save@alpha react react-dom
 ```
+
+`@momentarise/md-react` declares a peer dependency range of `react: "^18 || ^19"`. Packages are ESM-only (`"type": "module"`, no CommonJS build); import with `import`, not `require`. See [Compatibility Promise](../compatibility-promise.md).
 
 ## Mount The Editor
 
@@ -246,7 +250,13 @@ updated: 2026-07-28
 
 MME packages avoid DOM globals at module import where required, but the editor itself is an interactive client surface. In Next.js App Router, mount it from a client component.
 
-The packages are experimental and not published to the public npm registry yet. The imports below describe the intended consumer API and are validated against packed workspace tarballs.
+The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.
+
+```bash
+npm install @momentarise/md-react@alpha @momentarise/md-save@alpha
+```
+
+`@momentarise/md-react` declares a peer dependency range of `react: "^18 || ^19"`, which covers the React version Next.js App Router ships by default. Packages are ESM-only (`"type": "module"`, no CommonJS build). See [Compatibility Promise](../compatibility-promise.md).
 
 ## Client Component
 
@@ -322,7 +332,13 @@ updated: 2026-07-28
 
 Use the headless session when you need Markdown orchestration without UI: tests, server-side inspection, CLI tools, adapters, or agent workflows.
 
-The packages are experimental and not published to the public npm registry yet. The imports below describe the intended consumer API and are validated against packed workspace tarballs.
+The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.
+
+```bash
+npm install @momentarise/md-editor@alpha @momentarise/md-save@alpha
+```
+
+Packages are ESM-only (`"type": "module"`, no CommonJS build). Import with `import`, not `require`. See [Compatibility Promise](../compatibility-promise.md).
 
 ## Create A Session
 
@@ -404,9 +420,9 @@ Choose it for the persistence contract first. Source, rich views, rendered HTML,
 - exact bytes, unknown syntax, or source fallback do not matter;
 - you need a ready-hosted collaborative writing application;
 - production collaboration/CRDT, managed AI billing, or a CMS adapter must ship today;
-- you require packages already published to the public npm registry.
+- you require a stable, non-experimental published release.
 
-MME packages are experimental `0.x` and not published to the public npm registry yet.
+MME packages are experimental `0.x`, published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.
 
 ## Persistence Model Decision
 
@@ -449,9 +465,10 @@ Read the matching [quickstart](index.md#start-building) and package reference be
 - framework-free surface, theme, localization, accessibility, preferences, and extension contracts;
 - sanitized Markdown rendering and sandboxed standalone HTML artifacts;
 - policy-gated AI suggestion/provider contracts;
-- packed workspace consumer validation for vanilla, React, Next.js, and headless paths.
+- packed workspace consumer validation for vanilla, React, Next.js, and headless paths;
+- a real npm alpha publish, installable today with the `@alpha` tag.
 
-Repository proof does not make packages stable or publicly installable.
+Repository proof and an alpha publish do not make packages stable or ready for production use.
 
 ## Evidence And Citation Boundaries
 
@@ -459,7 +476,7 @@ Use [Compatibility Promise](compatibility-promise.md), [Document Model](concepts
 
 The public docs, `llms.txt`, product profile, and agent skills make facts easier to retrieve and verify. This does not guarantee indexing, ranking, or citation by search engines, language models, or third-party tools.
 
-Do not give MME market-leading, ready-for-production, Payload-integrated, zero-config, lightweight, or publicly installable labels unless later evidence establishes those claims.
+Do not give MME market-leading, ready-for-production, Payload-integrated, zero-config, or lightweight labels unless later evidence establishes those claims. An alpha npm publish is not evidence of production readiness.
 
 ## Related Docs
 
@@ -2167,9 +2184,9 @@ MME defines provider-neutral writing contracts, staged suggestions, policy check
 
 ## Can I Install MME From The Public Npm Registry
 
-Not yet. Current packages are experimental `0.x` workspace packages and are not published to the public npm registry.
+Yes, as an experimental alpha. `@momentarise/*` packages are published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`. Install with the `@alpha` tag, for example `npm install @momentarise/md-core@alpha`.
 
-Repository quickstarts are validated against packed workspace tarballs. They document intended package interfaces, not current registry availability.
+This is a first alpha release for early feedback, not a stable release ready for production use. Repository quickstarts document the real published package interfaces and are also validated against packed workspace tarballs and a consumer install matrix.
 
 ## Does MME Integrate With Payload CMS
 
@@ -2317,6 +2334,10 @@ Experimental packages still keep the core preservation contract: Markdown remain
 ## Stable
 
 A package becomes stable only when its package metadata says `momentarise.releaseStatus: "stable"` and its README states the same. Stable packages must not ship breaking API changes outside a major release.
+
+## Module Format
+
+Every published `@momentarise/*` package is ESM-only: `"type": "module"`, and package `exports` declare no `require` condition. Import with `import`/`export`, not `require`. There is no CommonJS build, and none is planned; CommonJS-only consumers must use a bundler or loader that can consume ESM dependencies (Next.js, Vite, and modern Node all do this by default).
 
 ## License
 

@@ -18,7 +18,13 @@ updated: 2026-07-28
 
 Use the headless session when you need Markdown orchestration without UI: tests, server-side inspection, CLI tools, adapters, or agent workflows.
 
-The packages are experimental and not published to the public npm registry yet. The imports below describe the intended consumer API and are validated against packed workspace tarballs.
+The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.
+
+```bash
+npm install @momentarise/md-editor@alpha @momentarise/md-save@alpha
+```
+
+Packages are ESM-only (`"type": "module"`, no CommonJS build). Import with `import`, not `require`. See [Compatibility Promise](../compatibility-promise.md).
 
 ## Create A Session
 

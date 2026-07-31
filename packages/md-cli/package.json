@@ -1,6 +1,6 @@
 {
   "name": "@momentarise/md-cli",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
   "type": "module",
   "description": "CLI contracts for Momentarise Markdown Editor.",
   "license": "MPL-2.0",
@@ -22,7 +22,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "mme": "./dist/index.js"
+    "mme": "dist/index.js"
   },
   "exports": {
     ".": {
@@ -41,10 +41,10 @@
     "prepack": "node ../../scripts/copy-package-license.mjs && tsc -b --force"
   },
   "dependencies": {
-    "@momentarise/md-core": "^0.1.0",
-    "@momentarise/md-format": "^0.1.0",
-    "@momentarise/md-policy": "^0.1.0",
-    "@momentarise/md-render-html": "^0.1.0"
+    "@momentarise/md-core": "^0.1.0-alpha.1",
+    "@momentarise/md-format": "^0.1.0-alpha.1",
+    "@momentarise/md-policy": "^0.1.0-alpha.1",
+    "@momentarise/md-render-html": "^0.1.0-alpha.1"
   },
   "momentarise": {
     "releaseStatus": "experimental",

@@ -1,6 +1,6 @@
 {
   "name": "@momentarise/md-adapter-web",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
   "type": "module",
   "description": "Web adapter contracts for Momentarise Markdown Editor.",
   "license": "MPL-2.0",
@@ -38,8 +38,8 @@
     "prepack": "node ../../scripts/copy-package-license.mjs && tsc -b --force"
   },
   "dependencies": {
-    "@momentarise/md-core": "^0.1.0",
-    "@momentarise/md-save": "^0.1.0"
+    "@momentarise/md-core": "^0.1.0-alpha.1",
+    "@momentarise/md-save": "^0.1.0-alpha.1"
   },
   "momentarise": {
     "releaseStatus": "experimental",

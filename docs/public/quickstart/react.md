@@ -20,11 +20,13 @@ The React binding is lifecycle glue. It does not make MME React-only, and it doe
 
 ## Install
 
-The packages are experimental and not published to the public npm registry yet. This is the intended consumer command; current release proof uses packed workspace tarballs.
+The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.
 
 ```bash
-npm install @momentarise/md-react @momentarise/md-save react react-dom
+npm install @momentarise/md-react@alpha @momentarise/md-save@alpha react react-dom
 ```
+
+`@momentarise/md-react` declares a peer dependency range of `react: "^18 || ^19"`. Packages are ESM-only (`"type": "module"`, no CommonJS build); import with `import`, not `require`. See [Compatibility Promise](../compatibility-promise.md).
 
 ## Mount The Editor
 
