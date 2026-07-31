@@ -220,6 +220,35 @@ Tags: `public-release`, `ux`, `human-review`
 - Before public launch, audit each user-facing surface (toolbar, slash menu, tables, lists, live preview, mobile, folding, status chrome) side by side against BlockNote, Notion, and Obsidian, not only against internal acceptance criteria.
 - Record per-surface parity gaps as backlog items with screenshots of both MME and the benchmark.
 
+## Public Face: Demo, Landing, And Docs Product
+
+Source: Andrew, 2026-07-31, after reviewing the demo app, the landing page, and the docs site. Research basis: `docs/internal/research/editor-ux-benchmark.md`.
+
+### Demo as a product surface, not an engineering bench
+
+Tags: `public-release`, `product-differentiator`, `must-have`
+
+- Andrew's verdict on `apps/md-demo` as a public face: "ce n'est pas une démo" — it is an engineering bench (diagnostics pill, debug toggles, fixture chrome, every control visible at once), and it is worse on mobile than on desktop.
+- Direction approved by Andrew: build a `/demo` page on the docs site as the public demo. One pre-filled document showing headings, lists, todos, a table, a callout, and code — and nothing else on screen. Touch-first quality is part of the acceptance, not a follow-up.
+- Landing CTAs become two, deliberately non-salesy: "Play with the demo" and "Documentation".
+- `apps/md-demo` stays as the internal development bench and keeps its diagnostics; it is no longer the thing anyone is invited to look at.
+
+### Docs: principles before mechanics
+
+Tags: `public-release`, `dx`, `ax`
+
+- Andrew's request: replace/extend the `Foundations` docs section with `Principles` (or `Concepts`) — same pages, but each one states **why this decision was made**, in the author's voice, before explaining the mechanics. Rationale is what makes a framework trustworthy and citable; mechanics alone read as a manual.
+- Candidate principle pages, one decision each: why Markdown stays the durable source; why rich editing is a derived view; why HTML is an artifact and never the source; why save state must name its real target; why unknown syntax is preserved instead of normalized; why the core stays host-independent; why AI writing is policy-gated and staged.
+- Fold into `MME-0095` (docs IA) rather than a separate issue, and keep the existing page content — this is a framing and ordering change plus new rationale prose, not a rewrite.
+
+### Docs credibility details
+
+Tags: `public-release`, `dx`
+
+- Verified 2026-07-31: `apps/docs-site` genuinely depends on `@momentarise/md-render-html`, `md-editor`, `md-save`, `md-source-codemirror`, and `md-theme` at `^0.1.0-alpha.3`, and renders documentation through `DocsPageView`. A "Built with Momentarise Markdown Editor" footer line is therefore a truthful claim, not marketing. Add it.
+- Andrew's readability concern: the docs read as machine-organized rather than human. Schedule a joint human pass with Andrew over the docs IA and copy — his judgment is the acceptance criterion, and he has said he is not the technical audience, so unexplained jargon is a defect.
+- Console noise: the docs-site hydration warning Andrew reported comes from a browser extension injecting `cz-shortcut-listen="true"` on `<body>` (ColorZilla-class), not from application code — `<html>` already carries `suppressHydrationWarning`. Adding the same attribute to `<body>` silences third-party attribute injection without hiding real mismatches.
+
 ## Public Framework Follow-Ups
 
 Tags: `public-release`, `dx`, `ax`, `research`
