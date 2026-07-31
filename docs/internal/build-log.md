@@ -8064,3 +8064,158 @@ Everything changed, everywhere, as the issue intends. Content is document-grade:
 ### Human review required
 
 Yes — Andrew approves the look; that judgment, not the tests, is the exit gate for Block B3. Artifacts under `docs/internal/visual-checks/MME-0102/`.
+
+## MME-0102 — corrections, reviewer pass, and the alpha republish
+
+Append-only correction to the `## MME-0102` entry above, plus the record of the
+work that followed it. The entry above was written before the reviewer pass and
+before the npm republish; three of its statements were wrong and are corrected
+here rather than edited in place.
+
+### Corrections to the MME-0102 entry
+
+1. **False artifact claim.** The entry states the benchmark comparison "is
+   documented in `docs/internal/visual-checks/MME-0102/README.md`". That file was
+   **not in commit `481f5cb`** and had never been committed. Root cause:
+   `scripts/visual-check-mme0102.mjs` began with `rm(visualDir, {recursive: true})`
+   on the whole issue folder, so re-running the capture after the focus-ring fix
+   silently deleted the hand-written README before the commit — and later deleted
+   the `registry/` proof too. The claim was written from memory of having created
+   the file, not from re-checking it. **Fixed**: the script now clears only the
+   artifacts it owns (`clearOwnArtifacts`), proven with a sentinel file that
+   survives a full re-run; the README is rewritten and committed.
+2. **Selector count wrong.** The entry says "226 → 235 selectors". The correct
+   figures are **226 → 259** (252 at the commit). The substantive claim — exactly
+   8 selectors removed, all of them the intended `:hover:not(:disabled)` /
+   `:focus-visible` renames, nothing silently dropped — was independently
+   confirmed by the Architecture Reviewer and stands.
+3. **"One deliberate value change" understated.** The entry records
+   `--mme-radius-sm/md/lg` (5/7/8 → 6/8/10px) as "the one deliberate value change
+   to an existing token name". There are **three**: also `--mme-line-height`
+   (1.6 → 1.65) and `--mme-shadow-sm`/`--mme-shadow-md` (re-pointed at the new
+   elevation scale). All three are legacy names a consumer may read, so "no
+   consumer-visible break" was too strong. The spacing claim
+   (`--mme-space-1..6` = 4/8/12/16/20/24px, `--mme-font-size-base` = 13px) was
+   verified from the generated `tokens.json` and is correct.
+
+### Reviewer pass (the fallback self-review is superseded)
+
+The MME-0102 entry recorded a fallback self-review on the grounds that subagents
+were disabled in the session. `4ad3921`/`a95a4dd` then made reviewer subagents
+mandatory and explicitly rejected that reason. Andrew was asked directly and
+authorised all three; the fallback record above is superseded by this pass.
+
+Three inspect-only reviewers ran against `481f5cb` plus the working tree. The
+Architecture and UX reviewers each died once on a transient
+`API Error: ConnectionRefused` and were relaunched — a genuine capability failure,
+retried rather than used as grounds to fall back.
+
+**Accessibility Reviewer — REQUEST CHANGES.** Computed 40+ contrast pairs
+independently from `tokens.json`. Confirmed every full-opacity text pair clears its
+floor in both schemes with headroom, the focus ring colour is strong on every
+surface it lands on, reduced-motion wins unconditionally, and the token gate is
+real. Found four blocking defects, all now fixed:
+  - **Disabled controls at 1.92:1 light / 2.27:1 dark**, against a 3:1 floor. The
+    state was `opacity: 0.4`, which composites below the floor and is structurally
+    invisible to a token-level contrast test — so the gate reported green on a
+    criterion it could not see. Replaced with a real `--mme-color-text-disabled`
+    token and added to the contrast test. *That new assertion immediately caught a
+    second error*: the reviewer's suggested light value (`neutral-9`) measures
+    2.77:1, not the 3.68:1 claimed; corrected to `neutral-10` (3.73:1).
+  - **Block affordance buttons had no focus indicator** — excluded from the ring
+    block, with a hover-equivalent measuring 1.24:1. Added.
+  - **`outline: none` on `[data-selected]` cancelled the focus ring** on the
+    default-selected menu item (identical specificity, later in the file). Removed.
+  - **`em` sizes compound below the 11px floor** — a footnote reference inside an
+    `h6` or `th` resolved to 9.8px. Every sub-1em content size is now floored with
+    `max(…, var(--mme-font-size-ui-xs))`, and the token gate now scans relative
+    units instead of `px` only.
+  - Also fixed: coarse-pointer coverage for the todo toggle and every text input;
+    `.debug-inspector-toggle`'s `opacity: 0.75` (3.96:1 in light).
+  - Recorded, not fixed: non-text contrast on interactive borders (1.2–1.5:1 vs
+    WCAG 1.4.11's 3:1). The issue's floors cover text only; raising the border ramp
+    step is a follow-up.
+
+**Architecture Reviewer — REQUEST CHANGES.** Confirmed ownership is clean in both
+directions (all 81 package-sheet classes checked against package emission), the
+public-API fixture matches, the legacy-value claim, and that removing the
+pre-publish overlays *strengthened* the consumer tests. Two blockers, both fixed:
+  - **`generate-design-tokens.mjs --check` was a silent no-op.** The CLI guard
+    compared `import.meta.url` (percent-encoded) against `` `file://${process.argv[1]}` ``
+    (not encoded); this checkout's path contains a space, so the comparison never
+    matched, the CLI exited 0 without running, and the second half of
+    `test:design-system` verified nothing. This manufactured false-green evidence —
+    the "full npm test green" claim in the entry above covered a check that never
+    executed. Fixed with `pathToFileURL`; the check now runs and reports.
+  - **The alpha.3 bump breaks both consumer tests** until published (`ETARGET`).
+    Resolved by publishing — see below.
+  - **"A rebrand is a ramp swap" was overstated**: `focusRing` and `selection` were
+    pinned literals, so a ramp swap left them blue. Both now derive from the accent
+    ramp (`selection` via `color-mix`), making the claim true.
+  - **Nothing verified the `prefers-color-scheme` dark block** — the copy an
+    unpinned host actually renders. Neither the contrast test nor the generator
+    reads it. Added an equality assertion against the dark pin.
+  - Recorded, not fixed: `.mode-switch-track` is dead CSS (confirmed pre-existing,
+    dead at `481f5cb~1`, so a separate cleanup); `.button.ghost` is specified but
+    emitted by nothing.
+
+**UX Reviewer — REQUEST CHANGES.** Verdict on the bar: "the document body clears
+it; the product does not — yet", with the slash menu named the single weakest
+surface. Confirmed the content typography as "the real thing" and chrome geometry
+as honest where declared. Fixed:
+  - **Five of six menu descriptions truncated at full 1280 width.** Descriptions now
+    wrap instead of ellipsing.
+  - **~310px of dead gutter in the desktop source view** — `.cm-gutters` sat at the
+    scroller edge while `.cm-content` centred on the measure. Fixed by centring
+    `.cm-scroller`; the gutter now tracks the text column at every width.
+  - **Four accent-scarcity violations** the self-review missed: the callout left
+    rail, the callout marker, the raw-HTML block rail, and inline raw-HTML code.
+    Demoted to `border-strong` / `text-muted` / `warning`. The reviewer's structural
+    point stands and is recorded: ladder discipline gets real enforcement while the
+    accent rule is documentation-only, which is why these slipped.
+  - **Menu item height 46px vs a declared 32px** — now recorded in the visual-checks
+    README as a deliberate floor-not-fixed-height, since the alternative (truncating
+    descriptions) was the defect above.
+  - Recorded, not fixed: slash-menu icons repeat (an `md-surface` `slashIconName`
+    mapping gap, pre-existing, deserves its own issue); the demo top bar dropping
+    controls at 768/390 and the diagnostics pill overlapping text (both
+    `apps/md-demo` page shell, outside this issue's ownership).
+
+### npm republish
+
+- **0.1.0-alpha.2 published** (Andrew at the keyboard, 16 packages, MME-0084
+  topological order). Verified directly against `registry.npmjs.org` over HTTP
+  rather than `npm view` (whose cache initially served stale metadata): all 16 at
+  `0.1.0-alpha.2`, `alpha` moved, `latest` correctly left at `0.1.0-alpha.1` — npm
+  only auto-assigns `latest` on a first publish, so unlike MME-0084 no dist-tag
+  cleanup was needed.
+- A first publish attempt reported success but published nothing: the loop ran from
+  `~`, so every command failed `ENOENT` on a missing `package.json`. Caught by
+  verifying the registry instead of trusting the report. Recorded because the
+  lesson is the general one — a run that prints no obvious error is not evidence.
+- **Registry parity proven, overlays removed.** `tests/example-next-registry.test.mjs`
+  and `tests/react19-strictmode-lifecycle.test.mjs` dropped their pre-publish
+  workspace overlays (MME-0100/0101 had documented them as temporary) and now assert
+  against the registry artifacts directly, including the published `tokens.json`
+  content. Both green. New `scripts/visual-check-mme0102-registry.mjs` proves in a
+  real browser that a pure registry install renders the styled editor at 16px on the
+  708px measure with 28px controls, mounts rich mode from the published binding, and
+  round-trips a rich edit back into canonical Markdown.
+- **Two defects shipped in alpha.2 and were fixed for alpha.3**, both mine:
+  `.mme-react-editor-shell` lost its gap and padding in the rewrite, so every React
+  consumer got three cramped stacked rows instead of a chrome bar; and
+  `.document-status-surface` shipped unstyled (the open P2 from the MME-0100 review),
+  which is what actually caused the stacking. Diagnosed only after dumping the
+  computed layout — two prior guesses at the cause were wrong. The demo does not use
+  the React shell, so nothing in the local verification path exercised it; that gap
+  is why the regression reached the registry.
+
+### Checks run (all green, exit 0)
+
+`npm test` in full — run four times across this work, the last after every reviewer
+fix; `npm run test:design-system` (now including the previously-dead generator
+check); `npm run test:theme`; `npm run test:example-next-registry` (pure registry
+install + Next build); `npm run test:react19-strictmode-lifecycle` (pure registry
+install, React 19 + rich mode); `npm run visual:mme-0102` (24 screenshots, every
+geometry assertion met); `npm run visual:mme-0102-registry`; `node scripts/docs-lint.mjs`;
+`npm run test:alignment`; `git diff --check`.

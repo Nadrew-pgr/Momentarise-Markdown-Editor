@@ -320,7 +320,11 @@ function createSourceThemeExtension(preferences: Required<MomentariseSourcePrefe
     ".cm-scroller": {
       fontFamily: "var(--mme-font-family-mono)",
       fontSize: "calc(var(--mme-font-size-code) * var(--mme-font-scale))",
-      lineHeight: "var(--mme-line-height-code)"
+      lineHeight: "var(--mme-line-height-code)",
+      // .cm-content is centred by max-width, but the gutter is a sibling pinned to the
+      // scroller edge — which left ~310px of dead gutter on desktop. Centring the
+      // scroller keeps the gutter attached to the text column at every width.
+      justifyContent: "center"
     },
     ".cm-content": {
       maxWidth: `${preferences.readableLineWidth}px`,

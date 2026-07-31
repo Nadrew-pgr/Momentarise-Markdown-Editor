@@ -1,6 +1,6 @@
 {
   "name": "@momentarise/md-react",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.3",
   "type": "module",
   "description": "Thin React binding for Momentarise Markdown Editor sessions and DOM surface.",
   "license": "MPL-2.0",
@@ -38,15 +38,15 @@
     "prepack": "node ../../scripts/copy-package-license.mjs && tsc -b --force"
   },
   "dependencies": {
-    "@momentarise/md-core": "^0.1.0-alpha.1",
-    "@momentarise/md-editor": "^0.1.0-alpha.1",
-    "@momentarise/md-save": "^0.1.0-alpha.1",
-    "@momentarise/md-source-codemirror": "^0.1.0-alpha.1",
-    "@momentarise/md-surface": "^0.1.0-alpha.1",
-    "@momentarise/md-theme": "^0.1.0-alpha.1"
+    "@momentarise/md-core": "^0.1.0-alpha.3",
+    "@momentarise/md-editor": "^0.1.0-alpha.3",
+    "@momentarise/md-save": "^0.1.0-alpha.3",
+    "@momentarise/md-source-codemirror": "^0.1.0-alpha.3",
+    "@momentarise/md-surface": "^0.1.0-alpha.3",
+    "@momentarise/md-theme": "^0.1.0-alpha.3"
   },
   "peerDependencies": {
-    "@momentarise/md-rich-prosemirror": "^0.1.0-alpha.1",
+    "@momentarise/md-rich-prosemirror": "^0.1.0-alpha.3",
     "prosemirror-view": "^1.0.0",
     "react": "^18 || ^19"
   },
@@ -59,7 +59,7 @@
     }
   },
   "devDependencies": {
-    "@momentarise/md-rich-prosemirror": "^0.1.0-alpha.1",
+    "@momentarise/md-rich-prosemirror": "^0.1.0-alpha.3",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "prosemirror-state": "^1.4.4",

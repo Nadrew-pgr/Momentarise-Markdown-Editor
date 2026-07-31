@@ -37,7 +37,7 @@ Choose it for the persistence contract first. Source, rich views, rendered HTML,
 - production collaboration/CRDT, managed AI billing, or a CMS adapter must ship today;
 - you require a stable, non-experimental published release.
 
-MME packages are experimental `0.x`, published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.
+MME packages are experimental `0.x`, published to npm under the `alpha` dist-tag (`0.1.0-alpha.3`), not `latest`.
 
 ## Persistence Model Decision
 

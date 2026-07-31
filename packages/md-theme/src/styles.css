@@ -206,12 +206,12 @@
   border-radius: var(--mme-radius-xs);
   background: var(--mme-color-code-bg);
   font-family: var(--mme-font-family-mono);
-  font-size: 0.875em;
+  font-size: max(0.875em, var(--mme-font-size-ui-xs));
 }
 
 .ProseMirror code[data-mme-raw-html-inline="true"] {
   border: 1px solid var(--mme-color-border);
-  color: var(--mme-color-accent-text);
+  color: var(--mme-color-warning);
   overflow-wrap: anywhere;
 }
 
@@ -236,7 +236,7 @@
 
 .ProseMirror pre[data-mme-raw-html-block="true"] {
   min-width: 0;
-  border-left: 3px solid var(--mme-color-accent);
+  border-left: 3px solid var(--mme-color-warning);
   white-space: pre;
 }
 
@@ -292,7 +292,7 @@
 .ProseMirror th {
   background: var(--mme-color-surface-muted);
   font-family: var(--mme-font-family-ui);
-  font-size: 0.875em;
+  font-size: max(0.875em, var(--mme-font-size-ui-xs));
   font-weight: var(--mme-font-weight-semibold);
 }
 
@@ -323,7 +323,7 @@
   margin-inline: 1px;
   color: var(--mme-color-accent-text);
   font-family: var(--mme-font-family-mono);
-  font-size: 0.7em;
+  font-size: max(0.7em, var(--mme-font-size-ui-xs));
   font-weight: var(--mme-font-weight-semibold);
   line-height: 1;
   vertical-align: super;
@@ -349,7 +349,7 @@
 .ProseMirror [data-mme-footnote-marker="true"] {
   color: var(--mme-color-text-muted);
   font-family: var(--mme-font-family-mono);
-  font-size: 0.8em;
+  font-size: max(0.8em, var(--mme-font-size-ui-xs));
   font-weight: var(--mme-font-weight-semibold);
   user-select: none;
 }
@@ -411,7 +411,7 @@
   margin: 0 0 var(--mme-block-gap-lg);
   overflow: hidden;
   border: 1px solid var(--mme-color-border);
-  border-left: 3px solid var(--mme-color-accent);
+  border-left: 3px solid var(--mme-color-border-strong);
   border-radius: var(--mme-radius-md);
   background: var(--mme-color-surface);
 }
@@ -429,9 +429,9 @@
 
 .ProseMirror [data-mme-callout-marker="true"] {
   flex: 0 0 auto;
-  color: var(--mme-color-accent-text);
+  color: var(--mme-color-text-muted);
   font-family: var(--mme-font-family-mono);
-  font-size: 0.75em;
+  font-size: max(0.75em, var(--mme-font-size-ui-xs));
   font-weight: var(--mme-font-weight-bold);
 }
 
@@ -642,9 +642,17 @@
  * half of the product that should feel like Linear or Vercel.
  * ========================================================================= */
 
+/*
+ * React binding shell (@momentarise/md-react). The binding emits four stable
+ * hosts — mode, status, source, rich — as plain siblings, so the layout is
+ * expressed here rather than in the binding: a real chrome bar (mode left,
+ * status right) over the editing surface, instead of three stacked rows.
+ */
 .mme-react-editor-shell {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: var(--mme-topbar-height) minmax(0, 1fr);
+  align-items: center;
   min-height: 0;
   height: 100%;
   background: var(--mme-color-bg);
@@ -653,10 +661,48 @@
   font-size: var(--mme-font-size-ui);
 }
 
-.mme-react-editor-shell [data-mme-react-source] {
-  flex: 1 1 auto;
+.mme-react-editor-shell [data-mme-react-mode] {
+  grid-row: 1;
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--mme-space-sm);
+  padding-inline-start: var(--mme-space-lg);
+}
+
+.mme-react-editor-shell [data-mme-react-status] {
+  grid-row: 1;
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  min-width: 0;
+  gap: var(--mme-space-sm);
+  padding-inline-end: var(--mme-space-lg);
+}
+
+/* The status pill yields before the save action does. */
+.mme-react-editor-shell [data-mme-react-status] > :first-child {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.mme-react-editor-shell [data-mme-react-source],
+.mme-react-editor-shell [data-mme-react-rich] {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  align-self: stretch;
   min-height: 0;
+  height: 100%;
+  overflow: auto;
   border-top: 1px solid var(--mme-color-border-subtle);
+}
+
+/* Only one editing surface is mounted at a time; the idle host must not claim space. */
+.mme-react-editor-shell [data-mme-react-source]:empty,
+.mme-react-editor-shell [data-mme-react-rich]:empty {
+  display: none;
 }
 
 /*
@@ -677,6 +723,7 @@
 .inline-ai-action-row:focus-visible,
 .document-conflict-action:focus-visible,
 .debug-inspector-toggle:focus-visible,
+.rich-block-affordance-button:focus-visible,
 .document-status-popover > summary:focus-visible,
 .debug-inspector > summary:focus-visible {
   outline: 2px solid var(--mme-color-focus-ring);
@@ -709,7 +756,14 @@
 
 .button:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  color: var(--mme-color-text-disabled);
+}
+
+.button.primary:disabled {
+  background: var(--mme-color-surface-active);
+  border-color: var(--mme-color-border);
+  color: var(--mme-color-text-disabled);
+  box-shadow: none;
 }
 
 .button.primary {
@@ -828,7 +882,7 @@
 
 .mode-button:disabled {
   cursor: not-allowed;
-  opacity: 0.4;
+  color: var(--mme-color-text-disabled);
 }
 
 .mode-switch-track {
@@ -887,6 +941,18 @@
 }
 
 /* --- document status control --------------------------------------------- */
+
+/*
+ * The status surface wraps the status popover and the save action. It shipped
+ * unstyled (the MME-0100 review recorded it as owned by neither stylesheet), so
+ * its children stacked vertically in any host that did not lay it out itself.
+ */
+.document-status-surface {
+  display: flex;
+  align-items: center;
+  gap: var(--mme-space-sm);
+  min-width: 0;
+}
 
 .editor-status-button {
   display: grid;
@@ -984,7 +1050,7 @@
 .toolbar-button:disabled,
 .toolbar-menu-item:disabled {
   cursor: not-allowed;
-  opacity: 0.4;
+  color: var(--mme-color-text-disabled);
 }
 
 .toolbar-icon {
@@ -1139,7 +1205,6 @@
 .ai-command-item[data-selected="true"],
 .inline-ai-action-row[data-selected="true"] {
   background: var(--mme-color-accent-soft);
-  outline: none;
 }
 
 .slash-command-item[data-selected="true"] strong,
@@ -1174,9 +1239,7 @@
   color: var(--mme-color-text-muted);
   font-size: var(--mme-font-size-ui-sm);
   line-height: var(--mme-line-height-ui);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .slash-command-icon,
@@ -1594,7 +1657,6 @@
   font-weight: var(--mme-font-weight-semibold);
   letter-spacing: var(--mme-letter-spacing-label);
   text-transform: uppercase;
-  opacity: 0.75;
   transition:
     opacity var(--mme-motion-fast) var(--mme-motion-ease),
     color var(--mme-motion-fast) var(--mme-motion-ease);
@@ -1602,7 +1664,6 @@
 
 .debug-inspector-toggle:hover {
   color: var(--mme-color-text);
-  opacity: 1;
 }
 
 .debug-inspector-body {
@@ -1745,6 +1806,18 @@
   .document-conflict-action,
   .debug-inspector-toggle {
     min-block-size: var(--mme-touch-target-size);
+    min-inline-size: var(--mme-touch-target-size);
+  }
+
+  .ProseMirror [data-todo-toggle],
+  .editor-ai-session-row input,
+  .command-palette input,
+  .find-query-input,
+  .find-replace-input {
+    min-block-size: var(--mme-touch-target-size);
+  }
+
+  .ProseMirror [data-todo-toggle] {
     min-inline-size: var(--mme-touch-target-size);
   }
 

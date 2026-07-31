@@ -96,7 +96,7 @@ Use the vanilla path when your host is a browser app, Vite app, web component, I
 
 ## Install
 
-The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.
+The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.3`), not `latest`.
 
 ```bash
 npm install @momentarise/md-editor@alpha @momentarise/md-save@alpha @momentarise/md-source-codemirror@alpha @momentarise/md-surface@alpha
@@ -172,7 +172,7 @@ The React binding is lifecycle glue. It does not make MME React-only, and it doe
 
 ## Install
 
-The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.
+The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.3`), not `latest`.
 
 ```bash
 npm install @momentarise/md-react@alpha @momentarise/md-save@alpha react react-dom
@@ -266,7 +266,7 @@ updated: 2026-07-28
 
 MME packages avoid DOM globals at module import where required, but the editor itself is an interactive client surface. In Next.js App Router, mount it from a client component.
 
-The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.
+The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.3`), not `latest`.
 
 ```bash
 npm install @momentarise/md-react@alpha @momentarise/md-save@alpha
@@ -360,7 +360,7 @@ updated: 2026-07-28
 
 Use the headless session when you need Markdown orchestration without UI: tests, server-side inspection, CLI tools, adapters, or agent workflows.
 
-The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.
+The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.3`), not `latest`.
 
 ```bash
 npm install @momentarise/md-editor@alpha @momentarise/md-save@alpha
@@ -450,7 +450,7 @@ Choose it for the persistence contract first. Source, rich views, rendered HTML,
 - production collaboration/CRDT, managed AI billing, or a CMS adapter must ship today;
 - you require a stable, non-experimental published release.
 
-MME packages are experimental `0.x`, published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.
+MME packages are experimental `0.x`, published to npm under the `alpha` dist-tag (`0.1.0-alpha.3`), not `latest`.
 
 ## Persistence Model Decision
 
@@ -2390,7 +2390,7 @@ MME defines provider-neutral writing contracts, staged suggestions, policy check
 
 ## Can I Install MME From The Public Npm Registry
 
-Yes, as an experimental alpha. `@momentarise/*` packages are published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`. Install with the `@alpha` tag, for example `npm install @momentarise/md-core@alpha`.
+Yes, as an experimental alpha. `@momentarise/*` packages are published to npm under the `alpha` dist-tag (`0.1.0-alpha.3`), not `latest`. Install with the `@alpha` tag, for example `npm install @momentarise/md-core@alpha`.
 
 This is a first alpha release for early feedback, not a stable release ready for production use. Repository quickstarts document the real published package interfaces and are also validated against packed workspace tarballs and a consumer install matrix.
 

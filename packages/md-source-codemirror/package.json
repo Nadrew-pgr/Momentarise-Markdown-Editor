@@ -1,6 +1,6 @@
 {
   "name": "@momentarise/md-source-codemirror",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.3",
   "type": "module",
   "description": "Reusable CodeMirror source-mode baseline for Momentarise Markdown Editor.",
   "license": "MPL-2.0",

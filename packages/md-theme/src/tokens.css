@@ -235,6 +235,7 @@
   --mme-color-text: var(--mme-neutral-12);
   --mme-color-text-muted: var(--mme-neutral-11);
   --mme-color-text-subtle: var(--mme-neutral-10);
+  --mme-color-text-disabled: var(--mme-neutral-10);
   --mme-color-accent: var(--mme-accent-9);
   --mme-color-accent-hover: var(--mme-accent-10);
   --mme-color-accent-text: var(--mme-accent-11);
@@ -246,8 +247,8 @@
   --mme-color-accent-contrast: #ffffff;
   --mme-color-danger: #c62a30;
   --mme-color-warning: #8a4b08;
-  --mme-color-selection: rgba(0, 87, 194, 0.16);
-  --mme-color-focus-ring: #0057c2;
+  --mme-color-selection: color-mix(in srgb, var(--mme-accent-9) 16%, transparent);
+  --mme-color-focus-ring: var(--mme-accent-9);
   --mme-color-preview-canvas: #ffffff;
   --mme-color-topbar-bg: rgba(251, 252, 255, 0.72);
   --mme-color-overlay: rgba(15, 23, 42, 0.36);
@@ -292,7 +293,7 @@
     --mme-accent-7: #264b93;
     --mme-accent-8: #2d5cba;
     --mme-accent-9: #2563eb;
-    --mme-accent-10: #3b76f0;
+    --mme-accent-10: #1d4ed8;
     --mme-accent-11: #8ab4ff;
     --mme-accent-12: #d5e4ff;
 
@@ -309,6 +310,7 @@
     --mme-color-text: var(--mme-neutral-12);
     --mme-color-text-muted: var(--mme-neutral-11);
     --mme-color-text-subtle: var(--mme-neutral-9);
+    --mme-color-text-disabled: var(--mme-neutral-10);
     --mme-color-accent: var(--mme-accent-9);
     --mme-color-accent-hover: var(--mme-accent-10);
     --mme-color-accent-text: var(--mme-accent-11);
@@ -318,8 +320,8 @@
     --mme-color-accent-contrast: #ffffff;
     --mme-color-danger: #fb7185;
     --mme-color-warning: #f2b86b;
-    --mme-color-selection: rgba(37, 99, 235, 0.35);
-    --mme-color-focus-ring: #8ab4ff;
+    --mme-color-selection: color-mix(in srgb, var(--mme-accent-9) 35%, transparent);
+    --mme-color-focus-ring: var(--mme-accent-11);
     --mme-color-preview-canvas: #ffffff;
     --mme-color-topbar-bg: rgba(10, 10, 10, 0.72);
     --mme-color-overlay: rgba(3, 7, 18, 0.62);
@@ -380,6 +382,7 @@
   --mme-color-text: var(--mme-neutral-12);
   --mme-color-text-muted: var(--mme-neutral-11);
   --mme-color-text-subtle: var(--mme-neutral-10);
+  --mme-color-text-disabled: var(--mme-neutral-10);
   --mme-color-accent: var(--mme-accent-9);
   --mme-color-accent-hover: var(--mme-accent-10);
   --mme-color-accent-text: var(--mme-accent-11);
@@ -389,8 +392,8 @@
   --mme-color-accent-contrast: #ffffff;
   --mme-color-danger: #c62a30;
   --mme-color-warning: #8a4b08;
-  --mme-color-selection: rgba(0, 87, 194, 0.16);
-  --mme-color-focus-ring: #0057c2;
+  --mme-color-selection: color-mix(in srgb, var(--mme-accent-9) 16%, transparent);
+  --mme-color-focus-ring: var(--mme-accent-9);
   --mme-color-preview-canvas: #ffffff;
   --mme-color-topbar-bg: rgba(251, 252, 255, 0.72);
   --mme-color-overlay: rgba(15, 23, 42, 0.36);
@@ -432,7 +435,7 @@
   --mme-accent-7: #264b93;
   --mme-accent-8: #2d5cba;
   --mme-accent-9: #2563eb;
-  --mme-accent-10: #3b76f0;
+  --mme-accent-10: #1d4ed8;
   --mme-accent-11: #8ab4ff;
   --mme-accent-12: #d5e4ff;
 
@@ -449,6 +452,7 @@
   --mme-color-text: var(--mme-neutral-12);
   --mme-color-text-muted: var(--mme-neutral-11);
   --mme-color-text-subtle: var(--mme-neutral-9);
+  --mme-color-text-disabled: var(--mme-neutral-10);
   --mme-color-accent: var(--mme-accent-9);
   --mme-color-accent-hover: var(--mme-accent-10);
   --mme-color-accent-text: var(--mme-accent-11);
@@ -458,8 +462,8 @@
   --mme-color-accent-contrast: #ffffff;
   --mme-color-danger: #fb7185;
   --mme-color-warning: #f2b86b;
-  --mme-color-selection: rgba(37, 99, 235, 0.35);
-  --mme-color-focus-ring: #8ab4ff;
+  --mme-color-selection: color-mix(in srgb, var(--mme-accent-9) 35%, transparent);
+  --mme-color-focus-ring: var(--mme-accent-11);
   --mme-color-preview-canvas: #ffffff;
   --mme-color-topbar-bg: rgba(10, 10, 10, 0.72);
   --mme-color-overlay: rgba(3, 7, 18, 0.62);

@@ -170,6 +170,7 @@ const SEMANTIC_ALIASES = [
   "--mme-color-text",
   "--mme-color-text-muted",
   "--mme-color-text-subtle",
+  "--mme-color-text-disabled",
   "--mme-color-accent",
   "--mme-color-accent-hover",
   "--mme-color-accent-text",
@@ -205,6 +206,37 @@ for (const block of colorBlocks) {
   }
 }
 
+// --- 4b. the media-query blocks must match the pins they duplicate ---------
+//
+// Readers (theme-contrast, generate-design-tokens) resolve only `:root` and the
+// explicit `[data-mme-scheme]` pins. The `@media (prefers-color-scheme: dark)`
+// block is what an unpinned host actually renders, so if it drifts from the dark
+// pin, every downstream check verifies a copy nobody sees.
+{
+  const byLabel = new Map(schemeBlocks.map((block) => [block.label, block]));
+  const declarationsOf = (block) =>
+    new Map([...block.body.matchAll(/(--mme-[a-z0-9-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1], m[2].replace(/\s+/g, " ").trim()]));
+
+  const mediaDark = byLabel.get(`:root:not([data-mme-scheme="light"])`);
+  const darkPin = byLabel.get(`:root[data-mme-scheme="dark"]`);
+  assert(mediaDark && darkPin, "tokens.css must declare both the dark media block and the dark pin.");
+
+  const mediaDeclarations = declarationsOf(mediaDark);
+  const pinDeclarations = declarationsOf(darkPin);
+  for (const [name, value] of pinDeclarations) {
+    assert.equal(
+      mediaDeclarations.get(name),
+      value,
+      `the prefers-color-scheme dark block must match the dark pin for ${name} — an unpinned host renders the media block, which no other check reads.`
+    );
+  }
+  assert.equal(
+    mediaDeclarations.size,
+    pinDeclarations.size,
+    "the dark media block and the dark pin must declare exactly the same tokens."
+  );
+}
+
 // --- 5. styles.css spends ladder values only -------------------------------
 
 const stylesBody = stripComments(stylesCss);
@@ -212,6 +244,19 @@ assert(
   !/font-size:\s*[\d.]+px/.test(stylesBody),
   "styles.css must not set a raw px font-size; every font size comes from a --mme-font-size-* token."
 );
+
+// Every relative font size must be floored at the 11px UI minimum, because em sizes
+// compound (a 0.7em footnote ref inside a 0.875em heading resolved to 9.8px) and the
+// content size is a token a host may lower.
+const relativeFontSizes = [...stylesBody.matchAll(/font-size:\s*([^;]+);/g)]
+  .map((match) => match[1].trim())
+  .filter((value) => /[\d.]+r?em/.test(value));
+for (const value of relativeFontSizes) {
+  assert(
+    /max\(/.test(value) && /--mme-font-size-ui-xs/.test(value),
+    `styles.css relative font size "${value}" must be floored at the 11px minimum, e.g. max(0.7em, var(--mme-font-size-ui-xs)) — em sizes compound and the content size is host-overridable.`
+  );
+}
 assert(
   !/var\(--mme-font-size-base\)/.test(stylesBody),
   "styles.css must use the explicit content/ui font-size roles, not the legacy --mme-font-size-base alias."

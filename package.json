@@ -190,7 +190,8 @@
     "release": "changeset publish",
     "generate:design-tokens": "node scripts/generate-design-tokens.mjs",
     "test:design-system": "node tests/design-system-tokens.test.mjs && node scripts/generate-design-tokens.mjs --check",
-    "visual:mme-0102": "node scripts/visual-check-mme0102.mjs"
+    "visual:mme-0102": "node scripts/visual-check-mme0102.mjs",
+    "visual:mme-0102-registry": "node scripts/visual-check-mme0102-registry.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "^2.31.0",

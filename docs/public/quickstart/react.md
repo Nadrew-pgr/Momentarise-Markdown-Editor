@@ -20,7 +20,7 @@ The React binding is lifecycle glue. It does not make MME React-only, and it doe
 
 ## Install
 
-The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.
+The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.3`), not `latest`.
 
 ```bash
 npm install @momentarise/md-react@alpha @momentarise/md-save@alpha react react-dom

@@ -46,6 +46,7 @@ export interface MmeColorTokens {
   readonly text: string;
   readonly textMuted: string;
   readonly textSubtle: string;
+  readonly textDisabled: string;
   readonly accent: string;
   readonly accentHover: string;
   readonly accentText: string;
@@ -225,6 +226,7 @@ export const MME_TOKEN_VARIABLES = [
   "--mme-color-text",
   "--mme-color-text-muted",
   "--mme-color-text-subtle",
+  "--mme-color-text-disabled",
   "--mme-color-accent",
   "--mme-color-accent-hover",
   "--mme-color-accent-text",
@@ -303,6 +305,7 @@ const NEUTRAL_ROLE_STEPS: Readonly<Record<MmeScheme, Readonly<Record<string, num
     borderSubtle: 6,
     borderStrong: 7,
     text: 12,
+    textDisabled: 10,
     textMuted: 11,
     textSubtle: 9
   },
@@ -318,6 +321,7 @@ const NEUTRAL_ROLE_STEPS: Readonly<Record<MmeScheme, Readonly<Record<string, num
     borderSubtle: 6,
     borderStrong: 7,
     text: 12,
+    textDisabled: 10,
     textMuted: 11,
     textSubtle: 10
   }
@@ -332,20 +336,22 @@ const ACCENT_ROLE_STEPS: Readonly<Record<string, number>> = {
   accentSofter: 2
 };
 
+/** Which accent step the focus ring reads, per scheme. */
+const FOCUS_RING_STEP: Readonly<Record<MmeScheme, number>> = { dark: 11, light: 9 };
+
+/** Selection is an accent wash; the alpha differs per scheme. */
+const SELECTION_MIX: Readonly<Record<MmeScheme, number>> = { dark: 35, light: 16 };
+
 /** Colors that are deliberately not ramp steps: fixed pairs and translucent overlays. */
 const FIXED_COLORS: Readonly<Record<MmeScheme, Readonly<Record<string, string>>>> = {
   dark: {
     accentContrast: "#ffffff",
     danger: "#fb7185",
-    focusRing: "#8ab4ff",
-    selection: "rgba(37, 99, 235, 0.35)",
     warning: "#f2b86b"
   },
   light: {
     accentContrast: "#ffffff",
     danger: "#c62a30",
-    focusRing: "#0057c2",
-    selection: "rgba(0, 87, 194, 0.16)",
     warning: "#8a4b08"
   }
 };
@@ -362,7 +368,7 @@ const DEFAULT_RAMPS: Readonly<Record<MmeScheme, MmeRampTokens>> = {
       "#264b93",
       "#2d5cba",
       "#2563eb",
-      "#3b76f0",
+      "#1d4ed8",
       "#8ab4ff",
       "#d5e4ff"
     ],
@@ -507,8 +513,8 @@ export function deriveColorsFromRamps(ramps: MmeRampTokens, scheme: MmeScheme): 
     borderSubtle: step(ramps.neutral, neutralSteps.borderSubtle as number),
     codeBg: step(ramps.neutral, neutralSteps.codeBg as number),
     danger: FIXED_COLORS[scheme].danger as string,
-    focusRing: FIXED_COLORS[scheme].focusRing as string,
-    selection: FIXED_COLORS[scheme].selection as string,
+    focusRing: step(ramps.accent, FOCUS_RING_STEP[scheme]),
+    selection: `color-mix(in srgb, ${step(ramps.accent, ACCENT_ROLE_STEPS.accent as number)} ${SELECTION_MIX[scheme]}%, transparent)`,
     surface: step(ramps.neutral, neutralSteps.surface as number),
     surfaceActive: step(ramps.neutral, neutralSteps.surfaceActive as number),
     surfaceHover: step(ramps.neutral, neutralSteps.surfaceHover as number),
@@ -516,6 +522,7 @@ export function deriveColorsFromRamps(ramps: MmeRampTokens, scheme: MmeScheme): 
     surfaceRaised: step(ramps.neutral, neutralSteps.surfaceRaised as number),
     text: step(ramps.neutral, neutralSteps.text as number),
     textMuted: step(ramps.neutral, neutralSteps.textMuted as number),
+    textDisabled: step(ramps.neutral, neutralSteps.textDisabled as number),
     textSubtle: step(ramps.neutral, neutralSteps.textSubtle as number),
     warning: FIXED_COLORS[scheme].warning as string
   };
@@ -583,6 +590,7 @@ export function resolveThemeToCssVariables(
     "--mme-color-surface-raised": resolved.colors.surfaceRaised,
     "--mme-color-text": resolved.colors.text,
     "--mme-color-text-muted": resolved.colors.textMuted,
+    "--mme-color-text-disabled": resolved.colors.textDisabled,
     "--mme-color-text-subtle": resolved.colors.textSubtle,
     "--mme-color-warning": resolved.colors.warning,
     "--mme-density": resolved.spacing.density,

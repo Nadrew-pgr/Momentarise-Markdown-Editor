@@ -40,6 +40,7 @@ const expectedTokenVariables = [
   "--mme-color-text",
   "--mme-color-text-muted",
   "--mme-color-text-subtle",
+  "--mme-color-text-disabled",
   "--mme-color-accent",
   "--mme-color-accent-hover",
   "--mme-color-accent-text",

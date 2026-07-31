@@ -7,7 +7,7 @@ const demoLicense = "Apache-2.0";
 const packageVersion = "0.1.0";
 // Publishable packages carry the first alpha publish version (MME-0084); apps/examples
 // stay private and unpublished at the workspace-consistent 0.1.0.
-const publishedPackageVersion = "0.1.0-alpha.1";
+const publishedPackageVersion = "0.1.0-alpha.3";
 
 const rootPackage = await readJson("package.json");
 const rootLicense = await readText("LICENSE");

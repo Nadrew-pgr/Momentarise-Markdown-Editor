@@ -14,6 +14,7 @@
  */
 
 import { readFile, writeFile } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 
 const TOKENS_CSS = "packages/md-theme/src/tokens.css";
 const OUTPUTS = ["packages/md-theme/src/tokens.json", "docs/agent/tokens.json"];
@@ -174,7 +175,10 @@ export const DESIGN_TOKEN_OUTPUTS = OUTPUTS;
 // Importable by scripts/generate-agent-artifacts.mjs (which rebuilds docs/agent
 // from scratch and must re-emit the mirror); only the CLI path below writes files
 // when this module is executed directly.
-if (import.meta.url !== `file://${process.argv[1]}`) {
+// pathToFileURL percent-encodes; a naive "file://" + argv[1] does not, so any checkout
+// path containing a space silently failed this comparison and turned the CLI — including
+// its --check gate — into a no-op that exited 0 without verifying anything.
+if (import.meta.url !== pathToFileURL(process.argv[1]).href) {
   // Imported as a module — expose the builder and stop here.
 } else {
   await runCli();

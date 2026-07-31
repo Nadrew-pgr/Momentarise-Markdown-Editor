@@ -1,4 +1,4 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import puppeteer from "puppeteer";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
 
@@ -140,9 +140,27 @@ async function measure(page) {
   });
 }
 
+/**
+ * Clears only the artifacts this script owns.
+ *
+ * This deliberately does NOT wipe `visualDir`: that folder also holds the
+ * hand-written README.md and the `registry/` proof from the sibling script, and
+ * an earlier `rm -rf` of the whole directory silently destroyed both between a
+ * re-run and the commit. A capture script may delete its own output and nothing
+ * else.
+ */
+async function clearOwnArtifacts() {
+  const owned = await readdir(visualDir).catch(() => []);
+  for (const entry of owned) {
+    if (/^(content|content-blocks|menu|source)-(dark|light)-(1280|768|390)\.png$/.test(entry) || entry === "measurements.json") {
+      await rm(`${visualDir}/${entry}`, { force: true });
+    }
+  }
+}
+
 async function main() {
-  await rm(visualDir, { force: true, recursive: true });
   await mkdir(visualDir, { recursive: true });
+  await clearOwnArtifacts();
 
   const browser = await puppeteer.launch({
     executablePath: requireChromeExecutable(),

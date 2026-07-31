@@ -84,7 +84,7 @@ function renderLlmsIndex(docsPages) {
     "- Developers, writers, and non-developers can use an editor built with MME when a host supplies final UX and persistence.",
     "- Choose MME when real Markdown must remain canonical and rich/source views must preserve unsupported or untouched source.",
     "- Choose another architecture when an editor-owned JSON/block database should be canonical or a ready-hosted collaborative app is required.",
-    "- Current packages are experimental `0.x` and published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.",
+    "- Current packages are experimental `0.x` and published to npm under the `alpha` dist-tag (`0.1.0-alpha.3`), not `latest`.",
     "",
     "## Citation-Safe Claims",
     "",

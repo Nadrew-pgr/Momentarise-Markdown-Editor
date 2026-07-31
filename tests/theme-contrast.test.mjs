@@ -68,6 +68,30 @@ const contrastChecks = [
   },
   {
     background: "--mme-color-bg",
+    foreground: "--mme-color-text-disabled",
+    minRatio: 3,
+    name: "disabled control text on app background"
+  },
+  {
+    background: "--mme-color-surface-raised",
+    foreground: "--mme-color-text-disabled",
+    minRatio: 3,
+    name: "disabled menu item text on a raised surface"
+  },
+  {
+    background: "--mme-color-accent-hover",
+    foreground: "--mme-color-accent-contrast",
+    minRatio: 4.6,
+    name: "accent contrast text on the accent hover fill"
+  },
+  {
+    background: "--mme-color-surface-hover",
+    foreground: "--mme-color-text-muted",
+    minRatio: 4.6,
+    name: "secondary text on a hovered surface"
+  },
+  {
+    background: "--mme-color-bg",
     foreground: "--mme-color-danger",
     minRatio: 4.6,
     name: "danger text on app background"

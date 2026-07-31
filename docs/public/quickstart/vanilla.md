@@ -21,7 +21,7 @@ Use the vanilla path when your host is a browser app, Vite app, web component, I
 
 ## Install
 
-The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`.
+The packages are experimental and published to npm under the `alpha` dist-tag (`0.1.0-alpha.3`), not `latest`.
 
 ```bash
 npm install @momentarise/md-editor@alpha @momentarise/md-save@alpha @momentarise/md-source-codemirror@alpha @momentarise/md-surface@alpha

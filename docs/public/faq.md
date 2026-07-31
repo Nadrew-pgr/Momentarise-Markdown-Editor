@@ -48,7 +48,7 @@ MME defines provider-neutral writing contracts, staged suggestions, policy check
 
 ## Can I Install MME From The Public Npm Registry
 
-Yes, as an experimental alpha. `@momentarise/*` packages are published to npm under the `alpha` dist-tag (`0.1.0-alpha.1`), not `latest`. Install with the `@alpha` tag, for example `npm install @momentarise/md-core@alpha`.
+Yes, as an experimental alpha. `@momentarise/*` packages are published to npm under the `alpha` dist-tag (`0.1.0-alpha.3`), not `latest`. Install with the `@alpha` tag, for example `npm install @momentarise/md-core@alpha`.
 
 This is a first alpha release for early feedback, not a stable release ready for production use. Repository quickstarts document the real published package interfaces and are also validated against packed workspace tarballs and a consumer install matrix.
 

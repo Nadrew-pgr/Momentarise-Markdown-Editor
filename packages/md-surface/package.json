@@ -1,6 +1,6 @@
 {
   "name": "@momentarise/md-surface",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.3",
   "type": "module",
   "description": "Framework-free DOM surface components for Momentarise Markdown Editor.",
   "license": "MPL-2.0",
@@ -39,9 +39,9 @@
     "prepack": "node ../../scripts/copy-package-license.mjs && tsc -b --force"
   },
   "dependencies": {
-    "@momentarise/md-editor": "^0.1.0-alpha.1",
-    "@momentarise/md-save": "^0.1.0-alpha.1",
-    "@momentarise/md-theme": "^0.1.0-alpha.1"
+    "@momentarise/md-editor": "^0.1.0-alpha.3",
+    "@momentarise/md-save": "^0.1.0-alpha.3",
+    "@momentarise/md-theme": "^0.1.0-alpha.3"
   },
   "momentarise": {
     "releaseStatus": "experimental",

@@ -1,6 +1,6 @@
 {
   "name": "@momentarise/md-format",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.3",
   "type": "module",
   "description": "Parser and serializer contracts for Momentarise Markdown Editor.",
   "license": "MPL-2.0",
@@ -39,7 +39,7 @@
     "prepack": "node ../../scripts/copy-package-license.mjs && tsc -b --force"
   },
   "dependencies": {
-    "@momentarise/md-core": "^0.1.0-alpha.1",
+    "@momentarise/md-core": "^0.1.0-alpha.3",
     "remark-frontmatter": "^5.0.0",
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
