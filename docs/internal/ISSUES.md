@@ -96,13 +96,16 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | A | MME-0080 closeout, 0081, 0082, 0083 | Adoption foundations | sonnet-5 | CI green on GitHub; tarball smoke green |
 | B | MME-0084, 0085 | npm publication + registry example | sonnet-5, Andrew present | Andrew confirms install works |
 | B2 | MME-0100, 0101 | Package parity (published packages deliver what the demo shows) | opus-4.8 | Andrew sees the example look and behave like the demo |
-| B3 | MME-0102 (+ alpha.2 republish) | Design foundation — premium by default | opus-5 / fable-5 | Andrew approves the look; packages republished |
-| C | MME-0086, 0087, 0088 | Editor UX correctness | sonnet-5 | screenshots produced |
-| D | MME-0089, 0090, 0091 | Editor UX surfaces | opus-4.8 | Andrew visual review of C+D screenshots |
+| B3 | MME-0102 (+ alpha.2 republish) | Design foundation — premium by default | opus-5 / fable-5 | done 2026-07-31, alpha.3 on registry |
+| C | MME-0086, 0087, 0088, 0103, 0104 | Interaction correctness — the editor behaves | opus-4.8 | parity checklists green; Andrew tries it |
+| D | MME-0089, 0090, 0091, 0105, 0106 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
+| D2 | MME-0107, 0108 | Markdown-native differentiators | opus-5 / fable-5 | Andrew judges syntax reveal before it defaults |
+| D3 | MME-0109 | Full-surface UX audit | opus-4.8 | Andrew reviews and appends |
 | E | MME-0098 | AI writing surface (BlockNote tier) | opus-5 / fable-5 | Andrew tries the AI flow |
 | F | MME-0092, 0093 | Host contracts (diff/patch, revisions) | opus-5 / fable-5 | Andrew API sign-off |
-| G | MME-0094, 0095 | Docs site tier (shell + IA) | opus-4.8 | Andrew screenshot review vs benchmarks |
-| H | MME-0096, 0097 | Landing + blog/SEO | opus-4.8 | Andrew copy review before public deploy |
+| G | MME-0094, 0095 | Docs site tier (shell + IA, incl. Principles framing) | opus-4.8 | Andrew screenshot + copy review |
+| H | MME-0096, 0097, 0110 | Landing + blog/SEO + public demo page | opus-4.8 | Andrew copy review before public deploy |
+| H2 | MME-0111 | Deploy momentarise.dev | sonnet-5 + Andrew | live URLs verified |
 | I | MME-0099 | Payload CMS integration baseline | opus-4.8 | Andrew tries MME inside Payload admin |
 
 ### Launcher prompts
@@ -410,6 +413,7 @@ Block affordances behave like Notion: handles appear only for the hovered block,
 ### Acceptance criteria
 
 - Handles (`+` insert, `⋮⋮` menu/drag) render for exactly one block: the one under the pointer (or keyboard-focused block), vertically centered on its first line, for every top-level block type including headings, lists, code, tables, callouts, opaque blocks.
+- Fold affordances (heading arrows, code/callout folds) live in a reserved gutter and never overlap block content. Andrew reported the heading fold arrow overlapping the heading text; that is a defect this issue closes. Benchmark: Obsidian's gutter, quiet and hover-revealed.
 - Handles fade in/out ≤150 ms; none render when the pointer leaves the editor; coarse-pointer (touch) behavior keeps the MME-0078 always-visible contract.
 - Empty paragraph at caret shows a muted placeholder: `Write, or press '/' for commands` (localizable string in the existing localization contract); it never serializes to Markdown and disappears the moment content or composition input exists.
 - The document-end click-to-insert affordance from MME-0042 is preserved.
@@ -503,6 +507,7 @@ Bubble offers only Bold, Italic, code, AI; appears offset from the selection; an
 
 ### Acceptance criteria
 
+- The persistent icon toolbar is off by default (contract 4). Notion and BlockNote ship no always-visible formatting toolbar: formatting lives in the selection bubble and the slash menu. Andrew's verdict on the current one — "ultra merdique, limite par défaut elle est pas là" — matches the benchmark. Keep it as an explicit host opt-in for Google-Docs-style products, documented, defaulting to off.
 - Bubble anchors centered above the selection (below when clipped), within 8px of the selection rect, repositioning on scroll/resize, hidden during typing.
 - Actions: Turn-into dropdown (paragraph, H1-H3, bullet/numbered/todo list, quote, code block — reusing existing commands), Bold, Italic, Strikethrough, Inline code, Link (create/edit with a small input popover writing real `[text](url)` Markdown), AI entry. Grouped with separators; icons from the existing `md-theme` icon set; 44px targets under coarse pointer.
 - Every action round-trips: applying then removing leaves source bytes exact; link editing preserves surrounding bytes.
@@ -551,6 +556,7 @@ Frontmatter is simply absent from the Rich surface; users cannot see or edit `ti
 
 ### Acceptance criteria
 
+- Benchmark, verified from Obsidian's Properties documentation (contract 11): a row-per-property panel at the top of the note; six value types (text, list, number, checkbox, date, date & time) with type-appropriate inputs and a clickable type icon; a display setting with three states (visible / hidden / source); `Cmd/Ctrl+;` adds a property, `Cmd+Backspace` deletes the focused one, and typing `---` at the start of the file creates the block. Match this interaction set, not merely the visual idea.
 - A collapsed-by-default-off, expanded-by-default-on Properties block renders above the document title in Rich/Live Preview when frontmatter exists, listing key → value rows with type-appropriate display (string, number, boolean, ISO date, string list as chips).
 - Editing a safe scalar/list value rewrites only that value's bytes in the YAML block (bounded edit); key order, comments, unknown/complex values (nested maps, anchors, multiline) render read-only with a "edit in Source" affordance and are never rewritten.
 - Adding a new `key: value` pair and deleting an existing scalar pair works and serializes with the document's existing indentation/quote conventions; untouched documents stay byte-identical.
@@ -599,7 +605,9 @@ File chip + `CLEAN` badge + `Save` button stack and collide at top-right; segmen
 
 ### Acceptance criteria
 
-- One compact mode switcher (icon segmented control or dropdown, host-configurable via the existing surface settings contract), document-kind aware per the backlog spec.
+- **Rich is the default mode** (contract 1). MME currently opens in Source, which reads as a developer tool; Obsidian defaults to Live Preview and Notion has no modes at all. Rich becomes the default for Markdown documents, host-overridable.
+- One compact mode switcher — the single-toggle `modeCycleButton` variant that already exists in `md-surface` and the demo simply never used, plus `Cmd/Ctrl+E` — not a three-button segmented row. Document-kind aware per the backlog spec.
+- Live Preview is not offered anywhere until it reaches parity: MME-0107 retires it as a mode by folding syntax reveal into the rich surface. Until then, no inert Live Preview control may ship in any host, demo, or example.
 - File name, save state, persistence target, and conflict state consolidate into one status affordance: name + colored dot chip opening a popover with full save truth (target, writability, last save, conflict actions). `Save` remains a primary button only when the target is writable and dirty; `CLEAN`-style badges disappear.
 - Diagnostics chip moves into the status popover (or a `⌘.`-style debug toggle); it never overlaps document content.
 - No element overlaps at 1280, 768, and 390 widths; toolbar rows keep MME-0078 touch contracts.
@@ -1084,6 +1092,355 @@ Everything: content becomes 16px document-grade with a real heading scale; chrom
 ### Blocked by
 
 - MME-0100/MME-0101 (done). Blocks C and D must not start before this lands: polishing on the old foundation would be rework.
+
+## Interaction parity issues (MME-0103 to MME-0111)
+
+These derive from `docs/internal/research/editor-ux-benchmark.md`, which defines twelve interaction contracts observed in BlockNote, Notion, Obsidian, and Typora. Read that report before implementing any of them; it is the specification's rationale and its gap table maps each symptom to its issue.
+
+Standing rule for all of them: **the behavioral parity checklist is part of the exit gate.** For each issue, produce a table of every interaction it touches, each marked `same as benchmark` / `better` / `intentionally different (reason)`, verified in a real browser — not on paper. "No overlap, 44px targets" acceptance produced correctness; this checklist is what produces "natural". BlockNote (TypeCellOS/BlockNote, MIT core) is the standing implementation reference: imitate behavior, never copy code or styling.
+
+## MME-0103 — Block selection model
+
+### Goal
+
+Give MME the block-level selection state every benchmark editor has and MME entirely lacks (contract 3): the state where a block is selected as an object rather than a text range.
+
+### Acceptance criteria
+
+- `Esc` from inside a block selects that block; `Esc` again clears the selection and returns the caret. Arrow keys move the block selection between siblings; `Shift+Arrow` extends it to a multi-block selection.
+- `Cmd/Ctrl+A` escalates: inline selection → current block → whole document.
+- On a block selection: `Backspace`/`Delete` removes the selected blocks; `Cmd/Ctrl+D` duplicates them; `Enter` replaces them with an empty paragraph and places the caret; typing replaces them.
+- Selected blocks are visually distinct (token-driven selection background, no per-character text highlight) and the state is announced accessibly.
+- Every operation is one undoable transaction, preserves bytes outside the affected blocks, and works for framed blocks (code, callout, table, opaque, raw HTML, media) as whole objects.
+- Copy of a block selection yields the blocks' canonical Markdown; paste of that Markdown restores equivalent blocks.
+- The behavioral parity checklist for contract 3 is produced and green.
+
+### Test-first plan
+
+- RED: `tests/rich-block-selection.test.mjs` — Esc/arrow/Shift+Arrow/Cmd+A escalation state machine, delete/duplicate/replace transactions, byte preservation outside selection, framed-block atomicity, clipboard Markdown round-trip. Fails today because no block-selection state exists.
+- GREEN: implement over ProseMirror's `NodeSelection`/`GapCursor` primitives plus a custom multi-block selection where needed.
+
+### Implementation notes
+
+Read first: `packages/md-rich-prosemirror/src/index.ts` (keymap and plugin registration), the bounded-serialization helpers used by table/footnote operations, `docs/internal/research/editor-ux-benchmark.md` contract 3. Multi-block selection is the hard part — check whether ProseMirror's built-in `AllSelection`/cell-selection patterns cover enough before writing a custom selection class, and record the decision.
+
+### Visual impact
+
+Selected blocks gain a distinct object-selection appearance; keyboard editing gains the Notion-style block layer.
+
+### Out of scope
+
+- Drag and drop (MME-0106), multi-block drag, collaborative selection, block-level comments.
+
+### Execution model
+
+- Implementation: sequential only. Fresh context rebuild: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, Accessibility Reviewer; mandatory per `AGENT.md`.
+- Recommended builder model: opus-4.8.
+- Human review required: queued in the consolidated visual block.
+
+### Blocked by
+
+- MME-0086 (focus/overlay hygiene defines the focus semantics this builds on).
+
+## MME-0104 — Markdown input rules and smart pairing
+
+### Goal
+
+Make typing Markdown in rich mode produce the block or mark immediately, matching Notion's full table (contract 5). This should be MME's strongest area — the input rules map 1:1 onto the format MME persists — and it is currently partial, with auto-pairing regressed.
+
+### Acceptance criteria
+
+- Block rules, applied at line start on the trigger character plus space: `#`…`######` → H1-H6; `-`, `*`, `+` → bullet; `1.` → ordered (honoring the typed start number); `[]`/`[x]` → todo unchecked/checked; `>` → blockquote; and `---` on its own line → thematic break. ` ``` ` plus an optional language → fenced code block with that language.
+- Inline rules, applied on closing delimiter: `**bold**`, `*italic*`/`_italic_`, `` `code` ``, `~~strike~~`. Inside inline code and code blocks, no inline rule fires.
+- Smart pairing restored and specified: typing an opening `` ` ``, `(`, `[`, `{`, `"`, `'` inserts the closing character when the context is safe; typing the closing character over an auto-inserted one moves past it instead of duplicating; `Backspace` between an empty pair deletes both. Pairing never fires inside code blocks for quotes, and never rewrites bytes the user did not type.
+- Every rule is undoable in one step, and a single `Cmd/Ctrl+Z` immediately after a conversion restores the literal typed text (Notion behavior) rather than undoing the whole paragraph.
+- Pasting a URL over a text selection wraps it as `[selection](url)`; pasting a URL with no selection inserts it as a plain link.
+- Rules are exposed as a configurable set so hosts can disable or extend them without forking internals.
+- Round-trip proof: after every rule fires, the serialized Markdown is exactly the canonical form, and untouched neighbours stay byte-identical.
+- Behavioral parity checklist for contract 5 produced and green.
+
+### Test-first plan
+
+- RED: `tests/rich-input-rules.test.mjs` — one case per rule above (fire, not-fire-in-code, undo-restores-literal), pairing matrix, URL paste, and serialization exactness. Fails today for the missing rules and pairing.
+- GREEN: implement with ProseMirror `inputRules` plus a pairing plugin; register in the shared plugin list so every host gets them.
+
+### Implementation notes
+
+Read first: the existing input-rule registrations in `packages/md-rich-prosemirror/src/index.ts` (some rules already exist — extend, do not duplicate), the todo/list commands from MME-0077, `docs/internal/research/editor-ux-benchmark.md` contract 5 for the exact Notion table. Auto-pairing regressed at some point; find whether a plugin was removed before adding a new one.
+
+### Visual impact
+
+Typing Markdown converts live in rich mode; brackets and backticks pair as expected.
+
+### Out of scope
+
+- Caret syntax reveal (MME-0107), emoji/mention triggers, math input, autocorrect.
+
+### Execution model
+
+- Implementation: sequential only. Fresh context rebuild: yes.
+- Reviewer subagents: Test Reviewer, UX Reviewer; mandatory.
+- Recommended builder model: opus-4.8.
+- Human review required: queued in the consolidated visual block.
+
+### Blocked by
+
+- MME-0088 (slash trigger context guards share the same "is this a safe context" logic).
+
+## MME-0105 — Framed block insertion and in-block controls
+
+### Goal
+
+Make every supported block insertable from the slash menu, and give framed blocks their controls in their own corner instead of a bar pinned elsewhere (contract 6).
+
+### Defects (verified)
+
+Callouts can be preserved and edited but cannot be inserted; toggle blocks do not exist in rich; selecting a code block pins a `LANGUAGE / META` editor at the top of the content area, far from the block — Andrew: "pas intuitif du tout, et ultra moche". Slash-menu icons repeat across entries (recorded during MME-0102 as the most visible remaining flaw; an `md-surface` icon-mapping gap).
+
+### Acceptance criteria
+
+- Slash menu covers every supported block: paragraph, H1-H6, bullet/ordered/todo lists, quote, code block, table, callout (with type choice), divider, image — each with a distinct icon (the repeating-icon mapping gap is fixed here), correct aliases, and stable grouping.
+- Inserted callouts and code blocks serialize to canonical Markdown and round-trip byte-exactly; insertion is one undoable transaction and never rewrites neighbours.
+- Code block: hovering or selecting shows controls anchored to the block's own top-right corner — copy contents, and a language picker (searchable list, current value shown). The pinned `LANGUAGE / META` bar is removed. `Enter` inserts newlines; the block is exitable by ArrowDown at the end and by clicking below.
+- Callout: type/emoji and optional title editable from the block's own header, body edits stay bounded, unsupported callout forms keep their existing source-only fallback.
+- Toggle blocks: decide and record whether they ship now (they need a Markdown representation decision — details/summary HTML or a callout-fold convention). If the representation is not settled, do not ship a lossy version; record the decision and remove them from scope explicitly.
+- Behavioral parity checklist for contract 6 produced and green; screenshots at 1280 and 390.
+
+### Test-first plan
+
+- RED: `tests/rich-block-insertion.test.mjs` — slash coverage per block type, distinct icon per entry, insertion serialization/round-trip, code-block control anchoring and language change, callout header editing. Fails today for callout insertion and icon distinctness.
+- GREEN: extend slash command registry, fix icon mapping in `md-surface`, move code meta into a block-anchored node-view control.
+
+### Implementation notes
+
+Read first: slash command registry and icon map in `packages/md-surface/src/index.ts`, callout node view from MME-0069, code block node view and the current meta editor, `docs/internal/research/editor-ux-benchmark.md` contract 6.
+
+### Visual impact
+
+Slash menu becomes complete and legible; code and callout blocks carry their own controls.
+
+### Out of scope
+
+- Media upload UX changes, table insertion redesign, AI entries (MME-0098).
+
+### Execution model
+
+- Implementation: sequential only. Fresh context rebuild: yes.
+- Reviewer subagents: UX Reviewer, Test Reviewer; mandatory.
+- Recommended builder model: opus-4.8.
+- Human review required: queued in the consolidated visual block.
+
+### Blocked by
+
+- MME-0086 (overlay anchoring), MME-0088 (slash context guards).
+
+## MME-0106 — Block drag and drop
+
+### Goal
+
+Make the drag handle actually drag (contract 7): reorder blocks by pointer, with a drop indicator, matching BlockNote's baseline.
+
+### Acceptance criteria
+
+- Dragging a block's handle reorders it among siblings and across nesting levels where the target is valid; a 2px accent drop-line shows the insertion point during the drag; invalid targets show no line and reject the drop.
+- Dropping produces one undoable transaction, serializes to canonical Markdown, and leaves bytes outside the moved range identical.
+- Works for every top-level block including framed ones; a multi-block selection (MME-0103) drags as a unit.
+- Keyboard equivalent exists and is documented: move the selected block up/down with a shortcut, so reordering is not pointer-only (accessibility).
+- Auto-scroll near viewport edges during drag; drag is disabled under coarse pointer unless a long-press affordance is explicitly implemented and proven on a touch viewport.
+- `prefers-reduced-motion` removes the settle animation.
+- Behavioral parity checklist for contract 7 produced and green.
+
+### Test-first plan
+
+- RED: `tests/rich-block-dnd.test.mjs` — reorder transactions, invalid-target rejection, byte preservation, multi-block drag, keyboard move equivalence. Browser proof for the drop indicator and auto-scroll.
+- GREEN: implement over ProseMirror's drag handling with a decoration-based drop indicator.
+
+### Implementation notes
+
+Read first: the hover handle work from MME-0087 (this issue makes its `⠿` functional), block-range serialization helpers, `docs/internal/research/editor-ux-benchmark.md` contract 7. Compare against BlockNote's side-menu drag implementation for the drop-target computation.
+
+### Visual impact
+
+Blocks become reorderable by pointer with a visible drop line.
+
+### Out of scope
+
+- Cross-document drag, drag from external apps (asset drop already exists), column/board layouts.
+
+### Execution model
+
+- Implementation: sequential only. Fresh context rebuild: yes.
+- Reviewer subagents: UX Reviewer, Accessibility Reviewer, Test Reviewer; mandatory.
+- Recommended builder model: opus-4.8.
+- Human review required: queued in the consolidated visual block.
+
+### Blocked by
+
+- MME-0087 (hover handles), MME-0103 (multi-block unit drag).
+
+## MME-0107 — Caret syntax reveal (flagship)
+
+### Goal
+
+Make MME's default editing surface do what only a Markdown-native editor can (contract 9, Typora and Obsidian Live Preview): render formatting in place, and reveal the underlying Markdown syntax when the caret enters the element, re-hiding it when the caret leaves.
+
+This replaces "Live Preview parity" as a separate mode. It is not a third mode — it is a property of the rich surface, host-configurable as `reveal: caret | always | never`.
+
+### Acceptance criteria
+
+- With `reveal: caret` (the intended default once proven), placing the caret inside a formatted element shows its literal Markdown delimiters as editable text; moving the caret out re-renders it. Applies to emphasis, strong, inline code, strikethrough, links, headings, list markers, blockquote markers, and fenced-code fences.
+- Editing revealed syntax is editing the document: deleting a `*` unformats, typing one formats — no separate parse step, no flicker, no caret jump.
+- `reveal: never` behaves exactly like today's rich mode; `reveal: always` shows all syntax. The setting is a host option and a user preference, and the mode control does not gain a third button.
+- Byte exactness is absolute: revealing and re-hiding without editing changes nothing; a document opened, scrolled through, and closed is byte-identical.
+- Performance: reveal/hide adds no measurable typing latency on the existing 10k-line benchmark; measured, not asserted.
+- Screenshots and a browser proof showing the reveal transition on at least six element types; behavioral parity checklist for contract 9.
+
+### Test-first plan
+
+- RED: `tests/rich-syntax-reveal.test.mjs` — per-element reveal on caret entry, re-hide on exit, edit-through-syntax semantics, byte identity after pure navigation, config matrix. Fails today because no reveal behavior exists.
+- GREEN: implement as decorations driven by selection position; do not fork the schema.
+
+### Implementation notes
+
+Read first: `docs/internal/research/editor-ux-benchmark.md` contract 9, the existing live-preview code path (decide explicitly whether it is reused or retired — and if retired, remove it rather than leaving a dead mode), mark and node-view registration in `packages/md-rich-prosemirror/src/index.ts`. This is the highest-risk issue in the queue: it touches the typing path. Stop and ask if reveal cannot be implemented without a schema change.
+
+### Visual impact
+
+The editing surface becomes Typora/Obsidian-class: rendered content with syntax appearing exactly where the caret is.
+
+### Out of scope
+
+- Live Preview as a separate mode (retired by this issue), table/callout internal reveal beyond their markers, math.
+
+### Execution model
+
+- Implementation: sequential only. Fresh context rebuild: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, UX Reviewer; mandatory.
+- Recommended builder model: opus-5 / fable-5.
+- Human review required: yes — Andrew judges the feel before it becomes the default.
+
+### Blocked by
+
+- MME-0103, MME-0104 (selection and input-rule semantics must be settled first).
+
+## MME-0108 — Wikilink autocomplete contract
+
+### Goal
+
+Give hosts a way to make `[[` useful (contract 10): typing it opens a suggestion menu populated by the host, and accepting an item inserts a canonical wikilink.
+
+### Acceptance criteria
+
+- Typing `[[` in rich mode opens the shared suggestion-menu surface (same machinery as the slash menu), filtered by the text typed after it; `Escape`, outside click, or deleting the trigger closes it and leaves the literal characters intact.
+- Candidates come from a host-provided async resolver contract (`resolveLinkCandidates(query) => Promise<Candidate[]>`), with loading, empty, and error states; MME ships no index and no filesystem knowledge.
+- Accepting inserts `[[target]]` or `[[target|label]]`, serialized exactly, in one undoable transaction. `![[` inserts the embed form when the host declares embed support; otherwise `![[` does not trigger.
+- Existing wikilink preservation is unchanged, including for hosts that configure no resolver (no resolver → no menu, zero behavior change).
+- Heading targets (`[[note#heading]]`) are supported in the inserted syntax when the candidate provides them.
+- Documented as a public contract with a worked host example; behavioral parity checklist for contract 10.
+
+### Test-first plan
+
+- RED: `tests/rich-wikilink-autocomplete.test.mjs` — trigger/close semantics, resolver states, insertion serialization, no-resolver no-op, embed gating.
+- GREEN: reuse the suggestion-menu plugin with a second trigger.
+
+### Implementation notes
+
+Read first: slash suggestion-menu implementation (this is a second consumer of it — refactor toward a shared trigger registry rather than copying), wikilink handling in `packages/md-format`, `docs/internal/research/editor-ux-benchmark.md` contract 10.
+
+### Visual impact
+
+`[[` opens a link picker when the host provides one.
+
+### Out of scope
+
+- Building a note index, backlinks panel, unresolved-link styling, graph view.
+
+### Execution model
+
+- Implementation: sequential only. Fresh context rebuild: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer; mandatory.
+- Recommended builder model: opus-4.8.
+- Human review required: no.
+
+### Blocked by
+
+- MME-0088 (shared trigger/context logic).
+
+## MME-0109 — Full-surface UX audit
+
+### Goal
+
+Close the completeness gap: Andrew's reported symptoms are explicitly not exhaustive, and no single tour is either. Walk every surface against the twelve contracts and log every deviation before the UX work is declared done.
+
+### Acceptance criteria
+
+- A written audit at `docs/internal/research/ux-audit-<date>.md` covering: source mode, rich mode, every block type, slash menu, selection bubble, block handles, top chrome and status, command palette, folding, find, properties, AI surface, mobile at 390 and tablet at 768, light and dark, keyboard-only navigation, and screen-reader landmarks.
+- Each row: surface, expected behavior per contract, observed behavior, verdict (`parity` / `worse` / `intentionally different`), severity, and either the issue that covers it or a new promotion candidate.
+- Every `worse` row is either fixed in this issue when trivial, or promoted with a named issue candidate in `docs/internal/BACKLOG.md`.
+- Andrew reviews the audit; his additions are appended rather than argued.
+
+### Execution model
+
+- Implementation: sequential only. Fresh context rebuild: yes.
+- Reviewer subagents: UX Reviewer, Accessibility Reviewer; mandatory.
+- Recommended builder model: opus-4.8.
+- Human review required: yes.
+
+### Blocked by
+
+- Blocks C and D (audit what has been rebuilt, not what is about to change).
+
+## MME-0110 — Public demo page and landing CTAs
+
+### Goal
+
+Give MME a demo worth showing. `apps/md-demo` is an engineering bench and reverts to that role; the public demo becomes a page on the docs site.
+
+### Acceptance criteria
+
+- `/demo` on the docs site: one pre-filled document exercising headings, paragraphs, lists, todos, a table, a callout, and a code block, in a clean frame with nothing else on screen — no diagnostics, no debug toggles, no fixture controls.
+- Rich by default; the mode toggle is the single compact control from MME-0091; save state is honest (memory-only, stated plainly).
+- Touch quality is an acceptance criterion, not a follow-up: usable at 390 with the MME-0078 contracts, verified in a browser at 390 and 768.
+- Landing page CTAs become exactly two: "Play with the demo" → `/demo`, "Documentation" → docs. No other primary CTA.
+- The page is built from published packages where possible; any workspace-only dependency is recorded (feeds the dogfooding goal in `docs/internal/BACKLOG.md`).
+- Screenshots in both schemes at 1280 and 390.
+
+### Execution model
+
+- Implementation: sequential only. Fresh context rebuild: yes.
+- Reviewer subagents: UX Reviewer; mandatory.
+- Recommended builder model: opus-4.8.
+- Human review required: yes — Andrew judges the demo.
+
+### Blocked by
+
+- Blocks C and D (a demo of a half-fixed editor is not worth building twice), MME-0094 (docs shell).
+
+## MME-0111 — Deploy momentarise.dev
+
+### Goal
+
+Put the docs site, landing page, demo, and blog on the domain Andrew owns, so the canonical URLs written throughout the repository stop being aspirational.
+
+### Acceptance criteria
+
+- The static export deploys to `momentarise.dev` with HTTPS, `www` handling, and a documented rollback (Andrew owns the domain at Vercel; hosting choice is his call and must be recorded).
+- Every canonical URL already claimed by the repo resolves with the right content type: `/llms.txt`, `/llms-full.txt`, `/agent/*`, `/docs/<page>`, `/docs/<page>.md`, `/robots.txt`, `/sitemap.xml`, `/blog/feed.xml`.
+- A deploy runs from CI on push to `main`, with preview deploys for pull requests; secrets stay in the platform, never in the repository.
+- Post-deploy verification: HTTP status and content-type probes for the URLs above, run against the live domain and recorded in the build log.
+- README, docs, and generated agent artifacts stop qualifying these URLs as planned.
+
+### Execution model
+
+- Implementation: sequential only. Fresh context rebuild: yes.
+- Reviewer subagents: DX Reviewer; mandatory.
+- Recommended builder model: sonnet-5.
+- Human review required: yes — Andrew must authorize the first public deploy and hold the platform credentials.
+
+### Blocked by
+
+- MME-0096, MME-0097 (landing and blog ship with the first public deploy).
 
 ## MME-0098 — AI writing surface at BlockNote/Notion tier
 

@@ -15,9 +15,11 @@ Progress tracking: tick a block here once its exit gate passed.
 - [x] Block A — adoption foundations (2026-07-30: CI green on GitHub for `main` — https://github.com/Nadrew-pgr/Momentarise-Markdown-Editor/actions/runs/30577501210 — and tarball smoke install green, both exit-gate conditions met)
 - [ ] Block B — npm publication + registry example
 - [x] Block B2 — package parity (2026-07-31: reviewed and accepted — packaged stylesheet token-clean, demo 0-pixel diff, example styled, rich round-trip proven; alpha.2 republish deferred to Block B3's close)
-- [ ] Block B3 — design foundation (premium by default) + alpha.2 republish
-- [ ] Block C — editor UX correctness
-- [ ] Block D — editor UX surfaces
+- [x] Block B3 — design foundation (2026-07-31: accepted; all 16 packages republished at 0.1.0-alpha.3)
+- [ ] Block C — interaction correctness (MME-0086, 0087, 0088, 0103, 0104)
+- [ ] Block D — interaction surfaces (MME-0089, 0090, 0091, 0105, 0106)
+- [ ] Block D2 — Markdown-native differentiators (MME-0107, 0108)
+- [ ] Block D3 — full-surface UX audit (MME-0109)
 - [ ] Block E — AI writing surface
 - [ ] Block F — host contracts
 - [ ] Block G — docs site tier
@@ -120,33 +122,56 @@ Exit gate: Andrew approves the look; registry-only install shows the premium edi
 
 ---
 
-## Block C — Editor UX correctness (model: Sonnet 5)
+## Block C — Interaction correctness (model: Opus 4.8)
 
 ```text
-Read CLAUDE.md, then docs/internal/ISSUES.md (Active Queue — Re-Plan 2026-07-30).
+Read CLAUDE.md, then docs/internal/ISSUES.md (Active Queue — Re-Plan 2026-07-30), then docs/internal/research/editor-ux-benchmark.md in full before writing any code. That report defines twelve interaction contracts observed in BlockNote, Notion, Obsidian and Typora; it is the rationale behind every issue in this block and its gap table maps each reported symptom to its issue.
 
-Execute ONLY Block C: MME-0086, MME-0087, MME-0088.
+Execute ONLY Block C: MME-0086, MME-0087, MME-0088, MME-0103, MME-0104, in that order.
 
-These fix real defects observed in the 2026-07-30 UX tour (full-editor blue focus outline, overlays that survive blur, code meta bar pinned at content top, static/misaligned block handles, no empty-block placeholder, slash triggering inside code blocks). The benchmark for feel is Notion and Obsidian.
+This block is where MME stops feeling like a code editor with Markdown bolted on. Andrew's verdict on the current state was blunt and correct: interactions are not natural and must-haves are missing. Two of these issues (0103 block selection, 0104 input rules and pairing) are behaviour MME never had at all.
 
-Styling ownership rule (binding since MME-0100): any CSS for a package-owned surface goes in the packaged stylesheet, not in the demo's private stylesheet. Visual work that only a person running this repo's demo can see does not count as finished.
+Standing rules for this block:
+- The behavioral parity checklist is part of each issue's exit gate: a table of every interaction touched, each marked `same as benchmark` / `better` / `intentionally different (reason)`, verified in a real browser, not on paper.
+- BlockNote (TypeCellOS/BlockNote, MIT core) is the standing implementation reference. Read its side-menu, formatting-toolbar and suggestion-menu sources when useful. Imitate behaviour; never copy code or styling.
+- Styling ownership rule: any CSS for a package-owned surface goes in the packaged stylesheet from MME-0100, never in the demo's private stylesheet. Work only visible to someone running this repo's demo is not finished work.
+- Reviewer subagents are mandatory per the updated AGENT.md reviewer protocol. Self-review is not a reviewer pass; if subagents appear disabled, stop and ask Andrew to enable them rather than falling back.
+- A passing gate is not evidence until you have seen it fail. Block B3's reviewers found three gates reporting green while checking nothing — including one silently disabled by the space in this repository's directory name. Confirm every new test actually fails before you make it pass.
 
-Visual verification is mandatory for each issue: start the demo with `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`, run the manual scenario in a browser, capture screenshots at desktop and 390px widths under docs/internal/visual-checks/<issue-id>/, and record what each screenshot proves.
+Visual verification is mandatory per issue: demo at `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`, real browser scenario, screenshots at 1280 and 390 under docs/internal/visual-checks/<issue-id>/, and a note on what each screenshot proves.
 
-Follow the full per-issue protocol: context rebuild, Pre-Issue Execution Plan, test-first, review, build log, issue-scoped commit, push.
+Follow the full per-issue protocol: context rebuild, Pre-Issue Execution Plan, test-first (RED before GREEN), reviewer, build log, issue-scoped commit, push.
 
-When MME-0088 is committed and pushed, or at the first blocker, write the final report and STOP. Never start an issue outside Block C.
+When MME-0104 is committed and pushed, or at the first blocker, write the final report and STOP. Never start an issue outside Block C.
 ```
 
-Exit gate: screenshots produced for all three issues.
+Exit gate: parity checklists green for contracts 2, 3, 5 and 8; Andrew uses the editor and agrees it behaves.
 
 ---
 
-## Block D — Editor UX surfaces (model: Opus 4.8)
+## Block D — Interaction surfaces (model: Opus 4.8)
 
 ```text
-Read CLAUDE.md, then docs/internal/ISSUES.md (Active Queue — Re-Plan 2026-07-30).
+Read CLAUDE.md, then docs/internal/ISSUES.md (Active Queue — Re-Plan 2026-07-30), then docs/internal/research/editor-ux-benchmark.md in full.
 
+Execute ONLY Block D: MME-0089, MME-0090, MME-0091, MME-0105, MME-0106, in that order.
+
+Three decisions in this block are benchmark-driven and non-negotiable: the persistent formatting toolbar goes OFF by default (Notion and BlockNote have none — formatting lives in the selection bubble and slash menu); rich becomes the default mode with a single compact toggle plus Cmd/Ctrl+E instead of a three-button row; and no inert control ships anywhere, which means Live Preview is not offered until MME-0107 folds syntax reveal into the rich surface.
+
+Same standing rules as Block C: parity checklist per issue, BlockNote as implementation reference (behaviour only), packaged stylesheet ownership, mandatory reviewer subagents, and no gate trusted until seen failing.
+
+Follow the full per-issue protocol. Visual verification at 1280 / 768 / 390 in both schemes, artifacts under docs/internal/visual-checks/<issue-id>/.
+
+When MME-0106 is committed and pushed, or at the first blocker, write the final report and STOP. Never start an issue outside Block D.
+```
+
+Exit gate: Andrew's visual review of Blocks C and D together.
+
+---
+
+## Block D (superseded prompt, kept for reference)
+
+```text
 Execute ONLY Block D: MME-0089, MME-0090, MME-0091.
 
 This block is judged on product feel, not just passing tests. Benchmarks: Notion for the selection bubble and block interactions, Obsidian for the frontmatter Properties panel, Vercel/Linear-grade restraint for the top chrome. Preservation rules stay absolute: MME-0090 must splice YAML values positionally and leave complex values read-only rather than rewriting them.

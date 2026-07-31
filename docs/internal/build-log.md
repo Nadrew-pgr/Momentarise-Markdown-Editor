@@ -8267,3 +8267,23 @@ geometry assertion met); `npm run visual:mme-0102-registry`; `node scripts/docs-
 - Visual impact: No visible editing or general UI changes from this review itself.
 - Checks run: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
 - Push status: pushed.
+
+## Interaction parity issue batch — 2026-07-31
+
+- Date: 2026-07-31.
+- Context: Block B3 accepted and closed. Andrew asked for the full set of issues derived from `docs/internal/research/editor-ux-benchmark.md` plus everything previously promised, and the Block C prompt.
+- Change — nine new issues promoted into `docs/internal/ISSUES.md`:
+  - `MME-0103` block selection model (contract 3 — Esc/arrow/Cmd+A escalation, delete/duplicate, framed-block atomicity, clipboard Markdown).
+  - `MME-0104` Markdown input rules and smart pairing (contract 5 — the full Notion table, pairing restored, undo-restores-literal, URL paste to link, host-configurable rule set).
+  - `MME-0105` framed block insertion and in-block controls (contract 6 — callout insertion, distinct slash icons closing the repeating-icon gap recorded in MME-0102, code-block corner controls replacing the pinned LANGUAGE/META bar, explicit toggle-block representation decision).
+  - `MME-0106` block drag and drop (contract 7 — drop indicator, keyboard equivalent, multi-block unit drag, reduced-motion).
+  - `MME-0107` caret syntax reveal, flagship (contract 9 — Typora/Obsidian behaviour as a property of the rich surface, not a third mode; explicitly retires Live Preview as a mode).
+  - `MME-0108` wikilink autocomplete contract (contract 10 — host resolver, shared suggestion-menu machinery, no index owned by MME).
+  - `MME-0109` full-surface UX audit (completeness mechanism, since reported symptoms are explicitly not exhaustive).
+  - `MME-0110` public demo page and landing CTAs (Andrew's decision: `/demo` on the docs site, "Play with the demo" + "Documentation", `apps/md-demo` reverts to an internal bench).
+  - `MME-0111` deploy momentarise.dev (closes the gap where every canonical URL in the repository is aspirational).
+- Change — existing issues extended with benchmark criteria: `MME-0087` gains the fold-arrow overlap defect and gutter rule; `MME-0089` gains "persistent toolbar off by default" per contract 4; `MME-0090` gains Obsidian's verified Properties interaction set (six types, three display modes, `Cmd+;`, `Cmd+Backspace`, `---` creation); `MME-0091` gains rich-as-default, the single-toggle mode control that already exists unused in `md-surface`, and the ban on shipping an inert Live Preview control.
+- Change — blocks restructured: C becomes correctness (0086, 0087, 0088, 0103, 0104, opus-4.8); D becomes surfaces (0089, 0090, 0091, 0105, 0106); new D2 (0107, 0108, opus-5/fable-5) for the Markdown-native differentiators; new D3 (0109) for the audit; H gains 0110; new H2 (0111) for deployment. Launcher prompts rewritten for C and D with the standing rules: parity checklist as exit gate, BlockNote as behaviour-only reference, packaged-stylesheet ownership, mandatory reviewer subagents, and "a passing gate is not evidence until seen failing" (the lesson from B3's three no-op gates).
+- Visual impact: No visible editing or general UI changes. Planning documents only.
+- Checks run: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
+- Push status: pushed.
