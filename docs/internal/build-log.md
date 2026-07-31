@@ -7872,6 +7872,6 @@
   - `latest` and `alpha` dist-tags both currently point at `0.1.0-alpha.1` for all 16 packages — unavoidable npm first-publish behavior, not removable. A bare `npm install @momentarise/md-core` (no tag) will currently resolve to the alpha. Will self-correct once a real `0.1.x` stable publishes and `latest` moves normally.
   - No changesets/semver automation exists yet for subsequent alpha/stable releases (explicitly out of scope for this issue).
   - `md-adapter-theia` was published and installs cleanly, but was not exercised with a real `@theia/core` host as part of this issue's registry proof (out of scope; Theia adapter proof lives in earlier issues).
-- Commit status: pending (next step).
-- Push status: pending (next step, after commit).
+- Commit status: committed as `1900cbc` (`feat: publish @momentarise/* alpha packages to npm (MME-0084)`).
+- Push status: pushed to `origin/main` per the 2026-07-30 standing instruction.
 - Next issue: `MME-0085 — Registry consumer example (Next.js App Router)` (Block B, per `docs/internal/ISSUES.md`).
