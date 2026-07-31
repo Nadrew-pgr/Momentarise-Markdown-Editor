@@ -7958,6 +7958,6 @@
 - Line-count outcome (per acceptance criteria): `apps/md-demo/src/styles.css` 2757 → 1195 lines (demo-only chrome); `packages/md-theme/src/styles.css` 1672 lines (new packaged component stylesheet); `packages/md-theme/src/tokens.css` 156 → 150 lines (restructured for light/dark).
 - Visual impact: The demo is byte-identical (0-pixel diff). The registry example goes from unstyled browser defaults to the full reference editor — this is the change that makes MME look like a product for anyone who installs it. No editing-behavior change.
 - Human review required: yes — Andrew compares the demo and example screenshots (`docs/internal/visual-checks/MME-0100/`). Proceeding to MME-0101 per the block's sequencing; flagging the human gate and the md-theme republish.
-- Commit status: pending (next step).
-- Push status: pending (next step).
+- Commit status: committed as `e2b49f7` (`feat: ship packaged component stylesheet in md-theme (MME-0100)`).
+- Push status: pushed to `origin/main`.
 - Next issue: `MME-0101 — Rich mode in the React binding` (Block B2).
