@@ -7987,6 +7987,6 @@
   - Rich mode needs the optional peers installed; without them the binding logs a clear diagnostic and stays in source (proven by the `.catch` fallback, documented in the quickstarts). The demo keeps its own richer rich mount (fold gutter, block affordances, slash, find) — the binding intentionally mounts only the base rich surface (thin binding; new rich features are out of scope).
   - The React 19 fixture and example tests do real registry installs (slow) and stay out of the main `npm test` chain, running in the weekly/on-demand `example-next-app` CI job.
 - Human review required: yes — Andrew clicks Rich in the example (Block B2 exit gate: "Andrew sees the example look and behave like the demo"). Artifacts under `docs/internal/visual-checks/MME-0101/`.
-- Commit status: pending (next step).
-- Push status: pending (next step).
+- Commit status: committed as `6653d85` (`feat: mount rich mode in the React binding (MME-0101)`).
+- Push status: pushed to `origin/main`.
 - Next issue: none — MME-0101 is the last issue in Block B2 (`MME-0100`, `MME-0101`). Per the hard-stop rule, write the final report and **STOP**; Block C requires a fresh conversation.
