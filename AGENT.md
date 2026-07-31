@@ -297,7 +297,17 @@ Required reviewer roles by issue type:
 - Security Reviewer: HTML sandbox, Document Access Policy, BYOK keys.
 - DX Reviewer: exports, CLI, docs, examples, naming.
 
-Do not rely only on the implementation agent’s own review. If subagents are unavailable, record that in `docs/internal/build-log.md` and label the review as fallback verification.
+Do not rely only on the implementation agent’s own review.
+
+When an issue's execution model requires a reviewer, spawning an inspect-only reviewer subagent is mandatory, not optional. Self-review by the implementing agent is not a reviewer pass: the agent verifying its own work shares its own blind spots, which is the exact failure the reviewer protocol exists to prevent.
+
+Fallback self-review is permitted only when the subagent capability is genuinely unavailable — the tool is absent or returns an error. The following are NOT valid reasons to fall back:
+
+- subagents are "disabled by default" or "disabled unless the human asks" in this session;
+- the reviewer would cost tokens or time;
+- the implementing agent judges its own work to be low-risk or already verified.
+
+If subagents appear disabled, the agent must stop and ask the human to enable them before proceeding. Only after the human declines or the capability genuinely fails may a fallback self-review be recorded — and the build log must then state the exact attempt made, the exact error or refusal received, and the human acknowledgement. A fallback review recorded without that evidence is an incomplete issue.
 
 No specific review model is imposed. Use the smallest model that can review honestly: a small fast model for mechanical checks, the builder's own tier for standard code review, the builder's tier or above for preservation, security, and public-API review. See the Reviewer policy in `docs/internal/ISSUES.md`.
 
