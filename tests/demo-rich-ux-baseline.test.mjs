@@ -71,18 +71,23 @@ for (const snippet of [
 }
 
 const styles = readFileSync("apps/md-demo/src/styles.css", "utf8");
+// MME-0100: rich content + block affordances + selection bubble are package markup (styled in the
+// packaged stylesheet); the demo keeps only its own block-controls / code-controls / block-menu chrome.
+const packageStyles = readFileSync("packages/md-theme/src/styles.css", "utf8");
+for (const snippet of [".rich-block-controls", ".code-block-controls", ".rich-block-menu"]) {
+  if (!styles.includes(snippet)) {
+    throw new Error(`Demo styles missing MME-0013.5 rich UX snippet: ${snippet}`);
+  }
+}
 for (const snippet of [
-  ".rich-block-controls",
-  ".code-block-controls",
   "[data-todo-toggle]",
   "[data-todo-content]",
   ".rich-block-affordance",
-  ".rich-block-menu",
   ".selection-bubble-toolbar",
   ".ProseMirror .empty-rich-document[data-placeholder]::before"
 ]) {
-  if (!styles.includes(snippet)) {
-    throw new Error(`Demo styles missing MME-0013.5 rich UX snippet: ${snippet}`);
+  if (!packageStyles.includes(snippet)) {
+    throw new Error(`Packaged stylesheet missing MME-0013.5 rich UX snippet: ${snippet}`);
   }
 }
 

@@ -8,7 +8,9 @@ export const metadata = {
 
 export default function RootLayout(props: { readonly children: ReactNode }) {
   return (
-    <html lang="en">
+    // data-mme-scheme pins the editor to dark (matching the reference demo).
+    // Omit it to follow the visitor's prefers-color-scheme instead.
+    <html lang="en" data-mme-scheme="dark">
       <body>{props.children}</body>
     </html>
   );

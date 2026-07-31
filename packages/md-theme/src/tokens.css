@@ -1,17 +1,15 @@
-:root {
-  color-scheme: dark;
+/*
+ * @momentarise/md-theme — design tokens.
+ *
+ * Scheme-independent tokens (typography, spacing, radius, z-layers, viewport)
+ * live in :root and always apply. Color tokens default to the host's
+ * prefers-color-scheme (light base + a dark media query for hosts that have not
+ * opted into a scheme). Hosts pin a scheme explicitly with
+ * <html data-mme-scheme="light|dark">, which always wins over the media query.
+ */
 
-  --mme-color-bg: #0a0a0a;
-  --mme-color-surface: #121318;
-  --mme-color-surface-raised: #1a1c22;
-  --mme-color-border: #2b2f38;
-  --mme-color-text: #f5f6f8;
-  --mme-color-text-muted: #a6adbb;
-  --mme-color-accent: #2563eb;
-  --mme-color-accent-contrast: #ffffff;
-  --mme-color-danger: #fb7185;
-  --mme-color-selection: rgba(37, 99, 235, 0.35);
-  --mme-color-focus-ring: #8ab4ff;
+:root {
+  /* Scheme-independent tokens (apply in every scheme). */
   --mme-font-family-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", Roboto, ui-sans-serif, sans-serif;
   --mme-font-family-content: var(--mme-font-family-ui);
   --mme-font-family-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
@@ -33,80 +31,14 @@
   --mme-visual-viewport-width: 100vw;
   --mme-visual-viewport-offset-top: 0px;
   --mme-keyboard-inset: 0px;
-  --mme-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.36);
-  --mme-shadow-md: 0 12px 36px rgba(0, 0, 0, 0.44);
   --mme-z-toolbar: 20;
   --mme-z-menu: 45;
   --mme-z-overlay: 70;
-
-  --mme-color-border-strong: #3b4250;
-  --mme-color-accent-hover: #1d4ed8;
-  --mme-color-accent-soft: rgba(37, 99, 235, 0.18);
-  --mme-color-accent-softer: rgba(37, 99, 235, 0.1);
-  --mme-color-warning: #f2b86b;
-  --mme-color-code-bg: #16181e;
-  --mme-color-preview-canvas: #ffffff;
-  --mme-color-topbar-bg: rgba(10, 10, 10, 0.86);
-  --mme-color-overlay: rgba(3, 7, 18, 0.62);
-  --mme-color-surface-muted: #151720;
   --mme-content-measure: clamp(720px, 58vw, 880px);
   --mme-active-content-measure: min(var(--mme-content-measure), calc(100vw - 96px));
-}
 
-:root[data-mme-scheme="dark"] {
-  color-scheme: dark;
-
-  --mme-color-bg: #0a0a0a;
-  --mme-color-surface: #121318;
-  --mme-color-surface-raised: #1a1c22;
-  --mme-color-border: #2b2f38;
-  --mme-color-text: #f5f6f8;
-  --mme-color-text-muted: #a6adbb;
-  --mme-color-accent: #2563eb;
-  --mme-color-accent-contrast: #ffffff;
-  --mme-color-danger: #fb7185;
-  --mme-color-selection: rgba(37, 99, 235, 0.35);
-  --mme-color-focus-ring: #8ab4ff;
-  --mme-font-family-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", Roboto, ui-sans-serif, sans-serif;
-  --mme-font-family-content: var(--mme-font-family-ui);
-  --mme-font-family-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  --mme-font-size-base: 13px;
-  --mme-font-scale: 1;
-  --mme-line-height: 1.6;
-  --mme-radius-sm: 5px;
-  --mme-radius-md: 7px;
-  --mme-radius-lg: 8px;
-  --mme-space-1: 4px;
-  --mme-space-2: 8px;
-  --mme-space-3: 12px;
-  --mme-space-4: 16px;
-  --mme-space-5: 20px;
-  --mme-space-6: 24px;
-  --mme-density: 1;
-  --mme-touch-target-size: 44px;
-  --mme-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.36);
-  --mme-shadow-md: 0 12px 36px rgba(0, 0, 0, 0.44);
-  --mme-z-toolbar: 20;
-  --mme-z-menu: 45;
-  --mme-z-overlay: 70;
-
-  --mme-color-border-strong: #3b4250;
-  --mme-color-accent-hover: #1d4ed8;
-  --mme-color-accent-soft: rgba(37, 99, 235, 0.18);
-  --mme-color-accent-softer: rgba(37, 99, 235, 0.1);
-  --mme-color-warning: #f2b86b;
-  --mme-color-code-bg: #16181e;
-  --mme-color-preview-canvas: #ffffff;
-  --mme-color-topbar-bg: rgba(10, 10, 10, 0.86);
-  --mme-color-overlay: rgba(3, 7, 18, 0.62);
-  --mme-color-surface-muted: #151720;
-  --mme-content-measure: clamp(720px, 58vw, 880px);
-  --mme-active-content-measure: min(var(--mme-content-measure), calc(100vw - 96px));
-}
-
-:root[data-mme-scheme="light"] {
+  /* Color tokens: light default (see the dark media query and scheme overrides below). */
   color-scheme: light;
-
   --mme-color-bg: #fbfcff;
   --mme-color-surface: #ffffff;
   --mme-color-surface-raised: #f4f6fa;
@@ -118,29 +50,6 @@
   --mme-color-danger: #e5484d;
   --mme-color-selection: rgba(0, 87, 194, 0.16);
   --mme-color-focus-ring: #0057c2;
-  --mme-font-family-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", Roboto, ui-sans-serif, sans-serif;
-  --mme-font-family-content: var(--mme-font-family-ui);
-  --mme-font-family-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  --mme-font-size-base: 13px;
-  --mme-font-scale: 1;
-  --mme-line-height: 1.6;
-  --mme-radius-sm: 5px;
-  --mme-radius-md: 7px;
-  --mme-radius-lg: 8px;
-  --mme-space-1: 4px;
-  --mme-space-2: 8px;
-  --mme-space-3: 12px;
-  --mme-space-4: 16px;
-  --mme-space-5: 20px;
-  --mme-space-6: 24px;
-  --mme-density: 1;
-  --mme-touch-target-size: 44px;
-  --mme-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --mme-shadow-md: 0 12px 36px rgba(15, 23, 42, 0.14);
-  --mme-z-toolbar: 20;
-  --mme-z-menu: 45;
-  --mme-z-overlay: 70;
-
   --mme-color-border-strong: #c8d0dc;
   --mme-color-accent-hover: #0047a3;
   --mme-color-accent-soft: rgba(0, 87, 194, 0.1);
@@ -151,6 +60,91 @@
   --mme-color-topbar-bg: rgba(251, 252, 255, 0.88);
   --mme-color-overlay: rgba(15, 23, 42, 0.36);
   --mme-color-surface-muted: #f1f5f9;
-  --mme-content-measure: clamp(720px, 58vw, 880px);
-  --mme-active-content-measure: min(var(--mme-content-measure), calc(100vw - 96px));
+  --mme-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --mme-shadow-md: 0 12px 36px rgba(15, 23, 42, 0.14);
+}
+
+/* Dark by preference, only when the host has not pinned a scheme. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-mme-scheme="light"]) {
+    color-scheme: dark;
+    --mme-color-bg: #0a0a0a;
+    --mme-color-surface: #121318;
+    --mme-color-surface-raised: #1a1c22;
+    --mme-color-border: #2b2f38;
+    --mme-color-text: #f5f6f8;
+    --mme-color-text-muted: #a6adbb;
+    --mme-color-accent: #2563eb;
+    --mme-color-accent-contrast: #ffffff;
+    --mme-color-danger: #fb7185;
+    --mme-color-selection: rgba(37, 99, 235, 0.35);
+    --mme-color-focus-ring: #8ab4ff;
+    --mme-color-border-strong: #3b4250;
+    --mme-color-accent-hover: #1d4ed8;
+    --mme-color-accent-soft: rgba(37, 99, 235, 0.18);
+    --mme-color-accent-softer: rgba(37, 99, 235, 0.1);
+    --mme-color-warning: #f2b86b;
+    --mme-color-code-bg: #16181e;
+    --mme-color-preview-canvas: #ffffff;
+    --mme-color-topbar-bg: rgba(10, 10, 10, 0.86);
+    --mme-color-overlay: rgba(3, 7, 18, 0.62);
+    --mme-color-surface-muted: #151720;
+    --mme-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.36);
+    --mme-shadow-md: 0 12px 36px rgba(0, 0, 0, 0.44);
+  }
+}
+
+/* Explicit scheme pins (win over prefers-color-scheme). */
+:root[data-mme-scheme="light"] {
+  color-scheme: light;
+  --mme-color-bg: #fbfcff;
+  --mme-color-surface: #ffffff;
+  --mme-color-surface-raised: #f4f6fa;
+  --mme-color-border: #dfe4ec;
+  --mme-color-text: #111827;
+  --mme-color-text-muted: #4b5563;
+  --mme-color-accent: #0057c2;
+  --mme-color-accent-contrast: #ffffff;
+  --mme-color-danger: #e5484d;
+  --mme-color-selection: rgba(0, 87, 194, 0.16);
+  --mme-color-focus-ring: #0057c2;
+  --mme-color-border-strong: #c8d0dc;
+  --mme-color-accent-hover: #0047a3;
+  --mme-color-accent-soft: rgba(0, 87, 194, 0.1);
+  --mme-color-accent-softer: rgba(0, 87, 194, 0.06);
+  --mme-color-warning: #8a4b08;
+  --mme-color-code-bg: #eef2f7;
+  --mme-color-preview-canvas: #ffffff;
+  --mme-color-topbar-bg: rgba(251, 252, 255, 0.88);
+  --mme-color-overlay: rgba(15, 23, 42, 0.36);
+  --mme-color-surface-muted: #f1f5f9;
+  --mme-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --mme-shadow-md: 0 12px 36px rgba(15, 23, 42, 0.14);
+}
+
+:root[data-mme-scheme="dark"] {
+  color-scheme: dark;
+  --mme-color-bg: #0a0a0a;
+  --mme-color-surface: #121318;
+  --mme-color-surface-raised: #1a1c22;
+  --mme-color-border: #2b2f38;
+  --mme-color-text: #f5f6f8;
+  --mme-color-text-muted: #a6adbb;
+  --mme-color-accent: #2563eb;
+  --mme-color-accent-contrast: #ffffff;
+  --mme-color-danger: #fb7185;
+  --mme-color-selection: rgba(37, 99, 235, 0.35);
+  --mme-color-focus-ring: #8ab4ff;
+  --mme-color-border-strong: #3b4250;
+  --mme-color-accent-hover: #1d4ed8;
+  --mme-color-accent-soft: rgba(37, 99, 235, 0.18);
+  --mme-color-accent-softer: rgba(37, 99, 235, 0.1);
+  --mme-color-warning: #f2b86b;
+  --mme-color-code-bg: #16181e;
+  --mme-color-preview-canvas: #ffffff;
+  --mme-color-topbar-bg: rgba(10, 10, 10, 0.86);
+  --mme-color-overlay: rgba(3, 7, 18, 0.62);
+  --mme-color-surface-muted: #151720;
+  --mme-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.36);
+  --mme-shadow-md: 0 12px 36px rgba(0, 0, 0, 0.44);
 }

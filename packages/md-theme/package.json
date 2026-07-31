@@ -20,7 +20,8 @@
     "tokens"
   ],
   "sideEffects": [
-    "./src/tokens.css"
+    "./src/tokens.css",
+    "./src/styles.css"
   ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -29,12 +30,14 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./tokens.css": "./src/tokens.css"
+    "./tokens.css": "./src/tokens.css",
+    "./styles.css": "./src/styles.css"
   },
   "files": [
     "dist",
     "!dist/tsconfig.tsbuildinfo",
     "src/tokens.css",
+    "src/styles.css",
     "README.md",
     "LICENSE"
   ],

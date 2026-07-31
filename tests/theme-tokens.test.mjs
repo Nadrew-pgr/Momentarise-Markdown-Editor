@@ -11,8 +11,8 @@ const demoCss = readFileSync(demoCssPath, "utf8");
 const sourceCodeMirror = readFileSync(sourceCodeMirrorPath, "utf8");
 
 assert(
-  demoCss.includes('@import "@momentarise/md-theme/tokens.css";'),
-  "demo CSS must import the md-theme token artifact instead of owning token values."
+  demoCss.includes('@import "@momentarise/md-theme/styles.css";'),
+  "demo CSS must import the packaged component stylesheet (which brings the token layer) instead of owning token values (MME-0100)."
 );
 assert(
   !/--mme-color-bg\s*:/.test(demoCss),
@@ -74,7 +74,12 @@ for (const tokenVariable of [
 }
 
 function assertNoRawColorOutsideTokenBlocks(text, filePath) {
-  const withoutTokenBlocks = text.replace(/:root(?:\[data-mme-scheme="(?:dark|light)"\])?\s*\{[\s\S]*?\}/g, "");
+  // Token blocks: base :root, the prefers-color-scheme media wrapper, and the explicit
+  // :root[data-mme-scheme] / :root:not([data-mme-scheme]) scheme pins (MME-0100). Strip the
+  // media wrapper opener, then every :root{...} block (token blocks have no nested braces).
+  const withoutTokenBlocks = text
+    .replace(/@media[^{]*\{/g, "")
+    .replace(/:root[^{]*\{[\s\S]*?\}/g, "");
   assertNoRawColor(withoutTokenBlocks, filePath);
 }
 

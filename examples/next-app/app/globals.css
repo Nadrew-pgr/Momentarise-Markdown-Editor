@@ -1,4 +1,7 @@
-@import "@momentarise/md-theme/tokens.css";
+/* The packaged component stylesheet styles every MME editor surface and also
+ * pulls in the token layer. Importing it is all a consumer needs for the editor
+ * to look like the reference demo. */
+@import "@momentarise/md-theme/styles.css";
 
 * {
   box-sizing: border-box;
@@ -6,13 +9,13 @@
 
 body {
   margin: 0;
-  background: var(--mme-color-surface-canvas, #f7f7f5);
-  color: var(--mme-color-text-primary, #1a1a1a);
-  font-family: var(--mme-font-family-sans, system-ui, sans-serif);
+  background: var(--mme-color-bg);
+  color: var(--mme-color-text);
+  font-family: var(--mme-font-family-ui);
 }
 
 main {
-  max-width: 720px;
+  max-width: 820px;
   margin: 0 auto;
   padding: 2.5rem 1.5rem 4rem;
 }
@@ -23,14 +26,14 @@ main h1 {
 }
 
 main p {
-  color: var(--mme-color-text-secondary, #666);
+  color: var(--mme-color-text-muted);
   margin-top: 0;
   margin-bottom: 1.5rem;
 }
 
 .mme-example-editor {
-  border: 1px solid var(--mme-color-border-default, #ddd);
-  border-radius: var(--mme-radius-md, 8px);
+  border: 1px solid var(--mme-color-border);
+  border-radius: var(--mme-radius-lg);
   overflow: hidden;
   min-height: 320px;
 }

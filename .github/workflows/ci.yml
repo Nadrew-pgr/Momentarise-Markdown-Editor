@@ -93,19 +93,21 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: examples/next-app/package-lock.json
 
-      - name: Install example dependencies from the real registry
-        run: npm install
-        working-directory: examples/next-app
+      - name: Install
+        run: npm ci
 
-      - name: Typecheck example
-        run: npm run typecheck
-        working-directory: examples/next-app
-
-      - name: Build example
+      - name: Build
         run: npm run build
-        working-directory: examples/next-app
+
+      # Real registry install of the example + build, plus the MME-0100 workspace md-theme overlay
+      # (the packaged component stylesheet is not in the published alpha yet). See the test file for
+      # detail; the React 19 StrictMode regression check runs in the same spirit.
+      - name: Example registry build (with md-theme overlay)
+        run: npm run test:example-next-registry
+
+      - name: React 19 StrictMode regression check
+        run: npm run test:react19-strictmode-lifecycle
 
       - name: React 19 StrictMode regression check
         run: npm run test:react19-strictmode-lifecycle

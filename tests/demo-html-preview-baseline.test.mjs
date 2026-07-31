@@ -41,11 +41,16 @@ for (const snippet of [
   ".html-preview-host",
   ".html-preview-details",
   ".html-preview-details-menu",
-  ".html-preview-frame",
-  ".mode-button:disabled"
+  ".html-preview-frame"
 ]) {
   if (!styles.includes(snippet)) {
     throw new Error(`MME-0015 demo HTML preview style missing: ${snippet}`);
+  }
+}
+// MME-0100: the mode control is md-surface markup; its CSS ships in the packaged stylesheet.
+for (const snippet of [".mode-button:disabled"]) {
+  if (!readFileSync("packages/md-theme/src/styles.css", "utf8").includes(snippet)) {
+    throw new Error(`MME-0015 mode-control style missing from packaged stylesheet: ${snippet}`);
   }
 }
 

@@ -100,19 +100,28 @@ for (const forbidden of [
 }
 
 const styles = readFileSync("apps/md-demo/src/styles.css", "utf8");
+// MME-0100: md-surface AI surfaces (provider state, suggestion preview, inline prompt actions)
+// ship in the packaged stylesheet; the demo keeps only its own AI-writing panel chrome.
+const packageStyles = readFileSync("packages/md-theme/src/styles.css", "utf8");
 for (const snippet of [
   ".ai-writing-panel",
   ".ai-writing-controls",
+  ".ai-policy-note"
+]) {
+  if (!styles.includes(snippet)) {
+    throw new Error(`Demo styles missing MME-0017 AI UI snippet: ${snippet}`);
+  }
+}
+for (const snippet of [
   ".ai-provider-state",
   ".ai-suggestion-preview",
-  ".ai-policy-note",
   ".inline-ai-prompt",
   ".inline-ai-prompt-actions",
   ".inline-ai-provider-state",
   ".inline-ai-suggestion-preview"
 ]) {
-  if (!styles.includes(snippet)) {
-    throw new Error(`Demo styles missing MME-0017 AI UI snippet: ${snippet}`);
+  if (!packageStyles.includes(snippet)) {
+    throw new Error(`Packaged stylesheet missing MME-0017 AI UI snippet: ${snippet}`);
   }
 }
 

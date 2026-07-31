@@ -19,7 +19,9 @@ assert(packageJson.scripts.test.includes("test:default-theme"), "Root npm test m
 
 const surface = readFileSync("packages/md-surface/src/index.ts", "utf8");
 const main = readFileSync("apps/md-demo/src/main.ts", "utf8");
-const styles = readFileSync("apps/md-demo/src/styles.css", "utf8");
+// MME-0100 moved package-owned component CSS out of the demo into the packaged stylesheet;
+// the default-theme selectors now live there (the demo keeps only demo-shell chrome).
+const styles = readFileSync("packages/md-theme/src/styles.css", "utf8");
 const visual = readFileSync("scripts/visual-check-mme0030.mjs", "utf8");
 const readme = readFileSync("docs/internal/visual-checks/MME-0030/README.md", "utf8");
 

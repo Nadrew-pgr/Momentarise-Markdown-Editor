@@ -201,16 +201,14 @@ if (aiEntryPointIndex < 0 || inspectorIndex < 0 || aiEntryPointIndex > inspector
 }
 
 const styles = readFileSync("apps/md-demo/src/styles.css", "utf8");
+// MME-0100: package-owned component surfaces (md-surface chrome) now live in the packaged
+// stylesheet; the demo keeps only its own shell/chrome. Assert each against its true owner.
+const packageStyles = readFileSync("packages/md-theme/src/styles.css", "utf8");
 for (const snippet of [
   ".reference-editor-shell",
   ".editor-command-surface",
-  ".document-status-popover",
   ".ai-command-surface",
-  ".ai-assistant-panel",
-  ".command-palette",
-  ".toolbar-ai-button",
   ".selected-text-ai-action",
-  ".debug-inspector",
   ".surface-settings-panel",
   "@media (max-width: 720px)"
 ]) {
@@ -218,8 +216,19 @@ for (const snippet of [
     throw new Error(`Demo styles missing MME-0018 reference surface snippet: ${snippet}`);
   }
 }
+for (const snippet of [
+  ".document-status-popover",
+  ".ai-assistant-panel",
+  ".command-palette",
+  ".toolbar-ai-button",
+  ".debug-inspector"
+]) {
+  if (!packageStyles.includes(snippet)) {
+    throw new Error(`Packaged stylesheet missing MME-0018 reference surface snippet: ${snippet}`);
+  }
+}
 
-const aiAssistantPanelStyle = extractCssRule(styles, ".ai-assistant-panel");
+const aiAssistantPanelStyle = extractCssRule(packageStyles, ".ai-assistant-panel");
 if (!aiAssistantPanelStyle.includes("position: fixed")) {
   throw new Error("User-facing AI assistant must be a compact editor popover, not an in-flow panel above the document.");
 }

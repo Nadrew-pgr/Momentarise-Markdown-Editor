@@ -81,6 +81,13 @@ try {
       `${entry.name} tarball must include dist/index.d.ts.`
     );
 
+    if (entry.name === "@momentarise/md-theme") {
+      // MME-0100: the packaged component stylesheet (and its token layer) must ship so a
+      // registry consumer can import @momentarise/md-theme/styles.css.
+      assert(tarEntries.includes("src/styles.css"), "@momentarise/md-theme tarball must include src/styles.css.");
+      assert(tarEntries.includes("src/tokens.css"), "@momentarise/md-theme tarball must include src/tokens.css.");
+    }
+
     for (const path of tarEntries) {
       // tsc's outDir only ever emits .js, .d.ts, and .d.ts.map (declarationMap is on, sourceMap is
       // not) — a file under dist/ with any other extension is a stray build artifact, not a

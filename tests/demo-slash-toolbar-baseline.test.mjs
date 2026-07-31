@@ -96,10 +96,12 @@ for (const snippet of [
   }
 }
 
-const styles = readFileSync("apps/md-demo/src/styles.css", "utf8");
+// MME-0100: the command UI (toolbar + slash menu) is md-surface markup; its CSS now ships in the
+// packaged stylesheet, not the demo.
+const styles = readFileSync("packages/md-theme/src/styles.css", "utf8");
 for (const snippet of [".rich-command-toolbar", ".toolbar-button", ".slash-command-menu", ".slash-command-item"]) {
   if (!styles.includes(snippet)) {
-    throw new Error(`Demo styles missing MME-0013 command UI snippet: ${snippet}`);
+    throw new Error(`Packaged stylesheet missing MME-0013 command UI snippet: ${snippet}`);
   }
 }
 

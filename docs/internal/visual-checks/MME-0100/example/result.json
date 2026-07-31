@@ -1,0 +1,9 @@
+{
+  "exampleUrl": "http://127.0.0.1:5179/",
+  "themed": {
+    "modeButtonRadius": "5px",
+    "bodyBg": "rgb(10, 10, 10)"
+  },
+  "consoleErrors": [],
+  "status": "passed"
+}
