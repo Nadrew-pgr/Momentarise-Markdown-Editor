@@ -1,0 +1,22 @@
+{
+  "chrome": {
+    "bodyBg": "rgb(10, 10, 10)",
+    "controlHeight": 28,
+    "controlRadius": "6px",
+    "sourceFontFamily": "ui-monospace, \"SF Mono\", SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", monospace",
+    "tokenAccent": "#2563eb",
+    "tokenContentSize": "16px",
+    "tokenMeasure": "708px",
+    "tokenNeutral12": "#f5f6f8"
+  },
+  "consoleErrors": [],
+  "content": {
+    "fontSize": "16px",
+    "lineHeightRatio": 1.65,
+    "width": 708
+  },
+  "exampleUrl": "http://127.0.0.1:5179/",
+  "install": "registry-only (no workspace overlays)",
+  "roundTripped": true,
+  "status": "passed"
+}

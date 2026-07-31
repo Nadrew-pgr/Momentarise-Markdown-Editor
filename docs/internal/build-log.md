@@ -8219,3 +8219,36 @@ install + Next build); `npm run test:react19-strictmode-lifecycle` (pure registr
 install, React 19 + rich mode); `npm run visual:mme-0102` (24 screenshots, every
 geometry assertion met); `npm run visual:mme-0102-registry`; `node scripts/docs-lint.mjs`;
 `npm run test:alignment`; `git diff --check`.
+
+### 0.1.0-alpha.3 — final registry state (Block B3 close)
+
+- **Published 2026-07-31**, Andrew at the keyboard, all 16 packages, MME-0084
+  topological order, `--tag alpha --access public`. One browser auth covered the
+  whole run.
+- **Verified against `registry.npmjs.org` over HTTP**, not `npm view` (its metadata
+  cache served stale results earlier in this block and would have masked a failure):
+  all 16 carry `0.1.0-alpha.3`, `alpha` → `0.1.0-alpha.3`, `latest` → `0.1.0-alpha.1`
+  on every package. `latest` staying put is correct: npm only auto-assigns it on a
+  package's first publish, so unlike MME-0084 there was no dist-tag cleanup to
+  attempt. A bare `npm install @momentarise/md-core` still resolves the first alpha
+  until a stable release moves `latest`.
+- **Consumer lockfiles regenerated** from the registry (`examples/next-app`,
+  `tests/fixtures/react19-strictmode`) — they could not resolve alpha.3 before it
+  existed, which is why the bump was staged uncommitted until after the publish.
+- **Both consumer tests green as pure registry installs**, no workspace overlays:
+  `test:react19-strictmode-lifecycle` (React 19 StrictMode + rich mode) and
+  `test:example-next-registry` (install + typecheck + Next build, asserting the
+  published `tokens.json` carries the 16px content size and the full neutral ramp).
+- **Browser proof against the clean install** (`visual:mme-0102-registry`,
+  artifacts in `docs/internal/visual-checks/MME-0102/registry/`): resolved tokens
+  are the MME-0102 system (`--mme-font-size-content: 16px`, `--mme-content-measure:
+  708px`, neutral ramp present), controls measure 28px at 6px radius, content renders
+  16px at 1.65 on the 708px measure, rich mode mounts from the published binding, and
+  a rich-mode edit round-trips into canonical Markdown. Zero console errors. The React
+  shell chrome bar — the alpha.2 regression — now renders correctly for consumers.
+- Alpha.2 remains on the registry and carries the two shell defects recorded above.
+  It is superseded by alpha.3 under the same `alpha` tag; no unpublish was attempted.
+- **Block B3 status**: code-complete and published. The remaining gate is Andrew's
+  judgment of the look (`docs/internal/visual-checks/MME-0102/`), which the issue
+  names as the exit gate. Per the hard-stop rule, work stops here — Block C
+  (`MME-0086`/`0087`/`0088`) requires a fresh conversation.
