@@ -207,6 +207,7 @@
     "DEFAULT_MME_THEME",
     "MME_TOKEN_VARIABLES",
     "defaultIconSet",
+    "deriveColorsFromRamps",
     "resolveTheme",
     "resolveThemeToCssVariables",
     "themeContract"

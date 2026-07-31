@@ -5,16 +5,55 @@ export interface ThemeContract {
   readonly contract: "theme";
 }
 
+/**
+ * A 12-step color ramp, Radix step semantics:
+ * 1-2 backgrounds, 3-5 interactive surfaces, 6-8 borders, 9-10 solid, 11-12 text.
+ *
+ * The ramps are the rebrand surface: swap these 12 values and every semantic
+ * token, and therefore every surface, follows (MME-0102).
+ */
+export type MmeColorRamp = readonly [
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string
+];
+
+export interface MmeRampTokens {
+  readonly neutral: MmeColorRamp;
+  readonly accent: MmeColorRamp;
+}
+
 export interface MmeColorTokens {
   readonly bg: string;
   readonly surface: string;
   readonly surfaceRaised: string;
+  readonly surfaceMuted: string;
+  readonly surfaceHover: string;
+  readonly surfaceActive: string;
+  readonly codeBg: string;
   readonly border: string;
+  readonly borderSubtle: string;
+  readonly borderStrong: string;
   readonly text: string;
   readonly textMuted: string;
+  readonly textSubtle: string;
   readonly accent: string;
+  readonly accentHover: string;
+  readonly accentText: string;
+  readonly accentSoft: string;
+  readonly accentSofter: string;
   readonly accentContrast: string;
   readonly danger: string;
+  readonly warning: string;
   readonly selection: string;
   readonly focusRing: string;
 }
@@ -23,31 +62,63 @@ export interface MmeTypographyTokens {
   readonly fontFamilyUi: string;
   readonly fontFamilyContent: string;
   readonly fontFamilyMono: string;
+  readonly fontSizeContent: string;
+  readonly fontSizeUi: string;
+  readonly fontSizeUiSm: string;
+  readonly fontSizeUiXs: string;
+  readonly fontSizeCode: string;
+  readonly lineHeightContent: string;
+  readonly lineHeightUi: string;
+  /** Legacy alias for `fontSizeUi`, kept so pre-MME-0102 hosts keep working. */
   readonly fontSizeBase: string;
   readonly fontScale: string;
+  /** Legacy alias for `lineHeightContent`. */
   readonly lineHeight: string;
 }
 
 export interface MmeShapeTokens {
+  readonly radiusXs: string;
   readonly radiusSm: string;
   readonly radiusMd: string;
   readonly radiusLg: string;
+  readonly radiusXl: string;
+  readonly radiusFull: string;
 }
 
+/** The spacing ladder: 2 4 6 8 12 16 20 24 32 40 48 64 80. */
 export interface MmeSpacingTokens {
-  readonly space1: string;
-  readonly space2: string;
-  readonly space3: string;
-  readonly space4: string;
-  readonly space5: string;
-  readonly space6: string;
+  readonly space2xs: string;
+  readonly spaceXs: string;
+  readonly spaceSm: string;
+  readonly spaceMd: string;
+  readonly spaceLg: string;
+  readonly spaceXl: string;
+  readonly space2xl: string;
+  readonly space3xl: string;
+  readonly space4xl: string;
+  readonly space5xl: string;
+  readonly space6xl: string;
+  readonly space7xl: string;
+  readonly space8xl: string;
   readonly density: string;
   readonly touchTargetSize: string;
 }
 
 export interface MmeElevationTokens {
+  readonly elevation1: string;
+  readonly elevation2: string;
+  readonly elevation3: string;
+  /** Legacy alias for `elevation1`. */
   readonly shadowSm: string;
+  /** Legacy alias for `elevation2`. */
   readonly shadowMd: string;
+}
+
+export interface MmeMotionTokens {
+  readonly fast: string;
+  readonly base: string;
+  readonly slow: string;
+  readonly ease: string;
 }
 
 export interface MmeLayerTokens {
@@ -57,20 +128,24 @@ export interface MmeLayerTokens {
 }
 
 export interface ResolvedMmeTheme {
+  readonly ramps: MmeRampTokens;
   readonly colors: MmeColorTokens;
   readonly typography: MmeTypographyTokens;
   readonly shape: MmeShapeTokens;
   readonly spacing: MmeSpacingTokens;
   readonly elevation: MmeElevationTokens;
+  readonly motion: MmeMotionTokens;
   readonly layers: MmeLayerTokens;
 }
 
 export interface MmeTheme {
+  readonly ramps?: Partial<MmeRampTokens>;
   readonly colors?: Partial<MmeColorTokens>;
   readonly typography?: Partial<MmeTypographyTokens>;
   readonly shape?: Partial<MmeShapeTokens>;
   readonly spacing?: Partial<MmeSpacingTokens>;
   readonly elevation?: Partial<MmeElevationTokens>;
+  readonly motion?: Partial<MmeMotionTokens>;
   readonly layers?: Partial<MmeLayerTokens>;
 }
 
@@ -113,36 +188,96 @@ export const themeContract: ThemeContract = {
 export const DEFAULT_MME_SCHEME: MmeScheme = "dark";
 
 export const MME_TOKEN_VARIABLES = [
+  "--mme-neutral-1",
+  "--mme-neutral-2",
+  "--mme-neutral-3",
+  "--mme-neutral-4",
+  "--mme-neutral-5",
+  "--mme-neutral-6",
+  "--mme-neutral-7",
+  "--mme-neutral-8",
+  "--mme-neutral-9",
+  "--mme-neutral-10",
+  "--mme-neutral-11",
+  "--mme-neutral-12",
+  "--mme-accent-1",
+  "--mme-accent-2",
+  "--mme-accent-3",
+  "--mme-accent-4",
+  "--mme-accent-5",
+  "--mme-accent-6",
+  "--mme-accent-7",
+  "--mme-accent-8",
+  "--mme-accent-9",
+  "--mme-accent-10",
+  "--mme-accent-11",
+  "--mme-accent-12",
   "--mme-color-bg",
   "--mme-color-surface",
   "--mme-color-surface-raised",
+  "--mme-color-surface-muted",
+  "--mme-color-surface-hover",
+  "--mme-color-surface-active",
+  "--mme-color-code-bg",
   "--mme-color-border",
+  "--mme-color-border-subtle",
+  "--mme-color-border-strong",
   "--mme-color-text",
   "--mme-color-text-muted",
+  "--mme-color-text-subtle",
   "--mme-color-accent",
+  "--mme-color-accent-hover",
+  "--mme-color-accent-text",
+  "--mme-color-accent-soft",
+  "--mme-color-accent-softer",
   "--mme-color-accent-contrast",
   "--mme-color-danger",
+  "--mme-color-warning",
   "--mme-color-selection",
   "--mme-color-focus-ring",
   "--mme-font-family-ui",
   "--mme-font-family-content",
   "--mme-font-family-mono",
+  "--mme-font-size-content",
+  "--mme-font-size-ui",
+  "--mme-font-size-ui-sm",
+  "--mme-font-size-ui-xs",
+  "--mme-font-size-code",
+  "--mme-line-height-content",
+  "--mme-line-height-ui",
   "--mme-font-size-base",
   "--mme-font-scale",
   "--mme-line-height",
+  "--mme-radius-xs",
   "--mme-radius-sm",
   "--mme-radius-md",
   "--mme-radius-lg",
-  "--mme-space-1",
-  "--mme-space-2",
-  "--mme-space-3",
-  "--mme-space-4",
-  "--mme-space-5",
-  "--mme-space-6",
+  "--mme-radius-xl",
+  "--mme-radius-full",
+  "--mme-space-2xs",
+  "--mme-space-xs",
+  "--mme-space-sm",
+  "--mme-space-md",
+  "--mme-space-lg",
+  "--mme-space-xl",
+  "--mme-space-2xl",
+  "--mme-space-3xl",
+  "--mme-space-4xl",
+  "--mme-space-5xl",
+  "--mme-space-6xl",
+  "--mme-space-7xl",
+  "--mme-space-8xl",
   "--mme-density",
   "--mme-touch-target-size",
+  "--mme-elevation-1",
+  "--mme-elevation-2",
+  "--mme-elevation-3",
   "--mme-shadow-sm",
   "--mme-shadow-md",
+  "--mme-motion-fast",
+  "--mme-motion-base",
+  "--mme-motion-slow",
+  "--mme-motion-ease",
   "--mme-z-toolbar",
   "--mme-z-menu",
   "--mme-z-overlay"
@@ -150,100 +285,262 @@ export const MME_TOKEN_VARIABLES = [
 
 export type MmeTokenVariable = (typeof MME_TOKEN_VARIABLES)[number];
 
-export const DEFAULT_MME_THEME: Readonly<Record<MmeScheme, ResolvedMmeTheme>> = {
+/**
+ * Which ramp step each semantic color role reads. Light and dark differ on
+ * purpose: elevation runs in opposite directions, so a raised surface is a
+ * *lighter* step in dark and white-on-tinted in light (MME-0102).
+ */
+const NEUTRAL_ROLE_STEPS: Readonly<Record<MmeScheme, Readonly<Record<string, number>>>> = {
   dark: {
-    colors: {
-      bg: "#0a0a0a",
-      surface: "#121318",
-      surfaceRaised: "#1a1c22",
-      border: "#2b2f38",
-      text: "#f5f6f8",
-      textMuted: "#a6adbb",
-      accent: "#2563eb",
-      accentContrast: "#ffffff",
-      danger: "#fb7185",
-      selection: "rgba(37, 99, 235, 0.35)",
-      focusRing: "#8ab4ff"
-    },
-    typography: {
-      fontFamilyUi: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", Roboto, ui-sans-serif, sans-serif',
-      fontFamilyContent: "var(--mme-font-family-ui)",
-      fontFamilyMono: 'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
-      fontSizeBase: "13px",
-      fontScale: "1",
-      lineHeight: "1.6"
-    },
-    shape: {
-      radiusSm: "5px",
-      radiusMd: "7px",
-      radiusLg: "8px"
-    },
-    spacing: {
-      space1: "4px",
-      space2: "8px",
-      space3: "12px",
-      space4: "16px",
-      space5: "20px",
-      space6: "24px",
-      density: "1",
-      touchTargetSize: "44px"
-    },
-    elevation: {
-      shadowSm: "0 1px 2px rgba(0, 0, 0, 0.36)",
-      shadowMd: "0 12px 36px rgba(0, 0, 0, 0.44)"
-    },
-    layers: {
-      zToolbar: "20",
-      zMenu: "45",
-      zOverlay: "70"
-    }
+    bg: 1,
+    surface: 2,
+    surfaceRaised: 4,
+    surfaceMuted: 3,
+    surfaceHover: 5,
+    surfaceActive: 6,
+    codeBg: 3,
+    border: 6,
+    borderSubtle: 6,
+    borderStrong: 7,
+    text: 12,
+    textMuted: 11,
+    textSubtle: 9
   },
   light: {
-    colors: {
-      bg: "#fbfcff",
-      surface: "#ffffff",
-      surfaceRaised: "#f4f6fa",
-      border: "#dfe4ec",
-      text: "#111827",
-      textMuted: "#4b5563",
-      accent: "#0057c2",
-      accentContrast: "#ffffff",
-      danger: "#e5484d",
-      selection: "rgba(0, 87, 194, 0.16)",
-      focusRing: "#0057c2"
-    },
-    typography: {
-      fontFamilyUi: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", Roboto, ui-sans-serif, sans-serif',
-      fontFamilyContent: "var(--mme-font-family-ui)",
-      fontFamilyMono: 'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
-      fontSizeBase: "13px",
-      fontScale: "1",
-      lineHeight: "1.6"
-    },
-    shape: {
-      radiusSm: "5px",
-      radiusMd: "7px",
-      radiusLg: "8px"
-    },
-    spacing: {
-      space1: "4px",
-      space2: "8px",
-      space3: "12px",
-      space4: "16px",
-      space5: "20px",
-      space6: "24px",
-      density: "1",
-      touchTargetSize: "44px"
-    },
-    elevation: {
-      shadowSm: "0 1px 2px rgba(15, 23, 42, 0.06)",
-      shadowMd: "0 12px 36px rgba(15, 23, 42, 0.14)"
-    },
-    layers: {
-      zToolbar: "20",
-      zMenu: "45",
-      zOverlay: "70"
-    }
+    bg: 1,
+    surface: 2,
+    surfaceRaised: 2,
+    surfaceMuted: 3,
+    surfaceHover: 3,
+    surfaceActive: 4,
+    codeBg: 4,
+    border: 6,
+    borderSubtle: 6,
+    borderStrong: 7,
+    text: 12,
+    textMuted: 11,
+    textSubtle: 10
+  }
+};
+
+/** Accent roles read the same steps in both schemes. */
+const ACCENT_ROLE_STEPS: Readonly<Record<string, number>> = {
+  accent: 9,
+  accentHover: 10,
+  accentText: 11,
+  accentSoft: 3,
+  accentSofter: 2
+};
+
+/** Colors that are deliberately not ramp steps: fixed pairs and translucent overlays. */
+const FIXED_COLORS: Readonly<Record<MmeScheme, Readonly<Record<string, string>>>> = {
+  dark: {
+    accentContrast: "#ffffff",
+    danger: "#fb7185",
+    focusRing: "#8ab4ff",
+    selection: "rgba(37, 99, 235, 0.35)",
+    warning: "#f2b86b"
+  },
+  light: {
+    accentContrast: "#ffffff",
+    danger: "#c62a30",
+    focusRing: "#0057c2",
+    selection: "rgba(0, 87, 194, 0.16)",
+    warning: "#8a4b08"
+  }
+};
+
+const DEFAULT_RAMPS: Readonly<Record<MmeScheme, MmeRampTokens>> = {
+  dark: {
+    accent: [
+      "#0b1220",
+      "#0e1729",
+      "#12213c",
+      "#15294f",
+      "#1a3260",
+      "#1f3d75",
+      "#264b93",
+      "#2d5cba",
+      "#2563eb",
+      "#3b76f0",
+      "#8ab4ff",
+      "#d5e4ff"
+    ],
+    neutral: [
+      "#0a0a0a",
+      "#121318",
+      "#16181e",
+      "#1a1c22",
+      "#22252e",
+      "#2b2f38",
+      "#3b4250",
+      "#4d5567",
+      "#5f6a7e",
+      "#7a8598",
+      "#a6adbb",
+      "#f5f6f8"
+    ]
+  },
+  light: {
+    accent: [
+      "#f5f9ff",
+      "#ebf3ff",
+      "#dbe9ff",
+      "#c9dcff",
+      "#b3cdfb",
+      "#97b9f4",
+      "#729fe9",
+      "#4a80d8",
+      "#0057c2",
+      "#0047a3",
+      "#0052b8",
+      "#10284f"
+    ],
+    neutral: [
+      "#fbfcff",
+      "#ffffff",
+      "#f4f6fa",
+      "#eef2f7",
+      "#e6ebf2",
+      "#dfe4ec",
+      "#c8d0dc",
+      "#aab4c4",
+      "#8f9aab",
+      "#78849a",
+      "#4b5563",
+      "#111827"
+    ]
+  }
+};
+
+const DEFAULT_ELEVATION: Readonly<Record<MmeScheme, MmeElevationTokens>> = {
+  dark: {
+    elevation1: "0 1px 2px rgba(0, 0, 0, 0.4)",
+    elevation2: "inset 0 0 0 1px #3b4250, 0 4px 12px rgba(0, 0, 0, 0.5)",
+    elevation3: "inset 0 0 0 1px #3b4250, 0 8px 24px rgba(0, 0, 0, 0.55), 0 20px 48px rgba(0, 0, 0, 0.45)",
+    shadowMd: "inset 0 0 0 1px #3b4250, 0 4px 12px rgba(0, 0, 0, 0.5)",
+    shadowSm: "0 1px 2px rgba(0, 0, 0, 0.4)"
+  },
+  light: {
+    elevation1: "0 1px 2px rgba(0, 0, 0, 0.05)",
+    elevation2: "0 0 0 1px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.09)",
+    elevation3:
+      "0 0 0 1px rgba(0, 0, 0, 0.05), 0 8px 24px rgba(0, 0, 0, 0.12), 0 20px 48px rgba(0, 0, 0, 0.09)",
+    shadowMd: "0 0 0 1px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.09)",
+    shadowSm: "0 1px 2px rgba(0, 0, 0, 0.05)"
+  }
+};
+
+const SHARED_TYPOGRAPHY: MmeTypographyTokens = {
+  fontFamilyContent: "var(--mme-font-family-ui)",
+  fontFamilyMono: 'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
+  fontFamilyUi: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", Roboto, ui-sans-serif, sans-serif',
+  fontScale: "1",
+  fontSizeBase: "var(--mme-font-size-ui)",
+  fontSizeCode: "14px",
+  fontSizeContent: "16px",
+  fontSizeUi: "13px",
+  fontSizeUiSm: "12px",
+  fontSizeUiXs: "11px",
+  lineHeight: "var(--mme-line-height-content)",
+  lineHeightContent: "1.65",
+  lineHeightUi: "1.45"
+};
+
+const SHARED_SHAPE: MmeShapeTokens = {
+  radiusFull: "999px",
+  radiusLg: "10px",
+  radiusMd: "8px",
+  radiusSm: "6px",
+  radiusXl: "12px",
+  radiusXs: "4px"
+};
+
+const SHARED_SPACING: MmeSpacingTokens = {
+  density: "1",
+  space2xl: "20px",
+  space2xs: "2px",
+  space3xl: "24px",
+  space4xl: "32px",
+  space5xl: "40px",
+  space6xl: "48px",
+  space7xl: "64px",
+  space8xl: "80px",
+  spaceLg: "12px",
+  spaceMd: "8px",
+  spaceSm: "6px",
+  spaceXl: "16px",
+  spaceXs: "4px",
+  touchTargetSize: "44px"
+};
+
+const SHARED_MOTION: MmeMotionTokens = {
+  base: "150ms",
+  ease: "cubic-bezier(0.2, 0, 0, 1)",
+  fast: "100ms",
+  slow: "200ms"
+};
+
+const SHARED_LAYERS: MmeLayerTokens = {
+  zMenu: "45",
+  zOverlay: "70",
+  zToolbar: "20"
+};
+
+/**
+ * Derives every semantic color from the ramps. This is the mechanism behind
+ * "a rebrand is a ramp swap": override `ramps` and the whole palette follows.
+ */
+export function deriveColorsFromRamps(ramps: MmeRampTokens, scheme: MmeScheme): MmeColorTokens {
+  const neutralSteps = NEUTRAL_ROLE_STEPS[scheme];
+  const step = (ramp: MmeColorRamp, index: number): string => ramp[index - 1] as string;
+  return {
+    accent: step(ramps.accent, ACCENT_ROLE_STEPS.accent as number),
+    accentContrast: FIXED_COLORS[scheme].accentContrast as string,
+    accentHover: step(ramps.accent, ACCENT_ROLE_STEPS.accentHover as number),
+    accentSoft: step(ramps.accent, ACCENT_ROLE_STEPS.accentSoft as number),
+    accentSofter: step(ramps.accent, ACCENT_ROLE_STEPS.accentSofter as number),
+    accentText: step(ramps.accent, ACCENT_ROLE_STEPS.accentText as number),
+    bg: step(ramps.neutral, neutralSteps.bg as number),
+    border: step(ramps.neutral, neutralSteps.border as number),
+    borderStrong: step(ramps.neutral, neutralSteps.borderStrong as number),
+    borderSubtle: step(ramps.neutral, neutralSteps.borderSubtle as number),
+    codeBg: step(ramps.neutral, neutralSteps.codeBg as number),
+    danger: FIXED_COLORS[scheme].danger as string,
+    focusRing: FIXED_COLORS[scheme].focusRing as string,
+    selection: FIXED_COLORS[scheme].selection as string,
+    surface: step(ramps.neutral, neutralSteps.surface as number),
+    surfaceActive: step(ramps.neutral, neutralSteps.surfaceActive as number),
+    surfaceHover: step(ramps.neutral, neutralSteps.surfaceHover as number),
+    surfaceMuted: step(ramps.neutral, neutralSteps.surfaceMuted as number),
+    surfaceRaised: step(ramps.neutral, neutralSteps.surfaceRaised as number),
+    text: step(ramps.neutral, neutralSteps.text as number),
+    textMuted: step(ramps.neutral, neutralSteps.textMuted as number),
+    textSubtle: step(ramps.neutral, neutralSteps.textSubtle as number),
+    warning: FIXED_COLORS[scheme].warning as string
+  };
+}
+
+export const DEFAULT_MME_THEME: Readonly<Record<MmeScheme, ResolvedMmeTheme>> = {
+  dark: {
+    colors: deriveColorsFromRamps(DEFAULT_RAMPS.dark, "dark"),
+    elevation: DEFAULT_ELEVATION.dark,
+    layers: SHARED_LAYERS,
+    motion: SHARED_MOTION,
+    ramps: DEFAULT_RAMPS.dark,
+    shape: SHARED_SHAPE,
+    spacing: SHARED_SPACING,
+    typography: SHARED_TYPOGRAPHY
+  },
+  light: {
+    colors: deriveColorsFromRamps(DEFAULT_RAMPS.light, "light"),
+    elevation: DEFAULT_ELEVATION.light,
+    layers: SHARED_LAYERS,
+    motion: SHARED_MOTION,
+    ramps: DEFAULT_RAMPS.light,
+    shape: SHARED_SHAPE,
+    spacing: SHARED_SPACING,
+    typography: SHARED_TYPOGRAPHY
   }
 };
 
@@ -253,60 +550,114 @@ export function resolveThemeToCssVariables(
 ): Readonly<Record<MmeTokenVariable, string>> {
   const resolved = resolveTheme(theme, scheme);
   return {
-    "--mme-color-bg": resolved.colors.bg,
-    "--mme-color-surface": resolved.colors.surface,
-    "--mme-color-surface-raised": resolved.colors.surfaceRaised,
-    "--mme-color-border": resolved.colors.border,
-    "--mme-color-text": resolved.colors.text,
-    "--mme-color-text-muted": resolved.colors.textMuted,
+    "--mme-accent-1": resolved.ramps.accent[0],
+    "--mme-accent-10": resolved.ramps.accent[9],
+    "--mme-accent-11": resolved.ramps.accent[10],
+    "--mme-accent-12": resolved.ramps.accent[11],
+    "--mme-accent-2": resolved.ramps.accent[1],
+    "--mme-accent-3": resolved.ramps.accent[2],
+    "--mme-accent-4": resolved.ramps.accent[3],
+    "--mme-accent-5": resolved.ramps.accent[4],
+    "--mme-accent-6": resolved.ramps.accent[5],
+    "--mme-accent-7": resolved.ramps.accent[6],
+    "--mme-accent-8": resolved.ramps.accent[7],
+    "--mme-accent-9": resolved.ramps.accent[8],
     "--mme-color-accent": resolved.colors.accent,
     "--mme-color-accent-contrast": resolved.colors.accentContrast,
+    "--mme-color-accent-hover": resolved.colors.accentHover,
+    "--mme-color-accent-soft": resolved.colors.accentSoft,
+    "--mme-color-accent-softer": resolved.colors.accentSofter,
+    "--mme-color-accent-text": resolved.colors.accentText,
+    "--mme-color-bg": resolved.colors.bg,
+    "--mme-color-border": resolved.colors.border,
+    "--mme-color-border-strong": resolved.colors.borderStrong,
+    "--mme-color-border-subtle": resolved.colors.borderSubtle,
+    "--mme-color-code-bg": resolved.colors.codeBg,
     "--mme-color-danger": resolved.colors.danger,
-    "--mme-color-selection": resolved.colors.selection,
     "--mme-color-focus-ring": resolved.colors.focusRing,
-    "--mme-font-family-ui": resolved.typography.fontFamilyUi,
+    "--mme-color-selection": resolved.colors.selection,
+    "--mme-color-surface": resolved.colors.surface,
+    "--mme-color-surface-active": resolved.colors.surfaceActive,
+    "--mme-color-surface-hover": resolved.colors.surfaceHover,
+    "--mme-color-surface-muted": resolved.colors.surfaceMuted,
+    "--mme-color-surface-raised": resolved.colors.surfaceRaised,
+    "--mme-color-text": resolved.colors.text,
+    "--mme-color-text-muted": resolved.colors.textMuted,
+    "--mme-color-text-subtle": resolved.colors.textSubtle,
+    "--mme-color-warning": resolved.colors.warning,
+    "--mme-density": resolved.spacing.density,
+    "--mme-elevation-1": resolved.elevation.elevation1,
+    "--mme-elevation-2": resolved.elevation.elevation2,
+    "--mme-elevation-3": resolved.elevation.elevation3,
     "--mme-font-family-content": resolved.typography.fontFamilyContent,
     "--mme-font-family-mono": resolved.typography.fontFamilyMono,
-    "--mme-font-size-base": resolved.typography.fontSizeBase,
+    "--mme-font-family-ui": resolved.typography.fontFamilyUi,
     "--mme-font-scale": resolved.typography.fontScale,
+    "--mme-font-size-base": resolved.typography.fontSizeBase,
+    "--mme-font-size-code": resolved.typography.fontSizeCode,
+    "--mme-font-size-content": resolved.typography.fontSizeContent,
+    "--mme-font-size-ui": resolved.typography.fontSizeUi,
+    "--mme-font-size-ui-sm": resolved.typography.fontSizeUiSm,
+    "--mme-font-size-ui-xs": resolved.typography.fontSizeUiXs,
     "--mme-line-height": resolved.typography.lineHeight,
-    "--mme-radius-sm": resolved.shape.radiusSm,
-    "--mme-radius-md": resolved.shape.radiusMd,
+    "--mme-line-height-content": resolved.typography.lineHeightContent,
+    "--mme-line-height-ui": resolved.typography.lineHeightUi,
+    "--mme-motion-base": resolved.motion.base,
+    "--mme-motion-ease": resolved.motion.ease,
+    "--mme-motion-fast": resolved.motion.fast,
+    "--mme-motion-slow": resolved.motion.slow,
+    "--mme-neutral-1": resolved.ramps.neutral[0],
+    "--mme-neutral-10": resolved.ramps.neutral[9],
+    "--mme-neutral-11": resolved.ramps.neutral[10],
+    "--mme-neutral-12": resolved.ramps.neutral[11],
+    "--mme-neutral-2": resolved.ramps.neutral[1],
+    "--mme-neutral-3": resolved.ramps.neutral[2],
+    "--mme-neutral-4": resolved.ramps.neutral[3],
+    "--mme-neutral-5": resolved.ramps.neutral[4],
+    "--mme-neutral-6": resolved.ramps.neutral[5],
+    "--mme-neutral-7": resolved.ramps.neutral[6],
+    "--mme-neutral-8": resolved.ramps.neutral[7],
+    "--mme-neutral-9": resolved.ramps.neutral[8],
+    "--mme-radius-full": resolved.shape.radiusFull,
     "--mme-radius-lg": resolved.shape.radiusLg,
-    "--mme-space-1": resolved.spacing.space1,
-    "--mme-space-2": resolved.spacing.space2,
-    "--mme-space-3": resolved.spacing.space3,
-    "--mme-space-4": resolved.spacing.space4,
-    "--mme-space-5": resolved.spacing.space5,
-    "--mme-space-6": resolved.spacing.space6,
-    "--mme-density": resolved.spacing.density,
-    "--mme-touch-target-size": resolved.spacing.touchTargetSize,
-    "--mme-shadow-sm": resolved.elevation.shadowSm,
+    "--mme-radius-md": resolved.shape.radiusMd,
+    "--mme-radius-sm": resolved.shape.radiusSm,
+    "--mme-radius-xl": resolved.shape.radiusXl,
+    "--mme-radius-xs": resolved.shape.radiusXs,
     "--mme-shadow-md": resolved.elevation.shadowMd,
-    "--mme-z-toolbar": resolved.layers.zToolbar,
+    "--mme-shadow-sm": resolved.elevation.shadowSm,
+    "--mme-space-2xl": resolved.spacing.space2xl,
+    "--mme-space-2xs": resolved.spacing.space2xs,
+    "--mme-space-3xl": resolved.spacing.space3xl,
+    "--mme-space-4xl": resolved.spacing.space4xl,
+    "--mme-space-5xl": resolved.spacing.space5xl,
+    "--mme-space-6xl": resolved.spacing.space6xl,
+    "--mme-space-7xl": resolved.spacing.space7xl,
+    "--mme-space-8xl": resolved.spacing.space8xl,
+    "--mme-space-lg": resolved.spacing.spaceLg,
+    "--mme-space-md": resolved.spacing.spaceMd,
+    "--mme-space-sm": resolved.spacing.spaceSm,
+    "--mme-space-xl": resolved.spacing.spaceXl,
+    "--mme-space-xs": resolved.spacing.spaceXs,
+    "--mme-touch-target-size": resolved.spacing.touchTargetSize,
     "--mme-z-menu": resolved.layers.zMenu,
-    "--mme-z-overlay": resolved.layers.zOverlay
+    "--mme-z-overlay": resolved.layers.zOverlay,
+    "--mme-z-toolbar": resolved.layers.zToolbar
   };
 }
 
 export function resolveTheme(theme: MmeTheme = {}, scheme: MmeScheme = DEFAULT_MME_SCHEME): ResolvedMmeTheme {
   const defaults = DEFAULT_MME_THEME[scheme];
+  const ramps: MmeRampTokens = {
+    accent: theme.ramps?.accent ?? defaults.ramps.accent,
+    neutral: theme.ramps?.neutral ?? defaults.ramps.neutral
+  };
+  // Semantic colors follow the ramps, then explicit color overrides win.
+  const derivedColors = deriveColorsFromRamps(ramps, scheme);
   return {
     colors: {
-      ...defaults.colors,
+      ...derivedColors,
       ...theme.colors
-    },
-    typography: {
-      ...defaults.typography,
-      ...theme.typography
-    },
-    shape: {
-      ...defaults.shape,
-      ...theme.shape
-    },
-    spacing: {
-      ...defaults.spacing,
-      ...theme.spacing
     },
     elevation: {
       ...defaults.elevation,
@@ -315,6 +666,23 @@ export function resolveTheme(theme: MmeTheme = {}, scheme: MmeScheme = DEFAULT_M
     layers: {
       ...defaults.layers,
       ...theme.layers
+    },
+    motion: {
+      ...defaults.motion,
+      ...theme.motion
+    },
+    ramps,
+    shape: {
+      ...defaults.shape,
+      ...theme.shape
+    },
+    spacing: {
+      ...defaults.spacing,
+      ...theme.spacing
+    },
+    typography: {
+      ...defaults.typography,
+      ...theme.typography
     }
   };
 }

@@ -9,6 +9,7 @@ import {
   sanitizeLlmsLineField,
   titleFromPath
 } from "../apps/docs-site/src/docs-shared.mjs";
+import { buildDesignTokens } from "./generate-design-tokens.mjs";
 
 const publicRoot = "docs/public";
 const outputRoot = "docs/agent";
@@ -16,7 +17,8 @@ const outputFiles = {
   actions: `${outputRoot}/actions.json`,
   manifest: `${outputRoot}/manifest.json`,
   product: `${outputRoot}/product.json`,
-  readme: `${outputRoot}/README.md`
+  readme: `${outputRoot}/README.md`,
+  tokens: `${outputRoot}/tokens.json`
 };
 const generatorPath = "scripts/generate-agent-artifacts.mjs";
 const siteOrigin = "https://momentarise.dev";
@@ -31,11 +33,16 @@ const skills = createSkills(publicPages, packageMetadata);
 const actions = createActions(inputHash);
 const productProfile = createProductProfile(inputHash, publicPages, packageMetadata);
 const manifest = createManifest(inputHash, skills, packageMetadata);
+// The design system is part of the agent surface (MME-0102). This directory is
+// rebuilt from scratch on every run, so the mirror is generated here rather than
+// written alongside it and silently deleted.
+const designTokens = await buildDesignTokens();
 const generatedFiles = new Map([
   [outputFiles.readme, renderAgentIndex(manifest, skills, productProfile)],
   [outputFiles.manifest, stringifyJson(manifest)],
   [outputFiles.actions, stringifyJson(actions)],
   [outputFiles.product, stringifyJson(productProfile)],
+  [outputFiles.tokens, designTokens],
   ...skills.map((skill) => [skill.path, renderSkill(skill)])
 ]);
 
@@ -63,6 +70,8 @@ function createManifest(sourceHash, skillDescriptors, packages) {
     actionsUrl: `${publicAgentBaseUrl}/actions.json`,
     productProfilePath: outputFiles.product,
     productProfileUrl: `${publicAgentBaseUrl}/product.json`,
+    designTokensPath: outputFiles.tokens,
+    designTokensUrl: `${publicAgentBaseUrl}/tokens.json`,
     skills: skillDescriptors.map(({ body, description, ...skill }) => skill)
   };
 }

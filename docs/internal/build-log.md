@@ -8002,3 +8002,65 @@
 - Visual impact: No visible editing or general UI changes from this review itself. Planning documents only.
 - Checks run: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
 - Push status: pushed.
+
+## MME-0102 — Design foundation: premium by default
+
+- Date: 2026-07-31. Block B3 (opus-5), only issue.
+- Previous issue status: Block B2 accepted (`ffdca24`, "Block B2 review + MME-0102 promotion"). Clean `git status` before starting; full `npm test` green as a pre-change baseline (exit 0).
+- Context rebuild: `AGENT.md`, `README.md`, `docs/internal/PRD.md`, `docs/internal/QUALITY_GATES.md`, `docs/internal/ISSUES.md` (MME-0102 spec, the conversation-block table, the 2026-07-31 styling-ownership rule), `docs/internal/BACKLOG.md`, `git status`, plus full reads of `packages/md-theme/src/tokens.css`, `packages/md-theme/src/styles.css` (all 1672 lines), `packages/md-theme/src/index.ts`, `packages/md-source-codemirror`'s JS theme, `apps/md-demo/src/styles.css` page shell, and every test that reads the packaged stylesheet (`component-stylesheet`, `default-theme-v1`, `theme-tokens`, `theme-contracts`, `theme-contrast`, and the retargeted demo baselines).
+- Session note: the conversation was launched with its working directory set to an unrelated project (`02 Projects/MeetSync/CallInt`). MME-0102 exists only in this repository, so all work was done here after confirming the queue, the block table, and HEAD.
+
+### What shipped
+
+- **`packages/md-theme/src/tokens.css` rewritten as the system** (150 → 397 lines), in two layers. The scale layer (scheme-independent): type roles (content 16px/1.65, ui 13/12/11 with an 11px floor, code 14px), the em-based heading scale with tracking and margins, block rhythm, the 13-step spacing ladder `2 4 6 8 12 16 20 24 32 40 48 64 80`, radius 4/6/8/10/12 + pill, motion 100/150/200ms on one easing, chrome geometry (28px controls, 48px top bar, 32px menu items, 16px icons, 44px touch target), the 708px measure, named popover widths, and density. The color layer: `--mme-neutral-1..12` and `--mme-accent-1..12` per scheme (Radix step semantics), with **every** semantic token an alias into a ramp step — machine-enforced, so a rebrand is a ramp swap and never a hunt through selectors.
+- **`packages/md-theme/src/styles.css` redesigned** (1672 → 1791 lines) in the four sections the issue names — content typography → chrome → menus/overlays → motion — with a re-screenshot after each. Selector architecture unchanged: a parity script compared the 226 pre-change selectors against the 235 post-change ones; the only 8 differences are deliberate (`:hover` → `:hover:not(:disabled)`, `:focus` → `:focus-visible`, per the spec's focus rule).
+- **`packages/md-theme/src/index.ts`**: the typed theme now mirrors the whole system — ramps as 12-tuples, the expanded color/typography/shape/spacing/elevation/motion groups, and `deriveColorsFromRamps`, which is the mechanism behind the rebrand promise (override `ramps` and every semantic color follows). One new public export, recorded in `tests/fixtures/public-api-approved.json`.
+- **`packages/md-source-codemirror`**: its JS theme now spends the same tokens — 14px mono at 1.55, ladder padding, `border-subtle` gutters, `--mme-radius-xs` find matches, and accent *text* (not accent fill) for links/keywords.
+- **`scripts/generate-design-tokens.mjs`** generates `tokens.json` from `tokens.css` — every token with name, raw value, fully resolved value, role, and scheme, plus the ladders and the accent-scarcity/contrast/scheme rules. Shipped as `@momentarise/md-theme/tokens.json` and mirrored at `docs/agent/tokens.json`. Because `generate-agent-artifacts.mjs` rebuilds `docs/agent/` from scratch, it now *owns* emitting the mirror (importing the builder) instead of racing it, and the manifest gained `designTokensPath`/`designTokensUrl`.
+- **Docs**: `docs/public/concepts/theming.md` gained the full system — token tables, all four ladders, the ramp/alias mapping, the accent-scarcity rule, contrast floors, density, scheme override, a "restyle in 5 minutes" ramp-swap example, and the `tokens.json` contract. `llms*.txt` and `docs/agent/*` regenerated.
+- **Demo page shell only** (ownership rule respected): the top bar takes `--mme-topbar-height`/`--mme-blur-chrome` and a hairline; two sub-11px micro-labels lifted to the floor; the page title now uses the UI size.
+
+### Test-first (RED → GREEN)
+
+- New `tests/design-system-tokens.test.mjs`, confirmed RED against the pre-change tokens (`tokens.css :root must declare --mme-space-2xs`). It asserts every ladder exists with exact values and is monotonic, the type roles and heading scale, the chrome geometry, both 12-step ramps in **every** scheme block, that each semantic alias resolves to `var(--mme-neutral-N)`/`var(--mme-accent-N)` and never a raw value, and that `styles.css` spends ladder values only — a px/ms literal outside the ladders fails unless it carries an inline `/* allow: reason */` escape (10 of a permitted 24 used, all for runtime anchor fallbacks and the reduced-motion off-switch). Media-query conditions are exempt by necessity, not convention: custom properties cannot be used inside a media condition. It also proves zero animation on the typing path, the `prefers-reduced-motion` block, the 44px coarse-pointer contract, and the `tokens.json` mirror (roles complete, values resolved, both ramps, rules documented).
+- `tests/theme-contrast.test.mjs` rewritten and confirmed RED (`--mme-color-text-subtle` undefined). It now resolves `tokens.css` itself — the single source of truth — for both schemes and enforces the issue's floors: primary ≥ 7:1, secondary ≥ 4.6:1, muted/disabled ≥ 3:1, plus accent-on-solid, accent-as-text, focus ring, and danger. It additionally proves the JS theme agrees with `tokens.css` for every shared token; that check immediately caught real drift (`--mme-line-height` 1.6 vs 1.65) and now makes the two incapable of diverging.
+- `test:design-system` registered in the root `npm test` chain; `visual:mme-0102` registered.
+
+### Verification
+
+- **Full `npm test` green (exit 0)** after the change, including every preservation, round-trip, fixture, rich-mode, save-engine, policy, and demo-baseline suite — this issue changed appearance, not behavior, and the suites confirm it. Run twice: the first surfaced exactly one failure (public-API drift for the new export), the second was clean.
+- **Real-browser proof** at 1280 / 768 / 390 in both schemes, 24 screenshots under `docs/internal/visual-checks/MME-0102/` (`content-*`, `content-blocks-*`, `menu-*`, `source-*`) plus `measurements.json`. `scripts/visual-check-mme0102.mjs` does not just capture — it **asserts the geometry against the benchmarks**, so a drifting value fails the run instead of producing a wrong-looking screenshot: content 16px at 1.65, H1/H2/H3 = 30/24/20px, H1 weight 700 at −0.021em, measure 708px, desktop padding-top 64px, controls 28px at 6px radius, top bar 48px on a 1px hairline, menus 10px radius / 6px padding / 6px item radius / three-layer elevation-3, nothing rendering below 11px. Zero console errors.
+- Benchmark comparison documented in `docs/internal/visual-checks/MME-0102/README.md` as a target-vs-measured table (Notion content, Linear/Vercel chrome, BlockNote menus) with the license boundary stated explicitly: visual reference only, no assets, CSS, markup, or competitor screenshots reproduced.
+
+### Defects found and fixed during the issue
+
+1. **No keyboard focus ring for any consumer.** The global `button:focus-visible` rule lives in `apps/md-demo/src/styles.css`, which ships to nobody — so every package-owned button, menu item, and mode control had no focus indicator outside this repository's demo. This is the same class of defect the Block B review found for component styling generally. Added an explicit `:focus-visible` ring across all package-owned controls in the packaged stylesheet.
+2. **Accent used as text failed contrast in dark.** `--mme-color-accent` (`#2563eb`) on the dark canvas is 3.86:1 — below the 4.6:1 secondary floor — and it was used for links, selected menu titles, and footnote references. Split accent into fill (`--mme-color-accent`, ramp 9) and text (`--mme-color-accent-text`, ramp 11), and the contrast test now guards it.
+3. **The measure preference fought the system.** `layout.readableLineWidth` defaulted to 880px in three places and is applied as `--mme-active-content-measure` at runtime, so the 708px measure never took effect. Defaulted all three to 708 (the preference stays adjustable over its 420–1200 range).
+4. **The demo's bare `h1` rule leaked into document content.** `h1 { white-space: nowrap; text-overflow: ellipsis }` was unscoped, so the *document's* H1 truncated at 390px. Scoped to `.brand-lockup h1`.
+5. Menu group separators were specified but absent; added as 1px hairlines with 6px margins, never before the first group.
+
+### Reviewer result
+
+Reviewer subagents were not used: this session runs with subagent invocation disabled unless explicitly requested. Per `AGENT.md`, a documented **fallback self-review** was run instead across the three lenses the issue names, and each claim was verified mechanically rather than asserted:
+
+- *Architecture*: selector-parity script (226 → 235, 8 intentional differences enumerated); ownership rule holds (package CSS in the packaged stylesheet, demo changes confined to page shell); zero raw colors in `styles.css`; `tokens.css` is the single source of truth with machine-checked JS agreement; legacy aliases verified from the generated `tokens.json` to resolve to their **pre-change values** (`--mme-space-1..6` = 4/8/12/16/20/24px, `--mme-font-size-base` = 13px) — so there is no consumer-visible spacing break. `--mme-radius-sm/md/lg` **do** change (5/7/8 → 6/8/10px); that is the issue's normative radius scale, recorded here as the one deliberate value change to an existing token name.
+- *Accessibility*: contrast floors machine-checked in both schemes; focus rings restored for every control and `:focus-visible`-only; nothing below 11px (measured in-browser, not just asserted in CSS); 44px coarse-pointer contract preserved and extended to `.mode-switch-label`; reduced-motion honoured; zero animation on the typing path.
+- *UX*: judged interactively in a real browser at three widths in both schemes before scripting the captures — which is how defects 3, 4, and 5 were caught.
+
+Residual risk: a fallback self-review is weaker than an independent reviewer. If Andrew wants an independent pass before the block closes, it should run against this commit.
+
+### Recorded deviations from the spec
+
+- Added `--mme-font-size-code: 14px`. The spec's two roles (content/UI) do not cover monospace; mono at the 16px content size reads oversized against a proportional column, and 14px is where Notion/Vercel settle. Documented in `tokens.css` and the public theming doc.
+- Spacing ladder steps are named `2xs…8xl` rather than by index. Index naming would have collided with the existing `--mme-space-1..6` (whose values differ from the new ladder's first six) and silently changed their meaning for consumers. The t-shirt names are collision-free and the legacy names survive unchanged.
+- Light and dark map a few semantic aliases to *different* ramp steps (`surface-raised`, `surface-hover`, `surface-active`, `code-bg`, `text-subtle`). Elevation runs in opposite directions in the two schemes; forcing one mapping would make menus invisible against their own hover state. The ramps remain the single rebrand surface. Documented.
+- Named popover widths (`--mme-menu-width-*`, `--mme-panel-width-*`, `--mme-inspector-width`) live in `tokens.css` rather than as ladder values, so component rules can stay ladder-only.
+
+### Visual impact
+
+Everything changed, everywhere, as the issue intends. Content is document-grade: 16px at 1.65 on a 708px measure with a real heading scale and 64px of top breathing room. Chrome is compact and exact: 28px controls, 6px radii, hairline separators, a 48px translucent top bar. Menus gained real elevation, group separators, and consistent geometry. Motion is a three-step scale that never touches the typing path. Demo, `examples/next-app`, and the packaged stylesheet all inherit it together — the MME-0100 byte-identical-demo constraint was explicitly lifted for this issue.
+
+### Human review required
+
+Yes — Andrew approves the look; that judgment, not the tests, is the exit gate for Block B3. Artifacts under `docs/internal/visual-checks/MME-0102/`.

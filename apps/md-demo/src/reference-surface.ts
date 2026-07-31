@@ -188,7 +188,7 @@ export const DEFAULT_REFERENCE_EDITOR_PREFERENCES: ReferenceEditorPreferences = 
   layoutDensity: "comfortable",
   modeControl: "compact-tabs",
   optionalStats: false,
-  readableLineWidth: 880,
+  readableLineWidth: 708,
   slashEnabled: true,
   technicalStatusDisclosure: "discreet",
   toolbarMode: "sticky",

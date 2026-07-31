@@ -1,0 +1,62 @@
+{
+  "consoleErrors": [],
+  "demoUrl": "http://127.0.0.1:5174/",
+  "measurements": {
+    "dark": {
+      "chrome": {
+        "toolbarBorderBottomWidth": "1px",
+        "toolbarButtonHeight": 28,
+        "toolbarButtonRadius": "6px",
+        "toolbarHeight": 48
+      },
+      "content": {
+        "bodyFontSize": "16px",
+        "bodyLineHeightRatio": 1.65,
+        "h1FontSize": "30px",
+        "h1LetterSpacing": "-0.63px",
+        "h1Weight": "700",
+        "h2FontSize": "24px",
+        "h3FontSize": "20px",
+        "measureWidth": 708,
+        "paddingTop": "64px"
+      },
+      "menu": {
+        "itemHeight": 46,
+        "itemRadius": "6px",
+        "menuPadding": "6px",
+        "menuRadius": "10px",
+        "menuShadowLayers": 3
+      },
+      "smallestFontSize": 11
+    },
+    "light": {
+      "chrome": {
+        "toolbarBorderBottomWidth": "1px",
+        "toolbarButtonHeight": 28,
+        "toolbarButtonRadius": "6px",
+        "toolbarHeight": 48
+      },
+      "content": {
+        "bodyFontSize": "16px",
+        "bodyLineHeightRatio": 1.65,
+        "h1FontSize": "30px",
+        "h1LetterSpacing": "-0.63px",
+        "h1Weight": "700",
+        "h2FontSize": "24px",
+        "h3FontSize": "20px",
+        "measureWidth": 708,
+        "paddingTop": "64px"
+      },
+      "menu": {
+        "itemHeight": 46,
+        "itemRadius": "6px",
+        "menuPadding": "6px",
+        "menuRadius": "10px",
+        "menuShadowLayers": 3
+      },
+      "smallestFontSize": 11
+    }
+  },
+  "screenshots": 24,
+  "status": "passed"
+}

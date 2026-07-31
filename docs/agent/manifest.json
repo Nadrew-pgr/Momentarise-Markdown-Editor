@@ -29,12 +29,14 @@
       "packages/md-surface/package.json",
       "packages/md-theme/package.json"
     ],
-    "inputHash": "1ff6837a4c3a5b18f62937fce520422b834f3a4195970a33435c60a40b7a3b33"
+    "inputHash": "a30f1e40bf9badba0f5f6a31e5e382fa7c8d0322440e9821ef642899cefb8d92"
   },
   "actionsPath": "docs/agent/actions.json",
   "actionsUrl": "https://momentarise.dev/agent/actions.json",
   "productProfilePath": "docs/agent/product.json",
   "productProfileUrl": "https://momentarise.dev/agent/product.json",
+  "designTokensPath": "docs/agent/tokens.json",
+  "designTokensUrl": "https://momentarise.dev/agent/tokens.json",
   "skills": [
     {
       "id": "mme-adoption-evaluation",

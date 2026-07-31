@@ -31,7 +31,8 @@
       "default": "./dist/index.js"
     },
     "./tokens.css": "./src/tokens.css",
-    "./styles.css": "./src/styles.css"
+    "./styles.css": "./src/styles.css",
+    "./tokens.json": "./src/tokens.json"
   },
   "files": [
     "dist",
@@ -39,7 +40,8 @@
     "src/tokens.css",
     "src/styles.css",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "src/tokens.json"
   ],
   "scripts": {
     "build": "tsc -b",

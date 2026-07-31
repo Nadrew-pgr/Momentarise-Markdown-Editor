@@ -118,7 +118,7 @@ export function createMomentariseSourceFindHighlightExtension(
     EditorView.theme({
       ".mme-source-find-match": {
         backgroundColor: "var(--mme-color-accent-soft)",
-        borderRadius: "3px"
+        borderRadius: "var(--mme-radius-xs)"
       },
       ".mme-source-find-match-active": {
         backgroundColor: "var(--mme-color-selection)",
@@ -223,7 +223,7 @@ const momentariseMarkdownHighlightStyle = HighlightStyle.define([
   {
     tag: [tags.heading1, tags.heading2, tags.heading3, tags.heading4, tags.heading5, tags.heading6],
     color: "var(--mme-color-text)",
-    fontWeight: "650"
+    fontWeight: "var(--mme-font-weight-bold)"
   },
   {
     tag: tags.heading,
@@ -235,13 +235,13 @@ const momentariseMarkdownHighlightStyle = HighlightStyle.define([
   },
   {
     tag: [tags.link, tags.url],
-    color: "var(--mme-color-accent)",
+    color: "var(--mme-color-accent-text)",
     textDecoration: "underline",
     textUnderlineOffset: "2px"
   },
   {
     tag: [tags.monospace, tags.escape],
-    color: "var(--mme-color-accent)"
+    color: "var(--mme-color-accent-text)"
   },
   {
     tag: [tags.quote, tags.list, tags.contentSeparator, tags.meta, tags.punctuation],
@@ -249,7 +249,7 @@ const momentariseMarkdownHighlightStyle = HighlightStyle.define([
   },
   {
     tag: [tags.keyword, tags.atom, tags.bool, tags.number],
-    color: "var(--mme-color-accent)"
+    color: "var(--mme-color-accent-text)"
   },
   {
     tag: [tags.string, tags.attributeValue],
@@ -319,17 +319,17 @@ function createSourceThemeExtension(preferences: Required<MomentariseSourcePrefe
     },
     ".cm-scroller": {
       fontFamily: "var(--mme-font-family-mono)",
-      fontSize: "calc(var(--mme-font-size-base) * var(--mme-font-scale))",
-      lineHeight: "var(--mme-line-height)"
+      fontSize: "calc(var(--mme-font-size-code) * var(--mme-font-scale))",
+      lineHeight: "var(--mme-line-height-code)"
     },
     ".cm-content": {
       maxWidth: `${preferences.readableLineWidth}px`,
       padding:
-        "calc(var(--mme-space-6) * var(--mme-density)) calc(var(--mme-space-6) * var(--mme-density))"
+        "calc(var(--mme-space-4xl) * var(--mme-density)) calc(var(--mme-space-3xl) * var(--mme-density))"
     },
     ".cm-gutters": {
       backgroundColor: "transparent",
-      borderRight: "1px solid var(--mme-color-border)"
+      borderRight: "1px solid var(--mme-color-border-subtle)"
     },
     ".cm-activeLine, .cm-activeLineGutter": {
       backgroundColor: "var(--mme-color-surface)"
@@ -364,7 +364,7 @@ function normalizeSourcePreferences(preferences: MomentariseSourcePreferences = 
     keymapDelegateToHost: preferences.keymapDelegateToHost ?? false,
     keymapProfile: preferences.keymapProfile ?? "default",
     lineWrapping: preferences.lineWrapping ?? true,
-    readableLineWidth: preferences.readableLineWidth ?? 880
+    readableLineWidth: preferences.readableLineWidth ?? 708
   };
 }
 

@@ -197,7 +197,7 @@ export const DEFAULT_EDITOR_BEHAVIOR_PREFERENCES = {
   "keymap.delegateToHost": false,
   "keymap.profile": "default",
   "layout.density": "comfortable",
-  "layout.readableLineWidth": 880,
+  "layout.readableLineWidth": 708,
   "layout.viewportClass": "desktop",
   "modeSwitcher.style": "compact-tabs",
   "palette.enabled": true,
