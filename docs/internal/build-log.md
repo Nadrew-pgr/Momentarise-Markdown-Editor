@@ -7905,6 +7905,6 @@
   - `docs/internal/BACKLOG.md` gained a note (verified during this issue): `@momentarise/md-react`'s built-in mode control shows a "Rich" button and updates `session.getMode()`, but `mountReactEditor` in `packages/md-react/src/index.ts` never mounts `@momentarise/md-rich-prosemirror` — clicking "Rich" changes session state but not the rendered editing surface. Pre-existing scope gap in `md-react` as a "thin binding," not a regression from this issue and not something either quickstart ever claimed; flagged for a dedicated future issue if `md-react` is meant to expose rich mode.
   - The `example-next-app` CI job has not yet had its first real scheduled/dispatched run (the workflow file is new in this commit); first real execution will only be observable after this push, next Monday 06:00 UTC or via manual dispatch.
   - `tests/fixtures/react19-strictmode/` and `examples/next-app/` each carry their own `package-lock.json`, decoupled from the root workspace lockfile by design; a future alpha republish will require both to be refreshed manually (`npm install` in each directory) to stay current, same as any other real npm consumer.
-- Commit status: pending (next step).
-- Push status: pending (next step, after commit).
+- Commit status: committed as `ddbb74a` (`feat: add Next.js App Router registry consumer example (MME-0085)`).
+- Push status: pushed to `origin/main` per the 2026-07-30 standing instruction.
 - Next issue: none in Block B — MME-0085 was the last issue in Block B (`MME-0084`, `MME-0085`). Per the hard-stop rule in `docs/internal/ISSUES.md`, the agent must write the final report and **STOP** here; Block C (`MME-0086`, `0087`, `0088` — Editor UX correctness) requires a fresh conversation and is out of scope for this one.
