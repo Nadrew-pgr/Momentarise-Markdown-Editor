@@ -1,0 +1,36 @@
+@import "@momentarise/md-theme/tokens.css";
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--mme-color-surface-canvas, #f7f7f5);
+  color: var(--mme-color-text-primary, #1a1a1a);
+  font-family: var(--mme-font-family-sans, system-ui, sans-serif);
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+}
+
+main h1 {
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+
+main p {
+  color: var(--mme-color-text-secondary, #666);
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+}
+
+.mme-example-editor {
+  border: 1px solid var(--mme-color-border-default, #ddd);
+  border-radius: var(--mme-radius-md, 8px);
+  overflow: hidden;
+  min-height: 320px;
+}

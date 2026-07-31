@@ -35,7 +35,7 @@ import { createMemorySaveTarget } from "@momentarise/md-save";
 
 const content = "# Next.js host\n\nRender MME in a client boundary.\n";
 
-export default function MarkdownEditorClient() {
+export function MarkdownEditorClient() {
   return (
     <MarkdownEditor
       options={{
@@ -55,17 +55,19 @@ export default function MarkdownEditorClient() {
 
 ## Server Component Wrapper
 
-```tsx
-import dynamic from "next/dynamic";
+A Server Component can import and render a `"use client"` component directly; no `next/dynamic` wrapper is needed for this. (An earlier version of this doc used `dynamic(..., { ssr: false })`, which current Next.js rejects when called from a Server Component — that pattern is only valid inside another Client Component.)
 
-const MarkdownEditorClient = dynamic(() => import("./MarkdownEditorClient"), {
-  ssr: false
-});
+```tsx
+import { MarkdownEditorClient } from "./markdown-editor-client";
 
 export default function Page() {
   return <MarkdownEditorClient />;
 }
 ```
+
+## Working Example
+
+`examples/next-app/` in the repository is a complete, registry-installed Next.js App Router project built from exactly this pattern, with React 19 and StrictMode on. See its `app/page.tsx` and `app/markdown-editor-client.tsx`.
 
 ## Production Notes
 

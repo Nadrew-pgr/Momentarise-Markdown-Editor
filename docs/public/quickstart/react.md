@@ -67,6 +67,10 @@ MME owns:
 - extension registry;
 - source and rich view coordination.
 
+## Working Example
+
+`examples/next-app/` in the repository is a complete, registry-installed working project built on this binding, with React 19 and StrictMode on.
+
 ## Related Docs
 
 - [Next.js Quickstart](next.md)

@@ -16,6 +16,19 @@
 # unrelated to any @momentarise/* package — reproduced in isolation with a bare `vite`
 # devDependency alone) via a pnpm-workspace.yaml override in every pnpm-strict consumer leg. See
 # scripts/consumer-smoke.mjs's `externalPeerOverrides` comment for the full reproduction detail.
+#
+# MME-0085 added the `example-next-app` job below: it builds `examples/next-app/` against the
+# real published `@momentarise/*@alpha` registry packages, and separately runs the React 19
+# StrictMode-survival regression check (`test:react19-strictmode-lifecycle`). Both depend on a real
+# npm registry install (the example's own deps, and the isolated fixture at
+# tests/fixtures/react19-strictmode/), so this job deliberately runs only on a weekly schedule and
+# on manual `workflow_dispatch`, not on every push/PR — its purpose is catching registry drift (a
+# future alpha publish breaking the example, or breaking under React 19) between publishes, not
+# gating normal development. The equivalent `npm run test:example-next-registry` and
+# `npm run test:react19-strictmode-lifecycle` scripts are available to run locally at any time, but
+# both are deliberately excluded from the main `npm test` chain (same reasoning as
+# `test:source-keymap-integrity`'s pre-existing exclusion) so ordinary pushes/PRs are not slowed
+# down or made flaky by a real registry install; this scheduled job is where that coverage lives.
 name: CI
 
 on:
@@ -23,6 +36,9 @@ on:
   push:
     branches:
       - main
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
 
 jobs:
   test:
@@ -64,3 +80,32 @@ jobs:
 
       - name: Consumer matrix
         run: npm run test:consumer-matrix
+
+  example-next-app:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: examples/next-app/package-lock.json
+
+      - name: Install example dependencies from the real registry
+        run: npm install
+        working-directory: examples/next-app
+
+      - name: Typecheck example
+        run: npm run typecheck
+        working-directory: examples/next-app
+
+      - name: Build example
+        run: npm run build
+        working-directory: examples/next-app
+
+      - name: React 19 StrictMode regression check
+        run: npm run test:react19-strictmode-lifecycle

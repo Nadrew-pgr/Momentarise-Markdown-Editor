@@ -1,0 +1,14 @@
+{
+  "consoleErrors": [],
+  "exampleUrl": "http://127.0.0.1:5179/",
+  "ignoredResponses": [
+    {
+      "status": 404,
+      "url": "http://127.0.0.1:5179/favicon.ico"
+    }
+  ],
+  "screenshots": 2,
+  "statusAfterEdit": "mode: source · save status: dirty · target: memory-only",
+  "statusBeforeEdit": "mode: source · save status: saved · target: memory-only",
+  "status": "passed"
+}

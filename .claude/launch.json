@@ -12,6 +12,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "-w", "@momentarise/docs-site", "--", "--hostname", "127.0.0.1", "--port", "5178"],
       "port": 5178
+    },
+    {
+      "name": "next-app-example",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "examples/next-app", "--", "--hostname", "127.0.0.1", "--port", "5179"],
+      "port": 5179
     }
   ]
 }
