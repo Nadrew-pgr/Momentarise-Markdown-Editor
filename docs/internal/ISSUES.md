@@ -1139,6 +1139,52 @@ Selected blocks gain a distinct object-selection appearance; keyboard editing ga
 - Recommended builder model: opus-4.8.
 - Human review required: queued in the consolidated visual block.
 
+### Attempt 1 outcome (2026-08-01) — reverted, criteria hardened
+
+A full implementation was written, reviewed, found to corrupt Markdown, and
+reverted. `main` was left unchanged. Full evidence is in
+`docs/internal/build-log.md`. The next attempt must additionally satisfy these,
+all of which the first attempt failed:
+
+- **Separators are bytes too.** Deleting or duplicating rewrote the gap between
+  surviving blocks as a literal `"\n\n"`, injecting bare LFs into a CRLF document
+  and collapsing multi-blank gaps. The operations must build targeted transactions
+  on `state.tr`; a full-document `replaceWith(0, size, …)` that is then diffed
+  breaks separators, destroys the caret position, and makes `tr.mapping` useless
+  to every other plugin.
+- **Tables.** `tableEditing()` converts a table `NodeSelection` into a
+  `CellSelection`, so the table was unselectable *and* `Esc`+`Backspace` wiped its
+  cells. Needs `allowTableNodeSelection: true` plus a guard, and a test.
+- **`Enter` replaces the selection, and the clipboard round-trips.** Both are
+  acceptance bullets; attempt 1 exported the functions with zero call sites, which
+  made the feature look present while a real `copy` event produced an empty
+  clipboard.
+- **Escape must not collide with overlay dismissal.** `attachSurfaceOverlayDismissListeners`
+  binds Escape with `capture: true`, so one press dismissed the slash menu *and*
+  entered block selection.
+- **Accessibility.** `aria-selected` is invalid on paragraph/generic/list/heading
+  roles, and `aria-label` on a heading replaces its accessible name. Use a polite
+  live region, or a container role with `aria-activedescendant`.
+- **The presentation must ship with the model.** The selection decoration lived in
+  `createRichBlockAffordancePlugin`, which is not part of
+  `createMomentariseRichPlugins`, so default-plugin consumers would have got an
+  invisible block-selection mode.
+- **Gate requirements, from the ways attempt 1's gates were vacuous:** preservation
+  must be asserted with `assert.equal` on full output against CRLF, frontmatter,
+  footnote-definition and wide-gap fixtures — not `includes(substring)`; the
+  framed-block matrix must actually reach a table; undo atomicity must be asserted
+  on `undoDepth` delta and `tr.steps.length`, because `prosemirror-history` merges
+  adjacent transactions within 500ms and hides a split operation from a keystroke
+  test; and the state machine must be exercised **through the keymap**, not only
+  through the exported functions.
+
+The architecture decision — build on `NodeSelection` + `TextSelection` rather than
+a custom `Selection` class — was independently judged sound and is worth keeping.
+Block-level preservation works because `serializeRichMarkdownContent` aligns by
+node equality rather than step ranges. The leak is at the edges: `NodeSelection`
+is not sovereign (tables reinterpret it) and `TextSelection` is not private (the
+bubble toolbar and native highlight both observe it).
+
 ### Blocked by
 
 - MME-0086 (focus/overlay hygiene defines the focus semantics this builds on).

@@ -8722,3 +8722,120 @@ No change to chrome. In the editing surface the slash menu simply stops appearin
 in the wrong places; typing `/` in code, inline code, a table cell or mid-word now
 inserts the character and nothing else.
 
+
+## MME-0103 — Block selection model: ATTEMPTED, REVERTED, NOT SHIPPED (Block C, issue 4 of 5)
+
+- Date: 2026-08-01.
+- Status: **not implemented.** A full implementation was written, reviewed, found
+  to corrupt Markdown, and reverted. `main` is unchanged at `e090cac`.
+- This entry exists so the next attempt starts from the evidence instead of
+  rediscovering it.
+
+### Why it was reverted
+
+The reviewer found **silent Markdown corruption**, which `AGENT.md` names as a
+hard stop condition. I reproduced both cases independently before acting:
+
+```
+delete one block from "A.\r\n\r\nB.\r\n\r\nC.\r\n"  →  "A.\n\nC.\r\n"
+delete one block from "A.\n\n\n\nB.\n\n\n\nC.\n"    →  "A.\n\nC.\n"
+```
+
+A CRLF document gets bare LFs injected; a document with wide blank-line gaps has
+them collapsed. Cause: `serializeRichMarkdownContent` falls back to a literal
+`"\n\n"` separator (`index.ts:4236`, `:4259`) whenever the surviving block pair is
+not consecutive in the original, or the block is newly inserted — so duplicate is
+worse than delete, because the copy is always "inserted".
+
+Second corruption, equally disqualifying: **tables could not be block-selected at
+all**, and the failure mode was destructive. `tableEditing()` normalises a table
+`NodeSelection` into a `CellSelection` (`allowTableNodeSelection` defaults to
+false), so `Esc` produced an invisible cell selection with no block affordance,
+and the next `Backspace` wiped every cell instead of deleting the block:
+`"| a | b |…"` → `"|  |  |\n| --- | --- |\n|  |  |"`.
+
+Shipping either would have been worse than shipping nothing.
+
+### What was built, and what is worth keeping
+
+Architecture decision, which the reviewer independently judged sound: build on
+ProseMirror's own primitives rather than a custom `Selection` class — one block →
+`NodeSelection`, many blocks → a `TextSelection` spanning them. The reviewer
+confirmed this does buy correct mapping, history, and (crucially) **block-level
+preservation**: `serializeRichMarkdownContent` aligns by node equality, not by
+step ranges, so structurally-unchanged blocks still emit their original bytes.
+Verified on a 9-block fixture with frontmatter, footnotes, nested lists, callout,
+code fence, table and raw HTML — every untouched block stayed byte-identical.
+
+The leak is at the edges, not in the decision: `NodeSelection` is not sovereign
+(tables reinterpret it) and `TextSelection` is not private (the bubble toolbar and
+native highlight painting both observe it).
+
+### Every blocker, so the next attempt has a specification
+
+1. **Separator corruption** (above). The operations must build targeted
+   transactions on `state.tr`, not a full-document `replaceWith(0, size, …)` that
+   is then diffed. This is also the root cause of 3 and 4.
+2. **Tables unselectable and destructive** (above). Needs
+   `tableEditing({ allowTableNodeSelection: true })` plus a guard.
+3. **Caret lands in an arbitrary block after delete.** The full-document
+   `ReplaceStep`'s `StepMap` maps every interior position to the replacement
+   boundary, so the carefully-computed selection is discarded. Measured: deleting
+   block 1 of 5 put the caret in a table cell at the end of the document, and the
+   next keystroke appended there.
+4. **`Cmd+D` leaves the wrong selection** and builds a structurally invalid
+   `TextSelection` (ProseMirror warns: endpoint not pointing into inline content).
+5. **`Enter` does not replace the selection** — an AC bullet.
+   `replaceRichBlockSelectionWithParagraph` was written and exported with **zero
+   call sites**: dead code that made the feature look present.
+6. **Clipboard entirely unwired** — an AC bullet. `richBlockSelectionMarkdown`
+   also had zero call sites; there is no `clipboardTextSerializer` or copy
+   handler. A real `copy` event with a block selection produced `{text: "", html: ""}`.
+   The paste half has no implementation and no test at all.
+7. **Escape regression against MME-0086/0088 (shipped this block).** The overlay
+   dismiss controller binds Escape with `capture: true`, so one Escape now both
+   dismissed the slash menu *and* entered block selection. Any future attempt must
+   guard on "was an overlay just dismissed?".
+8. **My own gates were vacuous in three places.** The framed-block loop contained
+   `label === "a table" ? FIXTURE : FIXTURE` (both branches identical) and used a
+   needle that matched the code fence first, so the table case silently re-tested
+   the code fence and passed. The accessibility assertion
+   (`richSource.includes("aria-label")`) matched 10 pre-existing occurrences and
+   would pass with zero MME-0103 code. Preservation was asserted with
+   `output.includes(substring)` and never `assert.equal`, with no CRLF, frontmatter
+   or wide-gap fixture — which is exactly why blocker 1 escaped.
+9. **The accessibility work was a net regression.** `aria-selected` is invalid on
+   `paragraph`/`generic`/`list`/`heading` roles and is announced by no AT; and
+   `aria-label` on an `<h1>` *replaces* its accessible name, so the heading
+   announced as "Block selected" instead of its own text. A polite live region or
+   a container role with `aria-activedescendant` is what this needs.
+
+Also recorded: the decoration carrying the selection lives in
+`createRichBlockAffordancePlugin`, which is **not** part of
+`createMomentariseRichPlugins` — so a consumer on default plugins would have got a
+fully functional, completely invisible block-selection mode.
+
+### What did work, verified by the reviewer
+
+Undo atomicity genuinely held (one `Cmd+Z` restored byte-identically, one step,
+`undoDepth` 0→1→0). "Typing replaces the selection" works, inherited from
+ProseMirror rather than implemented. `Mod-a` in source mode, `Backspace`
+list-merge, and MME-0042 document-end insertion were all unaffected. The Esc /
+arrow / Shift+Arrow / Cmd+A state machine itself behaved correctly through the
+exported functions — it was never wired through the keymap in the gates, which is
+why 3, 5 and 7 were invisible to them.
+
+### Lesson recorded
+
+My undo mutation-test passed against a deliberately broken build, and I noted the
+suspicion at the time without chasing it. The reviewer explained why:
+`prosemirror-history` merges adjacent transactions inside a 500ms window, so
+splitting an operation into two transactions still yields one `Cmd+Z`. Undo
+atomicity must be asserted on `undoDepth` delta and `tr.steps.length` headlessly,
+never by observing keystrokes.
+
+### Files
+
+None changed. The implementation, its tests, its visual script and its artifacts
+were all removed; `npm test` is green at `e090cac`.
+
