@@ -46,6 +46,16 @@ External integrators already mirror MME vocabulary (`DocumentSnapshot`, `Documen
 
 Every surface must support host-controlled editability — read-only, suggest-only, full edit — switchable by the host developer, the end user, or agent policy, per document.
 
+## Customization at three levels
+
+Appearance is not a single audience's concern. All three must be first-class:
+
+1. **Developers and AI agents** customize deeply and easily: token and ramp overrides, a typed theme API, machine-readable `tokens.json`. Shipped as of `MME-0102`.
+2. **End users** change appearance from their application's settings — theme, scheme, content size, density — through a contract MME provides so every host does not reinvent it (`MME-0113`). The developer decides which keys the user may change and which are locked.
+3. **The reference desktop application** exposes those settings to its user like Obsidian does; that is a requirement of the app, not an optional extra.
+
+Default themes ship, but a default is a starting point, never a ceiling.
+
 ## What this vision does not change
 
 - V0 non-goals in `PRD.md` still apply until dedicated issues and human decisions say otherwise.

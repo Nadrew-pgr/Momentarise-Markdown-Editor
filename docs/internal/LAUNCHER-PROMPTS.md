@@ -16,7 +16,9 @@ Progress tracking: tick a block here once its exit gate passed.
 - [ ] Block B — npm publication + registry example
 - [x] Block B2 — package parity (2026-07-31: reviewed and accepted — packaged stylesheet token-clean, demo 0-pixel diff, example styled, rich round-trip proven; alpha.2 republish deferred to Block B3's close)
 - [x] Block B3 — design foundation (2026-07-31: accepted; all 16 packages republished at 0.1.0-alpha.3)
-- [ ] Block C — interaction correctness (MME-0086, 0087, 0088, 0103, 0104)
+- [x] Block C — interaction correctness part 1 (2026-08-01: MME-0086/0087/0088 shipped; MME-0103 attempted and correctly reverted for Markdown corruption)
+- [ ] Block C1 — block selection, attempt 2 (MME-0103)
+- [ ] Block C2 — input rules and visual gate integrity (MME-0104, 0114)
 - [ ] Block D — interaction surfaces (MME-0089, 0090, 0091, 0105, 0106)
 - [ ] Block D2 — Markdown-native differentiators (MME-0107, 0108)
 - [ ] Block D3 — full-surface UX audit (MME-0109)
@@ -146,6 +148,48 @@ When MME-0104 is committed and pushed, or at the first blocker, write the final 
 ```
 
 Exit gate: parity checklists green for contracts 2, 3, 5 and 8; Andrew uses the editor and agrees it behaves.
+
+---
+
+## Block C1 — Block selection, attempt 2 (model: Opus 5 or Fable 5)
+
+```text
+Read CLAUDE.md, then docs/internal/ISSUES.md (MME-0103, whose acceptance criteria were hardened after attempt 1), then docs/internal/research/editor-ux-benchmark.md contract 3, then the build-log entry recording why attempt 1 was reverted.
+
+Execute ONLY MME-0103. Nothing else.
+
+Attempt 1 was reverted from main, correctly, for silent Markdown corruption: deleting or duplicating a block rewrote the gap between surviving neighbours as a literal "\n\n", so a CRLF document lost its line endings and multi-blank gaps collapsed. Tables were worse — prosemirror-tables converts a table NodeSelection into a CellSelection, so Esc then Backspace wiped every cell instead of deleting the block. The architecture was judged sound; the implementation approach was not.
+
+The redesign is the point: use targeted transactions over the owned block range, never a full-document replace. Separator bytes between surviving blocks must be preserved exactly as authored — assert with assert.equal on full output against CRLF fixtures, multi-blank-line gaps, and frontmatter documents. Framed blocks (table, code, callout, opaque, raw HTML, media) must each be selectable and deletable as whole objects; the table case needs an explicit answer to the CellSelection conversion.
+
+Mutation-test every assertion per the AGENT.md rule: break the implementation, watch the assertion fail, record which reversion produces which failure, restore. Attempt 1 shipped a framed-block matrix whose table case silently re-tested a code fence, which is exactly how the table corruption escaped.
+
+Reviewer subagents are mandatory. If a reviewer hits a session limit, wait and retry rather than falling back.
+
+Follow the full per-issue protocol. When MME-0103 is committed and pushed, or at the first blocker, write the final report and STOP.
+```
+
+Exit gate: no corruption on any fixture; parity checklist for contract 3 green.
+
+---
+
+## Block C2 — Input rules and visual gate integrity (model: Opus 4.8)
+
+```text
+Read CLAUDE.md, then docs/internal/ISSUES.md (MME-0104, MME-0114), then docs/internal/research/editor-ux-benchmark.md contract 5.
+
+Execute ONLY Block C2: MME-0114 first, then MME-0104.
+
+MME-0114 comes first deliberately. Block C discovered that visual:* scripts are not part of npm test, so a slash-rule change broke five previously shipped visual gates invisibly, and two gates (MME-0013 slash keyboard navigation, MME-0027 AI prompt) were already red before that block began. One broken gate was asserting the very defect MME-0088 removed. Fix the harness before adding behaviour that depends on it.
+
+MME-0104 then implements the full Notion input-rule table plus smart pairing, reusing the richTextInputContext / matchRichSlashTrigger contracts MME-0088 introduced precisely so both features share one answer to "is this a safe context". The subtlety that matters: one Cmd/Ctrl+Z immediately after a conversion restores the literal typed text, not the whole paragraph.
+
+Mutation-test every assertion per the AGENT.md rule. Reviewer subagents mandatory. Styling ownership rule applies: packaged stylesheet, never the demo.
+
+Follow the full per-issue protocol. When MME-0104 is committed and pushed, or at the first blocker, write the final report and STOP.
+```
+
+Exit gate: visual runner green and meaningful; parity checklist for contract 5 green.
 
 ---
 

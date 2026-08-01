@@ -97,13 +97,16 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | B | MME-0084, 0085 | npm publication + registry example | sonnet-5, Andrew present | Andrew confirms install works |
 | B2 | MME-0100, 0101 | Package parity (published packages deliver what the demo shows) | opus-4.8 | Andrew sees the example look and behave like the demo |
 | B3 | MME-0102 (+ alpha.2 republish) | Design foundation — premium by default | opus-5 / fable-5 | done 2026-07-31, alpha.3 on registry |
-| C | MME-0086, 0087, 0088, 0103, 0104 | Interaction correctness — the editor behaves | opus-4.8 | parity checklists green; Andrew tries it |
+| C | MME-0086, 0087, 0088 | Interaction correctness, part 1 | opus-4.8 | done 2026-08-01 (0103 attempted and reverted) |
+| C1 | MME-0103 (attempt 2) | Block selection, redesigned on targeted transactions | opus-5 / fable-5 | no corruption; CRLF and gap fixtures green |
+| C2 | MME-0104, 0114 | Input rules and pairing; visual gate integrity | opus-4.8 | parity checklist for contract 5 green |
 | D | MME-0089, 0090, 0091, 0105, 0106 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
 | D2 | MME-0107, 0108 | Markdown-native differentiators | opus-5 / fable-5 | Andrew judges syntax reveal before it defaults |
 | D3 | MME-0109 | Full-surface UX audit | opus-4.8 | Andrew reviews and appends |
 | E | MME-0098 | AI writing surface (BlockNote tier) | opus-5 / fable-5 | Andrew tries the AI flow |
 | F | MME-0092, 0093 | Host contracts (diff/patch, revisions) | opus-5 / fable-5 | Andrew API sign-off |
 | G | MME-0094, 0095 | Docs site tier (shell + IA, incl. Principles framing) | opus-4.8 | Andrew screenshot + copy review |
+| G2 | MME-0112, 0113 | Theme presets, live switcher, appearance preferences | opus-4.8 | Andrew judges the presets |
 | H | MME-0096, 0097, 0110 | Landing + blog/SEO + public demo page | opus-4.8 | Andrew copy review before public deploy |
 | H2 | MME-0111 | Deploy momentarise.dev | sonnet-5 + Andrew | live URLs verified |
 | I | MME-0099 | Payload CMS integration baseline | opus-4.8 | Andrew tries MME inside Payload admin |
@@ -1487,6 +1490,156 @@ Put the docs site, landing page, demo, and blog on the domain Andrew owns, so th
 ### Blocked by
 
 - MME-0096, MME-0097 (landing and blog ship with the first public deploy).
+
+## MME-0112 — Theme presets and live theme switcher
+
+### Goal
+
+Prove MME's customization claim the only way that convinces anyone: the same document, the same packages, several radically different looks, switchable live — each one a file of token overrides, with zero application code changed.
+
+### Why this is the demo that sells the framework
+
+MME-0102 shipped 267 design tokens with a ramp architecture built so that a rebrand is a ramp swap. Nothing currently demonstrates that. A theme gallery turns an architectural property into a three-second proof, and each preset doubles as a copyable starting point for adopters.
+
+### Naming and licensing decision (Andrew, 2026-08-01)
+
+Themes are named by reference, using the "type beat" convention from music production — `claude-type`, `openai-type`, `vercel-type` — which natively signals "in the style of, not affiliated" and is an established, well-understood naming pattern. Each preset's README states the inspiration and the non-affiliation in one line.
+
+Hard constraints, which are about files rather than names:
+
+- Never redistribute a licensed font file. Brand typefaces (Styrene/Tiempos for Claude, OpenAI's custom sans) are commercially licensed; their font files must not enter this repository.
+- Use open-source substitutes with a similar voice and record the substitution in the preset README (e.g. Sora as the OpenAI-family substitute, Geist — SIL OFL — usable directly for the Vercel family).
+- No logos, wordmarks, or copied brand assets. Typographic and structural inspiration is fine; brand identity assets are not.
+
+### Acceptance criteria
+
+- At least four presets ship as pure token-override files consumed by `@momentarise/md-theme` — no component CSS, no selector overrides, no React. If a preset cannot be expressed in tokens alone, that gap is a defect in the token system and is either fixed by promoting a new token or recorded explicitly.
+- Each preset works in light and dark, passes the MME-0102 contrast floors, and respects the accent-scarcity rule.
+- A live theme switcher on the docs site swaps presets instantly on the same document, persisting the choice. It is the proof surface, not a toy.
+- A gallery page explains, per preset, **why** its choices work — measure, scale ratio, weight contrast, radius language, accent discipline. Analysis, not screenshots; this is what makes it worth reading rather than another showcase.
+- Presets are documented as the starting point for adopters: copy the file, change the ramp, ship.
+- Both schemes captured at 1280 and 390 per preset under `docs/internal/visual-checks/MME-0112/`.
+
+### Test-first plan
+
+- RED: a preset-contract test asserting every preset is token-only (no selectors, no `!important`, no component rules), defines the required token set, passes contrast in both schemes, and that switching presets changes nothing in the DOM but custom properties.
+- GREEN: author presets, wire the switcher.
+
+### Implementation notes
+
+Read first: `packages/md-theme/src/tokens.css` (the ramp and ladder architecture), `resolveThemeToCssVariables` and `deriveColorsFromRamps`, `docs/public/concepts/theming.md` ("Restyle in 5 minutes" is the pattern each preset should validate). Self-host every font; the docs CSP forbids external requests.
+
+### Visual impact
+
+The docs site gains a theme switcher and a gallery; MME gains its most persuasive demo.
+
+### Out of scope
+
+- Per-user theme authoring UI (MME-0113), theme marketplace, brand assets, cloning any site's application code.
+
+### Execution model
+
+- Implementation: sequential only. Fresh context rebuild: yes.
+- Reviewer subagents: UX Reviewer, Accessibility Reviewer; mandatory.
+- Recommended builder model: opus-4.8.
+- Human review required: yes — Andrew judges each preset.
+
+### Blocked by
+
+- MME-0094/MME-0095 (docs shell and IA host the switcher and gallery).
+
+## MME-0113 — Appearance preferences contract
+
+### Goal
+
+Let the end user change how the editor looks from their app's settings, through a contract MME provides — so every host does not reinvent it, and the developer decides how much freedom the user gets.
+
+### Gap (verified 2026-08-01)
+
+Developer and agent customization is well covered: token overrides, ramp overrides, a typed API, machine-readable `tokens.json`, and a "Restyle in 5 minutes" guide. End-user customization is covered nowhere. `docs/public/concepts/theming.md` states "MME does not require a built-in settings screen" and delegates entirely to the host; `md-editor` has a generic preferences store but no appearance keys, and neither the vision nor the backlog mentioned user-facing appearance until now. The future desktop application makes this structural: an Obsidian-class app must let its user pick a theme from settings.
+
+### Acceptance criteria
+
+- A typed appearance-preference contract in `md-editor`/`md-theme`: color scheme (`light | dark | system`), theme preset id, content font size, density, and reduced-motion honoring — each with a default, a validator, and a persistence hook the host owns (MME stores nothing itself).
+- The developer declares which keys are user-editable and which are locked; a locked key is not merely hidden — attempts to set it are rejected with a typed result.
+- Reference settings components in `md-surface` that a host can render as-is or ignore entirely, following the existing surface-component pattern (framework-free DOM, no styling assumptions beyond tokens).
+- Changing any preference applies live with no remount, no content loss, and no save-state change; preferences never touch document bytes.
+- Agent-usable: the contract is described in `tokens.json`'s neighbourhood and in the public docs so an AI agent can discover and set appearance programmatically (AX).
+- Documented in `docs/public/concepts/theming.md` with a worked example for a web host and a note on the desktop case.
+
+### Test-first plan
+
+- RED: `tests/appearance-preferences.test.mjs` — schema and defaults, validation, locked-key rejection, live application without remount, persistence hook invocation, no document mutation.
+- GREEN: implement the contract plus reference components.
+
+### Implementation notes
+
+Read first: the preferences implementation in `packages/md-editor/src/index.ts`, `packages/md-surface/src/index.ts` component patterns, `packages/md-theme` typed theme API, and the backlog item "Optional settings UI components" which this issue supersedes.
+
+### Visual impact
+
+Hosts can offer an appearance settings panel; the demo gains one to prove it.
+
+### Out of scope
+
+- Custom theme authoring by end users, per-document appearance, sync of preferences across devices.
+
+### Execution model
+
+- Implementation: sequential only. Fresh context rebuild: yes.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer; mandatory.
+- Recommended builder model: opus-4.8.
+- Human review required: no.
+
+### Blocked by
+
+- MME-0112 (preset ids are the values this contract selects).
+
+## MME-0114 — Visual gate integrity
+
+### Goal
+
+Make the `visual:*` proof scripts a suite that can actually fail the build, instead of artifacts that rot silently.
+
+### Defect (verified during Block C)
+
+`visual:*` scripts are not part of `npm test`. Consequently a change in MME-0088 broke five previously shipped visual gates without any test turning red, and two gates were already failing before Block C began (`MME-0013` slash keyboard navigation, `MME-0027` AI prompt) with nobody aware. One broken gate was asserting the defect MME-0088 exists to remove — a gate actively defending wrong behaviour.
+
+### Acceptance criteria
+
+- Every `visual:*` script runs from one runner command with a machine-readable pass/fail summary, and each script exits non-zero on failure (audit them: some may only log).
+- The two pre-existing failures are diagnosed and either repaired or deliberately retired with a recorded reason; a gate asserting behaviour that a later issue intentionally changed must be updated, never left red.
+- The runner is wired into CI as a separate job (browser-dependent, so not inside `npm test`), with a documented way to run it locally in one command.
+- A gate whose artifacts are missing or stale fails rather than passing quietly.
+- Build log records the state of every visual gate at the end of this issue: passing, repaired, or retired-with-reason.
+
+### Test-first plan
+
+- RED: the runner reports the current failures, including the two pre-existing ones. That report is the RED evidence.
+- GREEN: repair, retire, and wire into CI until the runner is green and meaningful.
+
+### Implementation notes
+
+Read first: every `scripts/visual-check-*.mjs`, the `visual:*` entries in root `package.json`, `.github/workflows/ci.yml` (the example job pattern is the model for a browser-dependent CI job).
+
+### Visual impact
+
+No visible editing or general UI changes.
+
+### Out of scope
+
+- Rewriting visual proofs for issues not implicated, screenshot-diff regression tooling.
+
+### Execution model
+
+- Implementation: sequential only. Fresh context rebuild: yes.
+- Reviewer subagents: Test Reviewer; mandatory.
+- Recommended builder model: sonnet-5.
+- Human review required: no.
+
+### Blocked by
+
+- None.
 
 ## MME-0098 — AI writing surface at BlockNote/Notion tier
 

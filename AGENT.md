@@ -210,6 +210,20 @@ A slice is not complete if it only looks implemented. It is complete only when i
 
 Do not satisfy an issue with a toy implementation that passes superficial checks but violates the framework goal. If the issue cannot be tested honestly, stop and ask for clarification.
 
+### Mutation-test every new gate
+
+A passing test is not evidence until it has been observed to fail. This rule exists because it has been violated repeatedly and expensively: Block B3 shipped three gates that reported green while checking nothing (one silently disabled because this repository's directory name contains a space), and Block C found nine assertions that passed against knowingly broken code — including a framed-block matrix whose table case re-tested a code fence, which is exactly how a table-corruption defect escaped into a shipped attempt.
+
+For every new or modified test, before claiming it green:
+
+1. Break the implementation it covers, deliberately and specifically.
+2. Observe the assertion fail, and record which reversion produces which failure.
+3. Restore, observe it pass.
+
+Record the reversion-to-failure table in the issue's build-log entry or its visual-checks README. An assertion that cannot be made to fail is not a test; delete it or fix it.
+
+Assertions must also exercise the real path: use the interaction the user performs (pointer or key event) rather than the programmatic API that bypasses the code under test, and assert on the specific element the issue introduced rather than on whatever the query happened to return.
+
 ### No false done
 
 An issue is not done if one of its acceptance criteria is only implied.
