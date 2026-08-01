@@ -240,7 +240,7 @@ async function main() {
     );
 
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.setRichSelectionAfterText("keyboard complete.")`);
-    await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.typeRichTextForTest("/sum")`);
+    await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.typeRichTextForTest(" /sum")`);
     await waitFor(cdp, `document.querySelector('[data-testid="slash-command-menu"]')?.getAttribute('role') === 'listbox'`, "slash listbox");
     await waitFor(
       cdp,

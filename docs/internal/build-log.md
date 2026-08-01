@@ -8615,3 +8615,110 @@ fold overlap above; block affordances still being in the tab order for every blo
 (Notion keeps block chrome out of it entirely — larger than this issue); and
 drag-and-drop, which MME-0106 owns.
 
+
+## MME-0088 — Slash trigger correctness (Block C, issue 3 of 5)
+
+- Date: 2026-08-01.
+- Summary: `/` now opens the menu only where Notion-class editors open it, via a
+  package contract the input rules of MME-0104 will share.
+
+### What changed
+
+- `detectSlashCommandState` in the demo matched `/query$` against the text before
+  the caret with **no context awareness**, so `/` opened the menu inside fenced
+  code (while also inserting the character into the code), inside inline code,
+  inside table cells, and mid-word in `a/b`.
+- Two new exports in `@momentarise/md-rich-prosemirror`:
+  `richTextInputContext(state)` → `{ allowsMarkdownTriggers, reason }` refusing
+  `code-block`, `inline-code`, `raw-html`, `opaque`, `table-cell`,
+  `not-text-block`; and `matchRichSlashTrigger(state)` adding the placement rule
+  (start of block or after whitespace, never mid-word). Inline-mark detection is
+  boundary-aware: a caret at the *end* of a non-inclusive `code` span is outside
+  it. A package contract deliberately — MME-0104 needs the same judgement, and two
+  regexes would drift.
+- Preservation is the reason the unsafe list looks the way it does: code, inline
+  code, raw HTML and opaque blocks carry bytes the user means to keep, so a typed
+  character there must stay literal rather than becoming an editor gesture.
+- **Decision recorded:** the AC allows either behaviour for table cells
+  ("allowed in empty cells is acceptable — pick one"). Picked **never in a table
+  cell**, filled or empty, as the stricter and more preservation-consistent
+  option; both cases are tested.
+
+### Files changed
+
+`packages/md-rich-prosemirror/src/index.ts`, `apps/md-demo/src/main.ts`,
+`tests/rich-slash-trigger.test.mjs` (new), `scripts/visual-check-mme0088.mjs`
+(new), `tests/fixtures/public-api-approved.json`, `package.json`,
+`scripts/visual-check-mme0013.mjs`, `scripts/visual-check-mme0027.mjs`,
+`scripts/visual-check-mme0028.mjs`, `scripts/visual-check-mme00285.mjs`,
+`docs/internal/visual-checks/MME-0088/`.
+
+### Tests run
+
+`npm test` (exit 0), `npm run visual:mme-0088` (4 screenshots, context matrix
+green at both widths), plus re-runs of the four sibling visual gates this issue
+touched. Both new exports added to the approved public-API fixture.
+
+### Reviewer pass
+
+Inspect-only UX + Test Reviewer subagent, with its own browser probes. It
+confirmed the classifier itself is correct — including position mapping with
+inline atoms before the caret — and found **four blockers**, all real:
+
+1. **The mid-word rule broke five shipped visual gates for other issues**, and
+   `npm test` could not catch it because `visual:*` scripts are not part of it.
+   Repaired MME-0013 (two cases), MME-0027, MME-0028, MME-0028.5. One of them —
+   MME-0013's "unsupported slash command in code block" — asserted that typing
+   `/bold` inside a fenced code block **opened** the menu, i.e. it asserted the
+   exact defect this issue removes. Inverted rather than re-anchored.
+2. **Escape did not stick.** The menu is re-derived from the document on every
+   transaction, so it reopened on the next keystroke; Escape closed it for one
+   frame, and my gate observed exactly that frame. Now latched to the dismissed
+   trigger position, cleared when the caret leaves it or a new `/` is typed.
+3. **Arrow-away past bounds was not implemented** — the selection wrapped modulo
+   the item count, so the menu could never be escaped with the arrow keys. Now
+   dismisses and lets the key reach the document.
+4. **My browser inline-code assertion was vacuous**: it typed `/head` with no
+   leading space, so the mid-word rule closed the menu and the inline-code guard
+   was never consulted.
+
+Also fixed from that review: the opaque-block trigger assertion was satisfied by
+the "any non-empty selection" guard alone and now asserts the classifier
+directly; the boundary-aware inline-code claim had no test and now has one for
+both ends of the span; `raw-html` had no reachable coverage and now uses the
+footnote fixtures the reviewer located; the empty table cell is tested alongside
+the filled one; and deleting the `/` plus a real outside click — both explicit AC
+bullets — are now asserted in the browser.
+
+### Pre-existing failures found while sweeping, not caused by this issue
+
+- `visual-check-mme0013.mjs` "slash keyboard navigation" fails identically with
+  this issue's changes stashed, on the previous commit. Not repaired here.
+- `visual-check-mme0027.mjs` "host parameterized AI prompt" fails in the AI
+  command-palette path, which never touches the slash trigger.
+
+Both are red today and should be picked up separately.
+
+### Deviations and known-remaining
+
+- **The mid-word rule is stricter than Notion's**, which opens on any `/`. It
+  matches BlockNote/tiptap's `allowedPrefixes: [' ']`. Deliberate, and it is why
+  the five sibling gates needed repair; the parity table now cites BlockNote
+  rather than Notion for that row.
+- **`/` inside body-text inline HTML is not protected** — the `raw_html_source`
+  mark is only applied inside footnote content, so the "raw HTML is protected"
+  claim holds for footnotes only. Low impact: the character is inserted either
+  way and dismissal preserves bytes.
+- **Callout bodies are unreachable rather than allowed** — a callout is a single
+  opaque atom today, so there is no body to type in. Notion allows `/` there;
+  MME-0105 owns callout editing and inherits this.
+- **Frontmatter is vacuously satisfied**: it is held as `frontmatterSource` and
+  never enters the rich document, so no caret can be placed in it. Recorded as
+  structurally impossible rather than claimed as a guard.
+
+### Visual impact
+
+No change to chrome. In the editing surface the slash menu simply stops appearing
+in the wrong places; typing `/` in code, inline code, a table cell or mid-word now
+inserts the character and nothing else.
+

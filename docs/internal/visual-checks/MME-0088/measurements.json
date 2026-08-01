@@ -1,0 +1,50 @@
+{
+  "consoleErrors": [],
+  "demoUrl": "http://127.0.0.1:5174/",
+  "evidence": {
+    "contexts": {
+      "390": {
+        "paragraph": true,
+        "codeBlock": false,
+        "inlineCode": false,
+        "tableCell": false,
+        "midWord": false,
+        "sourceMode": false
+      },
+      "1280": {
+        "paragraph": true,
+        "codeBlock": false,
+        "inlineCode": false,
+        "tableCell": false,
+        "midWord": false,
+        "sourceMode": false
+      }
+    },
+    "dismissal": {
+      "390": {
+        "open": false
+      },
+      "1280": {
+        "open": false
+      },
+      "1280-escape-sticky": false,
+      "1280-deleted-slash": false,
+      "1280-arrow-past-start": false,
+      "1280-outside-click": false,
+      "390-escape-sticky": false,
+      "390-deleted-slash": false,
+      "390-arrow-past-start": false,
+      "390-outside-click": false
+    },
+    "source": {
+      "1280-after-dismiss": "A paragraph for the positive case. /head",
+      "1280-code": "const inCode /head = 1;",
+      "1280-after-command": "# A paragraph for the positive case. | ",
+      "390-after-dismiss": "A paragraph for the positive case. /head",
+      "390-code": "const inCode /head = 1;",
+      "390-after-command": "# A paragraph for the positive case. | "
+    }
+  },
+  "screenshots": 4,
+  "status": "passed"
+}

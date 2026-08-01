@@ -223,7 +223,7 @@ async function main() {
     await evaluate(
       cdp,
       `window.__MME_DEMO_VISUAL_CHECK__.setRichSelectionAfterText("public registry.");
-      window.__MME_DEMO_VISUAL_CHECK__.typeRichTextForTest("/car")`
+      window.__MME_DEMO_VISUAL_CHECK__.typeRichTextForTest(" /car")`
     );
     const slashState = await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getSlashMenuState()`);
     assert(slashState.items.includes("host:callout-card"), "host slash item is not searchable");

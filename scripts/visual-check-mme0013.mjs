@@ -292,7 +292,9 @@ async function main() {
     await waitForSnapshot(cdp, (snapshot) => snapshot.slash.open === false, "slash keyboard close");
 
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.setRichSelectionAfterText("Command title")`);
-    await cdp.send("Input.insertText", { text: "/h1" });
+    // MME-0088: the trigger requires start-of-block or whitespace before `/`,
+    // so the space is now part of the stimulus rather than an accident.
+    await cdp.send("Input.insertText", { text: " /h1" });
     await waitForSnapshot(
       cdp,
       (snapshot) => snapshot.slash.open === true && snapshot.slash.items.includes("heading1"),
@@ -326,18 +328,18 @@ async function main() {
     }
     await screenshot(cdp, "toolbar-todo-code-applied.png");
 
+    /*
+     * MME-0088 inverted this case. It used to assert that typing `/bold` inside a
+     * fenced code block OPENED the menu — i.e. it asserted the defect MME-0088
+     * exists to remove. The menu must now stay closed while the characters land
+     * in the code unchanged.
+     */
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.setRichSelectionAfterText("const answer = 42;")`);
-    await cdp.send("Input.insertText", { text: "/bold" });
+    await cdp.send("Input.insertText", { text: " /bold" });
     await waitForSnapshot(
       cdp,
-      (snapshot) => snapshot.slash.open === true && snapshot.slash.items.includes("bold"),
-      "unsupported slash command in code block"
-    );
-    await dispatchKey(cdp, "Enter");
-    await waitForSnapshot(
-      cdp,
-      (snapshot) => snapshot.slash.open === false && String(snapshot.markdown).includes("const answer = 42;/bold"),
-      "unsupported slash command remains a no-op"
+      (snapshot) => snapshot.slash.open === false && String(snapshot.markdown).includes("const answer = 42; /bold"),
+      "slash never triggers inside a code block, and the characters stay literal"
     );
 
     cdp.close();

@@ -195,7 +195,7 @@ async function main() {
     await waitFor(cdp, `Boolean(document.querySelector('[data-testid="rich-editor-host"] .ProseMirror'))`, "rich editor");
     const editorTopBefore = await evaluate(cdp, `document.querySelector('[data-testid="rich-editor-host"]').getBoundingClientRect().top`);
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.setRichSelectionAfterText("Current line")`);
-    await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.typeRichTextForTest("/ai")`);
+    await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.typeRichTextForTest(" /ai")`);
     await waitFor(cdp, `document.querySelector('[data-testid="inline-ai-prompt"]')?.hidden === false`, "inline AI prompt");
     await waitFor(
       cdp,

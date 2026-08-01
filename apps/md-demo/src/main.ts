@@ -86,6 +86,7 @@ import {
   insertParagraphAfterCurrentBlock,
   reconfigureRichPlugins,
   renameRichFootnoteIdentifier,
+  matchRichSlashTrigger,
   reorderRichTopLevelBlock,
   richRangeForSourceRange,
   richCommandRegistry,
@@ -595,6 +596,16 @@ let documentStatusSurface: ReturnType<typeof createDocumentStatus> | null = null
 let findReplaceSurface: ReturnType<typeof createFindReplaceSurface> | null = null;
 let inlineAiPromptSurface: ReturnType<typeof createInlineAiPrompt> | null = null;
 let modeControlSurface: ReturnType<typeof createModeControl> | null = null;
+/**
+ * The `/` the user explicitly dismissed (MME-0088).
+ *
+ * `detectSlashCommandState` re-derives the menu from the document on every
+ * transaction, so without a memory of the dismissal the menu reopened on the
+ * very next keystroke — Escape only closed it for one frame. Cleared as soon as
+ * the caret leaves that trigger or a different `/` is typed.
+ */
+let dismissedSlashTriggerFrom: number | null = null;
+
 let richBlockControlsSurface: ReturnType<typeof createRichBlockControls> | null = null;
 let selectionBubbleSurface: ReturnType<typeof createSelectionBubbleToolbar> | null = null;
 let slashMenuSurface: ReturnType<typeof createSlashMenu> | null = null;
@@ -5304,25 +5315,33 @@ function updateSlashMenuFromRichState(): void {
 }
 
 function detectSlashCommandState(): SlashCommandState {
-  if (!richEditor || !isRichEditingMode() || !richEditor.state.selection.empty) {
+  if (!richEditor || !isRichEditingMode()) {
     return closedSlashCommandState();
   }
-  const selection = richEditor.state.selection;
-  const textBefore = selection.$from.parent.textBetween(0, selection.$from.parentOffset, "\n", "\n");
-  const match = textBefore.match(/\/([A-Za-z0-9_-]*)$/);
-  if (!match) {
+  /*
+   * MME-0088: the trigger decision belongs to the package, not to a regex here.
+   * `matchRichSlashTrigger` refuses code blocks, inline code, opaque/raw-HTML
+   * blocks and table cells, and refuses mid-word `a/b` — the same "is this a safe
+   * context" judgement MME-0104's input rules need.
+   */
+  const trigger = matchRichSlashTrigger(richEditor.state);
+  if (!trigger) {
+    dismissedSlashTriggerFrom = null;
     return closedSlashCommandState();
   }
-  const query = match[1] ?? "";
-  const from = selection.from - query.length - 1;
-  const items = filterAvailableRichSlashItems(session.extensions.searchSlashItems(query)).slice(0, 8);
-  const aiItems = matchingReferenceAiSlashActions(query);
+  if (dismissedSlashTriggerFrom === trigger.from) {
+    // Still the same `/` the user dismissed: stay closed while they keep typing.
+    return closedSlashCommandState();
+  }
+  dismissedSlashTriggerFrom = null;
+  const items = filterAvailableRichSlashItems(session.extensions.searchSlashItems(trigger.query)).slice(0, 8);
+  const aiItems = matchingReferenceAiSlashActions(trigger.query);
   return {
-    from,
+    from: trigger.from,
     items,
     open: items.length > 0 || aiItems.length > 0,
-    query,
-    to: selection.from
+    query: trigger.query,
+    to: trigger.to
   };
 }
 
@@ -5360,6 +5379,9 @@ function renderSlashMenu(): void {
 }
 
 function closeSlashMenu(): void {
+  if (slashCommandState.open) {
+    dismissedSlashTriggerFrom = slashCommandState.from;
+  }
   slashCommandState = closedSlashCommandState();
   slashCommandSelectedIndex = 0;
   renderSlashMenu();
@@ -5437,21 +5459,28 @@ function handleSlashMenuKeyboard(event: KeyboardEvent): boolean {
     closeSlashMenu();
     return true;
   }
+  /*
+   * MME-0088: arrowing past either end dismisses the menu and lets the key reach
+   * the document, rather than wrapping around. Wrapping meant the menu could
+   * never be escaped with the arrow keys at all.
+   */
   if (event.key === "ArrowDown") {
-    event.preventDefault();
-    if (selectableCount === 0) {
-      return true;
+    if (selectableCount === 0 || slashCommandSelectedIndex >= selectableCount - 1) {
+      closeSlashMenu();
+      return false;
     }
-    slashCommandSelectedIndex = (slashCommandSelectedIndex + 1) % selectableCount;
+    event.preventDefault();
+    slashCommandSelectedIndex += 1;
     renderSlashMenu();
     return true;
   }
   if (event.key === "ArrowUp") {
-    event.preventDefault();
-    if (selectableCount === 0) {
-      return true;
+    if (selectableCount === 0 || slashCommandSelectedIndex <= 0) {
+      closeSlashMenu();
+      return false;
     }
-    slashCommandSelectedIndex = (slashCommandSelectedIndex - 1 + selectableCount) % selectableCount;
+    event.preventDefault();
+    slashCommandSelectedIndex -= 1;
     renderSlashMenu();
     return true;
   }

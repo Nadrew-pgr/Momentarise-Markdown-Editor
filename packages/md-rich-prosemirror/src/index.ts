@@ -2981,6 +2981,133 @@ const defaultRichBlockAffordanceLabels: RichBlockAffordanceLabels = {
   placeholder: "Write, or press '/' for commands"
 };
 
+/* --- MME-0088: where Markdown-ish triggers may fire ------------------------
+ *
+ * One answer, shared. The slash menu asked this question with a bare regex over
+ * the text before the caret, so `/` opened the menu inside fenced code (while
+ * also inserting the character), inside inline code, inside preserved raw HTML,
+ * and mid-word in `a/b`. MME-0104's input rules need exactly the same judgement,
+ * so it is a package contract rather than host wiring.
+ */
+
+export type RichTextInputContextReason =
+  | "code-block"
+  | "inline-code"
+  | "not-text-block"
+  | "opaque"
+  | "raw-html"
+  | "table-cell";
+
+export interface RichTextInputContext {
+  /** False when typing Markdown syntax here must stay literal. */
+  readonly allowsMarkdownTriggers: boolean;
+  readonly reason: RichTextInputContextReason | null;
+}
+
+export interface RichSlashTriggerMatch {
+  /** Position of the `/` itself. */
+  readonly from: number;
+  readonly query: string;
+  /** End of the query — `from`..`to` covers exactly `/` plus the query. */
+  readonly to: number;
+}
+
+const RICH_OPAQUE_BLOCK_TYPES = new Set(["raw_html_block", "unsupported_block"]);
+
+/**
+ * Classifies the caret's context.
+ *
+ * Preservation-critical constructs (code, raw HTML, opaque blocks) must take
+ * typed characters literally: turning `/` or `**` into an editor gesture there
+ * would silently rewrite bytes the user meant to keep.
+ */
+export function richTextInputContext(state: EditorState): RichTextInputContext {
+  const { $from } = state.selection;
+
+  // A selected atom block (preserved raw HTML, an unsupported construct) never
+  // takes typed Markdown: its bytes are carried verbatim.
+  if (state.selection instanceof NodeSelection) {
+    const name = state.selection.node.type.name;
+    if (RICH_OPAQUE_BLOCK_TYPES.has(name)) {
+      return { allowsMarkdownTriggers: false, reason: name === "raw_html_block" ? "raw-html" : "opaque" };
+    }
+    if (name === "code_block") {
+      return { allowsMarkdownTriggers: false, reason: "code-block" };
+    }
+  }
+
+  if (!$from.parent.isTextblock) {
+    return { allowsMarkdownTriggers: false, reason: "not-text-block" };
+  }
+
+  for (let depth = $from.depth; depth >= 0; depth -= 1) {
+    const name = $from.node(depth).type.name;
+    if (name === "code_block") {
+      return { allowsMarkdownTriggers: false, reason: "code-block" };
+    }
+    if (RICH_OPAQUE_BLOCK_TYPES.has(name)) {
+      return { allowsMarkdownTriggers: false, reason: name === "raw_html_block" ? "raw-html" : "opaque" };
+    }
+    if (name === "table_cell" || name === "table_header") {
+      return { allowsMarkdownTriggers: false, reason: "table-cell" };
+    }
+  }
+
+  if ($from.parent.type.spec.code) {
+    return { allowsMarkdownTriggers: false, reason: "code-block" };
+  }
+
+  /*
+   * Inline marks, boundary-aware. A caret sitting at the *end* of a code span is
+   * not inside it — `code` is non-inclusive, so the next character typed is plain
+   * text and a trigger there is correct. Only a caret with the mark on both sides
+   * (or an explicit stored mark) is strictly inside.
+   */
+  const before = $from.nodeBefore?.marks ?? [];
+  const after = $from.nodeAfter?.marks ?? [];
+  const marks =
+    state.storedMarks ?? before.filter((mark) => after.some((candidate) => candidate.eq(mark)));
+  for (const mark of marks) {
+    if (mark.type.name === "code") {
+      return { allowsMarkdownTriggers: false, reason: "inline-code" };
+    }
+    if (mark.type.name === "raw_html_source") {
+      return { allowsMarkdownTriggers: false, reason: "raw-html" };
+    }
+  }
+
+  return { allowsMarkdownTriggers: true, reason: null };
+}
+
+/**
+ * The slash trigger, with Notion's placement rule: at the start of a block, or
+ * after whitespace — never mid-word, so `a/b` and `and/or` stay literal.
+ *
+ * Returns `null` when the menu must not open. The `/` character is still typed
+ * into the document either way; only the menu is suppressed.
+ */
+export function matchRichSlashTrigger(state: EditorState): RichSlashTriggerMatch | null {
+  if (!state.selection.empty) {
+    return null;
+  }
+  if (!richTextInputContext(state).allowsMarkdownTriggers) {
+    return null;
+  }
+  const { $from } = state.selection;
+  const textBefore = $from.parent.textBetween(0, $from.parentOffset, "\n", "\n");
+  const match = textBefore.match(/\/([A-Za-z0-9_-]*)$/);
+  if (!match) {
+    return null;
+  }
+  const query = match[1] ?? "";
+  const slashOffset = textBefore.length - query.length - 1;
+  const characterBefore = slashOffset > 0 ? textBefore[slashOffset - 1] ?? null : null;
+  if (characterBefore !== null && !/\s/.test(characterBefore)) {
+    return null;
+  }
+  return { from: state.selection.from - query.length - 1, query, to: state.selection.from };
+}
+
 export function richTopLevelBlockRanges(state: EditorState): readonly RichTopLevelBlockRange[] {
   const ranges: RichTopLevelBlockRange[] = [];
   state.doc.forEach((node, offset, index) => {
