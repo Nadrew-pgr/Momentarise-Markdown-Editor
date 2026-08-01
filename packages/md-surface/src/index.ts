@@ -680,7 +680,7 @@ export const defaultMmeStrings: MmeStrings = {
   },
   slash: {
     aiSection: "AI writing",
-    emptyPlaceholder: "Type / for commands",
+    emptyPlaceholder: "Write, or press '/' for commands",
     groups: {
       ai: "AI",
       blocks: "Blocks",

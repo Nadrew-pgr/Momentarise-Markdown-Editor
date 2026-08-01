@@ -43,6 +43,7 @@ const ROLES = [
   ["--mme-accent-", "color.ramp.accent"],
   ["--mme-color-", "color.semantic"],
   ["--mme-content-", "layout.content"],
+  ["--mme-fold-gutter-width", "layout.content"],
   ["--mme-active-content-measure", "layout.content"],
   ["--mme-menu-width-", "layout.overlay"],
   ["--mme-panel-width-", "layout.overlay"],

@@ -125,14 +125,21 @@
  * ========================================================================= */
 
 .ProseMirror {
+  /*
+   * The positioning context for sibling-emitted widgets (MME-0087). ProseMirror
+   * renders the affordance and fold toggle of an ATOM block as siblings rather
+   * than children; without this they resolve against the editor shell and land
+   * off the page edge, hundreds of pixels from the block they belong to.
+   */
+  position: relative;
   min-height: 100%;
   max-width: var(--mme-active-content-measure);
   margin: 0 auto;
   padding:
     var(--mme-content-padding-block-start)
-    calc(var(--mme-content-padding-inline) + env(safe-area-inset-right))
+    calc(max(var(--mme-content-padding-inline), var(--mme-fold-gutter-width)) + env(safe-area-inset-right))
     calc(var(--mme-content-padding-block-end) + env(safe-area-inset-bottom))
-    calc(var(--mme-content-padding-inline) + env(safe-area-inset-left));
+    calc(max(var(--mme-content-padding-inline), var(--mme-fold-gutter-width)) + env(safe-area-inset-left));
   outline: none;
   color: var(--mme-color-text);
   font-family: var(--mme-font-family-content);
@@ -603,8 +610,19 @@
   transition: opacity var(--mme-motion-fast) var(--mme-motion-ease);
 }
 
-.ProseMirror:hover .rich-block-affordance,
-.ProseMirror > *:hover .rich-block-affordance,
+/*
+ * One hovered block owns its affordances (MME-0087).
+ *
+ * This used to lead with `.ProseMirror:hover`, so the pointer entering the
+ * editor anywhere revealed EVERY block's handles at once — measured: hovering
+ * the first paragraph of a 7-block document lit all 7. BlockNote and Notion show
+ * them for the block under the pointer and nothing else.
+ *
+ * `.ProseMirror > *` is the top-level block; the affordance is its descendant
+ * even though it is positioned in the gutter, so hovering the handle itself
+ * keeps the block hovered.
+ */
+.rich-block-affordance[data-rich-block-hovered="true"],
 .ProseMirror > *:focus-within .rich-block-affordance,
 .rich-block-affordance:focus-within,
 .rich-block-affordance:has(:focus),
@@ -654,6 +672,136 @@
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+
+/* --- fold gutter (MME-0087) ----------------------------------------------
+ *
+ * Fold affordances are package-emitted decorations, so their gutter ships with
+ * the packages rather than living in the demo. `--mme-fold-gutter-width` is
+ * reserved by `.ProseMirror`'s inline padding, which is what guarantees the
+ * toggle never lands on block text or past the page edge.
+ */
+
+.ProseMirror .rich-fold-heading {
+  position: relative;
+}
+
+.ProseMirror .rich-fold-block {
+  position: relative;
+}
+
+.ProseMirror .rich-fold-heading[data-rich-folded="true"]::after,
+.ProseMirror .rich-fold-block[data-rich-folded="true"]::after {
+  content: "...";
+  margin-left: var(--mme-space-md);
+  color: var(--mme-color-text-muted);
+  font-family: var(--mme-font-family-ui);
+  font-size: max(0.66em, var(--mme-font-size-ui-xs));
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.ProseMirror .rich-fold-block[data-rich-folded="true"] {
+  max-block-size: 2.9em;
+  overflow: hidden;
+  padding-inline-end: 48px;
+}
+
+.ProseMirror .rich-fold-block[data-rich-folded="true"]::after {
+  position: absolute;
+  right: var(--mme-space-md);
+  bottom: 0.42em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--mme-space-4xl);
+  block-size: var(--mme-space-xl);
+  margin: 0;
+  border: 1px solid var(--mme-color-border-muted);
+  border-radius: var(--mme-radius-sm);
+  background: var(--mme-color-surface);
+  box-shadow: calc(-1 * var(--mme-space-md)) 0 var(--mme-space-xl) var(--mme-color-surface);
+  pointer-events: none;
+}
+
+.rich-fold-toggle {
+  position: absolute;
+  /*
+   * The reserved gutter (MME-0087). An ad-hoc negative offset put the toggle
+   * wherever the padding happened to allow; naming it lets `.ProseMirror`
+   * reserve exactly this much room, so the affordance can never be drawn over
+   * block text or off the page edge.
+   */
+  left: calc(-1 * var(--mme-fold-gutter-width));
+  top: 0.12em;
+  inline-size: var(--mme-space-xl);
+  block-size: var(--mme-space-xl);
+  padding: 0;
+  border: 0;
+  border-radius: var(--mme-radius-sm);
+  background-color: currentColor;
+  color: var(--mme-color-text-muted);
+  cursor: pointer;
+  opacity: 0.3;
+  transform: rotate(90deg);
+  transition:
+    color var(--mme-motion-fast) var(--mme-motion-ease),
+    opacity var(--mme-motion-fast) var(--mme-motion-ease),
+    transform var(--mme-motion-fast) var(--mme-motion-ease);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") center / 14px 14px no-repeat; /* allow: chevron glyph size inside the 20px fold target */
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") center / 14px 14px no-repeat; /* allow: chevron glyph size inside the 20px fold target */
+}
+
+.rich-fold-gutter {
+  z-index: 3;
+}
+
+/*
+ * A toggle the host repositioned against an atom block's own offsets: the
+ * gutter shift is applied via `translate` so the supplied `left` stays the
+ * block's edge.
+ */
+.rich-fold-toggle[data-fold-toggle-detached="true"] {
+  transform: translateX(calc(-1 * var(--mme-fold-gutter-width))) rotate(90deg);
+}
+
+.rich-fold-toggle[data-fold-toggle-detached="true"][aria-expanded="false"] {
+  transform: translateX(calc(-1 * var(--mme-fold-gutter-width))) rotate(0deg);
+}
+
+.rich-fold-toggle[aria-expanded="false"] {
+  transform: rotate(0deg);
+}
+
+.rich-fold-toggle[data-fold-kind="code"],
+.rich-fold-toggle[data-fold-kind="callout"],
+.rich-fold-toggle[data-fold-kind="opaque"] {
+  top: 0.28em;
+}
+
+/* `:focus-visible` only — the old rule also fired on pointer clicks. */
+.rich-fold-toggle:hover,
+.rich-fold-toggle:focus-visible {
+  color: var(--mme-color-text);
+  background-color: currentColor;
+  opacity: 1;
+}
+
+.rich-fold-toggle:focus-visible {
+  outline: 2px solid var(--mme-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.ProseMirror .rich-fold-heading:hover .rich-fold-toggle,
+.ProseMirror .rich-fold-heading:focus-within .rich-fold-toggle,
+.ProseMirror .rich-fold-block:hover .rich-fold-toggle,
+.ProseMirror .rich-fold-block:focus-within .rich-fold-toggle {
+  opacity: 1;
+}
+
+.rich-fold-hidden {
+  display: none !important;
 }
 
 /* ============================================================================
@@ -1955,7 +2103,12 @@
 
   .rich-block-affordance {
     flex-direction: column;
-    left: calc(-1 * var(--mme-touch-target-size) - var(--mme-space-xs));
+    /*
+     * Clear the fold gutter as well as the text: at touch sizes the handle
+     * column and the fold chevron occupied the same 16x16 pixels, and the
+     * chevron's higher z-index swallowed taps meant for the handle.
+     */
+    left: calc(-1 * (var(--mme-touch-target-size) + var(--mme-fold-gutter-width)));
     opacity: 1;
   }
 

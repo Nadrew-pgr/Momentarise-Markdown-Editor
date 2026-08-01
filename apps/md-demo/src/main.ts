@@ -4578,6 +4578,7 @@ function mountRichEditor(markdown: string): void {
       updateSlashMenuFromRichState();
       renderRichBlockControls();
       renderRichFoldingUi(false);
+      positionDetachedFoldToggles();
       renderSelectionBubbleToolbar();
       renderReferenceSurfaceState();
     }
@@ -4585,6 +4586,7 @@ function mountRichEditor(markdown: string): void {
   updateSlashMenuFromRichState();
   renderRichBlockControls();
   renderRichFoldingUi(false);
+  positionDetachedFoldToggles();
   renderSelectionBubbleToolbar();
   refreshFindMatches();
 }
@@ -4941,6 +4943,35 @@ function richBlockControlsRoot(): HTMLElement | null {
 
 function richBlockControlsInput(testId: "code-language-input" | "code-meta-input"): HTMLInputElement | null {
   return richBlockControlsRoot()?.querySelector<HTMLInputElement>(`[data-testid="${testId}"]`) ?? null;
+}
+
+/**
+ * ProseMirror emits a widget for an ATOM block (raw HTML, media) as a SIBLING of
+ * that block rather than a child, so an absolutely positioned fold toggle
+ * resolves against the editor root instead of its block and lands off the page
+ * edge. Descendant toggles are unaffected — their block is `position: relative`.
+ */
+function positionDetachedFoldToggles(): void {
+  const root = richEditor?.dom as HTMLElement | undefined;
+  if (!root) {
+    return;
+  }
+  const blocks = [...root.children].filter((child) => !child.classList.contains("ProseMirror-widget"));
+  for (const toggle of root.querySelectorAll<HTMLElement>(".rich-fold-toggle")) {
+    if (toggle.parentElement !== root) {
+      continue;
+    }
+    let candidate = toggle.nextElementSibling;
+    while (candidate && candidate.classList.contains("ProseMirror-widget")) {
+      candidate = candidate.nextElementSibling;
+    }
+    if (!(candidate instanceof HTMLElement) || !blocks.includes(candidate)) {
+      continue;
+    }
+    toggle.style.top = `${Math.round(candidate.offsetTop)}px`;
+    toggle.style.left = `${Math.round(candidate.offsetLeft)}px`;
+    toggle.dataset.foldToggleDetached = "true";
+  }
 }
 
 function renderRichFoldingUi(refreshDecorations = true): void {

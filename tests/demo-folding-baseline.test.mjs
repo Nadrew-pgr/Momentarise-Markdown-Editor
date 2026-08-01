@@ -32,6 +32,10 @@ for (const snippet of [
   }
 }
 
+// MME-0087: fold affordances are package-emitted decorations, so their styling
+// moved to the packaged stylesheet where it ships to consumers. The demo keeps
+// the plugin wiring; the styles are asserted against md-theme.
+const packageFoldStyles = readFileSync("packages/md-theme/src/styles.css", "utf8");
 for (const snippet of [
   ".rich-fold-block",
   ".rich-fold-gutter",
@@ -39,8 +43,8 @@ for (const snippet of [
   ".rich-fold-hidden",
   "[data-rich-folded=\"true\"]"
 ]) {
-  if (!styles.includes(snippet)) {
-    throw new Error(`Demo styles missing MME-0014 folding snippet: ${snippet}`);
+  if (!packageFoldStyles.includes(snippet)) {
+    throw new Error(`Packaged stylesheet missing MME-0014 folding snippet: ${snippet}`);
   }
 }
 
@@ -55,13 +59,13 @@ for (const forbiddenSnippet of [
   }
 }
 
-if (!styles.includes("content: \"...\"")) {
+if (!packageFoldStyles.includes("content: \"...\"")) {
   throw new Error("Collapsed headings must use a subtle ellipsis marker instead of hidden-count text.");
 }
-if (!styles.includes("[data-fold-kind=\"code\"]") || !styles.includes("[data-fold-kind=\"callout\"]")) {
+if (!packageFoldStyles.includes("[data-fold-kind=\"code\"]") || !packageFoldStyles.includes("[data-fold-kind=\"callout\"]")) {
   throw new Error("MME-0047 must style code/callout folding as first-class fold targets.");
 }
-if (styles.includes("▾") || styles.includes("▸")) {
+if (packageFoldStyles.includes("▾") || packageFoldStyles.includes("▸")) {
   throw new Error("Rich folding chevrons must be drawn with CSS, not font-dependent triangle glyphs.");
 }
 

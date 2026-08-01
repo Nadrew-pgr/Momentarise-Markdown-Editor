@@ -8450,3 +8450,168 @@ staying demo-only (MME-0087), block affordances being permanently in the tab ord
 controls cost ~10 Tab stops (MME-0087), non-text boundary contrast (backlog), and
 `dismiss("escape")` closing all overlays rather than the topmost.
 
+
+## MME-0087 — Notion-style block handles and empty-block placeholder (Block C, issue 2 of 5)
+
+- Date: 2026-08-01.
+- Summary: handles now belong to the hovered block alone, fold affordances live in
+  a reserved package-owned gutter, and the placeholder follows the caret.
+
+### What changed
+
+- **Hover scope.** `packages/md-theme/src/styles.css` carried
+  `.ProseMirror:hover .rich-block-affordance { opacity: 1 }`, so the pointer
+  entering the editor anywhere revealed **every** block's handles. Measured before
+  the fix: hovering the first paragraph of a 7-block document lit all 7 — exactly
+  Andrew's "all block handles visible at once".
+- **A CSS descendant selector was not sufficient**, and finding that out changed
+  the implementation. `.ProseMirror > *:hover .rich-block-affordance` scopes
+  correctly for ordinary blocks, but an atom block such as the raw-HTML block has
+  its affordance widget emitted as a **sibling** of the block, not a descendant —
+  so that block showed no handles at all under any descendant rule. Replaced with
+  the hover-tracked plugin the issue's implementation notes prescribe:
+  `markHoveredRichBlockAffordance` in `md-rich-prosemirror` resolves the block
+  under the pointer via `posAtCoords` and marks exactly one affordance with
+  `data-rich-block-hovered`. It mutates an attribute rather than dispatching a
+  transaction — re-running decorations on every `mousemove` would be far too
+  expensive.
+- **Fold gutter.** All `.rich-fold-*` styling moved from the demo stylesheet into
+  the packaged one (they are package-emitted decorations, so the demo-only styling
+  shipped to nobody). New `--mme-fold-gutter-width` token, and `.ProseMirror`'s
+  inline padding is now `max(--mme-content-padding-inline, --mme-fold-gutter-width)`
+  so the gutter is genuinely reserved. The toggle's focus ring became
+  `:focus-visible` only — it previously also fired on pointer click — and uses the
+  focus-ring token instead of the accent.
+- **Placeholder.** It required a document consisting of exactly one empty
+  paragraph, so pressing Enter mid-document taught nothing. It now decorates
+  whichever empty paragraph holds the caret, and only that one.
+
+### Files changed
+
+`packages/md-rich-prosemirror/src/index.ts`, `packages/md-theme/src/styles.css`,
+`packages/md-theme/src/tokens.css`, `packages/md-theme/src/tokens.json`,
+`docs/agent/tokens.json`, `scripts/generate-design-tokens.mjs`,
+`apps/md-demo/src/styles.css`, `tests/rich-block-handles.test.mjs` (new),
+`scripts/visual-check-mme0087.mjs` (new), `tests/demo-folding-baseline.test.mjs`,
+`package.json`, `docs/internal/visual-checks/MME-0087/`.
+
+### Tests run
+
+`npm test` (exit 0), `node tests/rich-block-handles.test.mjs`,
+`npm run visual:mme-0087` (4 screenshots; hover verified for all 11 blocks at
+1280), `npm run generate:design-tokens`, `node scripts/docs-lint.mjs`,
+`git diff --check`.
+
+### Gates the ownership move flushed out
+
+Moving the fold styles into the packaged sheet made them subject to gates the demo
+sheet is exempt from, and three fired immediately — each a real defect in the
+moved CSS rather than test friction:
+
+- `font-size: 0.66em` broke the 11px floor (em sizes compound); floored with
+  `max(0.66em, var(--mme-font-size-ui-xs))`.
+- two `14px` mask sizes were off the spacing ladder; given explicit `/* allow: */`
+  escapes with a reason (12/24 escapes now used).
+- the `tokens.json` mirror and the generator's role table did not know about
+  `--mme-fold-gutter-width`. This is the `--check` gate that was a silent no-op
+  before the Block B3 review fixed it; it is now earning its place.
+
+### Every gate was proven to fail before it was trusted
+
+Reverting the hover fix reproduces the original defect exactly (`revealed 11 of 11
+affordances`); reverting the placeholder fix and shrinking the gutter reservation
+both fail with their own messages.
+
+**Four assertions were vacuous when first written**, three of them found by the
+reviewer rather than by me — see the reviewer section below. The gutter one is
+mine: removing the reservation entirely still passed, because at both captured
+widths the centred measure left room anyway. It now asserts the computed padding
+against the resolved gutter width, and the mutation fails.
+
+Two of my own measurement probes were also wrong in ways that produced false
+findings, recorded because the lesson generalises:
+
+- `selectNodeContents(block)` includes the affordance widget, which is positioned
+  in the gutter, so it reported block text starting at x=0 and made every fold
+  toggle look like it overlapped. Text rects must be built from text nodes,
+  skipping `[contenteditable="false"]` subtrees.
+- `.ProseMirror.children` is not the block list — an atom block's affordance and
+  fold toggle are siblings and shift every index after them. The affordance's own
+  `data-rich-block-index` is the authoritative mapping.
+
+### Reviewer pass
+
+Inspect-only UX Reviewer subagent, driving its own browser probes. **Three
+blockers, all real, all mine:**
+
+1. **The atom-block claim was false.** I wrote that plugin hover tracking made
+   every block type work; the reviewer measured the raw-HTML block's handle at
+   `left: -48` with `.editor-region` as its `offsetParent` — off the viewport,
+   clipped, ~450px from its block — at every width. `.ProseMirror` was
+   `position: static`, so a sibling-emitted widget resolved against the editor
+   shell. Fixed by making `.ProseMirror` the positioning context and giving
+   sibling widgets explicit block-relative offsets. The demo-owned fold toggle
+   had the identical defect and got the same treatment.
+2. **My gate could not fail on it.** `visibleAffordances` tested computed opacity
+   and nothing else, so an off-page element counted as visible and the per-block
+   assertion passed for all 11 blocks; the fold loop `continue`d when a toggle had
+   no block ancestor, silently dropping the single sibling toggle that was
+   actually broken (3 of 4 measured); the alignment probe asserted `>= 6` while
+   measuring 10 of 11. All three now assert exact counts, on-screen geometry, and
+   distance from the declared block.
+3. **The placeholder string was not the one the AC specifies** — shipped
+   "Type / for commands" against the required "Write, or press '/' for commands",
+   and my parity table graded the mismatch "same as benchmark". Both corrected,
+   and the string is now asserted.
+
+Also fixed from that review: handles vanished while typing with the pointer parked
+on the block (the widget key includes the block's text, so every keystroke rebuilt
+the widget DOM without the marking — now re-applied from a per-view memory on
+`view.update`); hover went stale on scroll; `mousemove` did O(blocks) DOM work on
+every event (measured p95 2.1ms on a 400-block document — now early-returns when
+the hovered block is unchanged); and at 390 the fold chevron sat exactly on top of
+the `+` handle, eating taps.
+
+Recorded, not fixed — all reviewer-measured, all in the visual-checks README: no
+keyboard-focused-block reveal (the AC asks for one, but `:focus-within` can never
+match ProseMirror's focus model, and the honest fix belongs with MME-0103); the
+gutter reservation being a no-op in effect today (both tokens resolve to 24px, and
+below 720px a media query overrides the padding without consulting the token — my
+earlier "genuinely reserved" wording was overstated); fold chevrons being
+permanently visible rather than hover-revealed, against the Obsidian benchmark the
+AC cites; the drag handle rendering as `::` rather than a six-dot grip; the fold
+classes being demo-emitted so the packaged fold CSS styles DOM no consumer
+receives; and the placeholder surviving a multi-block selection.
+
+The reviewer also confirmed, by probe, what did **not** break: block menu, `+`,
+drag handle, `mouseleave`, edge hover, placeholder scoping in lists/code/headings,
+IME composition, MME-0042 document-end insertion, the coarse-pointer contract, and
+the fold gaps at 1280/900/768/390.
+
+### Correction to the issue's premise
+
+**The reported "fold arrow overlaps the heading text" defect is not reproducible
+in this build.** Measured before any change: an 8px gap between the fold toggle
+and the heading text at 1280, and the same at 390; 24px for the code fence. My
+first probe reported three overlaps, but that was the `selectNodeContents` bug
+above — I corrected it rather than "fixing" a defect that was not there. The
+gutter work still landed, because reserving the space and gating it is what stops
+an overlap appearing, but the honest record is that this issue hardened a contract
+rather than repaired a live defect. Worth checking with Andrew which document
+produced the overlap he saw.
+
+### Visual impact
+
+- **Editing surface:** hovering a block now shows that block's `+` and `⠿` and
+  nothing else; the rest of the document stays clean. Fold chevrons sit in a
+  reserved gutter. An empty block you are typing in shows "Type / for commands".
+- **General UI:** no change to chrome. Content column geometry is unchanged at
+  1280 (the gutter and the content padding both resolve to 24px).
+
+### Open questions / known-remaining
+
+Recorded in `docs/internal/visual-checks/MME-0087/README.md`: the unreproducible
+fold overlap above; block affordances still being in the tab order for every block
+(Notion keeps block chrome out of it entirely — larger than this issue); and
+drag-and-drop, which MME-0106 owns.
+

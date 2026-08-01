@@ -2978,7 +2978,7 @@ const defaultRichBlockAffordanceLabels: RichBlockAffordanceLabels = {
   duplicate: "Duplicate block",
   insertAfter: "Insert block after",
   menu: "Block actions",
-  placeholder: "Type / for commands"
+  placeholder: "Write, or press '/' for commands"
 };
 
 export function richTopLevelBlockRanges(state: EditorState): readonly RichTopLevelBlockRange[] {
@@ -3146,6 +3146,31 @@ export function createRichBlockAffordancePlugin(
         return richBlockAffordancePluginKey.getState(state) ?? adapter.DecorationSet.empty;
       },
       handleDOMEvents: {
+        /*
+         * Hover tracking, not a CSS descendant selector (MME-0087).
+         *
+         * A descendant rule (`.ProseMirror > *:hover .rich-block-affordance`)
+         * covers most blocks, but not atom/leaf blocks such as raw HTML: their
+         * widget decoration is emitted as a SIBLING of the block, so no
+         * descendant selector can ever reach it and those blocks showed no
+         * handles at all. Marking the hovered block's affordance directly works
+         * for every block type.
+         *
+         * This mutates an attribute rather than dispatching a transaction:
+         * re-running decorations on every mousemove would be far too expensive.
+         */
+        mousemove(view, event) {
+          markHoveredRichBlockAffordance(view as unknown as RichBlockHoverViewLike, event as MouseEvent);
+          return false;
+        },
+        mouseleave(view) {
+          markHoveredRichBlockAffordance(view as unknown as RichBlockHoverViewLike, null);
+          return false;
+        },
+        scroll(view) {
+          refreshRichBlockHoverMarking(view as unknown as RichBlockHoverViewLike);
+          return false;
+        },
         dragover(_view, event) {
           const dragEvent = event as DragEvent;
           if (dragEvent.dataTransfer?.types.includes("application/x-momentarise-rich-block-index")) {
@@ -3170,8 +3195,121 @@ export function createRichBlockAffordancePlugin(
       init(_config, state) {
         return createRichBlockAffordanceDecorations(state, adapter, options);
       }
+    },
+    view(editorView) {
+      return {
+        update() {
+          refreshRichBlockHoverMarking(editorView as unknown as RichBlockHoverViewLike);
+        }
+      };
     }
   });
+}
+
+/** The slice of the editor view hover tracking needs. */
+interface RichBlockHoverViewLike extends RichEditorViewLike {
+  readonly dom: HTMLElement;
+}
+
+interface RichBlockHoverMemory {
+  index: number | null;
+  x: number;
+  y: number;
+}
+
+/**
+ * Last pointer position and marked block, per view. Kept so the marking can be
+ * re-applied after ProseMirror rebuilds the widget DOM (which it does on every
+ * keystroke, because the widget key includes the block's text) and recomputed
+ * after a scroll moves a different block under a stationary pointer.
+ */
+const richBlockHoverMemory = new WeakMap<object, RichBlockHoverMemory>();
+
+function richBlockIndexAtCoords(view: RichBlockHoverViewLike, x: number, y: number): number | null {
+  const found = view.posAtCoords?.({ left: x, top: y });
+  if (!found) {
+    return null;
+  }
+  const resolved = view.state.doc.resolve(Math.min(found.pos, view.state.doc.content.size));
+  const index = resolved.depth === 0 ? resolved.index() : resolved.index(0);
+  return index >= 0 && index < view.state.doc.childCount ? index : null;
+}
+
+/**
+ * Places a sibling-emitted affordance against its block.
+ *
+ * ProseMirror emits the widget for an ATOM block (raw HTML, media) as a sibling
+ * of that block rather than a child. `.rich-block-affordance` is absolutely
+ * positioned, so a sibling resolves against the editor shell instead of the
+ * block and landed at x = -48 — off the left edge of the viewport, clipped, and
+ * hundreds of pixels from the block it belongs to. Descendant affordances need
+ * none of this: their block is already `position: relative`.
+ */
+function positionSiblingRichBlockAffordance(
+  view: RichBlockHoverViewLike,
+  affordance: HTMLElement,
+  index: number
+): void {
+  if (affordance.parentElement !== view.dom) {
+    return;
+  }
+  const blocks = [...view.dom.children].filter((child) => !child.classList.contains("ProseMirror-widget"));
+  const block = blocks[index];
+  if (!(block instanceof HTMLElement)) {
+    return;
+  }
+  affordance.style.top = `${Math.round(block.offsetTop)}px`;
+  affordance.style.left = `${Math.round(block.offsetLeft)}px`;
+  affordance.dataset.richBlockAffordanceDetached = "true";
+}
+
+/**
+ * Marks the affordance belonging to the block under the pointer, and clears the
+ * rest. `event === null` means the pointer left the editor.
+ */
+function markHoveredRichBlockAffordance(view: RichBlockHoverViewLike, event: MouseEvent | null): void {
+  const memory = richBlockHoverMemory.get(view) ?? { index: null, x: 0, y: 0 };
+  if (event) {
+    memory.x = event.clientX;
+    memory.y = event.clientY;
+  }
+  const hoveredIndex = event === null ? null : richBlockIndexAtCoords(view, memory.x, memory.y);
+  const changed = memory.index !== hoveredIndex;
+  memory.index = hoveredIndex;
+  richBlockHoverMemory.set(view, memory);
+  // mousemove fires constantly; only touch the DOM when the block actually changes.
+  if (changed) {
+    applyRichBlockHoverMarking(view, hoveredIndex);
+  }
+}
+
+function applyRichBlockHoverMarking(view: RichBlockHoverViewLike, hoveredIndex: number | null): void {
+  for (const affordance of view.dom.querySelectorAll<HTMLElement>("[data-rich-block-affordance]")) {
+    const index = Number(affordance.dataset.richBlockIndex);
+    if (hoveredIndex !== null && index === hoveredIndex) {
+      affordance.dataset.richBlockHovered = "true";
+      positionSiblingRichBlockAffordance(view, affordance, index);
+    } else if (affordance.dataset.richBlockHovered) {
+      delete affordance.dataset.richBlockHovered;
+    }
+  }
+}
+
+/**
+ * Re-applies the marking after a doc/DOM update or a scroll. Without this the
+ * handles vanish while you type with the pointer parked on the block: the widget
+ * key includes the block's text, so every keystroke rebuilds the widget DOM and
+ * the replacement carries no marking.
+ */
+function refreshRichBlockHoverMarking(view: RichBlockHoverViewLike): void {
+  const memory = richBlockHoverMemory.get(view);
+  if (!memory || memory.index === null) {
+    return;
+  }
+  // Recompute from the last pointer position: a scroll can put a different block
+  // under a stationary pointer.
+  memory.index = richBlockIndexAtCoords(view, memory.x, memory.y);
+  applyRichBlockHoverMarking(view, memory.index);
 }
 
 function createRichBlockAffordanceDecorations(
@@ -3182,20 +3320,41 @@ function createRichBlockAffordanceDecorations(
   const labels = richBlockAffordanceLabels(options);
   const decorations: unknown[] = [];
   const ranges = richTopLevelBlockRanges(state);
-  const first = ranges[0];
-  if (
-    first &&
-    ranges.length === 1 &&
-    first.type === "paragraph" &&
-    first.node.content.size === 0 &&
-    options.placeholder !== null
-  ) {
-    decorations.push(
-      adapter.Decoration.node(first.from, first.to, {
-        class: "empty-rich-document",
-        "data-placeholder": options.placeholder ?? labels.placeholder
-      })
+
+  /*
+   * The placeholder follows the caret, not the document (MME-0087).
+   *
+   * It used to require a document consisting of exactly one empty paragraph, so
+   * pressing Enter for a new block mid-document taught the user nothing. Notion
+   * and BlockNote hint on whichever empty block you are actually in.
+   *
+   * A decoration only — it is never part of the document, so it cannot reach
+   * Markdown.
+   */
+  if (options.placeholder !== null) {
+    const { $from } = state.selection;
+    const caretBlock = ranges.find(
+      (range) =>
+        range.type === "paragraph" &&
+        range.node.content.size === 0 &&
+        $from.pos >= range.from &&
+        $from.pos <= range.to
     );
+    // An untouched empty document has no caret in it yet, but should still greet
+    // the writer.
+    const emptyDocument =
+      ranges.length === 1 && ranges[0]?.type === "paragraph" && ranges[0].node.content.size === 0
+        ? ranges[0]
+        : undefined;
+    const target = caretBlock ?? emptyDocument;
+    if (target) {
+      decorations.push(
+        adapter.Decoration.node(target.from, target.to, {
+          class: "empty-rich-document",
+          "data-placeholder": options.placeholder ?? labels.placeholder
+        })
+      );
+    }
   }
 
   for (const range of ranges) {

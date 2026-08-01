@@ -153,6 +153,8 @@
   --mme-content-padding-block-start: var(--mme-space-7xl);
   --mme-content-padding-block-end: var(--mme-space-8xl);
   --mme-content-padding-inline: var(--mme-space-3xl);
+  /* Reserved room for the fold affordance, left of the content column. */
+  --mme-fold-gutter-width: var(--mme-space-3xl);
   --mme-active-content-measure: min(
     var(--mme-content-measure),
     calc(100% - var(--mme-content-padding-inline) * 2)
