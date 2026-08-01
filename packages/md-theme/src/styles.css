@@ -47,6 +47,75 @@
   }
 }
 
+/*
+ * `[hidden]` must actually hide — on packaged surfaces only (MME-0086).
+ *
+ * The UA sheet's `[hidden] { display: none }` loses to ANY author `display`
+ * declaration — cascade origin, not specificity — so every packaged class that
+ * sets a visible `display` silently ignored `element.hidden = true` for
+ * consumers: surfaces stayed rendered, hit-testable and in the tab order while
+ * the code believed they were hidden. The demo never showed it, because
+ * `apps/md-demo/src/styles.css` carries its own `[hidden] { … !important }` that
+ * ships to nobody.
+ *
+ * Scoped to the classes this package emits rather than written as a bare
+ * `[hidden]`. A library must not take `display` away from the consumer's whole
+ * document: a global rule would defeat their own `[hidden]` overrides at any
+ * specificity, and would break `hidden="until-found"`, whose UA behaviour keeps
+ * the element in layout so find-in-page can reveal it.
+ *
+ * `:where()` keeps specificity at zero; `!important` is what beats the author
+ * `display`. The list is enforced by tests/rich-overlay-hygiene.test.mjs, which
+ * fails if any packaged class sets a visible `display` without appearing here.
+ */
+:where(
+  .ai-assistant-header,
+  .ai-assistant-panel,
+  .ai-command-copy,
+  .ai-command-icon,
+  .ai-command-item,
+  .ai-provider-state,
+  .ai-suggestion-actions,
+  .button,
+  .code-block-controls,
+  .command-palette,
+  .command-palette-items,
+  .command-palette-panel,
+  .debug-inspector-body,
+  .document-conflict-actions,
+  .document-conflict-resolution,
+  .document-status-menu,
+  .document-status-surface,
+  .editor-ai-session-row,
+  .editor-status-button,
+  .find-replace-field,
+  .find-replace-surface,
+  .inline-ai-action-row,
+  .inline-ai-prompt,
+  .inline-ai-prompt-actions,
+  .inline-ai-prompt-header,
+  .inline-ai-prompt-label,
+  .inline-ai-provider-state,
+  .inline-ai-suggestion-actions,
+  .mme-react-editor-shell,
+  .mode-switch,
+  .rich-block-affordance,
+  .rich-block-affordance-button,
+  .rich-block-controls,
+  .rich-command-toolbar,
+  .selection-bubble-toolbar,
+  .slash-command-copy,
+  .slash-command-icon,
+  .slash-command-item,
+  .slash-command-items,
+  .toolbar-button,
+  .toolbar-icon,
+  .toolbar-menu-item,
+  .toolbar-more-menu
+)[hidden] {
+  display: none !important;
+}
+
 /* ============================================================================
  * 1 — Content typography
  *
@@ -804,6 +873,7 @@
 
 .editor-ai-session-row input,
 .command-palette input,
+.code-block-controls input,
 .find-query-input,
 .find-replace-input {
   min-width: 0;
@@ -823,6 +893,7 @@
 
 .editor-ai-session-row input:focus-visible,
 .command-palette input:focus-visible,
+.code-block-controls input:focus-visible,
 .find-query-input:focus-visible,
 .find-replace-input:focus-visible,
 .inline-ai-prompt textarea:focus-visible {
@@ -1278,6 +1349,66 @@
 
 .selection-bubble-toolbar .toolbar-button {
   min-width: var(--mme-space-4xl);
+}
+
+/* --- anchored block controls (MME-0086) ----------------------------------
+ *
+ * The code fence's language/meta fields and the insert-after affordance used to
+ * live in a bar pinned to the top of the content area, visually unrelated to the
+ * block they edit. They are now an overlay positioned against their own block:
+ * `--mme-block-controls-top/left` are written by `createRichBlockControls` from
+ * `anchoredOverlayPlacement`, in coordinates relative to the positioned ancestor.
+ */
+
+.rich-block-controls {
+  position: absolute;
+  /*
+   * Block-level chrome sits below the selection bubble: while text is selected
+   * the bubble is the higher-priority transient, and the two can share an anchor.
+   */
+  z-index: calc(var(--mme-z-toolbar) - 1);
+  top: var(--mme-block-controls-top, 0);
+  left: var(--mme-block-controls-left, 0);
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mme-space-sm);
+  max-width: min(calc(100% - var(--mme-space-3xl)), calc(var(--mme-visual-viewport-width, 100vw) - var(--mme-space-3xl)));
+  padding: var(--mme-space-xs);
+  border: 1px solid var(--mme-color-border);
+  border-radius: var(--mme-radius-md);
+  background: var(--mme-color-surface-raised);
+  box-shadow: var(--mme-elevation-2);
+  backdrop-filter: var(--mme-blur-chrome);
+  animation: mme-overlay-enter var(--mme-motion-fast) var(--mme-motion-ease);
+}
+
+
+.code-block-controls {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mme-space-sm);
+  min-width: 0;
+}
+
+
+.code-block-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mme-space-xs);
+  color: var(--mme-color-text-muted);
+  font-size: var(--mme-font-size-ui-xs);
+  font-weight: var(--mme-font-weight-semibold);
+  letter-spacing: var(--mme-letter-spacing-label);
+  text-transform: uppercase;
+}
+
+.code-block-controls input {
+  width: var(--mme-space-8xl);
+  max-width: 100%;
+  font-family: var(--mme-font-family-mono);
+  font-size: var(--mme-font-size-ui-sm);
 }
 
 /* --- document status popover --------------------------------------------- */
@@ -1811,6 +1942,7 @@
 
   .ProseMirror [data-todo-toggle],
   .editor-ai-session-row input,
+  .code-block-controls input,
   .command-palette input,
   .find-query-input,
   .find-replace-input {

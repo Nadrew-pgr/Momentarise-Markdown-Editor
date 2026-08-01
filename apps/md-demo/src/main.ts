@@ -122,14 +122,17 @@ import {
   type MmeTheme
 } from "@momentarise/md-theme";
 import {
+  attachSurfaceOverlayDismissListeners,
   createAiAssistantPanel,
   createCommandPalette,
   createDocumentStatus,
   createFindReplaceSurface,
   createInlineAiPrompt,
   createModeControl,
+  createRichBlockControls,
   createSelectionBubbleToolbar,
   createSlashMenu,
+  createSurfaceOverlayDismissController,
   createSurfaceViewportController,
   createToolbar,
   defaultMmeStrings,
@@ -141,6 +144,9 @@ import {
   type SurfaceDocumentState,
   type SurfaceInlineAiPromptState,
   type SurfaceInlineAiPromptSubmitEvent,
+  type SurfaceOverlayDismissReason,
+  type SurfaceRect,
+  type SurfaceRichBlockControlsState,
   type SurfaceSelectionBubbleState,
   type SurfaceSlashState,
   type SurfaceToolbarState,
@@ -268,25 +274,19 @@ app.innerHTML = `
           <button type="button" role="menuitem" data-rich-block-menu-action="delete" data-testid="rich-block-menu-delete">Delete</button>
           <p data-testid="rich-block-menu-instructions">Drag the handle to reorder blocks.</p>
         </div>
-        <div class="rich-block-controls" data-testid="rich-block-controls" aria-label="Rich block controls" hidden>
-          <div class="code-block-controls" data-testid="code-block-controls" hidden>
-            <label>
-              Language
-              <input type="text" data-testid="code-language-input" autocomplete="off" spellcheck="false" />
-            </label>
-            <label>
-              Meta
-              <input type="text" data-testid="code-meta-input" autocomplete="off" spellcheck="false" />
-            </label>
-          </div>
-          <button class="toolbar-button" type="button" data-testid="insert-after-block-button">Add paragraph</button>
-        </div>
         <div data-testid="slash-command-menu-host"></div>
         <div class="editor-host" data-editor-host data-testid="editor-host"></div>
         <div class="live-preview-banner" data-testid="live-preview-banner" hidden>
           Live Preview · rendered while editing · Markdown source syncs instantly
         </div>
         <div class="rich-editor-host" data-testid="rich-editor-host" hidden></div>
+        <!--
+          MME-0086: the block-controls host sits AFTER the editing surfaces so that
+          forward Tab from the caret reaches the language/meta fields in visual
+          order (WCAG 2.4.3). It is absolutely positioned, so DOM order does not
+          affect where it renders.
+        -->
+        <div data-testid="rich-block-controls-host"></div>
         <div class="markdown-read-host" data-testid="markdown-read-host" hidden>
           <div class="markdown-read-banner" data-testid="markdown-read-banner">
             Markdown read view · sanitized inline render · source preserved
@@ -473,11 +473,7 @@ const richCommandToolbarHost = queryRequired<HTMLDivElement>('[data-testid="rich
 const selectionBubbleToolbar = queryRequired<HTMLDivElement>('[data-testid="selection-bubble-toolbar"]');
 let selectedTextAiBubbleAction: HTMLButtonElement | null = null;
 const richBlockMenu = queryRequired<HTMLDivElement>('[data-testid="rich-block-menu"]');
-const richBlockControls = queryRequired<HTMLDivElement>('[data-testid="rich-block-controls"]');
-const codeBlockControls = queryRequired<HTMLDivElement>('[data-testid="code-block-controls"]');
-const codeLanguageInput = queryRequired<HTMLInputElement>('[data-testid="code-language-input"]');
-const codeMetaInput = queryRequired<HTMLInputElement>('[data-testid="code-meta-input"]');
-const insertAfterBlockButton = queryRequired<HTMLButtonElement>('[data-testid="insert-after-block-button"]');
+const richBlockControlsHost = queryRequired<HTMLDivElement>('[data-testid="rich-block-controls-host"]');
 const newFileButton = queryRequired<HTMLButtonElement>('[data-testid="new-file-button"]');
 const slashCommandMenuHost = queryRequired<HTMLDivElement>('[data-testid="slash-command-menu-host"]');
 const openFileButton = queryRequired<HTMLButtonElement>('[data-testid="open-file-button"]');
@@ -599,8 +595,10 @@ let documentStatusSurface: ReturnType<typeof createDocumentStatus> | null = null
 let findReplaceSurface: ReturnType<typeof createFindReplaceSurface> | null = null;
 let inlineAiPromptSurface: ReturnType<typeof createInlineAiPrompt> | null = null;
 let modeControlSurface: ReturnType<typeof createModeControl> | null = null;
+let richBlockControlsSurface: ReturnType<typeof createRichBlockControls> | null = null;
 let selectionBubbleSurface: ReturnType<typeof createSelectionBubbleToolbar> | null = null;
 let slashMenuSurface: ReturnType<typeof createSlashMenu> | null = null;
+let detachOverlayDismissListeners: (() => void) | null = null;
 let toolbarSurface: ReturnType<typeof createToolbar> | null = null;
 let editorAiSurface: ReturnType<typeof createAiAssistantPanel> | null = null;
 let activeRichBlockMenuIndex: number | null = null;
@@ -1516,6 +1514,89 @@ function closeTransientCommandSurfaces(): void {
   setInlineAiPromptState({ open: false });
 }
 
+/*
+ * MME-0086: one lifecycle for every transient overlay. The controller and the
+ * listener binding are package contracts (`@momentarise/md-surface`), so a host
+ * composing these surfaces gets Notion-style dismissal instead of re-deriving it.
+ * The demo only declares which overlays exist and how to close them.
+ */
+const overlayDismissController = createSurfaceOverlayDismissController({
+  activeElement: () => document.activeElement,
+  editorRoots: () => [richEditorHost, editorHost]
+});
+
+/**
+ * Set when Escape or a blur hid the block controls, so the same caret position
+ * does not immediately bring them back. Any caret movement clears it: the
+ * controls are derived from the selection, not a popup the user opened.
+ */
+let richBlockControlsDismissed = false;
+let richBlockControlsDismissReason: SurfaceOverlayDismissReason | null = null;
+
+function registerDemoOverlays(): void {
+  overlayDismissController.register({
+    close: () => hideSelectionBubbleToolbar(),
+    contains: (node) => Boolean(node && selectionBubbleToolbar.contains(node)),
+    id: "selection-bubble",
+    isOpen: () => !selectionBubbleToolbar.hidden,
+    returnFocus: () => richEditor?.focus()
+  });
+  overlayDismissController.register({
+    close: () => closeSlashMenu(),
+    contains: (node) => Boolean(node && slashCommandMenu?.contains(node)),
+    id: "slash-menu",
+    isOpen: () => slashCommandState.open,
+    returnFocus: () => richEditor?.focus()
+  });
+  overlayDismissController.register({
+    close: () => {
+      closeRichBlockMenu();
+    },
+    contains: (node) => Boolean(node && richBlockMenu.contains(node)),
+    id: "rich-block-menu",
+    isOpen: () => !richBlockMenu.hidden,
+    returnFocus: () => richEditor?.focus()
+  });
+  overlayDismissController.register({
+    close: (reason) => {
+      richBlockControlsDismissed = true;
+      richBlockControlsDismissReason = reason;
+      richBlockControlsSurface?.setState(hiddenRichBlockControlsState());
+      },
+    contains: (node) => Boolean(node && richBlockControlsRoot()?.contains(node)),
+    // Deliberately NOT "outside-pointer": these controls are derived from the
+    // caret, so a click elsewhere in the document should move them to the new
+    // block, not latch them off. Only leaving the editor or pressing Escape hides
+    // them.
+    dismissOn: ["blur", "escape", "mode-change"],
+    id: "rich-block-controls",
+    isOpen: () => Boolean(richBlockControlsRoot() && richBlockControlsRoot()?.hidden === false),
+    returnFocus: () => richEditor?.focus()
+  });
+  detachOverlayDismissListeners?.();
+  detachOverlayDismissListeners = attachSurfaceOverlayDismissListeners({
+    controller: overlayDismissController,
+    scope: document
+  });
+}
+
+/**
+ * The editor regained focus, so a set hidden by *blur* may show again.
+ *
+ * Escape is deliberately excluded: dismissing an overlay returns focus to the
+ * editor, and treating that as "focus regained" would immediately re-open what
+ * the user just dismissed. An Escape-hidden set comes back on the next caret
+ * movement instead, cleared in `dispatchTransaction`.
+ */
+function allowRichBlockControls(): void {
+  if (!richBlockControlsDismissed || richBlockControlsDismissReason !== "blur") {
+    return;
+  }
+  richBlockControlsDismissed = false;
+  richBlockControlsDismissReason = null;
+  renderRichBlockControls();
+}
+
 function mountReferenceSurfaceComponents(): void {
   toolbarSurface?.destroy();
   slashMenuSurface?.destroy();
@@ -1524,8 +1605,26 @@ function mountReferenceSurfaceComponents(): void {
   documentStatusSurface?.destroy();
   modeControlSurface?.destroy();
   selectionBubbleSurface?.destroy();
+  richBlockControlsSurface?.destroy();
   inlineAiPromptSurface?.destroy();
   editorAiSurface?.destroy();
+
+  richBlockControlsSurface = createRichBlockControls({
+    host: richBlockControlsHost,
+    preferences: surfacePreferences(),
+    session,
+    state: hiddenRichBlockControlsState(),
+    strings: defaultMmeStrings,
+    onChangeLanguage() {
+      updateCurrentCodeBlockInfoFromControls();
+    },
+    onChangeMeta() {
+      updateCurrentCodeBlockInfoFromControls();
+    },
+    onInsertAfter() {
+      insertParagraphAfterCurrentRichBlock();
+    }
+  });
 
   modeControlSurface = createModeControl({
     host: modeControlHost,
@@ -2094,18 +2193,6 @@ if (!restoreLastDemoDocument()) {
   renderEditorMode();
 }
 
-codeLanguageInput.addEventListener("input", () => {
-  updateCurrentCodeBlockInfoFromControls();
-});
-
-codeMetaInput.addEventListener("input", () => {
-  updateCurrentCodeBlockInfoFromControls();
-});
-
-insertAfterBlockButton.addEventListener("click", () => {
-  insertParagraphAfterCurrentRichBlock();
-});
-
 newFileButton.addEventListener("click", () => {
   void createNewMarkdownDocument();
 });
@@ -2256,6 +2343,34 @@ commandPaletteButton.addEventListener("click", () => {
   setCommandPaletteOpen(true);
 });
 
+// MME-0086: returning to the editor makes a dismissed block-controls overlay
+// eligible again; the caret already moved, so the anchor is recomputed.
+richEditorHost.addEventListener("focusin", () => {
+  allowRichBlockControls();
+});
+
+// MME-0086: the anchored controls must travel with their block. Without this the
+// overlay stays welded to the viewport while the document scrolls under it — the
+// same "floating chrome unrelated to its block" defect this issue closes.
+let richBlockControlsScrollFrame = 0;
+richEditorHost.addEventListener(
+  "scroll",
+  () => {
+    if (richBlockControlsScrollFrame) {
+      return;
+    }
+    richBlockControlsScrollFrame = requestAnimationFrame(() => {
+      richBlockControlsScrollFrame = 0;
+      renderRichBlockControls();
+      renderSelectionBubbleToolbar();
+      if (!richBlockMenu.hidden) {
+        positionRichBlockMenu();
+      }
+    });
+  },
+  { passive: true }
+);
+
 editor.dom.addEventListener("paste", handleEditorAssetPaste);
 richEditorHost.addEventListener("paste", handleEditorAssetPaste);
 editorRegion.addEventListener("drop", handleEditorAssetDrop);
@@ -2318,8 +2433,23 @@ window.addEventListener("beforeunload", (event) => {
   event.preventDefault();
   event.returnValue = "";
 });
-window.addEventListener("pagehide", () => surfaceViewportController.destroy(), { once: true });
+window.addEventListener(
+  "pagehide",
+  () => {
+    surfaceViewportController.destroy();
+    // MME-0086: the dismiss listeners are document-level; a consumer copying this
+    // wiring should see them torn down alongside everything else.
+    detachOverlayDismissListeners?.();
+    detachOverlayDismissListeners = null;
+    if (richBlockControlsScrollFrame) {
+      cancelAnimationFrame(richBlockControlsScrollFrame);
+      richBlockControlsScrollFrame = 0;
+    }
+  },
+  { once: true }
+);
 
+registerDemoOverlays();
 logEvent("Loaded built-in fixture in memory-only mode.");
 renderAiWritingState();
 renderSaveState();
@@ -2357,11 +2487,18 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
     };
   },
   getRichUxState() {
+    const controlsRoot = richBlockControlsRoot();
+    const codeGroup = controlsRoot?.querySelector<HTMLElement>('[data-testid="code-block-controls"]') ?? null;
     return {
-      blockControlsVisible: !richBlockControls.hidden,
-      codeControlsVisible: !codeBlockControls.hidden,
-      codeLanguage: codeLanguageInput.value,
-      codeMeta: codeMetaInput.value,
+      blockControlsVisible: Boolean(controlsRoot) && controlsRoot?.hidden === false,
+      // MME-0086: geometry of the anchored overlay, so a browser check can prove
+      // it hugs its block instead of the top of the content area.
+      blockControlsPlacement: controlsRoot?.dataset.placement ?? null,
+      blockControlsRect: controlsRoot && !controlsRoot.hidden ? controlsRoot.getBoundingClientRect().toJSON() : null,
+      codeBlockRect: currentRichBlockElement()?.getBoundingClientRect().toJSON() ?? null,
+      codeControlsVisible: Boolean(codeGroup) && codeGroup?.hidden === false && controlsRoot?.hidden === false,
+      codeLanguage: richBlockControlsInput("code-language-input")?.value ?? "",
+      codeMeta: richBlockControlsInput("code-meta-input")?.value ?? "",
       markdown: getMarkdown()
     };
   },
@@ -3305,6 +3442,10 @@ function switchEditorMode(mode: DemoEditorMode): void {
     logEvent("Switched to CodeMirror source mode.");
   }
 
+  // MME-0086: an overlay belongs to the mode that produced it.
+  overlayDismissController.dismiss("mode-change");
+  richBlockControlsDismissed = false;
+  richBlockControlsDismissReason = null;
   renderEditorMode();
   renderSaveState();
   updateRoundTripStatus();
@@ -3324,7 +3465,7 @@ function renderEditorMode(): void {
   richEditorHost.setAttribute("aria-label", editorMode === "live-preview" ? "Live Preview editing surface" : "Rich editing surface");
   markdownReadHost.hidden = !markdownReadVisible;
   htmlPreviewHost.hidden = !htmlPreviewVisible;
-  richBlockControls.hidden = editorMode !== "rich";
+  renderRichBlockControls();
   modeControlSurface?.setState(surfaceModeState());
   toolbarSurface?.setState(surfaceToolbarState());
   toolbarAiButton = queryRequired<HTMLButtonElement>('[data-testid="toolbar-ai-button"]');
@@ -4427,6 +4568,13 @@ function mountRichEditor(markdown: string): void {
         richChanged = true;
         syncRichMarkdownToSource("rich edit");
       }
+      // MME-0086: the block controls follow the caret. Any selection change makes
+      // a previously dismissed set eligible again, so clicking from one block to
+      // another re-derives them instead of latching them off.
+      if (transaction.selectionSet || transaction.docChanged) {
+        richBlockControlsDismissed = false;
+        richBlockControlsDismissReason = null;
+      }
       updateSlashMenuFromRichState();
       renderRichBlockControls();
       renderRichFoldingUi(false);
@@ -4699,33 +4847,100 @@ function applyPackageRichState(nextState: RichMarkdownState, eventMessage?: stri
   }
 }
 
+function surfaceRectOf(element: Element): SurfaceRect {
+  const rect = element.getBoundingClientRect();
+  return { height: rect.height, left: rect.left, top: rect.top, width: rect.width };
+}
+
+/**
+ * The top-level block the caret currently sits in. MME-0086 anchors the block
+ * controls to this element instead of the top of the content area.
+ */
+function currentRichBlockElement(): HTMLElement | null {
+  if (!richEditor) {
+    return null;
+  }
+  const position = richEditor.state.selection.from;
+  const range = richTopLevelBlockRanges(richEditor.state).find(
+    (candidate) => position >= candidate.from && position <= candidate.to
+  );
+  if (!range) {
+    return null;
+  }
+  const blockDom = richEditor.nodeDOM(range.from);
+  return blockDom instanceof HTMLElement ? blockDom : null;
+}
+
+function hiddenRichBlockControlsState(): SurfaceRichBlockControlsState {
+  return { anchor: null, canInsertAfter: false, container: null, language: null, meta: null, visible: false };
+}
+
 function renderRichBlockControls(): void {
+  if (!richBlockControlsSurface) {
+    return;
+  }
+  const hide = (): void => {
+    richBlockControlsSurface?.setState(hiddenRichBlockControlsState());
+  };
   const currentRichState = currentRichStateFromEditor();
-  richBlockControls.hidden = editorMode !== "rich" || !currentRichState;
-  if (richBlockControls.hidden || !currentRichState) {
-    codeBlockControls.hidden = true;
+  if (editorMode !== "rich" || !currentRichState || !richEditor || richBlockControlsDismissed) {
+    hide();
     return;
   }
 
   const codeInfo = getCurrentCodeBlockInfo(currentRichState);
   const canInsertAfter = canInsertParagraphAfterCurrentBlock(currentRichState);
-  richBlockControls.hidden = !codeInfo && !canInsertAfter;
-  if (richBlockControls.hidden) {
-    codeBlockControls.hidden = true;
-    insertAfterBlockButton.hidden = true;
+  const blockElement = currentRichBlockElement();
+  if (!blockElement || (!codeInfo && !canInsertAfter)) {
+    hide();
     return;
   }
-  codeBlockControls.hidden = !codeInfo;
-  insertAfterBlockButton.hidden = !canInsertAfter;
-  if (!codeInfo) {
+
+  // The selection bubble owns the moment while *text* is selected; two overlays
+  // competing for the same anchor is how they end up on top of each other.
+  //
+  // Narrowed to TextSelection deliberately: a NodeSelection is never `empty`
+  // (it spans its node), so guarding on `!selection.empty` would hide the
+  // controls during block selection — the exact trigger MME-0086's acceptance
+  // criteria name ("appears on block selection or via the block menu"). This
+  // mirrors the bubble's own visibility rule.
+  const selection = richEditor.state.selection;
+  if (selection instanceof TextSelection && !selection.empty) {
+    hide();
     return;
   }
-  if (document.activeElement !== codeLanguageInput) {
-    codeLanguageInput.value = codeInfo.language ?? "";
+
+  // Anchor against the scroll viewport, not the whole grid: a block scrolled out
+  // of view must take its controls with it rather than have them clamped back
+  // over the chrome — which is the pinned-to-the-top defect all over again.
+  const anchor = surfaceRectOf(blockElement);
+  const viewport = surfaceRectOf(richEditorHost);
+  const anchorVisible = anchor.top + anchor.height > viewport.top && anchor.top < viewport.top + viewport.height;
+  if (!anchorVisible) {
+    hide();
+    return;
   }
-  if (document.activeElement !== codeMetaInput) {
-    codeMetaInput.value = codeInfo.meta ?? "";
-  }
+
+  richBlockControlsSurface.setState({
+    anchor,
+    // The surface is absolutely positioned against `.editor-region`, but must
+    // stay inside the scrolling rich viewport.
+    bounds: viewport,
+    canInsertAfter,
+    container: surfaceRectOf(editorRegion),
+    language: codeInfo ? codeInfo.language ?? "" : null,
+    meta: codeInfo ? codeInfo.meta ?? "" : null,
+    visible: true
+  });
+}
+
+
+function richBlockControlsRoot(): HTMLElement | null {
+  return richBlockControlsSurface?.root ?? null;
+}
+
+function richBlockControlsInput(testId: "code-language-input" | "code-meta-input"): HTMLInputElement | null {
+  return richBlockControlsRoot()?.querySelector<HTMLInputElement>(`[data-testid="${testId}"]`) ?? null;
 }
 
 function renderRichFoldingUi(refreshDecorations = true): void {
@@ -4896,8 +5111,8 @@ function updateCurrentCodeBlockInfoFromControls(): void {
   }
   applyPackageRichState(
     setCurrentCodeBlockInfo(currentRichState, {
-      language: codeLanguageInput.value,
-      meta: codeMetaInput.value
+      language: richBlockControlsInput("code-language-input")?.value ?? "",
+      meta: richBlockControlsInput("code-meta-input")?.value ?? ""
     }),
     undefined,
     false

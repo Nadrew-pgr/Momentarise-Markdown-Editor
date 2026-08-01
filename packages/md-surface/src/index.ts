@@ -106,6 +106,12 @@ export interface MmeStrings {
     readonly reject: string;
     readonly statusLabel: string;
   };
+  readonly blockControls: {
+    readonly insertAfter: string;
+    readonly label: string;
+    readonly language: string;
+    readonly meta: string;
+  };
   readonly commandPalette: {
     readonly inputLabel: string;
     readonly inputPlaceholder: string;
@@ -617,6 +623,12 @@ export const defaultMmeStrings: MmeStrings = {
     providerState: "Provider state",
     reject: "Reject",
     statusLabel: "AI assistant"
+  },
+  blockControls: {
+    insertAfter: "Add paragraph",
+    label: "Block controls",
+    language: "Language",
+    meta: "Meta"
   },
   commandPalette: {
     inputLabel: "Command",
@@ -1171,6 +1183,477 @@ export function createSelectionBubbleToolbar(options: CreateSelectionBubbleToolb
     destroy,
     root,
     setState(nextState: SurfaceSelectionBubbleState) {
+      state = nextState;
+      render();
+    },
+    update: render
+  };
+}
+
+/* --- MME-0086: overlay dismissal + anchored block controls ------------------
+ *
+ * Benchmark editors share one rule: a transient overlay belongs to the moment
+ * that produced it. Notion's selection bubble, BlockNote's side menu, and every
+ * slash menu disappear the instant the pointer, the caret, or the mode moves on.
+ * MME had four overlays, each with its own ad-hoc closing rules, so a bubble
+ * could outlive the click that dismissed the editor.
+ *
+ * The lifecycle is a package contract rather than host wiring so that a consumer
+ * composing these surfaces gets the behaviour instead of re-deriving it.
+ */
+
+/** Why an overlay is being asked to close. */
+export type SurfaceOverlayDismissReason = "blur" | "escape" | "mode-change" | "outside-pointer";
+
+export interface SurfaceOverlayRegistration {
+  /** Dismiss reasons this overlay responds to. Defaults to all of them. */
+  readonly dismissOn?: readonly SurfaceOverlayDismissReason[];
+  readonly id: string;
+  close(reason: SurfaceOverlayDismissReason): void;
+  /** True when the node lives inside this overlay, so it is not "outside". */
+  contains(node: Node | null): boolean;
+  isOpen(): boolean;
+  /**
+   * Called after `close` when keyboard focus was inside this overlay. Without it
+   * the browser resets focus to `<body>` — no indicator, no document position —
+   * which is what pressing Escape inside an overlay would otherwise do.
+   */
+  returnFocus?(): void;
+}
+
+export interface CreateSurfaceOverlayDismissControllerOptions {
+  /** Where keyboard focus currently is, used to decide whether to restore it. */
+  readonly activeElement?: () => Node | null;
+  /**
+   * Editing surfaces that count as "still inside the editor" for blur purposes.
+   * Focus moving between the editor and an overlay is not a blur.
+   */
+  readonly editorRoots?: () => readonly (Element | null | undefined)[];
+}
+
+export interface SurfaceOverlayDismissController {
+  destroy(): void;
+  dismiss(reason: SurfaceOverlayDismissReason): readonly string[];
+  handleFocusChange(nextFocus: Node | null): readonly string[];
+  handlePointerDown(target: Node | null): readonly string[];
+  openOverlayIds(): readonly string[];
+  register(registration: SurfaceOverlayRegistration): () => void;
+}
+
+export interface AttachSurfaceOverlayDismissListenersOptions {
+  readonly controller: SurfaceOverlayDismissController;
+  /** The document (or subtree root) the overlays live in. */
+  readonly scope: Document | HTMLElement;
+}
+
+/**
+ * `instanceof Node` cannot be used here: this package is DOM-facing but runs in
+ * environments (SSR, Node-hosted tests) where no global `Node` constructor exists,
+ * and a thrown ReferenceError inside a listener would silently strand the overlay
+ * open. Duck-typing on `nodeType` is the portable check.
+ */
+function eventTargetNode(value: EventTarget | null): Node | null {
+  return value && typeof (value as Node).nodeType === "number" ? (value as Node) : null;
+}
+
+const allOverlayDismissReasons: readonly SurfaceOverlayDismissReason[] = [
+  "blur",
+  "escape",
+  "mode-change",
+  "outside-pointer"
+];
+
+export function createSurfaceOverlayDismissController(
+  options: CreateSurfaceOverlayDismissControllerOptions = {}
+): SurfaceOverlayDismissController {
+  const registrations = new Map<string, SurfaceOverlayRegistration>();
+
+  const respondsTo = (registration: SurfaceOverlayRegistration, reason: SurfaceOverlayDismissReason): boolean =>
+    (registration.dismissOn ?? allOverlayDismissReasons).includes(reason);
+
+  const closeMatching = (
+    reason: SurfaceOverlayDismissReason,
+    keepOpen: (registration: SurfaceOverlayRegistration) => boolean
+  ): readonly string[] => {
+    const closed: string[] = [];
+    for (const registration of [...registrations.values()]) {
+      if (!registration.isOpen() || !respondsTo(registration, reason) || keepOpen(registration)) {
+        continue;
+      }
+      // Read focus before closing: hiding the overlay is what moves focus to <body>.
+      const heldFocus = registration.contains(options.activeElement?.() ?? null);
+      registration.close(reason);
+      if (heldFocus) {
+        registration.returnFocus?.();
+      }
+      closed.push(registration.id);
+    }
+    return closed;
+  };
+
+  const insideEditor = (node: Node | null): boolean => {
+    if (!node) {
+      return false;
+    }
+    for (const root of options.editorRoots?.() ?? []) {
+      if (root?.contains(node)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  return {
+    destroy() {
+      registrations.clear();
+    },
+    dismiss(reason) {
+      return closeMatching(reason, () => false);
+    },
+    handleFocusChange(nextFocus) {
+      if (insideEditor(nextFocus)) {
+        return [];
+      }
+      // Reaching into an overlay (a bubble button, the language field) keeps every
+      // overlay alive; only focus landing outside all of them is a real blur.
+      const focusInsideAnOverlay = [...registrations.values()].some(
+        (registration) => registration.isOpen() && registration.contains(nextFocus)
+      );
+      if (focusInsideAnOverlay) {
+        return [];
+      }
+      return closeMatching("blur", () => false);
+    },
+    handlePointerDown(target) {
+      return closeMatching("outside-pointer", (registration) => registration.contains(target));
+    },
+    openOverlayIds() {
+      return [...registrations.values()].filter((registration) => registration.isOpen()).map((registration) => registration.id);
+    },
+    register(registration) {
+      registrations.set(registration.id, registration);
+      return () => {
+        registrations.delete(registration.id);
+      };
+    }
+  };
+}
+
+export function attachSurfaceOverlayDismissListeners(
+  options: AttachSurfaceOverlayDismissListenersOptions
+): () => void {
+  const onPointerDown = (event: Event): void => {
+    options.controller.handlePointerDown(eventTargetNode(event.target));
+  };
+  const onKeyDown = (event: Event): void => {
+    if ((event as KeyboardEvent).key === "Escape") {
+      options.controller.dismiss("escape");
+    }
+  };
+  const onFocusIn = (event: Event): void => {
+    options.controller.handleFocusChange(eventTargetNode(event.target));
+  };
+  const onFocusOut = (event: Event): void => {
+    // A null relatedTarget means focus left for nothing at all — still a blur.
+    options.controller.handleFocusChange(eventTargetNode((event as FocusEvent).relatedTarget));
+  };
+
+  // Capture, so an overlay that stops propagation cannot strand its siblings open.
+  options.scope.addEventListener("pointerdown", onPointerDown, true);
+  options.scope.addEventListener("keydown", onKeyDown, true);
+  options.scope.addEventListener("focusin", onFocusIn, true);
+  options.scope.addEventListener("focusout", onFocusOut, true);
+
+  return () => {
+    options.scope.removeEventListener("pointerdown", onPointerDown, true);
+    options.scope.removeEventListener("keydown", onKeyDown, true);
+    options.scope.removeEventListener("focusin", onFocusIn, true);
+    options.scope.removeEventListener("focusout", onFocusOut, true);
+  };
+}
+
+/** A DOM-free rectangle, so placement math stays testable without a browser. */
+export interface SurfaceRect {
+  readonly height: number;
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+}
+
+/**
+ * The overlay floats in the gap next to its anchor, never over it.
+ *
+ * Placing it *over* the anchor would put it on top of that block's own text —
+ * and, when the anchor is the block the caret is in, on top of the caret. Since
+ * MME-0086 removed the surface-level focus ring, the caret is the editing
+ * surface's only focus indicator, so covering it is a WCAG 2.4.7 failure. Both
+ * `above` and `below` leave the anchor's own content, and therefore the caret,
+ * fully visible.
+ */
+export type AnchoredOverlayPlacementKind = "above" | "below";
+
+export interface AnchoredOverlayPlacementOptions {
+  /** Which edge of the anchor the overlay lines up with horizontally. */
+  readonly align?: "end" | "start";
+  /** The element the overlay belongs to, in the same coordinate space as `container`. */
+  readonly anchor: SurfaceRect;
+  /**
+   * The region the overlay must stay inside, in the same coordinate space as
+   * `container`. Defaults to `container`, but the two differ whenever the
+   * positioned ancestor is larger than the scrolling viewport — clamping to the
+   * ancestor would then park the overlay over surrounding chrome.
+   */
+  readonly bounds?: SurfaceRect;
+  /** The positioning context the returned offsets are relative to. */
+  readonly container: SurfaceRect;
+  /** Distance kept between the overlay and its anchor. */
+  readonly gap?: number;
+  /** Smallest distance kept between the overlay and the bounds edges. */
+  readonly margin?: number;
+  readonly overlay: { readonly height: number; readonly width: number };
+  readonly preferred?: AnchoredOverlayPlacementKind;
+}
+
+export interface AnchoredOverlayPlacement {
+  /**
+   * False when neither side of the anchor has room inside the bounds — a block
+   * taller than the scrolling viewport, for instance. The returned offsets are
+   * then a best effort that WILL overlap the anchor, so a caller that must not
+   * cover its anchor's content should hide the overlay instead of using them.
+   */
+  readonly fits: boolean;
+  readonly left: number;
+  readonly placement: AnchoredOverlayPlacementKind;
+  readonly top: number;
+}
+
+/**
+ * Places an overlay against its own anchor rather than a fixed corner of the
+ * editor. Returns container-relative offsets, which is what the CSS custom
+ * properties consume.
+ */
+export function anchoredOverlayPlacement(options: AnchoredOverlayPlacementOptions): AnchoredOverlayPlacement {
+  const gap = options.gap ?? 8;
+  const margin = options.margin ?? 12;
+  const bounds = options.bounds ?? options.container;
+  const anchorTop = options.anchor.top - options.container.top;
+  const anchorLeft = options.anchor.left - options.container.left;
+  const boundsTop = bounds.top - options.container.top;
+  const boundsLeft = bounds.left - options.container.left;
+
+  const anchorBottom = anchorTop + options.anchor.height;
+  const boundsBottom = boundsTop + bounds.height;
+
+  // Staying clear of the anchor is a hard constraint, not a preference: clamping
+  // a "below" overlay to the bounds would park it *inside* a block taller than
+  // the viewport, back over that block's text and the caret in it.
+  const aboveTop = anchorTop - options.overlay.height - gap;
+  const belowTop = anchorBottom + gap;
+  // "Fits" means fully inside the bounds AND clear of the anchor. Requiring both
+  // ends matters when the anchor is scrolled partly out of view: the gap beside
+  // it can be off-screen, and an off-screen overlay is not a placement.
+  const fitsWithin = (top: number): boolean =>
+    top >= boundsTop + margin && top + options.overlay.height <= boundsBottom - margin;
+  const fitsAbove = fitsWithin(aboveTop);
+  const fitsBelow = fitsWithin(belowTop);
+
+  const preferred = options.preferred ?? "above";
+  const placement: AnchoredOverlayPlacementKind =
+    preferred === "above" ? (fitsAbove || !fitsBelow ? "above" : "below") : fitsBelow || !fitsAbove ? "below" : "above";
+  const fits = placement === "above" ? fitsAbove : fitsBelow;
+
+  const clamp = (value: number, min: number, max: number): number =>
+    Math.max(min, Math.min(value, Math.max(min, max)));
+
+  // When the chosen side fits, clamp within that side's free band so the result
+  // can never cross into the anchor. When neither side fits there is nothing
+  // honest to return — clamp to the bounds and report `fits: false`.
+  const top = fits
+    ? placement === "above"
+      ? clamp(aboveTop, boundsTop + margin, anchorTop - options.overlay.height - gap)
+      : clamp(belowTop, anchorBottom + gap, boundsBottom - options.overlay.height - margin)
+    : clamp(
+        placement === "above" ? aboveTop : belowTop,
+        boundsTop + margin,
+        boundsBottom - options.overlay.height - margin
+      );
+
+  const unclampedLeft = options.align === "end" ? anchorLeft + options.anchor.width - options.overlay.width : anchorLeft;
+
+  return {
+    fits,
+    left: clamp(
+      unclampedLeft,
+      boundsLeft + margin,
+      boundsLeft + bounds.width - options.overlay.width - margin
+    ),
+    placement,
+    top
+  };
+}
+
+export interface SurfaceRichBlockControlsState {
+  /** The selected block's rectangle. `null` hides the surface. */
+  readonly anchor: SurfaceRect | null;
+  /** The scrolling viewport the surface must stay inside. Defaults to `container`. */
+  readonly bounds?: SurfaceRect | null;
+  readonly canInsertAfter: boolean;
+  /** The positioning context the surface is absolutely placed inside. */
+  readonly container: SurfaceRect | null;
+  /** Fence info string language, or `null` when the block carries no fence info. */
+  readonly language: string | null;
+  readonly meta: string | null;
+  readonly visible: boolean;
+}
+
+export interface CreateRichBlockControlsOptions {
+  readonly host: HTMLElement;
+  readonly preferences: SurfacePreferences;
+  readonly session: MarkdownEditorSession;
+  readonly state: SurfaceRichBlockControlsState;
+  readonly strings: MmeStrings;
+  onChangeLanguage(value: string): void;
+  onChangeMeta(value: string): void;
+  onInsertAfter(): void;
+}
+
+/**
+ * The code fence's language/meta editor and the "insert a paragraph after this
+ * block" affordance, anchored to the block they act on.
+ *
+ * Before MME-0086 these lived in a bar pinned to the top of the content area,
+ * visually unrelated to the code block being edited. Notion and BlockNote put
+ * block controls at the block; so does this.
+ */
+export function createRichBlockControls(options: CreateRichBlockControlsOptions): SurfaceComponent & {
+  readonly root: HTMLElement;
+  setState(state: SurfaceRichBlockControlsState): void;
+} {
+  const root = createElement(options.host, "div", "rich-block-controls");
+  root.dataset.testid = "rich-block-controls";
+  // A bare div maps to role="generic", which ARIA prohibits authors from naming —
+  // `aria-label` on it is ignored by assistive technology. `group` is the honest
+  // role: a labelled set of related controls. Deliberately not `toolbar`, which
+  // would promise roving-tabindex arrow navigation this surface does not implement.
+  root.setAttribute("role", "group");
+  root.setAttribute("aria-label", options.strings.blockControls.label);
+
+  const codeGroup = createElement(root, "div", "code-block-controls");
+  codeGroup.dataset.testid = "code-block-controls";
+
+  const languageLabel = createElement(codeGroup, "label");
+  const languageText = createElement(languageLabel, "span");
+  languageText.textContent = options.strings.blockControls.language;
+  const languageInput = createElement(languageLabel, "input");
+  languageInput.type = "text";
+  languageInput.dataset.testid = "code-language-input";
+  languageInput.autocomplete = "off";
+  languageInput.spellcheck = false;
+  languageLabel.append(languageText, languageInput);
+
+  const metaLabel = createElement(codeGroup, "label");
+  const metaText = createElement(metaLabel, "span");
+  metaText.textContent = options.strings.blockControls.meta;
+  const metaInput = createElement(metaLabel, "input");
+  metaInput.type = "text";
+  metaInput.dataset.testid = "code-meta-input";
+  metaInput.autocomplete = "off";
+  metaInput.spellcheck = false;
+  metaLabel.append(metaText, metaInput);
+
+  codeGroup.append(languageLabel, metaLabel);
+
+  const insertAfterButton = createElement(root, "button", "toolbar-button insert-after-block-button");
+  insertAfterButton.type = "button";
+  insertAfterButton.dataset.testid = "insert-after-block-button";
+  insertAfterButton.textContent = options.strings.blockControls.insertAfter;
+
+  root.append(codeGroup, insertAfterButton);
+  options.host.replaceChildren(root);
+
+  let state = options.state;
+  const cleanups: ListenerCleanup[] = [];
+
+  const render = (): void => {
+    const hasCodeInfo = state.language !== null || state.meta !== null;
+    root.hidden = !state.visible || !state.anchor || (!hasCodeInfo && !state.canInsertAfter);
+    codeGroup.hidden = !hasCodeInfo;
+    insertAfterButton.hidden = !state.canInsertAfter;
+    root.dataset.layoutDensity = options.preferences.layoutDensity ?? "comfortable";
+
+    if (root.hidden) {
+      root.style.removeProperty("--mme-block-controls-left");
+      root.style.removeProperty("--mme-block-controls-top");
+      root.removeAttribute("data-placement");
+      return;
+    }
+
+    // The host owns the values while they are being typed into.
+    const active = options.host.ownerDocument.activeElement;
+    if (active !== languageInput) {
+      languageInput.value = state.language ?? "";
+    }
+    if (active !== metaInput) {
+      metaInput.value = state.meta ?? "";
+    }
+
+    if (!state.anchor || !state.container) {
+      return;
+    }
+    // Below and right-aligned: the controls read as belonging to the block above
+    // them, and the block they act on — including the caret inside it — stays
+    // fully visible. `anchoredOverlayPlacement` flips to `above` when the block
+    // sits at the bottom of the viewport.
+    const placement = anchoredOverlayPlacement({
+      align: "end",
+      anchor: state.anchor,
+      bounds: state.bounds ?? state.container,
+      container: state.container,
+      overlay: {
+        height: root.offsetHeight || 36,
+        width: root.offsetWidth || 260
+      },
+      preferred: "below"
+    });
+    // Neither side of the block has room — showing the controls would mean
+    // covering the block's own content and the caret in it.
+    if (!placement.fits) {
+      root.hidden = true;
+      root.style.removeProperty("--mme-block-controls-left");
+      root.style.removeProperty("--mme-block-controls-top");
+      root.removeAttribute("data-placement");
+      return;
+    }
+    root.style.setProperty("--mme-block-controls-left", `${Math.round(placement.left)}px`);
+    root.style.setProperty("--mme-block-controls-top", `${Math.round(placement.top)}px`);
+    root.dataset.placement = placement.placement;
+  };
+
+  const onLanguageInput = (): void => options.onChangeLanguage(languageInput.value);
+  const onMetaInput = (): void => options.onChangeMeta(metaInput.value);
+  const onInsertAfterClick = (): void => options.onInsertAfter();
+
+  languageInput.addEventListener("input", onLanguageInput);
+  metaInput.addEventListener("input", onMetaInput);
+  insertAfterButton.addEventListener("click", onInsertAfterClick);
+  cleanups.push(() => languageInput.removeEventListener("input", onLanguageInput));
+  cleanups.push(() => metaInput.removeEventListener("input", onMetaInput));
+  cleanups.push(() => insertAfterButton.removeEventListener("click", onInsertAfterClick));
+  cleanups.push(options.session.on("destroy", () => destroy()));
+
+  render();
+
+  const destroy = (): void => {
+    for (const cleanup of cleanups.splice(0)) {
+      cleanup();
+    }
+    root.remove();
+  };
+
+  return {
+    destroy,
+    root,
+    setState(nextState: SurfaceRichBlockControlsState) {
       state = nextState;
       render();
     },

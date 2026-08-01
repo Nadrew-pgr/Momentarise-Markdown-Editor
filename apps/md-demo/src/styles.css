@@ -234,6 +234,7 @@ summary:focus-visible {
 [data-testid="find-replace-host"],
 [data-testid="command-palette-host"],
 [data-testid="slash-command-menu-host"],
+[data-testid="rich-block-controls-host"],
 [data-testid="inline-ai-prompt-host"] {
   position: absolute;
   inset: 0;
@@ -245,6 +246,7 @@ summary:focus-visible {
 [data-testid="find-replace-host"] > *,
 [data-testid="command-palette-host"] > *,
 [data-testid="slash-command-menu-host"] > *,
+[data-testid="rich-block-controls-host"] > *,
 [data-testid="inline-ai-prompt-host"] > * {
   pointer-events: auto;
 }
@@ -376,53 +378,12 @@ summary:focus-visible {
   outline: 1px solid var(--mme-color-accent);
 }
 
-.rich-block-controls {
-  grid-row: 2;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  padding-block: 5px;
-  padding-inline: max(12px, calc((100% - var(--mme-active-content-measure)) / 2));
-  border-bottom: 1px solid var(--mme-color-border);
-  background: var(--mme-color-bg);
-}
-
-.code-block-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.code-block-controls label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--mme-color-text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.code-block-controls input {
-  inline-size: 112px;
-  min-height: 26px;
-  padding: 0 8px;
-  border: 1px solid var(--mme-color-border);
-  border-radius: var(--mme-radius-sm);
-  background: var(--mme-color-surface);
-  color: var(--mme-color-text);
-  font-family: var(--mme-font-family-mono);
-  font-size: 12px;
-}
-
-.code-block-controls input:focus {
-  border-color: var(--mme-color-accent);
-  outline: 2px solid var(--mme-color-focus-ring);
-  outline-offset: 0;
-}
+/*
+ * MME-0086: `.rich-block-controls` and `.code-block-controls` moved into the
+ * packaged stylesheet. They were a bar pinned to the top of the content area
+ * (grid row 2); they are now an overlay anchored to the block they edit, owned
+ * by `createRichBlockControls` in @momentarise/md-surface.
+ */
 
 .rich-block-menu {
   position: absolute;
@@ -493,9 +454,13 @@ summary:focus-visible {
   background: var(--mme-color-bg);
 }
 
-.rich-editor-host:focus-within {
-  box-shadow: inset 0 0 0 2px var(--mme-color-focus-ring);
-}
+/*
+ * MME-0086: no focus indicator on the editing surface itself. Notion, Obsidian
+ * and BlockNote never outline the whole editor — the caret carries focus, and
+ * `:focus-visible` carries it for the individual controls inside the surface.
+ * The removed rule was `.rich-editor-host:focus-within { box-shadow: inset … }`,
+ * which lit up the entire writing area the moment a caret was placed.
+ */
 
 .markdown-read-host {
   display: grid;

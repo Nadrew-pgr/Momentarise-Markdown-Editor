@@ -1,0 +1,432 @@
+{
+  "consoleErrors": [],
+  "demoUrl": "http://127.0.0.1:5174/",
+  "evidence": {
+    "anchoring": {
+      "390": {
+        "attachedGap": 9,
+        "blockTop": 509,
+        "controlsCentre": 617,
+        "contentTop": 161,
+        "distanceFromContentTop": 456,
+        "placement": "below"
+      },
+      "1280": {
+        "attachedGap": 9,
+        "blockTop": 358,
+        "controlsCentre": 433,
+        "contentTop": 96,
+        "distanceFromContentTop": 337,
+        "placement": "below"
+      },
+      "1280-caret": {
+        "caret": {
+          "x": 445,
+          "y": 373.0625,
+          "width": 0,
+          "height": 16,
+          "top": 373.0625,
+          "right": 445,
+          "bottom": 389.0625,
+          "left": 445
+        },
+        "caretInsideBlock": true,
+        "controls": {
+          "x": 577.9562377929688,
+          "y": 414.3800048828125,
+          "width": 387.71246337890625,
+          "height": 37.239990234375,
+          "top": 414.3800048828125,
+          "right": 965.668701171875,
+          "bottom": 451.6199951171875,
+          "left": 577.9562377929688
+        },
+        "covered": false,
+        "measured": true
+      },
+      "1280-neighbour": {
+        "covered": true,
+        "measured": true,
+        "nextText": {
+          "x": 262,
+          "y": 421.65625,
+          "width": 689.578125,
+          "height": 46.484375,
+          "top": 421.65625,
+          "right": 951.578125,
+          "bottom": 468.140625,
+          "left": 262
+        }
+      },
+      "1280-scroll": {
+        "after": 294.2255859375,
+        "before": 414.3800048828125,
+        "blockAfter": 238.0625,
+        "blockBefore": 358.0625,
+        "hidden": false
+      },
+      "1280-tall-fence": {
+        "blockHeight": 1327,
+        "caretDistanceFromViewportBottom": 54,
+        "controlsOpen": true,
+        "viewportHeight": 804
+      },
+      "390-caret": {
+        "caret": {
+          "x": 183,
+          "y": 524.3125,
+          "width": 0,
+          "height": 16,
+          "top": 524.3125,
+          "right": 183,
+          "bottom": 540.3125,
+          "left": 183
+        },
+        "caretInsideBlock": true,
+        "controls": {
+          "x": 15.660003662109375,
+          "y": 566.0400390625,
+          "width": 358.67999267578125,
+          "height": 101.91998291015625,
+          "top": 566.0400390625,
+          "right": 374.3399963378906,
+          "bottom": 667.9600219726562,
+          "left": 15.660003662109375
+        },
+        "covered": false,
+        "measured": true
+      },
+      "390-neighbour": {
+        "covered": true,
+        "measured": true,
+        "nextText": {
+          "x": 0,
+          "y": 572.90625,
+          "width": 376.046875,
+          "height": 99.265625,
+          "top": 572.90625,
+          "right": 376.046875,
+          "bottom": 672.171875,
+          "left": 0
+        }
+      },
+      "390-scroll": {
+        "after": 445.6162109375,
+        "before": 566.0400390625,
+        "blockAfter": 389.3125,
+        "blockBefore": 509.3125,
+        "hidden": false
+      },
+      "390-tall-fence": {
+        "blockHeight": 1327,
+        "caretDistanceFromViewportBottom": 54,
+        "controlsOpen": false,
+        "viewportHeight": 683
+      }
+    },
+    "dismissal": {
+      "390": {
+        "bubbleOpen": true,
+        "bubbleAfterOutsidePointer": false,
+        "bubbleAfterEscape": false,
+        "blockMenuAfterOutsidePointer": false,
+        "slashAfterEscape": false,
+        "blockControlsAfterBlur": false,
+        "afterModeSwitch": {
+          "blockControls": false,
+          "blockMenu": false,
+          "bubble": false,
+          "slashMenu": false
+        },
+        "followsCaret": {
+          "inCodeBlock": true,
+          "afterClickingAway": false,
+          "afterClickingBack": true
+        },
+        "whileSelecting": {
+          "blockControls": false,
+          "blockMenu": false,
+          "bubble": true,
+          "slashMenu": false
+        }
+      },
+      "1280": {
+        "bubbleOpen": true,
+        "bubbleAfterOutsidePointer": false,
+        "bubbleAfterEscape": false,
+        "blockMenuAfterOutsidePointer": false,
+        "slashAfterEscape": false,
+        "blockControlsAfterBlur": false,
+        "afterModeSwitch": {
+          "blockControls": false,
+          "blockMenu": false,
+          "bubble": false,
+          "slashMenu": false
+        },
+        "followsCaret": {
+          "inCodeBlock": true,
+          "afterClickingAway": false,
+          "afterClickingBack": true
+        },
+        "whileSelecting": {
+          "blockControls": false,
+          "blockMenu": false,
+          "bubble": true,
+          "slashMenu": false
+        }
+      },
+      "1280-escape-focus": {
+        "active": "DIV",
+        "controlsStillOpen": false,
+        "inEditor": true
+      },
+      "1280-node-selection": true,
+      "390-escape-focus": {
+        "active": "DIV",
+        "controlsStillOpen": false,
+        "inEditor": true
+      },
+      "390-node-selection": true
+    },
+    "focus": {
+      "rich-1280": {
+        ".ProseMirror": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        },
+        ".cm-editor": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        },
+        ".editor-region": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        },
+        ".rich-editor-host": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        }
+      },
+      "source-1280": {
+        ".ProseMirror": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        },
+        ".cm-editor": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        },
+        ".editor-region": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        },
+        ".rich-editor-host": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        }
+      },
+      "live-preview-1280": {
+        ".ProseMirror": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        },
+        ".cm-editor": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        },
+        ".editor-region": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        },
+        ".rich-editor-host": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        }
+      },
+      "rich-390": {
+        ".ProseMirror": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        },
+        ".cm-editor": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        },
+        ".editor-region": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        },
+        ".rich-editor-host": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        }
+      },
+      "source-390": {
+        ".ProseMirror": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        },
+        ".cm-editor": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        },
+        ".editor-region": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        },
+        ".rich-editor-host": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        }
+      },
+      "live-preview-390": {
+        ".ProseMirror": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        },
+        ".cm-editor": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        },
+        ".editor-region": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        },
+        ".rich-editor-host": {
+          "boxShadow": "none",
+          "outlineStyle": "none",
+          "outlineWidth": "3px"
+        }
+      }
+    },
+    "keyboardFocus": {
+      "390": [
+        {
+          "focusVisible": true,
+          "found": true,
+          "insideEditor": true,
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "received": true,
+          "testId": "code-language-input"
+        },
+        {
+          "focusVisible": true,
+          "found": true,
+          "insideEditor": true,
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "received": true,
+          "testId": "code-meta-input"
+        },
+        {
+          "focusVisible": true,
+          "found": true,
+          "insideEditor": true,
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "received": true,
+          "testId": "insert-after-block-button"
+        },
+        {
+          "focusVisible": true,
+          "found": true,
+          "insideEditor": true,
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "received": true,
+          "testId": "rich-block-insert-after-0"
+        },
+        {
+          "focusVisible": true,
+          "found": true,
+          "insideEditor": true,
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "received": true,
+          "testId": "rich-block-drag-handle-0"
+        }
+      ],
+      "1280": [
+        {
+          "focusVisible": true,
+          "found": true,
+          "insideEditor": true,
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "received": true,
+          "testId": "code-language-input"
+        },
+        {
+          "focusVisible": true,
+          "found": true,
+          "insideEditor": true,
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "received": true,
+          "testId": "code-meta-input"
+        },
+        {
+          "focusVisible": true,
+          "found": true,
+          "insideEditor": true,
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "received": true,
+          "testId": "insert-after-block-button"
+        },
+        {
+          "focusVisible": true,
+          "found": true,
+          "insideEditor": true,
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "received": true,
+          "testId": "rich-block-insert-after-0"
+        },
+        {
+          "focusVisible": true,
+          "found": true,
+          "insideEditor": true,
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "received": true,
+          "testId": "rich-block-drag-handle-0"
+        }
+      ],
+      "1280-forward-tab": {
+        "reachedForward": "code-language-input",
+        "tabStops": 18
+      },
+      "390-forward-tab": {
+        "reachedForward": "code-language-input",
+        "tabStops": 18
+      }
+    }
+  },
+  "screenshots": 12,
+  "status": "passed"
+}

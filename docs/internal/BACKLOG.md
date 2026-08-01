@@ -337,6 +337,24 @@ Tags: `public-release`, `human-review`, `ui`, `ax`
 - MME-0025 unreviewed detail: audit whether CSS-only compatibility tokens carried from MME-0039 (`border-strong`, accent hover/soft variants, warning/code/preview/topbar/overlay/content-measure) should remain CSS-only, become typed `MmeTheme` keys, or collapse into the strict public token set during MME-0030/public-release hardening. The human accepted the MME-0025 direction but did not explicitly review each compatibility token.
 - MME-0025 unreviewed detail: audit every default icon glyph, icon-only label, toolbar density, and light/dark accessibility state before public release. The human accepted the toolbar icon direction but did not explicitly review each icon asset as final.
 
+## Non-Text Contrast Of Interactive Boundaries (WCAG 1.4.11)
+
+Tags: `baseline/hygiene`, `accessibility`, `design-system`
+
+- Recorded first in the MME-0102 review (interactive borders at 1.2–1.5:1) and re-measured
+  independently by the MME-0086 accessibility review: text-input boundaries compute to
+  **1.277:1 in light** (`--mme-color-border` `#dfe4ec` on `--mme-color-surface-raised` `#ffffff`)
+  and **1.270:1 in dark** (`#2b2f38` on `#1a1c22`), against WCAG 1.4.11's 3:1 requirement.
+  Affects the command palette, find/replace, and the MME-0086 code language/meta fields.
+- Not fixable by nudging one ramp step: no neutral below `--mme-neutral-10` (`#78849a`, 3.77:1
+  on white) reaches 3:1. Either the border alias for control boundaries points at neutral-10,
+  or the ramp's 6–8 band is revisited.
+- `tests/theme-contrast.test.mjs` checks **text** pairs only and is structurally blind to
+  boundary contrast — the same shape of gap as the opacity-based disabled state found in the
+  Block B3 review. Any issue promoted from this entry must extend that gate, not just the tokens.
+- Text contrast itself is healthy and was verified during MME-0086: muted label on raised
+  surface measures 7.56:1 in both schemes.
+
 ## Advanced Editor Preferences
 
 Tags: `maybe-later`, `settings`, `power-user`

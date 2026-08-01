@@ -5806,6 +5806,19 @@ function currentAncestorBlockRange(
   readonly parent: ProseMirrorNode;
   readonly to: number;
 } | null {
+  // A NodeSelection on a top-level block resolves to depth 0, so the ancestor
+  // walk below never sees it. Without this, selecting a code block as an object —
+  // via the block handle or the block menu — reports "no code block", and any
+  // affordance keyed on that selection silently disappears (MME-0086).
+  const { selection } = state;
+  if (selection instanceof NodeSelection && selection.node.type.name === typeName) {
+    return {
+      from: selection.from,
+      node: selection.node,
+      parent: selection.$from.parent,
+      to: selection.to
+    };
+  }
   const { $from } = state.selection;
   for (let depth = $from.depth; depth > 0; depth -= 1) {
     const node = $from.node(depth);

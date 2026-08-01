@@ -181,7 +181,9 @@
     "momentariseSourcePackage"
   ],
   "@momentarise/md-surface": [
+    "anchoredOverlayPlacement",
     "applyMmeThemeToElement",
+    "attachSurfaceOverlayDismissListeners",
     "createAiAssistantPanel",
     "createCommandPalette",
     "createDiagnosticsSurface",
@@ -189,9 +191,11 @@
     "createFindReplaceSurface",
     "createInlineAiPrompt",
     "createModeControl",
+    "createRichBlockControls",
     "createSelectionBubbleToolbar",
     "createSlashMenu",
     "createSurfaceDocumentState",
+    "createSurfaceOverlayDismissController",
     "createSurfaceViewportController",
     "createToolbar",
     "defaultMmeStrings",

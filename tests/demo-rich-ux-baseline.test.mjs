@@ -41,13 +41,38 @@ for (const forbiddenStaticSnippet of ['data-rich-bubble-command=', 'data-testid=
     throw new Error(`Selection bubble controls must be rendered by md-surface, not static demo HTML: ${forbiddenStaticSnippet}`);
   }
 }
+// MME-0086: the block/code controls became a package surface (createRichBlockControls)
+// anchored to its block, so the demo must mount a host rather than hand-write the bar.
+for (const forbiddenStaticSnippet of ['data-testid="code-language-input"', 'data-testid="insert-after-block-button"']) {
+  if (shellTemplate.includes(forbiddenStaticSnippet)) {
+    throw new Error(`Block controls must be rendered by md-surface, not static demo HTML: ${forbiddenStaticSnippet}`);
+  }
+}
+if (!shellTemplate.includes('data-testid="rich-block-controls-host"')) {
+  throw new Error("Demo must mount the packaged block-controls surface into a host element (MME-0086).");
+}
 
+// MME-0086: the block-controls markup is emitted by md-surface now, so its test ids
+// are asserted against the package source below. The demo keeps the wiring.
+const surfaceSource = readFileSync("packages/md-surface/src/index.ts", "utf8");
 for (const snippet of [
   "rich-block-controls",
   "code-block-controls",
   "code-language-input",
   "code-meta-input",
   "insert-after-block-button",
+  "createRichBlockControls"
+]) {
+  if (!surfaceSource.includes(snippet)) {
+    throw new Error(`md-surface missing MME-0086 block-controls snippet: ${snippet}`);
+  }
+}
+
+for (const snippet of [
+  "createRichBlockControls",
+  "code-language-input",
+  "code-meta-input",
+  "rich-block-controls-host",
   "canInsertParagraphAfterCurrentBlock",
   "getRichUxState",
   "insertParagraphAfterCurrentBlock",
@@ -72,9 +97,10 @@ for (const snippet of [
 
 const styles = readFileSync("apps/md-demo/src/styles.css", "utf8");
 // MME-0100: rich content + block affordances + selection bubble are package markup (styled in the
-// packaged stylesheet); the demo keeps only its own block-controls / code-controls / block-menu chrome.
+// packaged stylesheet). MME-0086 moved the block-controls / code-controls bar there too, leaving
+// the demo only its own block-menu chrome.
 const packageStyles = readFileSync("packages/md-theme/src/styles.css", "utf8");
-for (const snippet of [".rich-block-controls", ".code-block-controls", ".rich-block-menu"]) {
+for (const snippet of [".rich-block-menu"]) {
   if (!styles.includes(snippet)) {
     throw new Error(`Demo styles missing MME-0013.5 rich UX snippet: ${snippet}`);
   }
@@ -84,6 +110,8 @@ for (const snippet of [
   "[data-todo-content]",
   ".rich-block-affordance",
   ".selection-bubble-toolbar",
+  ".rich-block-controls",
+  ".code-block-controls",
   ".ProseMirror .empty-rich-document[data-placeholder]::before"
 ]) {
   if (!packageStyles.includes(snippet)) {

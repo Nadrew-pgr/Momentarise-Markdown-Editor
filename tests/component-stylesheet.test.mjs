@@ -35,6 +35,8 @@ const requiredSurfaces = {
   "selection bubble": ".selection-bubble-toolbar",
   "slash menu": ".slash-command-item",
   "block handles": ".rich-block-affordance",
+  "anchored block controls": ".rich-block-controls",
+  "code fence info fields": ".code-block-controls",
   "command palette": ".command-palette",
   "mode control": ".mode-button",
   "status control": ".editor-status-button",
@@ -63,7 +65,8 @@ assert(/:root\s*\{[^}]*color-scheme:\s*light/.test(tokens), "the default :root s
 
 // --- demo parity: the demo no longer defines package-owned component classes as its own rules ---
 const forbiddenInDemo = [".mode-button", ".toolbar-button", ".slash-command-item", ".selection-bubble-toolbar",
-  ".command-palette", ".editor-status-button", ".rich-command-toolbar", ".rich-block-affordance"];
+  ".command-palette", ".editor-status-button", ".rich-command-toolbar", ".rich-block-affordance",
+  ".rich-block-controls", ".code-block-controls"];
 for (const cls of forbiddenInDemo) {
   // a standalone rule like `.mode-button {` or `.mode-button:hover {` or `.mode-button,` — but
   // demo-scoped descendant selectors (`.editor-host .cm-content`) are allowed.

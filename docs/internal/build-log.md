@@ -8287,3 +8287,166 @@ geometry assertion met); `npm run visual:mme-0102-registry`; `node scripts/docs-
 - Visual impact: No visible editing or general UI changes. Planning documents only.
 - Checks run: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
 - Push status: pushed.
+
+## MME-0086 — Editor focus and overlay hygiene (Block C, issue 1 of 5)
+
+- Date: 2026-08-01.
+- Summary: removed the focus indicator drawn around the whole editing surface,
+  made overlay dismissal a package contract instead of demo wiring, and moved the
+  pinned `LANGUAGE / META / Add paragraph` bar into an anchored package surface.
+
+### What changed
+
+- **Focus.** `.rich-editor-host:focus-within { box-shadow: inset 0 0 0 2px … }` deleted
+  from `apps/md-demo/src/styles.css`. The packaged sheet already scoped `:focus-visible`
+  to individual controls, so consumers were never affected — only the demo was. The
+  caret now carries focus for the surface, as it does in Notion, Obsidian and BlockNote.
+- **Overlay lifecycle → package contract.** New in `@momentarise/md-surface`:
+  `createSurfaceOverlayDismissController` and `attachSurfaceOverlayDismissListeners`.
+  Overlays register with `{ id, isOpen, contains, close, dismissOn?, returnFocus? }` and
+  close on outside pointer, `Escape`, blur, and mode change. The demo registers all four
+  (selection bubble, slash menu, block menu, block controls) and supplies `returnFocus`.
+  Doing this in the demo alone would have shipped to nobody.
+- **Anchored block controls → package surface.** New `createRichBlockControls` plus the
+  exported pure function `anchoredOverlayPlacement`. CSS moved to
+  `packages/md-theme/src/styles.css` per the MME-0100 ownership rule; the demo mounts a
+  host and keeps only the wiring. Placement is `below` + `align: end`, with `bounds` so
+  clamping happens against the scrolling viewport rather than the positioned ancestor,
+  and a `fits` flag so the surface hides rather than being parked inside its own block.
+- **`[hidden]` actually hides, for consumers.** The UA `[hidden] { display: none }` loses
+  to any author `display` — cascade origin, not specificity — so **43 packaged classes**
+  silently ignored `element.hidden = true`: surfaces stayed rendered, hit-testable and in
+  the tab order while the code believed they were hidden. Invisible in the demo, which
+  carries its own `!important` rule that ships to nobody. Fixed with a `:where(…)[hidden]`
+  rule scoped to package-owned classes — deliberately not a bare `[hidden]`, which would
+  defeat a consumer's own overrides at any specificity and would break `hidden="until-found"`.
+  A gate fails if any packaged class sets a visible `display` without appearing in the list.
+- **`NodeSelection` support** in `currentAncestorBlockRange` (`md-rich-prosemirror`): a
+  NodeSelection on a top-level block resolves to depth 0, so the ancestor walk missed it
+  and selecting a code block as an object reported "no code block". That is the acceptance
+  criterion's own trigger ("appears on block selection").
+- `role="group"` on the overlay root (`aria-label` on a bare div maps to `role=generic`
+  and is ignored by assistive technology); `.rich-fold-toggle` deliberately untouched —
+  it is demo-emitted and MME-0087 owns the fold gutter.
+
+### Files changed
+
+`packages/md-surface/src/index.ts`, `packages/md-theme/src/styles.css`,
+`packages/md-rich-prosemirror/src/index.ts`, `apps/md-demo/src/main.ts`,
+`apps/md-demo/src/styles.css`, `tests/rich-overlay-hygiene.test.mjs` (new),
+`scripts/visual-check-mme0086.mjs` (new), `tests/demo-rich-ux-baseline.test.mjs`,
+`tests/component-stylesheet.test.mjs`, `tests/fixtures/public-api-approved.json`,
+`package.json`, `docs/internal/BACKLOG.md`,
+`docs/internal/visual-checks/MME-0086/`.
+
+### Tests run
+
+`npm test` in full (exit 0), run three times — after implementation, after the first
+reviewer round, and after the second. `node tests/rich-overlay-hygiene.test.mjs`,
+`npm run visual:mme-0086` (12 screenshots, every assertion met), `node scripts/docs-lint.mjs`,
+`npm run test:alignment`, `git diff --check`. Four new md-surface exports were added to
+`tests/fixtures/public-api-approved.json` as intentional.
+
+### Manual verification
+
+Dev server `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`, verified
+at `http://127.0.0.1:5174/` (the launcher-prompt URL); `http://localhost:5174/` confirmed
+serving the same build. Beyond the script: hit-tested that the absolutely-positioned
+overlay host does not swallow clicks into the editor, that clicking a bubble button applies
+the mark without dismissing the bubble, that the code controls hide on blur and return on
+refocus, and that typing in the language field writes through to the fence (` ```jsx `).
+
+### Every gate was proven to fail before it was trusted
+
+Ten fixes were reverted one at a time and each gate confirmed to fail with the expected
+message — table in `docs/internal/visual-checks/MME-0086/README.md`.
+
+**Four of my own new assertions were vacuous when first written**, and only the mutation
+test revealed it. This is the Block B3 lesson repeating inside a single issue:
+
+- the follows-caret check used the programmatic selection API, so it never fired the
+  pointer event that caused the bug — it passed against knowingly broken code;
+- the scroll check ran against a document too short to scroll;
+- the keyboard-focus check collected whatever forward-Tab reached and asserted only on
+  controls already matching `:focus-visible`, so a control with no ring was filtered out
+  rather than failed — its evidence was 24 block affordance buttons, not one control this
+  issue introduced;
+- the tall-fence check measured caret coverage at a caret position that happened to sit
+  clear of the clamped overlay.
+
+Each now carries a guard against its own vacuity. The static CSS detector also carries a
+canary asserting it still matches the known `.ProseMirror:focus` rule.
+
+### Reviewer pass
+
+Two inspect-only subagents (UX, Accessibility), each run twice — an initial review and a
+re-review of the fixes, with the re-review asked to attack the fixes rather than confirm
+them. Both re-ran their own live browser probes rather than reading my summary.
+
+**Round 1 — both REQUEST CHANGES. Five real defects, three of which I introduced:**
+
+- **Anchoring the controls over the block covered the code and the caret.** Since this
+  issue removes the surface focus ring, the caret is the only focus indicator left, so
+  that combination is a WCAG 2.4.7 failure. Found independently by both reviewers.
+- **The controls latched off permanently** after a second click in the editor: clicking
+  away and back never brought them back (`true → false → false`). They no longer register
+  for outside-pointer dismissal, and any caret movement clears the latch.
+- **The overlay stayed welded to the viewport while the document scrolled**, drifting
+  200px from its block and parking over the chrome.
+- **`Escape` from the language field stranded focus on `<body>`.**
+- **The controls preceded the editor in the DOM**, so they were reachable only by
+  Shift+Tab, in reverse visual order (WCAG 2.4.3).
+- Plus the `[hidden]` cascade defect, found on one button and generalised to 43 classes.
+- Accessibility reviewer computed text contrast independently: 7.56:1 in both schemes,
+  healthy. Non-text boundary contrast is 1.27:1 against 3:1 — cross-cutting and
+  pre-existing, recorded in `docs/internal/BACKLOG.md` rather than fixed here, on the
+  reviewer's own recommendation.
+
+**Round 2 — two further blockers, both reproduced live by the reviewers:**
+
+- **The clamp reintroduced the occlusion for a block taller than the viewport.** When
+  neither side fits, clamping to the bounds edge parked the overlay *inside* the block,
+  over its text and the caret, while still reporting `placement: "below"`. Reproduced with
+  a 45-line fence: controls at 670–708 inside a block spanning −151 to 851, caret covered,
+  `elementFromPoint` returning the overlay. Fixed by making clearance of the anchor a hard
+  constraint and adding a `fits` flag; the surface hides when neither side has room.
+- **`NodeSelection` is never `empty`**, so guarding on `!selection.empty` hid the controls
+  during block selection — the acceptance criterion's own trigger. Narrowed to
+  `TextSelection`, and taught `currentAncestorBlockRange` to resolve a NodeSelection.
+- The accessibility reviewer also verified my `:focus-visible` technique is sound
+  (modality can only suppress, never falsely grant) and that `<details>` is unaffected by
+  the `[hidden]` rule; the UX reviewer verified the scroll fix holds an exact 8px gap
+  across 30 consecutive scroll frames with zero flicker.
+
+### Deviations from the issue
+
+- **Reserved space was implemented and then removed.** Both reviewers were right that a
+  floating overlay always has a victim, and that the benchmark answer is for the block to
+  reserve room for its own chrome. It does not work as a host-set attribute: the block DOM
+  belongs to ProseMirror and the attribute is discarded when the node re-renders — verified
+  with a MutationObserver (attribute set, then the `<pre>` rebuilt without it). Doing it
+  properly needs a ProseMirror decoration, which belongs with MME-0105's in-block chrome.
+  The residual cost — the controls cover the top of the following block — is measured and
+  recorded in `measurements.json`, deliberately not asserted as a failure.
+- **Scope widened deliberately in one place:** the `[hidden]` fix covers all 43 affected
+  classes rather than the single button the reviewer found. Fixing my instance and leaving
+  42 identical latent bugs would have been worse engineering.
+
+### Visual impact
+
+- **Editing surface:** the full-frame blue outline is gone from rich, source and Live
+  Preview; a caret no longer lights up the whole writing area. The code language/meta
+  editor moved from a bar pinned to the top of the content area to an overlay anchored
+  below its own code block, right-aligned, tracking it on scroll and hiding when it
+  leaves the viewport.
+- **General UI:** overlays dismiss like Notion — outside click, `Escape`, blur, mode
+  switch. No change to the top bar, mode control, or status chrome.
+
+### Open questions / known-remaining
+
+Recorded in `docs/internal/visual-checks/MME-0086/README.md`: neighbour-block coverage
+(above), the block menu still being demo-owned markup, `.rich-fold-toggle` focus styling
+staying demo-only (MME-0087), block affordances being permanently in the tab order so the
+controls cost ~10 Tab stops (MME-0087), non-text boundary contrast (backlog), and
+`dismiss("escape")` closing all overlays rather than the topmost.
+
