@@ -10,3 +10,53 @@ Each UI issue should create a folder such as `docs/internal/visual-checks/MME-00
 Do not mark an issue visually verified if the browser or screenshot tooling was unavailable.
 
 Visual scripts resolve Chrome/Chromium through the shared `scripts/chrome-helpers.mjs` helper. Set `CHROME_BIN` when Chrome is installed in a non-standard location.
+
+## Running the gates (MME-0114)
+
+One command runs the whole suite. It starts the dev servers the gates need, runs them, tears the servers down, writes `visual-gate-report.json` here (gitignored — it describes one run), and exits non-zero if a gate expected to pass fails:
+
+```bash
+npm run visual
+```
+
+Useful variants:
+
+```bash
+npm run visual -- --list                       # every gate, its group and status
+npm run visual -- --only mme-0013,mme-0027     # one or more gates by id
+npm run visual -- --groups demo,docs,registry  # pick server groups
+npm run visual -- --all                        # include the opt-in groups
+npm run visual -- --concurrency 3              # faster, less deterministic
+```
+
+Gates are declared in `scripts/visual-gates.mjs`, which is the single source of truth: a script that is not in the manifest is a script nothing runs. `npm test` enforces that contract deterministically through `npm run test:visual-gate-integrity` — manifest completeness, one `package.json` entry per gate, every gate capable of exiting non-zero, no gate deleting the documentation in its own artifact folder, and no gate declaring a group whose server it never reads.
+
+Groups:
+
+| Group | Server | Needs | Runs in |
+| --- | --- | --- | --- |
+| `demo` | `apps/md-demo` on `127.0.0.1:5174` | `npm ci` | every push (`visual-gates` job) |
+| `docs` | `apps/docs-site` on `127.0.0.1:5178` | `npm ci` | every push (`visual-gates` job) |
+| `registry` | `examples/next-app` on `127.0.0.1:5179` | a real npm-registry install | weekly (`example-next-app` job) |
+| `theia` | `apps/theia-demo` on `127.0.0.1:5176` | a Theia build | on request only |
+
+Gates outside the selected groups are reported as `not-selected` with the reason, never skipped silently.
+
+Two rules the runner enforces that individual scripts cannot:
+
+- **Fresh artifacts.** A gate that exits 0 without writing anything into its artifact directory during this run is failed. Last month's screenshots are not evidence about today. (Known limit, owned by `MME-0116`: this proves recency, not meaning — a gate reduced to writing one hardcoded `result.json` would still pass.)
+- **Pinned URLs.** Each gate runs against the server the runner actually started, not the port hardcoded in the script — several gates still default to a port nothing has served since MME-0009.
+
+## The quarantine
+
+MME-0114's first full run found 38 red gates. Repairing them is `MME-0116` (stale assertions) and `MME-0117` (a live coarse-pointer regression), so each one is listed in `KNOWN_FAILING` in `scripts/visual-gates.mjs` with a one-line reason, an owning issue, and the date it entered.
+
+The rules, all asserted by `npm run test:visual-gate-integrity`:
+
+- The build fails **only** when a gate expected to pass fails. A permanently red job is a job everyone learns to ignore.
+- Quarantined gates still run and are reported and counted as `known-failing` — never skipped.
+- A quarantined gate that **passes** is reported as an `anomaly`, with a GitHub warning annotation so it is visible on a green run. That is what stops the list becoming a graveyard.
+- Nothing enters quarantine anonymously: an entry without a reason, an approved owning issue and a date fails `npm test`, and the `KNOWN_FAILING` keys must match the gates marked `known-failing` exactly.
+- Retiring a gate is not the cheaper escape hatch: it additionally requires `obsoletedBy` naming the issue that made it obsolete.
+
+Adding an entry is how you record a known problem, not how you silence a red gate.

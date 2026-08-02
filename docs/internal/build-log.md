@@ -9139,3 +9139,302 @@ leaving a wider blank-line run) is documented rather than hidden.
 - Visual impact: block selection is now visible as an object-level state with an accessible ring; no other surface changed.
 - Checks run: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
 - Push status: pushed.
+
+
+## MME-0114 — Visual gate integrity (Block C2, issue 1 of 4)
+
+- Date: 2026-08-02.
+- Status: complete. Scope split by Andrew's reviewer mid-issue after the first
+  suite run found 40 failures instead of the 7 the issue assumed; MME-0114 ships
+  the harness, the quarantine and the save-truthfulness repair, and MME-0116 /
+  MME-0117 own the rest.
+
+### What the issue assumed, and what is actually true
+
+MME-0114 was written on the belief that `visual:*` had 7 red gates: five broken
+by MME-0088 and two pre-existing (`MME-0013` slash keyboard navigation,
+`MME-0027` AI prompt). The first time anything ran them as a set: **31 passed,
+40 failed, 5 not selected** (opt-in `registry` and `theia` groups), in 9 minutes.
+
+The rot was never a few gates. It is what happens to 76 browser proofs across
+eight months when no command runs them together.
+
+Final state of this issue: `npm run visual` exits **0** — 33 passed, 38
+known-failing (quarantined, each owned by an issue), 0 anomalies, 0 unexpected
+failures, 5 not selected, 10 minutes.
+
+### What changed
+
+- `scripts/visual-gates.mjs` — the manifest, and the `KNOWN_FAILING` quarantine.
+  **Four gate scripts had no `package.json` entry at all** (`mme0085`,
+  `mme0100`, `mme0100-example`, `mme0101`): no command in the repository could
+  run them.
+- `scripts/visual-runner.mjs` — `npm run visual`. Starts the dev servers the
+  selected groups need, pins each gate's URL to the server it actually started
+  (several gates still defaulted to port 5173, which nothing has served since
+  MME-0009), runs sequentially, writes a machine-readable report, exits non-zero
+  only on a gate expected to pass. Gates outside the selected groups are reported
+  as `not-selected` with the reason — never skipped silently.
+- `scripts/visual-artifacts.mjs` — `clearGeneratedArtifacts`,
+  `countFreshArtifacts`, and the shared `classifyGateOutcome` /
+  `outcomeFailsBuild` that the runner and its test both use, so the quarantine
+  rules proven deterministically are the rules actually applied.
+- `scripts/visual-demo-disclosures.mjs` — opens the demo's collapsed panels the
+  way a user does, and throws when one a gate depends on no longer exists.
+- `scripts/visual-save-truth.mjs` — the Gate 6 invariant, expressed on the pair.
+- `tests/visual-gate-integrity.test.mjs` — the deterministic half, in `npm test`
+  as `test:visual-gate-integrity`.
+- `.github/workflows/ci.yml` — a `visual-gates` job (browser-dependent, separate
+  from `npm test`), the AppArmor workaround ubuntu-24.04 needs for Chrome, a
+  90-minute cap, a weekly `registry`-group run, and a corrected header: the
+  MME-0082 criterion that browser gates never run in CI is explicitly superseded.
+- `docs/internal/visual-checks/README.md` — the one-command path and the
+  quarantine rules. `.gitignore` — the live report describes one run, so it is
+  no longer committed; CI uploads it as an artifact instead.
+- Gate repairs: disclosure opening in `mme0005`, `mme0008`, `mme0009`, `mme0011`;
+  the save-truthfulness pair in `mme0008`, `mme0009`, `mme0011`; the
+  destructive-delete fix in eight gates; and SIGTERM→SIGKILL escalation in 25.
+
+### Three defects in the harness itself, found by running it
+
+**1. Eight gates destroyed committed evidence on their way down.** They began
+with `rm(visualDir, { recursive: true })` — harmless while a gate passes and
+rewrites everything, destructive the moment it fails: the first suite run deleted
+`MME-0078/README.md`, the file Gate 0.8 requires, along with its 1216-line
+`result.json`. Replaced with `clearGeneratedArtifacts`, which removes only
+regenerated files.
+
+**2. `innerText` reads nothing inside a closed `<details>`.** The reference
+surface demoted its technical panels into collapsed disclosures, so every gate
+reading a diagnostic through `.innerText` began asserting against `""`. The
+repair opens the disclosure by clicking its summary — the interaction a user
+performs. Deliberately **not** a switch to `textContent`: that would assert text
+no user can see.
+
+**3. 25 gates could hang forever instead of failing.** They signalled Chrome with
+`SIGTERM` and never escalated; nine of them waited on `await chromeExit`
+unbounded. A Chrome that ignores SIGTERM keeps its stdio pipes open, which keeps
+Node's event loop alive — `MME-0005` printed its success line and then never
+exited, burning the runner's full 300s timeout and reporting as a failure. A gate
+that hangs is worse than one that fails: it looks identical from the outside and
+blocks everything behind it. All 25 now escalate, and the integrity test enforces
+it.
+
+### Save truthfulness, repaired rather than relaxed
+
+`MME-0008`, `MME-0009` and `MME-0011` asserted that `save-state` must never read
+exactly `saved`, and `MME-0008` asserted the same of `save-engine-state`. That
+was right when each was a single self-describing label. MME-0028 split the status
+popover: it renders `persistence-target` — verified live as `imported copy,
+download/export required` — immediately above `save-state` (`saved`), so the user
+does read the target beside the status and Gate 6 holds. The gates had become
+over-strict on one field in isolation.
+
+All three now assert the **pair**: both lines present, in the same status panel,
+target above status, the target naming a real target rather than repeating a bare
+status word, and — the point the reviewer had to force twice — **the panel
+actually open and laid out**. The expression opens the popover with a real
+summary click immediately before each read, because the demo re-renders the panel
+on every save-state change and a `<details>` re-created closed would otherwise
+make every text assertion a claim about invisible DOM. The Save Engine half that
+`assertNoPlainSaved` used to cover is kept, scoped exactly as before to a bare
+`saved`: `dirty`, `saving`, `conflict` and `error` claim no persistence, and
+`saveEngineStatusLabel` returns them verbatim by design.
+
+In `MME-0008` and `MME-0009` the invariant runs on every poll of the wait loop,
+not once. `MME-0011` is fully green. `MME-0008` and `MME-0009` pass the pair
+invariant and now read real diagnostics, but each retains one unrelated stale
+assertion, recorded in the quarantine and owned by MME-0116.
+
+### The quarantine mechanism
+
+38 gates carry `status: "known-failing"` with a reason, an owning issue (37 →
+`MME-0116`, 1 → `MME-0117`) and an entry date. The rules, all asserted
+deterministically:
+
+- the build fails **only** when a gate expected to pass fails;
+- quarantined gates still run, and are reported and counted, never skipped;
+- a quarantined gate that **passes** is reported as an `anomaly` with a GitHub
+  warning annotation, so a landed repair is noticed rather than rotting;
+- an entry without a reason, an approved owning issue and a date fails
+  `npm test`, and the `KNOWN_FAILING` keys must match the gates marked
+  `known-failing` exactly, so a typo cannot silence anything;
+- retiring a gate is not the cheaper escape hatch — it additionally requires
+  `obsoletedBy` naming the issue that made it obsolete.
+
+### The 40 failures, classified
+
+Diagnosed by three inspect-only analysis subagents over disjoint slices, each
+finding reconciled against the sources before being recorded.
+
+| Class | Gates | Meaning |
+| --- | --- | --- |
+| **A** — closed disclosure | 4: `0002`, `0004`, `0005`, `0007` | Read a diagnostic through `.innerText` inside the collapsed `debug-inspector`. `0005` repaired and green here; `0004` has a stale assertion underneath — it still demands the `pre-parser identity` diagnostic MME-0005 deleted. |
+| **B** — stale assertion | 29 | Assert behaviour a later, named issue intentionally changed. |
+| **C** — product defect | 4: `0008`, `0009`, `0011`, `0078` | The asserted behaviour should still hold. The three save-truthfulness gates were repaired here; `0078` is a live regression owned by MME-0117. |
+| **D** — harness bug | 3: `0029`, `0071`, `0080` | The gate's own machinery is wrong. |
+
+Class B, by the issue that changed the behaviour:
+
+- MME-0020 relabelled the imported-copy primary action `Export` → `Export copy`: `0012`.
+- MME-0027 namespaced built-in command ids (`heading1` → `mme:heading1`): `0013`
+  — one of the two failures the issue named as pre-existing.
+- MME-0029 renders a `contenteditable="false"` block-affordance widget inside
+  every top-level block, so a heading's `textContent` is now `+::Reco`: `0013.5`,
+  `0014`.
+- MME-0028.5 rerouted every AI action to the inline prompt instead of the
+  assistant panel: `0018`, `0023`, `0027` — the second failure the issue named.
+- MME-0028.6 renamed the exposed BYOK field `keyInputValue` → `keyInputHasValue`
+  so the raw key never enters page state: `0017`. **That assertion has been
+  unsatisfiable since 2026-06-30**, and it was the BYOK no-key-leak check.
+- MME-0044 gave HTML artifacts Source/Preview only: `0015`.
+- MME-0055 shipped native rich tables: `0019`, `0040`, `0042`.
+- MME-0056 shipped native footnotes: `0041`.
+- MME-0078 made the narrow topbar a horizontal scroller: `0045`.
+- MME-0080 added edge-whitespace encoding, so typing `Tab ` correctly yields
+  `Tab&#32;`: `0055`.
+- MME-0102 rebuilt the tokens as a ramp (`--mme-color-bg` is `#fbfcff`, not the
+  hard-coded `#ffffff`): `0025`.
+- MME-0062→MME-0071 each shipped semantic support for one more footnote
+  construct, converting preserved fallbacks into semantic nodes **in every
+  earlier fixture too**, while only the issue's own gate was written and none of
+  the earlier ones rebaselined: `0056`, `0059`, `0060`, `0061`, `0062`, `0063`,
+  `0064`, `0065`, `0066`, `0067`, `0068`, `0069`, `0070`.
+
+**No Markdown-preservation regression.** The 14 footnote/rich-fidelity gates were
+checked at model level: the 16 `tests/rich-footnote-*.test.mjs` suites pass and
+assert byte identity on these exact fixtures, and every divergence conserves
+(definitions up by N ⇔ fallbacks down by N), which is the signature of
+reclassification rather than loss.
+
+### Recorded honestly: MME-0080 was accepted on a gate that has never passed
+
+`visual-check-mme0080.mjs` waits for `scrollLeft > 0` on `.ProseMirror`, which
+has no `overflow` — the real scroll box is `.rich-editor-host`. Its
+`tableScrollable` precondition (`scrollWidth >= clientWidth`) is true of every
+element, so it passed vacuously. The committed artifacts are five screenshots
+with no `result.json`, and `build-log.md:7690` records that the closeout "did not
+re-run the browser script". The CSV paste feature itself is covered by unit
+tests; it is the visual gate that was vacuous. Repair belongs to MME-0116.
+
+### Tests run
+
+- `npm test` — exit 0, including the new `test:visual-gate-integrity`.
+- `npm run visual -- --groups demo,docs` — exit 0: 33 passed, 38 known-failing,
+  0 anomalies, 0 unexpected failures, 5 not selected, 10 minutes. The RED report
+  that opened the issue (31/40/5) is quoted above.
+- `node scripts/docs-lint.mjs`, `npm run test:alignment`, `git diff --check` — pass.
+
+Regenerated screenshots were reverted before committing: the suite reruns rewrite
+~200 near-identical PNGs, and MME-0114's evidence is the runner's report, not new
+renders of other issues' proofs.
+
+### Mutation testing — reversion-to-failure table
+
+43 mutants, 43 killed. Each mutation was applied to the implementation, the test
+observed failing with the quoted message, then reverted and observed passing.
+
+| # | Reversion | Assertion that failed |
+| --- | --- | --- |
+| M1 | Drop a gate from `VISUAL_GATES` | "Every scripts/visual-check-*.mjs file must appear in VISUAL_GATES…" |
+| M2 | Point a manifest entry at a nonexistent script | same |
+| M3 | Point `visual:mme-0053` at another script | "visual:mme-0053 must run scripts/visual-check-mme0053.mjs…" |
+| M4 | Delete the `visual` runner script entry | "`npm run visual` is the one documented command that runs the suite." |
+| M5 | Duplicate a gate id (with a distinct `npmScript`, so it reaches the check) | "Duplicate gate id: mme-0053" |
+| M6 | Point a gate at a nonexistent artifact directory | "artifact directory … does not exist…" |
+| M7 | Retire a gate with no reason | "a retired gate must record why…" |
+| M8 | Give a gate an unknown group | "unknown group \"nowhere\"" |
+| M9 | Replace `await main();` with a `.catch` that exits 0 | "must end in a top-level `await main();` or a `.catch` that sets a non-zero exit code." |
+| M10 | Strip every `throw`/`assert` from a gate script | "contains only 0 failing-capable check(s)." |
+| M11 | Restore `rm(visualDir, { recursive: true })` in a gate | "removes its artifact directory itself…" |
+| M12 | Make the staleness check ignore mtime | "A directory holding only files older than the run must report zero fresh artifacts…" |
+| M13 | Report a missing artifact directory as an empty success | "A missing artifact directory must be reported as missing, not as an empty success." |
+| M14 | Make `clearGeneratedArtifacts` delete every file | "clearGeneratedArtifacts must never delete the README.md that Gate 0.8 requires." |
+| M15 | Make `clearGeneratedArtifacts` delete nothing | "clearGeneratedArtifacts must remove the screenshots the gate regenerates." |
+| M16 | Stop counting stale files in the total | "Stale files must still be counted…" |
+| M17 | Quarantine entry loses its `owner` | "a known-failing gate must name the issue that owns its repair…" |
+| M18 | Quarantine entry loses its `reason` | "…Nothing enters quarantine anonymously." |
+| M19 | Quarantine entry claims an unapproved owner | "…it names \"someday\"." |
+| M20 | Quarantine entry for a gate id that does not exist | "Every KNOWN_FAILING key must correspond to a gate marked known-failing…" |
+| M21 | A known-failing gate that fails is treated as a build failure | "A quarantined gate that fails is the recorded expectation — reported and counted, not a build failure." |
+| M22 | A quarantined gate that passes is reported as an ordinary pass | "A quarantined gate that PASSES is an anomaly…" |
+| M23 | A stale-artifact run counts as a pass | "A gate that exits 0 without writing a fresh artifact failed…" |
+| M24 | `known-failing` also fails the build | "…a permanently red job is a job everyone learns to ignore." |
+| M25 | Pair invariant ignores a dropped target line | "Dropping the persistence-target line must fail." |
+| M26 | Pair invariant ignores panel membership | "A target rendered outside the status panel must fail." |
+| M27 | Pair invariant ignores ordering | "A target rendered below the status must fail." |
+| M28 | Pair invariant accepts a target repeating a bare status word | "A target line that just repeats a bare status word names no target." |
+| M29 | Pair invariant stops requiring a visible panel | "Asserting the pair while the status popover is collapsed…" |
+| M30 | Pair invariant drops the Save Engine half again | "A bare `saved` in the Save Engine panel must fail…" |
+| M31 | Pair invariant accepts an empty `save-state` | "An empty save-state line must fail." |
+| M32 | Pair invariant accepts a missing Save Engine state | "A missing Save Engine state must fail." |
+| M33 | The browser expression stops being valid JavaScript | "SAVE_TRUTH_PAIR_EXPRESSION must be syntactically valid JavaScript." |
+| M34 | A quarantine entry loses its date | "…must record when it entered quarantine…" |
+| M35 | A gate is reassigned to a group its script cannot read | "declares group \"registry\" but its script never reads MME_NEXT_APP_URL." |
+| M36 | A retired gate names no obsoleting issue | "must name the issue that made it obsolete in `obsoletedBy`." |
+| M37 | A gate swallows its own failure inside `main()` | "has a `catch (error)` that neither rethrows nor sets a non-zero exit." |
+| M38 | A gate deletes its artifact directory via `rmSync` | "removes its artifact directory itself…" |
+| M39 | …via a template with a trailing slash | "performs a recursive removal on something other than its own scratch directory…" |
+| M40 | …via an aliased identifier | same |
+| M41 | …via `dirname()` | "removes its artifact directory itself…" |
+| M42 | A gate is quarantined without a `KNOWN_FAILING` entry | "Every KNOWN_FAILING key must correspond to a gate marked known-failing…" |
+| M43 | A gate signals SIGTERM without escalating to SIGKILL | "signals Chrome with SIGTERM but never escalates to SIGKILL." |
+
+Four mutants survived their first run — M5, M10, M35, M42 — and every one was a
+faulty mutant rather than an assertion gap (the mutation did not reach the check,
+or left equivalent assertions in place). Re-run with corrected mutants, all four
+killed.
+
+### Reviewer pass
+
+Three inspect-only analysis subagents produced the failure classification. A Test
+Reviewer subagent then reviewed the finished harness adversarially and returned
+20 findings, of which it marked three blockers. All three were real and all three
+are fixed:
+
+1. **The new pair assertion read a collapsed `<details>`** — i.e. it reintroduced
+   the exact vacuity `visual-demo-disclosures.mjs` was written to prevent, inside
+   the assertion meant to replace it. Fixed by opening the popover with a real
+   click immediately before each read and asserting `visible`.
+2. **The pair assertion was not strictly stronger**: it silently dropped the
+   `save-engine-state` half that `assertNoPlainSaved` covered. Restored, and the
+   build-log claim that the new assertion is "stronger" was rewritten to say in
+   which respects.
+3. **The committed report contradicted the build log**: a two-gate `--only` run
+   was in the tree while the log claimed a green full-suite run that had not
+   finished. The report is now gitignored and the numbers above are from a real,
+   uncontended run.
+
+Also fixed from that review: the `of("failed")` duplication that made
+`outcomeFailsBuild` vacuous in the runner; wrong `not-selected` reasons under
+`--only`; a destructive-delete guard that tested one spelling (8 of 10 realistic
+evasions now fail); a swallowing `try/catch` inside `main` that section 4 could
+not catch; `retired` as an unowned escape hatch; group reassignment as a silent
+way to leave every job; quarantine entries with no date; unparsed browser
+expressions; `--onlyfoo` accepted silently; and the duplicated React 19 CI step.
+
+Two reviewer findings are **accepted rather than fixed**, and recorded as known
+limits: the staleness rule proves recency, not meaning (a gate reduced to writing
+one hardcoded `result.json` would still pass — owned by MME-0116, which will add
+per-gate expected filenames), and the CI job has never executed, so its Chrome
+and AppArmor assumptions are reasoned rather than proven.
+
+### Deviations from PRD
+
+None. The scope split is recorded in the MME-0114 addendum in `ISSUES.md`.
+
+### Visual impact
+
+No visible editing or general UI changes. The runner, manifest and quarantine are
+build tooling; the gate repairs change only what a gate does before reading, not
+what the product renders.
+
+### Open questions
+
+- The quarantine is a ratchet, not a resting place. MME-0116 must empty it.
+- The `visual-gates` CI job has not run yet; its first execution must be verified
+  and its URL recorded, as MME-0082's first green run was.
+- A product gap found in passing and routed to MME-0098: the source-mode
+  selection AI entry point no longer exists — `selected-text-ai-action` has been
+  `disabled + hidden` since MME-0029, and its replacement requires rich mode,
+  while `referenceSurfacePreferences.aiEntryPoints` still advertises `selection`.

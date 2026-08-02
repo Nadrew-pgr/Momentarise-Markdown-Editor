@@ -10,3 +10,9 @@ out/
 .env
 .env.*
 !.env.example
+
+# MME-0114: the live visual-gate report is regenerated on every `npm run visual` run.
+# Committing it guarantees the file in git describes whichever partial run happened last;
+# the summary that matters is recorded in docs/internal/build-log.md, and CI uploads the
+# JSON as a build artifact.
+docs/internal/visual-checks/visual-gate-report.json

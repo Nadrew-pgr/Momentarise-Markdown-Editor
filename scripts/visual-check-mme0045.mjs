@@ -391,6 +391,17 @@ async function main() {
     cdp.close();
   } finally {
     chrome.kill("SIGTERM");
+    /*
+     * MME-0114: bound the wait and escalate. A Chrome that ignores SIGTERM keeps
+     * its stdio pipes open and so keeps Node's event loop alive; the gate prints
+     * its result and never exits, which blocks the whole suite. This file builds
+     * no exit promise, so the bound is a plain timed wait.
+     */
+    await wait(2000);
+    if (chrome.exitCode === null && chrome.signalCode === null) {
+      chrome.kill("SIGKILL");
+    }
+    await wait(2000);
     await rm(userDataDir, { force: true, recursive: true });
   }
 }

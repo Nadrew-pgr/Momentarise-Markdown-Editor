@@ -1,6 +1,7 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import puppeteer from "puppeteer";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { clearGeneratedArtifacts } from "./visual-artifacts.mjs";
 
 // MME-0100: captures the registry-consumer example (Next.js) at desktop + mobile
 // widths, proving the packaged @momentarise/md-theme stylesheet makes a consumer
@@ -14,7 +15,12 @@ function assert(condition, message) {
 }
 
 async function main() {
-  await rm(visualDir, { force: true, recursive: true });
+  /*
+   * MME-0114: clear only what this gate regenerates. The previous
+   * `rm(visualDir, { recursive: true })` also deleted the committed README.md
+   * that Gate 0.8 requires whenever the gate failed after clearing.
+   */
+  await clearGeneratedArtifacts(visualDir);
   await mkdir(visualDir, { recursive: true });
   const browser = await puppeteer.launch({
     executablePath: requireChromeExecutable(),

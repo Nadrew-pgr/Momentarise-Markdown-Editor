@@ -361,6 +361,16 @@ async function main() {
       chrome.kill("SIGTERM");
     }
     await Promise.race([chromeExit, wait(2000)]);
+    /*
+     * MME-0114: escalate. A Chrome that ignores SIGTERM stays alive with its
+     * stdio pipes open, which keeps Node's event loop alive — the gate prints its
+     * success line and then never exits. The runner can only kill it on timeout,
+     * so a hanging gate looks exactly like a failing one and blocks the suite.
+     */
+    if (chrome.exitCode === null && chrome.signalCode === null) {
+      chrome.kill("SIGKILL");
+    }
+    await Promise.race([chromeExit, wait(2000)]);
     await rm(userDataDir, {
       force: true,
       maxRetries: 3,

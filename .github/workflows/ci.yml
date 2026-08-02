@@ -1,13 +1,14 @@
 # MME-0082: CI builds and tests the repository on every push to main and every pull request,
 # on a Node 20/22 matrix, so correctness no longer depends on one laptop.
 #
-# Scope boundary: this workflow runs only the deterministic suite. It deliberately does NOT run
-# any `visual:mme-*` script (scripts/visual-check-mme*.mjs) or anything under `docs/internal/
-# visual-checks/` generation — those scripts drive a real local browser via the Claude_Browser
-# preview tooling and are for human/agent-in-the-loop visual verification (see AGENT.md's UI
-# visual verification gate), not headless CI. `npm test` itself contains zero `visual:*` entries,
-# so no exclusion filtering is needed here; this comment documents that boundary explicitly per
-# the MME-0082 acceptance criteria. The Next.js docs-site build inside `npm test` (`build:docs-site`)
+# Scope boundary: the `test` job runs only the deterministic suite. `npm test` contains zero
+# `visual:*` entries, so no exclusion filtering is needed there.
+#
+# MME-0114 SUPERSEDES the MME-0082 criterion that said the browser gates never run in CI. That
+# rule is exactly why 40 of 71 gates were red the first time anything ran them as a set, five
+# broken by MME-0088 with no test turning red and two red for weeks unnoticed. They now run in
+# their own `visual-gates` job below, separate from `npm test` because they need a real Chrome
+# and live dev servers. The Next.js docs-site build inside `npm test` (`build:docs-site`)
 # is a static-site build (no browser, no network fetch beyond local generation) and runs headless
 # on Ubuntu without special handling.
 #
@@ -81,6 +82,65 @@ jobs:
       - name: Consumer matrix
         run: npm run test:consumer-matrix
 
+  # MME-0114: the browser visual gates, as their own job.
+  #
+  # They stay out of `npm test` because they need a real Chrome and live dev servers, which is
+  # exactly why they rotted: 40 of 71 were red the first time anything ran them as a suite, five
+  # of those broken by MME-0088 with no test turning red, and two red for weeks unnoticed. The
+  # deterministic half of the contract (manifest completeness, failable scripts, non-destructive
+  # artifact handling) runs inside `npm test` as `test:visual-gate-integrity`; this job runs the
+  # browsers.
+  #
+  # `npm run visual` starts the demo and docs-site dev servers itself and tears them down, so this
+  # job needs nothing but Chrome. ubuntu-latest ships Google Chrome preinstalled; CHROME_BIN pins
+  # it for scripts/chrome-helpers.mjs. The `registry` and `theia` gate groups are deliberately not
+  # selected here: they need a real npm-registry install and a Theia build respectively, and the
+  # runner reports them as `not-selected` in its JSON summary rather than skipping them silently.
+  #
+  # Locally this is the same one command: `npm run visual`.
+  visual-gates:
+    runs-on: ubuntu-latest
+    # 71 gates, sequential, 300s cap each. The observed full-suite time is ~9-45 minutes.
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # ubuntu-24.04 restricts unprivileged user namespaces through AppArmor, which stops Chrome
+      # launching as the non-root runner user. None of the 76 gate scripts passes `--no-sandbox`
+      # (they are written for a developer laptop), so relax the restriction for the job rather
+      # than editing every script. If this ever stops working, the alternative is a shared
+      # `chromeLaunchArgs()` in scripts/chrome-helpers.mjs.
+      - name: Allow Chrome's sandbox to start
+        run: |
+          if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            echo 0 | sudo tee /proc/sys/kernel/apparmor_restrict_unprivileged_userns
+          fi
+
+      - name: Run visual gates
+        env:
+          CHROME_BIN: /usr/bin/google-chrome
+        run: npm run visual
+
+      - name: Upload visual gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-gate-report
+          path: docs/internal/visual-checks/visual-gate-report.json
+
   example-next-app:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -106,8 +166,14 @@ jobs:
       - name: Example registry build (with md-theme overlay)
         run: npm run test:example-next-registry
 
+      # MME-0114 removed an accidental duplicate of this step.
       - name: React 19 StrictMode regression check
         run: npm run test:react19-strictmode-lifecycle
 
-      - name: React 19 StrictMode regression check
-        run: npm run test:react19-strictmode-lifecycle
+      # MME-0114: the `registry` gate group runs against the real published packages, so it
+      # belongs to this scheduled job rather than to every push. Without it, four gates would be
+      # in the manifest and run by nothing — the state MME-0114 exists to end.
+      - name: Registry visual gates
+        env:
+          CHROME_BIN: /usr/bin/google-chrome
+        run: npm run visual -- --groups registry

@@ -1825,7 +1825,7 @@ Hosts can offer an appearance settings panel; the demo gains one to prove it.
 
 ## MME-0114 — Visual gate integrity
 
-**Status: IN PROGRESS (Block C2). Harness built, not yet committed.**
+**Status: SHIPPED (Block C2, 2026-08-02).** Harness, quarantine, CI job, and the save-truthfulness pair repair. `npm run visual` exits 0 with 33 passing and 38 gates quarantined; the quarantine is owned by `MME-0116` and `MME-0117`. Full classified inventory of the 40 original failures is in the build log.
 
 ### Goal
 

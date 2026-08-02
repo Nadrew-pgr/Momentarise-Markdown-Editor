@@ -2,6 +2,12 @@ import { spawn } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import {
+  DEMO_DISCLOSURES,
+  assertDisclosuresOpened,
+  openDemoDisclosuresExpression
+} from "./visual-demo-disclosures.mjs";
+import { SAVE_TRUTH_PAIR_EXPRESSION, assertSaveTruthPair } from "./visual-save-truth.mjs";
 
 const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5173/";
@@ -107,6 +113,7 @@ async function getSaveSnapshot(cdp) {
         saveEngineStatusLabel: document.querySelector('[data-testid="save-engine-state"]').textContent,
         status: state.status,
         target: state.target,
+        savePair: ${SAVE_TRUTH_PAIR_EXPRESSION},
         targetLabel: document.querySelector('[data-testid="persistence-target"]').textContent
       };
     })()`
@@ -178,7 +185,7 @@ async function waitForSaveState(cdp, predicate, label) {
   const start = Date.now();
   let snapshot = await getSaveSnapshot(cdp);
   while (Date.now() - start < 6000) {
-    assertNoPlainSaved(snapshot);
+    assertSaveTruthPair(snapshot.savePair, label);
     if (predicate(snapshot)) {
       return snapshot;
     }
@@ -194,14 +201,6 @@ function assertIncludes(value, expected, label) {
   }
 }
 
-function assertNoPlainSaved(snapshot) {
-  if (String(snapshot.saveLabel).trim().toLowerCase() === "saved") {
-    throw new Error(`Save UI must not display plain "saved": ${JSON.stringify(snapshot)}`);
-  }
-  if (String(snapshot.saveEngineStatusLabel).trim().toLowerCase() === "saved") {
-    throw new Error(`Save Engine panel must not display plain "saved": ${JSON.stringify(snapshot)}`);
-  }
-}
 
 async function main() {
   await mkdir(visualDir, { recursive: true });
@@ -263,6 +262,19 @@ async function main() {
       url: demoUrl
     });
     await loadEvent;
+
+    /*
+     * MME-0114: the event log and save-engine readouts live inside the collapsed
+     * "Technical diagnostics" disclosure, and the persistence-target/save-state
+     * pair lives inside the collapsed status popover. Open both the way a user
+     * does — `innerText` is empty inside a closed `<details>`, and asserting a
+     * collapsed panel's text would be a claim about something nobody can see.
+     */
+    assertDisclosuresOpened(
+      await evaluate(cdp, openDemoDisclosuresExpression([DEMO_DISCLOSURES.debugInspector, DEMO_DISCLOSURES.documentStatus])),
+      "MME-0008"
+    );
+    await wait(120);
     await wait(200);
 
     const initial = await waitForSaveState(
@@ -270,7 +282,7 @@ async function main() {
       (snapshot) => snapshot.status === "saved" && snapshot.target === "memory-only",
       "initial memory-only saved state"
     );
-    assertIncludes(initial.saveLabel, "memory saved (not persisted)", "initial save label");
+    assertIncludes(initial.saveLabel, "saved", "initial save status");
     assertIncludes(initial.targetLabel, "memory only, not persisted", "initial target label");
     await screenshot(cdp, "save-engine-initial.png");
 
@@ -283,7 +295,8 @@ async function main() {
       (snapshot) => snapshot.status === "dirty" && snapshot.target === "memory-only",
       "dirty memory-only state"
     );
-    assertIncludes(dirty.saveLabel, "memory only / dirty", "dirty save label");
+    assertIncludes(dirty.saveLabel, "dirty", "dirty save status");
+    assertIncludes(dirty.targetLabel, "memory only, not persisted", "dirty target label");
     await screenshot(cdp, "save-engine-dirty.png");
 
     const autosaved = await waitForSaveState(
@@ -294,7 +307,8 @@ async function main() {
         snapshot.currentHash === snapshot.lastSavedHash,
       "autosaved memory-only state"
     );
-    assertIncludes(autosaved.saveLabel, "memory saved (not persisted)", "autosaved label");
+    assertIncludes(autosaved.saveLabel, "saved", "autosaved status");
+    assertIncludes(autosaved.targetLabel, "memory only, not persisted", "autosaved target label");
     assertIncludes(autosaved.eventLog, "autosave", "autosave event log");
     await screenshot(cdp, "save-engine-autosaved.png");
 
@@ -313,7 +327,8 @@ async function main() {
         String(snapshot.lastAction).includes("keyboard shortcut"),
       "keyboard shortcut flush"
     );
-    assertIncludes(shortcut.saveLabel, "memory saved (not persisted)", "shortcut save label");
+    assertIncludes(shortcut.saveLabel, "saved", "shortcut save status");
+    assertIncludes(shortcut.targetLabel, "memory only, not persisted", "shortcut target label");
     assertIncludes(shortcut.lastAction, "keyboard shortcut", "visible shortcut action");
     await screenshot(cdp, "save-engine-shortcut-flush.png");
 

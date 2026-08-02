@@ -2,6 +2,11 @@ import { spawn } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import {
+  DEMO_DISCLOSURES,
+  assertDisclosuresOpened,
+  openDemoDisclosuresExpression
+} from "./visual-demo-disclosures.mjs";
 
 const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5173/";
@@ -200,6 +205,17 @@ async function main() {
     await loadEvent;
     await wait(200);
 
+    /*
+     * MME-0114: the round-trip readouts live inside the collapsed "Technical
+     * diagnostics" disclosure. Open it the way a user does before reading it —
+     * `innerText` is empty for content inside a closed `<details>`.
+     */
+    assertDisclosuresOpened(
+      await evaluate(cdp, openDemoDisclosuresExpression([DEMO_DISCLOSURES.debugInspector])),
+      "MME-0005"
+    );
+    await wait(120);
+
     const statusText = await evaluate(
       cdp,
       "document.querySelector('[data-testid=\"roundtrip-status\"]').innerText"
@@ -242,6 +258,16 @@ async function main() {
   } finally {
     if (chrome.exitCode === null && chrome.signalCode === null) {
       chrome.kill("SIGTERM");
+    }
+    await Promise.race([chromeExit, wait(2000)]);
+    /*
+     * MME-0114: escalate. A Chrome that ignores SIGTERM stays alive with its
+     * stdio pipes open, which keeps Node's event loop alive — the gate prints its
+     * success line and then never exits. The runner can only kill it on timeout,
+     * so a hanging gate looks exactly like a failing one and blocks the suite.
+     */
+    if (chrome.exitCode === null && chrome.signalCode === null) {
+      chrome.kill("SIGKILL");
     }
     await Promise.race([chromeExit, wait(2000)]);
     await rm(userDataDir, {

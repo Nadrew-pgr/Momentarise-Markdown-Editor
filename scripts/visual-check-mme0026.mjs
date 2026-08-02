@@ -272,7 +272,16 @@ async function main() {
     cdp.close();
   } finally {
     chrome.kill("SIGTERM");
-    await chromeExit;
+    /*
+     * MME-0114: bound the wait and escalate. `await chromeExit` alone hangs
+     * forever when Chrome ignores SIGTERM, and a gate that never exits looks
+     * exactly like one that failed while blocking the whole suite.
+     */
+    await Promise.race([chromeExit, wait(2000)]);
+    if (chrome.exitCode === null && chrome.signalCode === null) {
+      chrome.kill("SIGKILL");
+    }
+    await Promise.race([chromeExit, wait(2000)]);
   }
 }
 

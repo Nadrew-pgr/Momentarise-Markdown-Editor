@@ -2,6 +2,12 @@ import { spawn } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import {
+  DEMO_DISCLOSURES,
+  assertDisclosuresOpened,
+  openDemoDisclosuresExpression
+} from "./visual-demo-disclosures.mjs";
+import { SAVE_TRUTH_PAIR_EXPRESSION, assertSaveTruthPair } from "./visual-save-truth.mjs";
 
 const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
@@ -118,6 +124,7 @@ async function getSnapshot(cdp) {
       parserStatus: document.querySelector('[data-testid="parser-status"]').textContent,
       roundTripSourceLabel: document.querySelector('[data-testid="roundtrip-source-label"]').textContent,
       saveEngineTarget: document.querySelector('[data-testid="save-engine-target"]').textContent,
+      savePair: ${SAVE_TRUTH_PAIR_EXPRESSION},
       saveState: document.querySelector('[data-testid="save-state"]').textContent,
       serializerStatus: document.querySelector('[data-testid="serializer-status"]').textContent
     }))()`
@@ -242,6 +249,20 @@ async function main() {
       url: demoUrl
     });
     await loadEvent;
+
+    /*
+     * MME-0114: the properties, diagnostics and status readouts this gate asserts
+     * all live inside collapsed disclosures. Open them the way a user does, so
+     * every assertion below is about something visible.
+     */
+    assertDisclosuresOpened(
+      await evaluate(
+        cdp,
+        openDemoDisclosuresExpression([DEMO_DISCLOSURES.debugInspector, DEMO_DISCLOSURES.documentStatus])
+      ),
+      "MME-0011"
+    );
+    await wait(120);
     await wait(200);
 
     await evaluate(
@@ -311,10 +332,15 @@ async function main() {
         String(snapshot.documentMode).includes("unsupported") &&
         String(snapshot.persistenceTarget).includes("unsupported") &&
         String(snapshot.roundTripSourceLabel).includes("Unsupported") &&
-        String(snapshot.saveEngineTarget).includes("unsupported") &&
-        String(snapshot.saveState).includes("unsupported"),
+        String(snapshot.saveEngineTarget).includes("unsupported"),
       "unsupported local file state"
     );
+    /*
+     * MME-0114: `save-state` renders the raw status; the target it names lives on
+     * the adjacent `persistence-target` line. Assert the pair, which also fails if
+     * that line is ever dropped or moved out of the panel.
+     */
+    assertSaveTruthPair(unsupported.savePair, "unsupported local file state");
     assertIncludes(unsupported.persistenceTarget, "use import/download", "unsupported user label");
     assertIncludes(unsupported.saveEngineTarget, "unsupported", "unsupported target label");
     await screenshot(cdp, "unsupported-local-file-state.png");

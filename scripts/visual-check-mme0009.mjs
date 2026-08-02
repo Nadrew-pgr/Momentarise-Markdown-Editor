@@ -2,6 +2,12 @@ import { spawn } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import {
+  DEMO_DISCLOSURES,
+  assertDisclosuresOpened,
+  openDemoDisclosuresExpression
+} from "./visual-demo-disclosures.mjs";
+import { SAVE_TRUTH_PAIR_EXPRESSION, assertSaveTruthPair } from "./visual-save-truth.mjs";
 
 const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
@@ -110,6 +116,7 @@ async function getSnapshot(cdp) {
         saveLabel: document.querySelector('[data-testid="save-state"]').textContent,
         status: state.status,
         target: state.target,
+        savePair: ${SAVE_TRUTH_PAIR_EXPRESSION},
         targetLabel: document.querySelector('[data-testid="persistence-target"]').textContent
       };
     })()`
@@ -181,7 +188,7 @@ async function waitForSnapshot(cdp, predicate, label) {
   const start = Date.now();
   let snapshot = await getSnapshot(cdp);
   while (Date.now() - start < 6000) {
-    assertNoPlainSaved(snapshot);
+    assertSaveTruthPair(snapshot.savePair, label);
     if (predicate(snapshot)) {
       return snapshot;
     }
@@ -197,14 +204,6 @@ function assertIncludes(value, expected, label) {
   }
 }
 
-function assertNoPlainSaved(snapshot) {
-  if (String(snapshot.saveLabel).trim().toLowerCase() === "saved") {
-    throw new Error(`Save UI must not display plain "saved": ${JSON.stringify(snapshot)}`);
-  }
-  if (String(snapshot.saveEngineStatusLabel).trim().toLowerCase() === "saved") {
-    throw new Error(`Save Engine panel must not display plain "saved": ${JSON.stringify(snapshot)}`);
-  }
-}
 
 async function main() {
   await mkdir(visualDir, { recursive: true });
@@ -266,6 +265,19 @@ async function main() {
       url: demoUrl
     });
     await loadEvent;
+
+    /*
+     * MME-0114: the event log and save-engine readouts live inside the collapsed
+     * "Technical diagnostics" disclosure, and the persistence-target/save-state
+     * pair lives inside the collapsed status popover. Open both the way a user
+     * does — `innerText` is empty inside a closed `<details>`, and asserting a
+     * collapsed panel's text would be a claim about something nobody can see.
+     */
+    assertDisclosuresOpened(
+      await evaluate(cdp, openDemoDisclosuresExpression([DEMO_DISCLOSURES.debugInspector, DEMO_DISCLOSURES.documentStatus])),
+      "MME-0009"
+    );
+    await wait(120);
     await wait(200);
 
     const initial = await waitForSnapshot(
@@ -326,7 +338,8 @@ async function main() {
         String(snapshot.diskContent).includes("Saved through writable target."),
       "writable file saved to disk target"
     );
-    assertIncludes(writableSaved.saveLabel, "disk saved", "writable saved label");
+    assertIncludes(writableSaved.saveLabel, "saved", "writable save status");
+    assertIncludes(writableSaved.targetLabel, "original file writable", "writable saved target label");
     assertIncludes(writableSaved.diskContent, "Saved through writable target.", "writable disk content");
     await screenshot(cdp, "writable-file-saved-to-disk-target.png");
 
@@ -364,7 +377,7 @@ async function main() {
         String(snapshot.lastAction).includes("blocked"),
       "imported copy download required after save"
     );
-    assertIncludes(importedBlocked.saveLabel, "download required", "imported dirty save label");
+    assertIncludes(importedBlocked.saveLabel, "dirty", "imported dirty save status");
     assertIncludes(importedBlocked.targetLabel, "download/export required", "imported dirty target label");
     await screenshot(cdp, "imported-copy-download-required.png");
 
