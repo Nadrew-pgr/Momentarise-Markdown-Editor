@@ -8862,6 +8862,9 @@ were all removed; `npm test` is green at `e090cac`.
 - Timestamp: 2026-08-02.
 - Status: code-complete, human review pending (Block C1's only issue; the
   consolidated visual review is the gate).
+- Commit: `a93cf42`. Push status: pushed to `origin/main`. Committed and pushed
+  at the human's explicit instruction; the issue is NOT marked accepted — the
+  human-review gate in `ISSUES.md` is still open.
 - Attempt 1 was reverted on 2026-08-01; the entry above is the specification this
   attempt was written against.
 
