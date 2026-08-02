@@ -98,8 +98,8 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | B2 | MME-0100, 0101 | Package parity (published packages deliver what the demo shows) | opus-4.8 | Andrew sees the example look and behave like the demo |
 | B3 | MME-0102 (+ alpha.2 republish) | Design foundation — premium by default | opus-5 / fable-5 | done 2026-07-31, alpha.3 on registry |
 | C | MME-0086, 0087, 0088 | Interaction correctness, part 1 | opus-4.8 | done 2026-08-01 (0103 attempted and reverted) |
-| C1 | MME-0103 (attempt 2) | Block selection, redesigned on targeted transactions | opus-5 / fable-5 | no corruption; CRLF and gap fixtures green |
-| C2 | MME-0104, 0114 | Input rules and pairing; visual gate integrity | opus-4.8 | parity checklist for contract 5 green |
+| C1 | MME-0103 (attempt 2) | Block selection, redesigned on byte-derived separators | opus-5 / fable-5 | accepted 2026-08-01 |
+| C2 | MME-0114, 0104, 0115 | Visual gate integrity; input rules and pairing; composition input | opus-4.8 | parity checklist for contract 5 green |
 | D | MME-0089, 0090, 0091, 0105, 0106 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
 | D2 | MME-0107, 0108 | Markdown-native differentiators | opus-5 / fable-5 | Andrew judges syntax reveal before it defaults |
 | D3 | MME-0109 | Full-surface UX audit | opus-4.8 | Andrew reviews and appends |
@@ -1490,6 +1490,52 @@ Put the docs site, landing page, demo, and blog on the domain Andrew owns, so th
 ### Blocked by
 
 - MME-0096, MME-0097 (landing and blog ship with the first public deploy).
+
+## MME-0115 — Composition input over a block selection
+
+### Goal
+
+Make typing with a composition event replace a block selection, the way an ordinary keystroke does.
+
+### Defect (found and left visible by MME-0103, 2026-08-01)
+
+IME and dead-key composition input over a block selection lands inside the anchor block instead of replacing the selection. This is not an exotic edge case: on macOS, typing an accented character (`option+e` then `e` for `é`) is a composition sequence, so the defect fires for ordinary French, Spanish, and Portuguese typing — including Andrew's own. Every non-composition keystroke replaces the selection correctly; only composition diverges.
+
+### Acceptance criteria
+
+- Starting a composition while a block selection is active replaces the selected blocks with a paragraph containing the composed text, in one undoable transaction, byte-preserving outside the selection exactly as the plain-keystroke path is.
+- Covered input paths: macOS dead keys (`é`, `ñ`, `ô`), a full IME session with candidate selection (Japanese/Chinese), and composition cancelled mid-way (`Escape`) which must restore the block selection untouched.
+- Multi-block selections behave identically to single-block ones.
+- Browser proof is mandatory and is the primary evidence: composition cannot be faithfully simulated headlessly, so the visual check must dispatch real `compositionstart`/`compositionupdate`/`compositionend` sequences and assert the resulting Markdown.
+- Mutation-tested per the `AGENT.md` rule.
+
+### Test-first plan
+
+- RED: a composition-over-block-selection test reproducing the defect at both the headless level (synthetic composition events) and in the browser script; both must fail first.
+- GREEN: handle composition start against an active block-selection plugin state, converting it to a replacement before the composition is committed to the DOM.
+
+### Implementation notes
+
+Read first: the block-selection plugin from MME-0103 in `packages/md-rich-prosemirror/src/index.ts`, particularly the `domObserver` interaction and the `readDOMChange`/`setSelection` echo that MME-0103 had to defend against — composition runs through the same machinery. ProseMirror's `handleDOMEvents` composition hooks are the intervention point; do not disable composition, which would break IME entirely.
+
+### Visual impact
+
+Typing an accented character over a selected block replaces it instead of editing inside it.
+
+### Out of scope
+
+- IME behaviour outside block selections (already correct), input-method-specific quirks beyond the covered paths.
+
+### Execution model
+
+- Implementation: sequential only. Fresh context rebuild: yes.
+- Reviewer subagents: Test Reviewer, Accessibility Reviewer; mandatory.
+- Recommended builder model: opus-4.8.
+- Human review required: no.
+
+### Blocked by
+
+- MME-0103 (shipped).
 
 ## MME-0112 — Theme presets and live theme switcher
 

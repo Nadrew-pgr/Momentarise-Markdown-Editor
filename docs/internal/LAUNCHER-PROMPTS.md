@@ -17,8 +17,8 @@ Progress tracking: tick a block here once its exit gate passed.
 - [x] Block B2 — package parity (2026-07-31: reviewed and accepted — packaged stylesheet token-clean, demo 0-pixel diff, example styled, rich round-trip proven; alpha.2 republish deferred to Block B3's close)
 - [x] Block B3 — design foundation (2026-07-31: accepted; all 16 packages republished at 0.1.0-alpha.3)
 - [x] Block C — interaction correctness part 1 (2026-08-01: MME-0086/0087/0088 shipped; MME-0103 attempted and correctly reverted for Markdown corruption)
-- [ ] Block C1 — block selection, attempt 2 (MME-0103)
-- [ ] Block C2 — input rules and visual gate integrity (MME-0104, 0114)
+- [x] Block C1 — block selection, attempt 2 (2026-08-01: accepted; the literal `"\n\n"` was a pre-existing serializer fallback, now byte-derived)
+- [ ] Block C2 — visual gates, input rules, composition (MME-0114, 0104, 0115)
 - [ ] Block D — interaction surfaces (MME-0089, 0090, 0091, 0105, 0106)
 - [ ] Block D2 — Markdown-native differentiators (MME-0107, 0108)
 - [ ] Block D3 — full-surface UX audit (MME-0109)
@@ -178,7 +178,9 @@ Exit gate: no corruption on any fixture; parity checklist for contract 3 green.
 ```text
 Read CLAUDE.md, then docs/internal/ISSUES.md (MME-0104, MME-0114), then docs/internal/research/editor-ux-benchmark.md contract 5.
 
-Execute ONLY Block C2: MME-0114 first, then MME-0104.
+Execute ONLY Block C2: MME-0114 first, then MME-0104, then MME-0115.
+
+MME-0115 closes a defect MME-0103 found and deliberately left visible: composition input (macOS dead keys, IME) over a block selection lands inside the anchor block instead of replacing it. It fires on ordinary French typing, so it is a correctness bug rather than an edge case, and its evidence must be a real browser proof — composition cannot be faithfully simulated headlessly.
 
 MME-0114 comes first deliberately. Block C discovered that visual:* scripts are not part of npm test, so a slash-rule change broke five previously shipped visual gates invisibly, and two gates (MME-0013 slash keyboard navigation, MME-0027 AI prompt) were already red before that block began. One broken gate was asserting the very defect MME-0088 removed. Fix the harness before adding behaviour that depends on it.
 
