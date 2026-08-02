@@ -99,7 +99,8 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | B3 | MME-0102 (+ alpha.2 republish) | Design foundation — premium by default | opus-5 / fable-5 | done 2026-07-31, alpha.3 on registry |
 | C | MME-0086, 0087, 0088 | Interaction correctness, part 1 | opus-4.8 | done 2026-08-01 (0103 attempted and reverted) |
 | C1 | MME-0103 (attempt 2) | Block selection, redesigned on byte-derived separators | opus-5 / fable-5 | accepted 2026-08-01 |
-| C2 | MME-0114, 0104, 0115 | Visual gate integrity; input rules and pairing; composition input | opus-4.8 | parity checklist for contract 5 green |
+| C2 | MME-0114 (harness only), 0117, 0104, 0115 | Gate harness + quarantine; touch-target regression; input rules; composition | opus-4.8 | quarantine mechanism live; parity checklist for contract 5 green |
+| C3 | MME-0116 | Empty the gate quarantine | opus-4.8 | `npm run visual` exits zero, quarantine empty |
 | D | MME-0089, 0090, 0091, 0105, 0106 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
 | D2 | MME-0107, 0108 | Markdown-native differentiators | opus-5 / fable-5 | Andrew judges syntax reveal before it defaults |
 | D3 | MME-0109 | Full-surface UX audit | opus-4.8 | Andrew reviews and appends |
@@ -1491,6 +1492,103 @@ Put the docs site, landing page, demo, and blog on the domain Andrew owns, so th
 
 - MME-0096, MME-0097 (landing and blog ship with the first public deploy).
 
+## MME-0114 addendum — scope decision and quarantine mechanism (2026-08-02)
+
+Decisions taken by Andrew's reviewer in response to the blocker report. MME-0114's first run found 40 failing gates, not the 7 the issue assumed.
+
+**Scope: split.** MME-0114 ships the harness only — manifest, runner, artifact safety, integrity test, CI job, and the full classified inventory of the 40 failures. The 29 stale-assertion repairs move to `MME-0116`; the touch-target regression moves to `MME-0117`. Rationale: the harness is the value and it is finished and mutation-tested; the repairs are 29 independent judgements that would consume the block and leave `MME-0104` and `MME-0115` untouched, which is how this project got into trouble before.
+
+**Quarantine mechanism, required before MME-0114 can be committed.** A permanently red CI job trains everyone to ignore it, which would waste the whole issue. Therefore the manifest's per-gate `status` becomes the contract:
+
+- Each currently-failing gate is marked `known-failing` with a one-line reason and the issue that owns its repair (`MME-0116` or `MME-0117`).
+- The runner exits non-zero only when a gate expected to pass fails. Known-failing gates are reported, counted, and never silently skipped.
+- A gate marked `known-failing` that *passes* is also reported as an anomaly, so repairs are noticed instead of rotting in the quarantine list. This is what stops the list becoming a graveyard.
+- The integrity test asserts every `known-failing` entry carries a reason and an owning issue, so nothing enters quarantine anonymously.
+
+**Recorded honestly in the build log**, because it is the kind of fact this project exists to not hide: `MME-0080` was accepted on a gate that has never passed — it scrolls `.ProseMirror`, which has no `overflow`, so its `tableScrollable` assertion passed vacuously, and the closeout did not re-run it. The CSV paste feature itself is covered by unit tests; it is the visual gate that was vacuous. Its repair belongs to `MME-0116`.
+
+**No preservation regression exists.** The 14 footnote-family failures are stale global counts frozen at each gate's authoring date, while `MME-0062` through `MME-0071` legitimately converted preserved fallbacks into semantic nodes in the earlier fixtures too. Byte identity holds; 16/16 footnote unit tests pass.
+
+## MME-0116 — Visual gate assertion repair
+
+### Goal
+
+Empty the quarantine list MME-0114 created: repair or retire every `known-failing` gate so the visual suite is meaningful end to end.
+
+### Acceptance criteria
+
+- Every `known-failing` gate is resolved: repaired, or retired with a recorded reason naming the issue that made it obsolete. Quarantine reaches zero entries.
+- Repairs assert **membership, not global counts**. The 14 footnote-family gates fail because they hard-code document-wide totals that later issues legitimately changed; asserting "this fixture contains this node with these properties" survives future semantic conversions, while `expect 7 fallbacks` will rot again at MME-0105.
+- Gates that assert a behaviour a later issue deliberately changed are updated to the current contract, never left red and never weakened to pass — if a gate can only go green by removing what it proves, retire it explicitly instead.
+- `MME-0080`'s gate is rewritten against the element that actually scrolls, and re-run; its result is recorded against the original issue's evidence so the vacuous acceptance is corrected in the log rather than quietly overwritten.
+- Every repaired gate is mutation-tested per the `AGENT.md` rule.
+- `npm run visual` exits zero with no `known-failing` entries remaining.
+
+### Test-first plan
+
+- RED is the runner's own report: the quarantine list at the start of this issue.
+- GREEN: one gate at a time, each with its reversion-to-failure evidence.
+
+### Implementation notes
+
+Read first: `scripts/visual-gates.mjs` (the manifest and its classification), the MME-0114 build-log inventory, and each failing gate's owning issue for the behaviour it was written to prove. Work in classification order — closed-disclosure repairs first (mechanical), then stale counts, then the individually-judged ones. Do not batch-edit assertions across gates: each needs its own judgement about what the gate exists to prove.
+
+### Visual impact
+
+No visible editing or general UI changes.
+
+### Out of scope
+
+- Product defects (owned by `MME-0117` and `MME-0098`), new gates for uncovered behaviour, screenshot-diff tooling.
+
+### Execution model
+
+- Implementation: sequential only. Fresh context rebuild: yes.
+- Reviewer subagents: Test Reviewer; mandatory.
+- Recommended builder model: opus-4.8.
+- Human review required: no.
+
+### Blocked by
+
+- MME-0114.
+
+## MME-0117 — Coarse-pointer touch-target regression
+
+### Goal
+
+Restore the 44px coarse-pointer floor that MME-0100 broke, and make the breakage impossible to repeat silently.
+
+### Defect (verified 2026-08-02)
+
+MME-0100 moved the coarse-pointer sizing into the packaged stylesheet, where it uses `var(--mme-touch-target-size)`. The demo's own rules for `.editor-ai-button` and `.command-palette-button` have equal specificity and load later, so they win: measured 34px and 30px under coarse pointer, against the 44px contract MME-0078 established. This is a live accessibility regression in shipped packages, introduced by our own refactor, and the only thing guarding it was one of the dead gates.
+
+### Acceptance criteria
+
+- Every interactive control reaches 44px in both dimensions under coarse pointer, across demo, example, and packaged surfaces — measured, not asserted, at 390 and 768.
+- The fix addresses the cause, not the two symptoms: audit every demo rule that competes with a packaged coarse-pointer rule and decide per case whether the demo rule should be removed (it duplicates package behaviour) or scoped (it is genuinely demo chrome). Record the audit.
+- A deterministic test asserts the packaged rules are not overridable by equal-specificity host rules for the touch-target floor — for example by verifying the packaged declaration wins in a computed-style check, so a future host cannot silently undercut the contract.
+- MME-0078's gate goes green again for the right reason and leaves quarantine.
+- Mutation-tested per the `AGENT.md` rule.
+
+### Visual impact
+
+Touch controls grow to the intended size on phones and tablets; desktop unchanged.
+
+### Out of scope
+
+- Redesigning any control, mobile layout changes beyond restoring the floor.
+
+### Execution model
+
+- Implementation: sequential only. Fresh context rebuild: yes.
+- Reviewer subagents: Accessibility Reviewer; mandatory.
+- Recommended builder model: sonnet-5.
+- Human review required: no.
+
+### Blocked by
+
+- MME-0114 (needs the runner to prove the gate goes green).
+
 ## MME-0115 — Composition input over a block selection
 
 ### Goal
@@ -1654,7 +1752,8 @@ Make the `visual:*` proof scripts a suite that can actually fail the build, inst
 ### Acceptance criteria
 
 - Every `visual:*` script runs from one runner command with a machine-readable pass/fail summary, and each script exits non-zero on failure (audit them: some may only log).
-- The two pre-existing failures are diagnosed and either repaired or deliberately retired with a recorded reason; a gate asserting behaviour that a later issue intentionally changed must be updated, never left red.
+- Every failing gate is classified and enters the quarantine mechanism defined in the MME-0114 addendum below (`known-failing` + reason + owning issue); repairs themselves belong to `MME-0116` and `MME-0117`.
+- Save-truthfulness gates (`MME-0008`, `0009`, `0011`) are updated rather than relaxed: `md-surface` renders `persistence-target` immediately above `save-state`, so the user does see the target next to the word `saved` and Gate 6 is satisfied — the gates were over-strict in reading one field in isolation. Assert the **pair**: the status value and its adjacent target label, together. That is stronger than today's assertion, because it also fails if a future change drops the target line.
 - The runner is wired into CI as a separate job (browser-dependent, so not inside `npm test`), with a documented way to run it locally in one command.
 - A gate whose artifacts are missing or stale fails rather than passing quietly.
 - Build log records the state of every visual gate at the end of this issue: passing, repaired, or retired-with-reason.
@@ -1700,6 +1799,7 @@ Study BlockNote's `xl-ai` package (github.com/TypeCellOS/BlockNote, `packages/xl
 ### Acceptance criteria
 
 - Entry points: `/ai` in the slash menu, AI button in the selection bubble (MME-0089) and toolbar — all opening one inline AI prompt surface anchored under the current block/selection (not the side panel).
+- Source mode gets a selection-scoped AI entry point. Gap found during MME-0114 (2026-08-02): no such entry point exists in source mode — the original control has been `disabled+hidden` since MME-0029 and its replacement is rich-only, so a user working in Source has no way to invoke AI on a selection. Either ship the entry point here or state plainly in the docs that AI is rich-mode only; an invisible disabled control is neither.
 - Prompt surface: free-text input plus quick actions (continue writing, improve, fix spelling/grammar, shorten, lengthen, summarize, translate, make checklist, make table); keyboard-first; `Escape` dismisses cleanly.
 - Streaming: suggestion text streams into a visually distinct pending region (muted/highlighted), document remains scrollable, caret preserved; `Accept` applies one bounded, one-transaction undoable Markdown edit; `Reject` restores exact prior bytes; `Retry` re-runs with the same prompt.
 - Policy: every request passes the existing Document Access Policy; refusal states render honestly; no request leaves without an explicit configured provider.
