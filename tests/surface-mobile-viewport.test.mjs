@@ -191,7 +191,9 @@ for (const snippet of [
   "env(safe-area-inset-right)",
   "env(safe-area-inset-bottom)",
   "env(safe-area-inset-left)",
-  "@media (pointer: coarse)",
+  // MME-0117: `any-pointer`, so the floor also applies on hybrid devices where
+  // the primary pointer is a trackpad but the screen is still a touchscreen.
+  "@media (any-pointer: coarse)",
   "var(--mme-touch-target-size)"
 ]) {
   assert(demoCss.includes(snippet), `Reference mobile CSS missing ${snippet}.`);

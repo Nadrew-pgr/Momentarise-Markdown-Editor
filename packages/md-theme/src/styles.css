@@ -1008,7 +1008,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--mme-space-sm);
-  min-height: calc(var(--mme-control-height) * var(--mme-density));
+  min-height: max(24px, calc(var(--mme-control-height) * var(--mme-density)));
   padding: 0 var(--mme-control-padding-inline);
   border: 1px solid transparent;
   border-radius: var(--mme-radius-sm);
@@ -1080,7 +1080,7 @@
 .find-replace-input {
   min-width: 0;
   width: 100%;
-  min-height: calc(var(--mme-control-height) * var(--mme-density));
+  min-height: max(24px, calc(var(--mme-control-height) * var(--mme-density)));
   padding: 0 var(--mme-control-padding-inline);
   border: 1px solid var(--mme-color-border);
   border-radius: var(--mme-radius-sm);
@@ -1133,7 +1133,7 @@
 }
 
 .mode-button {
-  min-height: calc(var(--mme-control-height) * var(--mme-density));
+  min-height: max(24px, calc(var(--mme-control-height) * var(--mme-density)));
   padding: 0;
   border: 1px solid transparent;
   border-radius: var(--mme-radius-sm);
@@ -1182,7 +1182,7 @@
 }
 
 .mode-switch-label {
-  min-height: calc(var(--mme-control-height) * var(--mme-density));
+  min-height: max(24px, calc(var(--mme-control-height) * var(--mme-density)));
   padding-inline: var(--mme-control-padding-inline);
   white-space: nowrap;
   color: var(--mme-color-text-muted);
@@ -1232,7 +1232,7 @@
   grid-template-columns: minmax(var(--mme-space-7xl), 1fr) auto;
   align-items: center;
   gap: var(--mme-space-sm);
-  min-height: calc(var(--mme-control-height) * var(--mme-density));
+  min-height: max(24px, calc(var(--mme-control-height) * var(--mme-density)));
   max-width: var(--mme-menu-width-sm);
   padding: 0 var(--mme-control-padding-inline);
   border: 1px solid var(--mme-color-border);
@@ -1292,8 +1292,8 @@
   align-items: center;
   justify-content: center;
   gap: var(--mme-space-sm);
-  min-width: calc(var(--mme-control-height) * var(--mme-density));
-  min-height: calc(var(--mme-control-height) * var(--mme-density));
+  min-width: max(24px, calc(var(--mme-control-height) * var(--mme-density)));
+  min-height: max(24px, calc(var(--mme-control-height) * var(--mme-density)));
   padding: 0 var(--mme-space-sm);
   border: 1px solid transparent;
   border-radius: var(--mme-radius-sm);
@@ -1689,7 +1689,7 @@
 }
 
 .document-conflict-action {
-  min-height: calc(var(--mme-control-height) * var(--mme-density));
+  min-height: max(24px, calc(var(--mme-control-height) * var(--mme-density)));
   padding: 0 var(--mme-control-padding-inline);
   border-color: var(--mme-color-border);
   background: var(--mme-color-surface);
@@ -1910,7 +1910,7 @@
 }
 
 .command-palette input {
-  min-height: calc(var(--mme-space-4xl) * var(--mme-density));
+  min-height: max(24px, calc(var(--mme-space-4xl) * var(--mme-density)));
   font-size: var(--mme-font-size-ui);
 }
 
@@ -1978,7 +1978,7 @@
 }
 
 .debug-inspector-toggle {
-  min-height: calc(var(--mme-control-height) * var(--mme-density));
+  min-height: max(24px, calc(var(--mme-control-height) * var(--mme-density)));
   padding: 0 var(--mme-control-padding-inline);
   border: 1px solid var(--mme-color-border);
   border-radius: var(--mme-radius-full);
@@ -2126,7 +2126,19 @@
  * 7 — Coarse pointer (MME-0078 contract: 44px targets)
  * ========================================================================= */
 
-@media (pointer: coarse) {
+/*
+ * MME-0117: `any-pointer`, not `pointer`.
+ *
+ * `pointer` describes the PRIMARY input device. On a Surface with its keyboard
+ * attached, a touchscreen laptop, or a tablet with a trackpad, the primary
+ * pointer is fine — so `(pointer: coarse)` never matched and not one control
+ * carried the touch floor, while the user's finger was still on the glass.
+ * `any-pointer: coarse` matches whenever a coarse device exists at all, which is
+ * the condition the floor is actually about. WCAG target-size criteria are
+ * device-independent, so erring toward the larger target is the correct
+ * direction; hosts that want tighter density retune --mme-touch-target-size.
+ */
+@media (any-pointer: coarse) {
   .button,
   .mode-button,
   .mode-switch-label,
@@ -2138,8 +2150,8 @@
   .inline-ai-action-row,
   .document-conflict-action,
   .debug-inspector-toggle {
-    min-block-size: var(--mme-touch-target-size);
-    min-inline-size: var(--mme-touch-target-size);
+    min-block-size: var(--mme-touch-target-size) !important; /* allow: accessibility floor a host must not silently undercut (MME-0117) */
+    min-inline-size: var(--mme-touch-target-size) !important; /* allow: accessibility floor a host must not silently undercut (MME-0117) */
   }
 
   .ProseMirror [data-todo-toggle],
@@ -2148,11 +2160,11 @@
   .command-palette input,
   .find-query-input,
   .find-replace-input {
-    min-block-size: var(--mme-touch-target-size);
+    min-block-size: var(--mme-touch-target-size) !important; /* allow: accessibility floor a host must not silently undercut (MME-0117) */
   }
 
   .ProseMirror [data-todo-toggle] {
-    min-inline-size: var(--mme-touch-target-size);
+    min-inline-size: var(--mme-touch-target-size) !important; /* allow: accessibility floor a host must not silently undercut (MME-0117) */
   }
 
   .rich-block-affordance {
@@ -2167,8 +2179,26 @@
   }
 
   .rich-block-affordance-button {
-    inline-size: var(--mme-touch-target-size);
-    block-size: var(--mme-touch-target-size);
+    inline-size: var(--mme-touch-target-size) !important; /* allow: accessibility floor a host must not silently undercut (MME-0117) */
+    block-size: var(--mme-touch-target-size) !important; /* allow: accessibility floor a host must not silently undercut (MME-0117) */
+  }
+
+  /*
+   * MME-0117: the fold toggle painted at 16x16 and was the only `cursor: pointer`
+   * control the coarse block never reached — the smallest target in the product,
+   * sitting in a narrow gutter beside body text, where a miss puts the caret in
+   * the heading instead of folding it. The gutter widens with it so the larger
+   * target still cannot be drawn over block text.
+   */
+  .ProseMirror {
+    --mme-fold-gutter-width: var(--mme-touch-target-size);
+  }
+
+  .rich-fold-toggle {
+    inline-size: var(--mme-touch-target-size) !important; /* allow: accessibility floor a host must not silently undercut (MME-0117) */
+    block-size: var(--mme-touch-target-size) !important; /* allow: accessibility floor a host must not silently undercut (MME-0117) */
+    background-clip: content-box;
+    padding: calc((var(--mme-touch-target-size) - var(--mme-space-xl)) / 2);
   }
 }
 

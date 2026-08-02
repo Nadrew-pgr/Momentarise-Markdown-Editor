@@ -98,7 +98,7 @@ assert(
 );
 
 // Coarse pointers keep the MME-0078 always-visible contract.
-const coarseBlock = packageStyles.slice(packageStyles.indexOf("@media (pointer: coarse)"));
+const coarseBlock = packageStyles.slice(packageStyles.indexOf("@media (any-pointer: coarse)"));
 assert(
   /\.rich-block-affordance\s*\{[^}]*opacity:\s*1/.test(coarseBlock),
   "coarse-pointer devices must keep block affordances visible without hover (MME-0078)."

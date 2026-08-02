@@ -178,11 +178,19 @@ export const KNOWN_FAILING = {
       "Has never passed. It scrolls `.ProseMirror`, which has no overflow — the real scroll box is `.rich-editor-host` — and its `tableScrollable` check (`scrollWidth >= clientWidth`) is true of every element."
   },
 
-  // Class C — a live product defect, not a stale gate.
+  /*
+   * Class C — a live product defect, not a stale gate.
+   *
+   * MME-0117 fixed the touch-target half this entry originally named, and that
+   * half is now proven by `mme-0117` plus `npm run test:touch-target-floor`.
+   * Getting past it uncovered a second, unrelated defect the gate had never
+   * reached, which is why this entry stays — with its cause rewritten rather
+   * than closed.
+   */
   "mme-0078": {
-    owner: "MME-0117",
+    owner: "MME-0118",
     reason:
-      "Live accessibility regression: MME-0100 moved the coarse-pointer 44px floor into the packaged stylesheet, where equal-specificity demo rules now win (editor-ai-button 34px, command-palette-button 30px)."
+      "Touch-target half repaired by MME-0117. Remaining: the toolbar More menu opens off-screen on touch. `.rich-command-toolbar` has `backdrop-filter`, which makes it the containing block for its `position: fixed` overlay, so the menu is displaced by exactly the toolbar's scrollLeft (measured left -178 for an inline `left: 126px` at scrollLeft 304). Unreachable on a phone."
   }
 };
 
@@ -284,7 +292,8 @@ export const VISUAL_GATES = [
   gate("mme-0101", "mme0101", "MME-0101", "registry"),
   demoGate("mme-0102", "mme0102", "MME-0102"),
   gate("mme-0102-registry", "mme0102-registry", "MME-0102/registry", "registry"),
-  demoGate("mme-0103", "mme0103", "MME-0103")
+  demoGate("mme-0103", "mme0103", "MME-0103"),
+  demoGate("mme-0117", "mme0117", "MME-0117")
 ];
 
 export function gateById(id) {

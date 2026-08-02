@@ -268,15 +268,31 @@ async function main() {
     );
     await page.click('[data-testid="editor-status-button"]');
 
-    const moreOverlay = await page.evaluate(() => {
+    /*
+     * MME-0117: open, settle, then measure. Measuring in the same evaluate as the
+     * click read the overlay mid-transition — MME-0102 gave overlays an enter
+     * animation, so the menu was caught translated off-screen with its items at
+     * 43px instead of the 44px floor they settle to. The product was correct; the
+     * gate was reading a frame that no user ever interacts with.
+     */
+    await page.evaluate(() => {
       const button = document.querySelector('[data-testid="toolbar-more-button"]');
       const scroller = button?.closest('[data-testid="rich-command-toolbar"]');
       if (button && scroller) {
         const buttonRect = button.getBoundingClientRect();
         const scrollerRect = scroller.getBoundingClientRect();
         scroller.scrollLeft += buttonRect.left - scrollerRect.left - 8;
-        button.click();
       }
+    });
+    // The scroll must be laid out before the click: the overlay anchors to the
+    // button's rect at open time, and reading it in the same frame anchors to
+    // where the button was before scrolling.
+    await settlePaint(page);
+    await page.evaluate(() => document.querySelector('[data-testid="toolbar-more-button"]')?.click());
+    await settlePaint(page);
+    await new Promise((resolve) => setTimeout(resolve, 240));
+
+    const moreOverlay = await page.evaluate(() => {
       const menu = document.querySelector('[data-testid="toolbar-more-menu"]');
       const rect = menu?.getBoundingClientRect();
       const targets = menu

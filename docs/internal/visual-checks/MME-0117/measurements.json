@@ -1,0 +1,31 @@
+{
+  "demoUrl": "http://127.0.0.1:5174/",
+  "evidence": {
+    "390": {
+      "controls": 199,
+      "smallest": {
+        "height": 44,
+        "selectors": [
+          "[data-testid=\"editor-command-surface\"] button"
+        ],
+        "testid": "new-file-button",
+        "width": 53.44
+      },
+      "touchToken": "44px"
+    },
+    "768": {
+      "controls": 218,
+      "smallest": {
+        "height": 44,
+        "selectors": [
+          "[data-testid=\"editor-command-surface\"] button"
+        ],
+        "testid": "new-file-button",
+        "width": 49.44
+      },
+      "touchToken": "44px"
+    }
+  },
+  "floorPx": 44,
+  "status": "passed"
+}

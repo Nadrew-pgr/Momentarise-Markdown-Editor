@@ -9438,3 +9438,194 @@ what the product renders.
   selection AI entry point no longer exists — `selected-text-ai-action` has been
   `disabled + hidden` since MME-0029, and its replacement requires rich mode,
   while `referenceSurfacePreferences.aiEntryPoints` still advertises `selection`.
+
+## MME-0117 — Coarse-pointer touch-target regression (Block C2, issue 2 of 4)
+
+- Date: 2026-08-02.
+- Status: **code-complete, one acceptance criterion blocked.** Four of five
+  criteria are met and proven; "MME-0078 leaves quarantine" cannot be met,
+  because getting past the touch-target assertion uncovered a separate defect now
+  promoted as `MME-0118`.
+
+### Defect
+
+MME-0100 moved the coarse-pointer 44px floor out of `apps/md-demo/src/styles.css`
+and into the packaged `packages/md-theme/src/styles.css`. The demo `@import`s the
+theme first, so its own rules had equal specificity, loaded later, and won:
+`.command-palette-button` shipped at **30px** and `.editor-ai-button` at **34px**
+against a 44px contract. The only thing guarding it was `MME-0078`'s gate, which
+nothing had run since MME-0114 built the runner.
+
+### The audit (criterion 2), recorded
+
+Every sub-44px sizing declaration in `apps/md-demo/src/styles.css`, with the
+decision taken for each. Derived by brace-walking both stylesheets, and
+independently re-derived by the Accessibility Reviewer, who confirmed nothing is
+missing.
+
+| Rule | Decision |
+| --- | --- |
+| `.brand-lockup { min-width: 132px }` | Not a control. No change. |
+| `.asset-upload-icon svg` 16px | An icon inside a `.button`; the button carries the floor. Excluded with reason. |
+| `.open-file-button { min-width: 76px }` | Above the floor. No change. |
+| `.command-palette-button` 30px | **Scoped** to `not (any-pointer: coarse)` — a density choice for devices with no touch input. |
+| `.file-input` 1px | Visually hidden (`opacity: 0; pointer-events: none`); the label beside it is the tap target. Excluded with reason. |
+| `.rich-block-menu button` 30px | Already raised by the demo's coarse block. No change. |
+| `.markdown-read-banner` 34px | Not interactive. No change. |
+| `.html-preview-details-toggle` 28px | Already raised by the demo's coarse block. No change. |
+| `.property-mode` 24px | **Raised** — a demo-owned interactive control the packaged floor never targeted. Found during this audit; nobody had noticed it. |
+| `.command-group .button { min-width: 86px }` | Above the floor. No change. |
+| `@media (max-width: 900px) .editor-ai-button { min-width: 34px }` | **Removed** — it undercut the packaged floor at narrow widths. |
+
+`examples/next-app/app/globals.css` (39 lines) was read in full: no competing
+rule. `padding`-driven sizing is safe because the packaged floor uses `min-*`,
+which only a later `min-*` can undercut.
+
+### What changed, and why the first attempt was wrong
+
+The first version scoped the demo rules to `@media (pointer: fine)`. The
+Accessibility Reviewer rejected it, correctly: **`pointer` describes the primary
+input device**. On a Surface with its keyboard attached, a touchscreen laptop, or
+a tablet with a trackpad, `(pointer: coarse)` never matched — so the packaged
+floor applied to *no control at all* while the user's finger was on the glass —
+and the new `(pointer: fine)` rule actively asserted the 30px compact size in
+exactly that context. The pre-existing floor had the same hole; the fix would
+have entrenched it.
+
+Both sides now key on `any-pointer`, which matches whenever a coarse device
+exists. This also closes a third state the reviewer found: `pointer: none`
+(kiosks, remote sessions, a machine with no pointing device — how a switch-access
+setup presents) matched neither `fine` nor `coarse`, and `.command-palette-button`
+would have collapsed to its 16px icon, worse than before the change.
+
+Also fixed, all from the same review:
+
+- **`.rich-fold-toggle` was 16×16** under coarse pointer — the smallest control in
+  the product, in a narrow gutter beside body text where a miss puts the caret in
+  the heading instead of folding it. It was the only `cursor: pointer` rule the
+  coarse block never reached. Now 44×44, with the fold gutter widened to match and
+  the painted icon kept at 16px via `background-clip: content-box`.
+- **The floor is now `!important`** (8 declarations, with the repo's `/* allow: */`
+  annotation). A lint over one repo file does nothing about a consumer of
+  `@momentarise/md-theme` writing `.button { min-width: 30px }` after the import.
+  `--mme-touch-target-size` remains the legitimate way to retune it.
+- **Compact density clamped.** `--mme-density: 0.86` put a 28px control at
+  24.08px — 0.08px above the WCAG AA 24px minimum, one rounding error from
+  failing. Now `max(24px, …)` at both sites.
+
+### Reachability (AGENT.md)
+
+- `tests/touch-target-floor.test.mjs` → `npm test` via `test:touch-target-floor`.
+- `scripts/visual-check-mme0117.mjs` → `npm run visual` via the MME-0114 manifest,
+  and `npm run visual:mme-0117`.
+- The CSS rules ship in `packages/md-theme/src/styles.css`, which consumers reach
+  through the package's `./styles.css` export; the demo reaches it via `@import`.
+
+### Tests run
+
+- `npm test` — exit 0. Four sibling tests asserted the old `(pointer: coarse)`
+  query and were updated with the reasoning: `design-system-tokens`,
+  `surface-mobile-viewport`, `rich-block-handles`, `component-stylesheet`.
+- `npm run visual -- --groups demo,docs` — **exit 0**: 34 passed, 38 known-failing,
+  0 anomalies, 0 unexpected failures, 5 not selected, 10 minutes.
+- `npm run visual -- --only mme-0117` — green. It measures **199 controls at 390
+  and 218 at 768**, smallest exactly 44.0 in both, in a browser that really
+  reports a coarse pointer.
+
+### Browser evidence
+
+`docs/internal/visual-checks/MME-0117/` — `touch-targets-390.png`,
+`touch-targets-768.png`, `measurements.json`, and a README explaining what each
+proves. The gate opens the More menu, the document-status menu and the
+diagnostics panel and measures their contents, rather than asserting them from
+CSS: the first version measured 60 and 78 controls in two static states, which
+the reviewer correctly called out as not satisfying "measured, not asserted".
+
+### Mutation testing — reversion-to-failure table
+
+14 mutants, 14 killed.
+
+| # | Reversion | Assertion that failed |
+| --- | --- | --- |
+| N1 | Unscope the 30px `.command-palette-button` | "`.command-palette-button { inline-size: 30px }` undercuts the 44px floor…" |
+| N2 | Restore `.editor-ai-button { min-width: 34px }` | same, for `.editor-ai-button` |
+| N3 | Drop `.property-mode` from the demo coarse block | "must raise `.property-mode` to the touch floor…" |
+| N4 | Packaged floor stops covering `.button` | "The packaged coarse floor must cover `.button`…" |
+| N5 | Packaged floor hardcodes `44px` instead of the token | "uses a raw value. Touch sizing must come from --mme-touch-target-size…" |
+| N6 | Revert the axis to `(pointer: coarse)` | "must define an `@media (any-pointer: coarse)` block…" |
+| N7 | Exempt via `(any-pointer: fine)` — true on every touchscreen laptop | "`.command-palette-button { inline-size: 30px }` undercuts the 44px floor…" |
+| N8 | Undercut `.document-conflict-action`, a class md-surface creates and the demo markup never names | "`.document-conflict-action { min-width: 30px }` undercuts the 44px floor…" |
+| N9 | Undercut with `min-width: 0`, the flex idiom that defeats a min floor | "`.command-palette-button { min-width: 0px }` undercuts the 44px floor…" |
+| N10 | Undercut with `1.5rem` instead of px | "`.editor-ai-button { min-width: 24px }` undercuts the 44px floor…" |
+| N11 | Undercut with an unresolvable `calc()` | "uses a computed length this check cannot resolve…" |
+| N12 | Drop `!important`, so a host rule can win again | "must be !important. A host stylesheet loaded after the package has equal specificity…" |
+| N13 | Fold toggle left at 16×16 (browser gate) | `mme-0117` fails: a control below the 44px floor |
+| N14 | Compact density loses its 24px clamp | "scales a control by --mme-density without a floor…" |
+
+N9, N12 and N14 **survived their first run** — all three were real assertion gaps,
+not equivalent mutants: unitless `0` was skipped by the length parser, and nothing
+asserted either the `!important` or the density clamp. Each was tightened until it
+killed. N13's first mutant was malformed and did not apply; re-run correctly, it
+killed. This is the rule working exactly as intended on code that already looked
+finished.
+
+### Reviewer pass
+
+Accessibility Reviewer subagent, inspect-only, mandatory. It returned **do not
+accept** with five in-scope blockers, every one of which was real:
+
+1. `pointer` is the wrong axis — the floor did not exist on hybrid devices.
+2. `(pointer: fine)`/`(pointer: coarse)` are not complementary; `pointer: none`
+   fell through both.
+3. `.rich-fold-toggle` at 16×16, invisible to both new checks.
+4. Four working evasions of the deterministic test.
+5. No mutation table, and the audit was not recorded.
+
+All five are fixed above. The reviewer also independently re-derived the CSS audit
+and confirmed it complete, verified the MME-0078 settle repair is a legitimate fix
+rather than masking (it traced `@keyframes mme-overlay-enter`'s `scale(0.98)` to
+exactly the reported 43.12px), and confirmed the MME-0118 split is correct rather
+than scope-dodging.
+
+Two further reviewer points are recorded rather than fixed: the gate still does
+not visit `examples/next-app` (no competing rule exists there today, verified by
+reading the file), and `.editor-ai-button`'s width is now content-derived, which
+would become fragile if its label were ever localised to a single character.
+
+### The blocked criterion
+
+`MME-0078` does not leave quarantine. With the touch-target assertion passing, the
+gate reached an assertion it had never executed and failed on it:
+
+> `Mobile More overlay unreachable: {"bottom":936,"left":-178,"top":108,…}`
+
+Measured cause: `.rich-command-toolbar` carries `backdrop-filter`, which makes it
+the containing block for `position: fixed` descendants. The More menu — inline
+`inset: 8px auto auto 126px` — therefore resolves against the toolbar and is
+displaced by exactly its `scrollLeft` (304 at 390px). On a phone the toolbar
+always scrolls, so **the More menu is unreachable**.
+
+That is overlay-positioning architecture, not touch sizing, and MME-0117 scopes
+out mobile layout changes. Promoted as `MME-0118` with the measurement, the
+mechanism, and criteria that forbid a `scrollLeft` nudge. `MME-0078`'s quarantine
+entry was rewritten to name this cause and reassigned to `MME-0118` rather than
+closed.
+
+### Deviations from PRD
+
+None.
+
+### Visual impact
+
+Touch controls reach 44px on phones and tablets, and now also on hybrid devices
+(touchscreen laptops, tablets with trackpads) where the floor previously applied
+to nothing — those devices will see larger controls than before, which is the
+intended consequence of keying on `any-pointer`. The fold toggle's tap area grows
+to 44px while its painted chevron stays 16px. Desktop with no touch input is
+unchanged.
+
+### Open questions
+
+- `MME-0118` needs scheduling; `MME-0078` stays quarantined until it lands.
+- The hybrid-device density change is the deliberate trade recorded above. If
+  Andrew prefers tighter density on touchscreen laptops, the token is the knob.

@@ -93,9 +93,10 @@ assert.equal(
 const knownGroups = new Set([...DEFAULT_GROUPS, ...OPT_IN_GROUPS]);
 
 // The only issues allowed to own a quarantined gate. MME-0116 repairs the stale
-// assertions; MME-0117 fixes the coarse-pointer regression. A new owner is a
+// assertions, MME-0117 fixed the coarse-pointer regression, MME-0118 owns the
+// overlay containing-block defect MME-0117 uncovered. A new owner is a
 // deliberate edit here, not something a gate can claim for itself.
-const QUARANTINE_OWNERS = new Set(["MME-0116", "MME-0117"]);
+const QUARANTINE_OWNERS = new Set(["MME-0116", "MME-0117", "MME-0118"]);
 
 const seenIds = new Set();
 

@@ -1638,6 +1638,8 @@ No visible editing or general UI changes.
 
 ## MME-0117 — Coarse-pointer touch-target regression
 
+**Status: CODE-COMPLETE (Block C2, 2026-08-02), one criterion blocked.** The 44px floor is restored and proven at 390 and 768 (199 and 218 controls measured); the axis was corrected from `pointer` to `any-pointer`, `.rich-fold-toggle` raised from 16x16, and the floor made non-overridable. `MME-0078` does not leave quarantine: it now fails on the overlay containing-block defect promoted as `MME-0118`.
+
 ### Goal
 
 Restore the 44px coarse-pointer floor that MME-0100 broke, and make the breakage impossible to repeat silently.
@@ -1672,6 +1674,57 @@ Touch controls grow to the intended size on phones and tablets; desktop unchange
 ### Blocked by
 
 - MME-0114 (needs the runner to prove the gate goes green).
+
+## MME-0118 — Toolbar overlay escapes its scrolling container
+
+**Promoted 2026-08-02 from MME-0117.** Not yet assigned to a block; Andrew schedules it.
+
+### Goal
+
+Make toolbar overlays anchor to the viewport instead of to the scrolling toolbar, so the More menu is reachable on touch.
+
+### Defect (measured 2026-08-02, 390x844 with a real coarse pointer)
+
+`.rich-command-toolbar` carries `backdrop-filter: blur(20px) saturate(1.8)` (MME-0102's glass styling). A `backdrop-filter` makes an element the containing block for `position: fixed` descendants, so the More menu — `position: fixed`, inline `inset: 8px auto auto 126px` — resolves against the toolbar rather than the viewport. It is therefore displaced by exactly the toolbar's `scrollLeft`: measured `left: -178` at `scrollLeft: 304`, with `bottom: 936` against an 844px viewport.
+
+On a phone the toolbar always scrolls, so **the More menu is unreachable**. This is why `MME-0078`'s gate stays red after MME-0117 repaired the touch-target half; the gate had never reached this assertion before.
+
+### Acceptance criteria
+
+- The More menu, and every other toolbar-anchored overlay, is fully inside the viewport at 390 and 768 under a coarse pointer, at any toolbar scroll position — measured, not asserted.
+- The fix is architectural, not a nudge: decide and record whether overlays are portalled out of the toolbar subtree, or the glass effect moves to a wrapper that is not an ancestor of the overlay. A hardcoded offset compensating for `scrollLeft` is not acceptable.
+- No visual regression to the MME-0102 glass treatment, or an explicit recorded decision that it changes.
+- A deterministic test rejects any ancestor of an overlay carrying a property that establishes a containing block for fixed positioning (`transform`, `filter`, `backdrop-filter`, `perspective`, `contain`, `will-change`).
+- `MME-0078` goes green and leaves quarantine.
+- Mutation-tested per the `AGENT.md` rule.
+
+### Test-first plan
+
+- RED: `MME-0078`'s existing `Mobile More overlay unreachable` assertion, plus a new deterministic containing-block check.
+- GREEN: the architectural fix, then both go green.
+
+### Implementation notes
+
+Read first: `packages/md-theme/src/styles.css` (`.rich-command-toolbar`), the More-menu rendering in `packages/md-surface/src/index.ts`, and MME-0086's overlay-anchoring work, which owns this subject area.
+
+### Visual impact
+
+The More menu appears where it should on phones and tablets; desktop unchanged unless the glass wrapper moves.
+
+### Out of scope
+
+- Redesigning the toolbar or the More menu contents.
+
+### Execution model
+
+- Implementation: sequential only. Fresh context rebuild: yes.
+- Reviewer subagents: Accessibility Reviewer, UX Reviewer; mandatory.
+- Recommended builder model: opus-4.8.
+- Human review required: no.
+
+### Blocked by
+
+- None.
 
 ## MME-0115 — Composition input over a block selection
 

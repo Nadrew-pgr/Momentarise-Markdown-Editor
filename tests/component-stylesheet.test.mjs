@@ -46,7 +46,7 @@ const requiredSurfaces = {
   footnotes: "data-mme-footnote",
   "task lists": "data-todo-row",
   "react shell": ".mme-react-editor-shell",
-  "coarse-pointer / mobile": "pointer: coarse"
+  "coarse-pointer / mobile": "any-pointer: coarse"
 };
 for (const [surface, needle] of Object.entries(requiredSurfaces)) {
   assert(styles.includes(needle), `packaged stylesheet must style the ${surface} surface (missing "${needle}").`);

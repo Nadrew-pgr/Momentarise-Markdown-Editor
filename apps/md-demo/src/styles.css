@@ -189,11 +189,28 @@ summary:focus-visible {
 
 .command-palette-button {
   display: inline-flex;
-  inline-size: 30px;
-  min-width: 30px;
   align-items: center;
   justify-content: center;
   padding-inline: 0;
+}
+
+/*
+ * MME-0117: the compact 30px square is a density choice for devices with no
+ * touch input at all. Unscoped it had equal specificity to the packaged
+ * `.button` touch floor and loaded after it, so it silently won and left a 30px
+ * tap target.
+ *
+ * `not (any-pointer: coarse)` rather than `(pointer: fine)`: the latter matches
+ * on a touchscreen laptop, where it would assert the compact size for a finger.
+ * It also has no third state — `pointer: none` (kiosks, remote sessions, a
+ * machine with no pointing device) matches neither `fine` nor `coarse`, and this
+ * button would have collapsed to its 16px icon.
+ */
+@media not (any-pointer: coarse) {
+  .command-palette-button {
+    inline-size: 30px;
+    min-width: 30px;
+  }
 }
 
 .legacy-action,
@@ -1007,7 +1024,6 @@ summary:focus-visible {
 
   .editor-ai-button {
       justify-content: center;
-      min-width: 34px;
       padding-inline: 8px;
     }
 
@@ -1057,9 +1073,15 @@ summary:focus-visible {
   padding-bottom: calc(32px + env(safe-area-inset-bottom));
 }
 
-@media (pointer: coarse) {
+@media (any-pointer: coarse) {
+  /*
+   * Demo-owned interactive chrome. The packaged coarse-pointer floor targets the
+   * classes @momentarise/md-surface renders; these three are the demo's own
+   * controls, so the demo owes them the same 44px floor.
+   */
   .rich-block-menu button,
-  .html-preview-details-toggle {
+  .html-preview-details-toggle,
+  .property-mode {
       min-block-size: var(--mme-touch-target-size);
       min-inline-size: var(--mme-touch-target-size);
     }

@@ -308,10 +308,17 @@ assert(
   "the typing path (.ProseMirror / .cm-content) must carry zero animation."
 );
 
-// The coarse-pointer contract from MME-0078 survives the redesign.
+/*
+ * The coarse-pointer contract from MME-0078 survives the redesign.
+ *
+ * MME-0117 changed the axis from `pointer` to `any-pointer`: `pointer` describes
+ * the PRIMARY device, so on a touchscreen laptop the floor applied to nothing
+ * while the user's finger was still on the glass. Asserting the old query would
+ * now re-open that hole, so this asserts the correct one.
+ */
 assert(
-  /@media \(pointer: coarse\)/.test(stylesCss) && /var\(--mme-touch-target-size\)/.test(stylesCss),
-  "the 44px coarse-pointer target contract must survive (MME-0078)."
+  /@media \(any-pointer: coarse\)/.test(stylesCss) && /var\(--mme-touch-target-size\)/.test(stylesCss),
+  "the 44px touch-target contract must survive, keyed on `any-pointer: coarse` (MME-0078, MME-0117)."
 );
 
 // --- 6. machine-readable mirror (AX) ---------------------------------------
