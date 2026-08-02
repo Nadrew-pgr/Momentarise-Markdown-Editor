@@ -1,0 +1,2 @@
+# Line endings are the point of this fixture: never normalize it.
+input-crlf.md -text

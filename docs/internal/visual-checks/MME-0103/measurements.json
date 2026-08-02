@@ -1,0 +1,191 @@
+{
+  "consoleErrors": [],
+  "demoUrl": "http://127.0.0.1:5174/",
+  "evidence": {
+    "390": {
+      "singleBlock": {
+        "announcement": "Paragraph, block 3 of 6: A paragraph the block layer removes.",
+        "background": "color(srgb 0.145098 0.388235 0.921569 / 0.35)",
+        "pageBackground": "rgb(10, 10, 10)",
+        "ring": "rgb(138, 180, 255) 0px 0px 0px 2px",
+        "count": "1",
+        "highlightPaint": "rgba(0, 0, 0, 0)",
+        "highlightPaintOnBlock": "rgba(0, 0, 0, 0)",
+        "selectedIndexes": [
+          2
+        ]
+      },
+      "multiBlock": {
+        "announcement": "3 blocks selected, 3 to 5 of 6",
+        "background": "color(srgb 0.145098 0.388235 0.921569 / 0.35)",
+        "pageBackground": "rgb(10, 10, 10)",
+        "ring": "rgb(138, 180, 255) 0px 0px 0px 2px",
+        "count": "3",
+        "highlightPaint": "rgba(0, 0, 0, 0)",
+        "highlightPaintOnBlock": "rgba(0, 0, 0, 0)",
+        "selectedIndexes": [
+          2,
+          3,
+          4
+        ]
+      },
+      "framedRing": "rgb(138, 180, 255) 0px 0px 0px 2px",
+      "copied": {
+        "html": 248,
+        "text": "A paragraph the block layer removes.\n\n| Area | Risk |\n| --- | --- |\n| Table | cell selection |\n\n```ts\nconst selected = true;\n```\n"
+      },
+      "afterDelete": "# Block selection\n\nAn opening paragraph that survives every operation.\n\n\n\nA closing paragraph.\n",
+      "afterUndo": "# Block selection\n\nAn opening paragraph that survives every operation.\n\n\n\nA paragraph the block layer removes.\n\n\n\n| Area | Risk |\n| --- | --- |\n| Table | cell selection |\n\n\n\n```ts\nconst selected = true;\n```\n\n\n\nA closing paragraph.\n",
+      "afterDuplicate": "# Block selection\n\nAn opening paragraph that survives every operation.\n\n\n\nA paragraph the block layer removes.\n\nA paragraph the block layer removes.\n\n| Area | Risk |\n| --- | --- |\n| Table | cell selection |\n\n```ts\nconst selected = true;\n```\n\nA closing paragraph.\n",
+      "escapeCollision": {
+        "menuOpen": false,
+        "selection": {
+          "announcement": "",
+          "background": null,
+          "pageBackground": "rgb(10, 10, 10)",
+          "ring": null,
+          "count": null,
+          "highlightPaint": "rgba(0, 0, 0, 0)",
+          "highlightPaintOnBlock": null,
+          "selectedIndexes": []
+        }
+      },
+      "escapeAfterDismissal": {
+        "announcement": "Paragraph, block 6 of 6: A closing paragraph. /head",
+        "background": "color(srgb 0.145098 0.388235 0.921569 / 0.35)",
+        "pageBackground": "rgb(10, 10, 10)",
+        "ring": "rgb(138, 180, 255) 0px 0px 0px 2px",
+        "count": "1",
+        "highlightPaint": "rgba(0, 0, 0, 0)",
+        "highlightPaintOnBlock": "rgba(0, 0, 0, 0)",
+        "selectedIndexes": [
+          5
+        ]
+      }
+    },
+    "1280": {
+      "singleBlock": {
+        "announcement": "Paragraph, block 3 of 6: A paragraph the block layer removes.",
+        "background": "color(srgb 0.145098 0.388235 0.921569 / 0.35)",
+        "pageBackground": "rgb(10, 10, 10)",
+        "ring": "rgb(138, 180, 255) 0px 0px 0px 2px",
+        "count": "1",
+        "highlightPaint": "rgba(0, 0, 0, 0)",
+        "highlightPaintOnBlock": "rgba(0, 0, 0, 0)",
+        "selectedIndexes": [
+          2
+        ]
+      },
+      "multiBlock": {
+        "announcement": "3 blocks selected, 3 to 5 of 6",
+        "background": "color(srgb 0.145098 0.388235 0.921569 / 0.35)",
+        "pageBackground": "rgb(10, 10, 10)",
+        "ring": "rgb(138, 180, 255) 0px 0px 0px 2px",
+        "count": "3",
+        "highlightPaint": "rgba(0, 0, 0, 0)",
+        "highlightPaintOnBlock": "rgba(0, 0, 0, 0)",
+        "selectedIndexes": [
+          2,
+          3,
+          4
+        ]
+      },
+      "framedRing": "rgb(138, 180, 255) 0px 0px 0px 2px",
+      "copied": {
+        "html": 248,
+        "text": "A paragraph the block layer removes.\n\n| Area | Risk |\n| --- | --- |\n| Table | cell selection |\n\n```ts\nconst selected = true;\n```\n"
+      },
+      "afterDelete": "# Block selection\n\nAn opening paragraph that survives every operation.\n\n\n\nA closing paragraph.\n",
+      "afterUndo": "# Block selection\n\nAn opening paragraph that survives every operation.\n\n\n\nA paragraph the block layer removes.\n\n\n\n| Area | Risk |\n| --- | --- |\n| Table | cell selection |\n\n\n\n```ts\nconst selected = true;\n```\n\n\n\nA closing paragraph.\n",
+      "afterDuplicate": "# Block selection\n\nAn opening paragraph that survives every operation.\n\n\n\nA paragraph the block layer removes.\n\nA paragraph the block layer removes.\n\n| Area | Risk |\n| --- | --- |\n| Table | cell selection |\n\n```ts\nconst selected = true;\n```\n\nA closing paragraph.\n",
+      "escapeCollision": {
+        "menuOpen": false,
+        "selection": {
+          "announcement": "",
+          "background": null,
+          "pageBackground": "rgb(10, 10, 10)",
+          "ring": null,
+          "count": null,
+          "highlightPaint": "rgba(0, 0, 0, 0)",
+          "highlightPaintOnBlock": null,
+          "selectedIndexes": []
+        }
+      },
+      "escapeAfterDismissal": {
+        "announcement": "Paragraph, block 6 of 6: A closing paragraph. /head",
+        "background": "color(srgb 0.145098 0.388235 0.921569 / 0.35)",
+        "pageBackground": "rgb(10, 10, 10)",
+        "ring": "rgb(138, 180, 255) 0px 0px 0px 2px",
+        "count": "1",
+        "highlightPaint": "rgba(0, 0, 0, 0)",
+        "highlightPaintOnBlock": "rgba(0, 0, 0, 0)",
+        "selectedIndexes": [
+          5
+        ]
+      }
+    },
+    "1280-light": {
+      "singleBlock": {
+        "announcement": "Paragraph, block 3 of 6: A paragraph the block layer removes.",
+        "background": "color(srgb 0 0.341176 0.760784 / 0.16)",
+        "pageBackground": "rgb(251, 252, 255)",
+        "ring": "rgb(0, 87, 194) 0px 0px 0px 2px",
+        "count": "1",
+        "highlightPaint": "rgba(0, 0, 0, 0)",
+        "highlightPaintOnBlock": "rgba(0, 0, 0, 0)",
+        "selectedIndexes": [
+          2
+        ]
+      },
+      "multiBlock": {
+        "announcement": "3 blocks selected, 3 to 5 of 6",
+        "background": "color(srgb 0 0.341176 0.760784 / 0.16)",
+        "pageBackground": "rgb(251, 252, 255)",
+        "ring": "rgb(0, 87, 194) 0px 0px 0px 2px",
+        "count": "3",
+        "highlightPaint": "rgba(0, 0, 0, 0)",
+        "highlightPaintOnBlock": "rgba(0, 0, 0, 0)",
+        "selectedIndexes": [
+          2,
+          3,
+          4
+        ]
+      },
+      "framedRing": "rgb(0, 87, 194) 0px 0px 0px 2px",
+      "copied": {
+        "html": 248,
+        "text": "A paragraph the block layer removes.\n\n| Area | Risk |\n| --- | --- |\n| Table | cell selection |\n\n```ts\nconst selected = true;\n```\n"
+      },
+      "afterDelete": "# Block selection\n\nAn opening paragraph that survives every operation.\n\n\n\nA closing paragraph.\n",
+      "afterUndo": "# Block selection\n\nAn opening paragraph that survives every operation.\n\n\n\nA paragraph the block layer removes.\n\n\n\n| Area | Risk |\n| --- | --- |\n| Table | cell selection |\n\n\n\n```ts\nconst selected = true;\n```\n\n\n\nA closing paragraph.\n",
+      "afterDuplicate": "# Block selection\n\nAn opening paragraph that survives every operation.\n\n\n\nA paragraph the block layer removes.\n\nA paragraph the block layer removes.\n\n| Area | Risk |\n| --- | --- |\n| Table | cell selection |\n\n```ts\nconst selected = true;\n```\n\nA closing paragraph.\n",
+      "escapeCollision": {
+        "menuOpen": false,
+        "selection": {
+          "announcement": "",
+          "background": null,
+          "pageBackground": "rgb(251, 252, 255)",
+          "ring": null,
+          "count": null,
+          "highlightPaint": "rgba(0, 0, 0, 0)",
+          "highlightPaintOnBlock": null,
+          "selectedIndexes": []
+        }
+      },
+      "escapeAfterDismissal": {
+        "announcement": "Paragraph, block 6 of 6: A closing paragraph. /head",
+        "background": "color(srgb 0 0.341176 0.760784 / 0.16)",
+        "pageBackground": "rgb(251, 252, 255)",
+        "ring": "rgb(0, 87, 194) 0px 0px 0px 2px",
+        "count": "1",
+        "highlightPaint": "rgba(0, 0, 0, 0)",
+        "highlightPaintOnBlock": "rgba(0, 0, 0, 0)",
+        "selectedIndexes": [
+          5
+        ]
+      }
+    }
+  },
+  "screenshots": 18,
+  "status": "passed"
+}

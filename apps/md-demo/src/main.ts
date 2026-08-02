@@ -155,7 +155,7 @@ import {
   type SurfaceViewportMeasurement,
   type SurfaceViewportState
 } from "@momentarise/md-surface";
-import { NodeSelection, Plugin, PluginKey, TextSelection, type EditorState as ProseMirrorEditorState } from "prosemirror-state";
+import { NodeSelection, Plugin, PluginKey, Selection, TextSelection, type EditorState as ProseMirrorEditorState } from "prosemirror-state";
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { Decoration, DecorationSet, EditorView as ProseMirrorEditorView } from "prosemirror-view";
 import {
@@ -1575,6 +1575,11 @@ function registerDemoOverlays(): void {
       richBlockControlsSurface?.setState(hiddenRichBlockControlsState());
       },
     contains: (node) => Boolean(node && richBlockControlsRoot()?.contains(node)),
+    // These controls are derived from the caret, so they are visible most of the
+    // time while writing. If they swallowed Escape the way a menu does, the
+    // editing surface behind them would essentially never receive one — block
+    // selection (MME-0103) would need two presses, every time.
+    consumesEscape: false,
     // Deliberately NOT "outside-pointer": these controls are derived from the
     // caret, so a click elsewhere in the document should move them to the new
     // block, not latch them off. Only leaving the editor or pressing Escape hides
@@ -2897,6 +2902,9 @@ window.__MME_DEMO_VISUAL_CHECK__ = {
         head
       }
     });
+  },
+  setRichBlockCaretForTest(blockIndex: number) {
+    setRichBlockCaretForTest(blockIndex);
   },
   setRichSelectionAfterText(text: string) {
     setRichSelectionAfterText(text);
@@ -5535,6 +5543,28 @@ function setRichSelectionAfterText(text: string): void {
   richEditor.dispatch(richEditor.state.tr.setSelection(TextSelection.create(richEditor.state.doc, position)));
 }
 
+/**
+ * Puts the cursor on a top-level block by index, so a browser check can press
+ * Escape from a known block (MME-0103). A textblock gets a caret inside it; an
+ * atom block, which has no inside, gets the node selection a click would make.
+ */
+function setRichBlockCaretForTest(blockIndex: number): void {
+  if (!richEditor) {
+    throw new Error("Rich editor is not mounted.");
+  }
+  const range = richTopLevelBlockRanges(richEditor.state)[blockIndex];
+  if (!range) {
+    throw new Error(`Cannot place the caret in missing rich block ${blockIndex}.`);
+  }
+  const { doc } = richEditor.state;
+  const inside = Selection.near(doc.resolve(range.from + 1), 1);
+  const landed = inside.$from.depth === 0 ? inside.$from.index() : inside.$from.index(0);
+  richEditor.focus();
+  richEditor.dispatch(
+    richEditor.state.tr.setSelection(landed === blockIndex ? inside : NodeSelection.create(doc, range.from))
+  );
+}
+
 function setRichSelectionForText(text: string): void {
   if (!richEditor) {
     throw new Error("Rich editor is not mounted.");
@@ -6814,6 +6844,7 @@ declare global {
       setReferenceSurfacePreferencesForTest: (preferences: ReferenceEditorPreferenceInput) => void;
       setSurfaceViewportMeasurementForTest: (measurement: SurfaceViewportMeasurement | null) => void;
       showInlineAiProviderStateForTest: (kind: SurfaceAiProviderKind) => void;
+      setRichBlockCaretForTest: (blockIndex: number) => void;
       setRichSelectionAfterText: (text: string) => void;
       setRichSelectionForText: (text: string) => void;
       setSelection: (anchor: number, head: number) => void;

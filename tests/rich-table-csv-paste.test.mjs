@@ -212,7 +212,14 @@ assert.equal(saveTarget.readContent(), pastedOutput);
 
 function invokeNativePaste(nextState, payload, options = {}) {
   let editorState = nextState.editorState;
-  const plugin = editorState.plugins.find((candidate) => typeof candidate.props.handlePaste === "function");
+  // The subject here is the package's own matrix-paste handler. MME-0103 added a
+  // block-selection plugin ahead of it that also declares `handlePaste` (and
+  // declines whenever no block is selected), so this names the handler under
+  // test instead of taking whichever one happens to come first.
+  const plugin = editorState.plugins.find(
+    (candidate) =>
+      typeof candidate.props.handlePaste === "function" && candidate.spec.key !== rich.richBlockSelectionPluginKey
+  );
   assert.ok(plugin, "native paste plugin");
   let prevented = false;
   const file = options.file ? { name: "pasted.png", type: "image/png" } : null;
@@ -222,22 +229,21 @@ function invokeNativePaste(nextState, payload, options = {}) {
     types: Object.keys(payload),
     getData: (type) => payload[type] ?? ""
   };
-  const handled = plugin.props.handlePaste(
-    {
-      get state() {
-        return editorState;
-      },
-      dispatch(transaction) {
-        editorState = editorState.apply(transaction);
-      }
+  const view = {
+    get state() {
+      return editorState;
     },
-    {
-      clipboardData,
-      preventDefault() {
-        prevented = true;
-      }
+    dispatch(transaction) {
+      editorState = editorState.apply(transaction);
     }
-  );
+  };
+  const event = {
+    clipboardData,
+    preventDefault() {
+      prevented = true;
+    }
+  };
+  const handled = plugin.props.handlePaste(view, event);
   return { handled: Boolean(handled), prevented, state: { ...nextState, editorState } };
 }
 

@@ -46,6 +46,7 @@ Fixtures are intentionally synthetic and sanitized. They must not contain privat
 33. `033-callout-footnote-editing`: paragraph-only Obsidian callout footnote children with semantic headers.
 34. `034-raw-html-footnote-editing`: inert parser-owned block-HTML source editing with hostile-payload DOM proof.
 35. `035-inline-html-footnote-editing`: inert parser-owned inline-HTML token editing in safe footnote paragraphs.
+40. `040-block-selection`: block-selection documents — every framed block type as a top-level object, multi-blank-line gaps, and a CRLF companion (`input-crlf.md`, kept `-text` in `.gitattributes`) whose line endings are the assertion.
 
 ## Use
 

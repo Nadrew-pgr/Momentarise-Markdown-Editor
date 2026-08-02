@@ -25,7 +25,7 @@ import {
 } from "prosemirror-commands";
 import { history, redo, undo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
-import { Fragment, Mark, Node as ProseMirrorNode, Schema, type DOMOutputSpec, type MarkSpec, type NodeSpec, type NodeType, type ResolvedPos } from "prosemirror-model";
+import { DOMSerializer, Fragment, Mark, Node as ProseMirrorNode, Schema, Slice, type DOMOutputSpec, type MarkSpec, type NodeSpec, type NodeType, type ResolvedPos } from "prosemirror-model";
 import { EditorState, NodeSelection, Plugin, PluginKey, Selection, TextSelection, type Transaction } from "prosemirror-state";
 import {
   addColumnAfter,
@@ -698,6 +698,15 @@ export function createMomentariseRichSchema(): MomentariseRichSchema {
 export function createMomentariseRichPlugins(preferences: MomentariseRichPreferences = {}): Plugin[] {
   const normalized = normalizeRichPreferences(preferences);
   const plugins: Plugin[] = [
+    /*
+     * First, so its key, clipboard and text-input handling wins over the
+     * keymaps, the input rules and `tableEditing()`. Every handler returns false
+     * unless a block selection is active, so nothing else changes behaviour.
+     * The presentation ships here rather than in an optional plugin (MME-0103).
+     */
+    createRichBlockSelectionPlugin({
+      keyboard: !normalized.keymapDelegateToHost && normalized.keymapProfile === "default"
+    }),
     createRichPasteSanitizerPlugin(),
     createRichInputRulesPlugin(),
     createTodoTogglePlugin(),
@@ -710,7 +719,13 @@ export function createMomentariseRichPlugins(preferences: MomentariseRichPrefere
   if (!normalized.keymapDelegateToHost && normalized.keymapProfile !== "delegate") {
     plugins.push(keymap(baseKeymap));
   }
-  plugins.push(tableEditing());
+  /*
+   * `allowTableNodeSelection` (MME-0103): without it `tableEditing()` normalises
+   * a table `NodeSelection` into a `CellSelection`, so `Esc` on a table produced
+   * an invisible cell selection and the next `Backspace` wiped every cell
+   * instead of deleting the block.
+   */
+  plugins.push(tableEditing({ allowTableNodeSelection: true }));
   return plugins;
 }
 
@@ -3109,18 +3124,7 @@ export function matchRichSlashTrigger(state: EditorState): RichSlashTriggerMatch
 }
 
 export function richTopLevelBlockRanges(state: EditorState): readonly RichTopLevelBlockRange[] {
-  const ranges: RichTopLevelBlockRange[] = [];
-  state.doc.forEach((node, offset, index) => {
-    ranges.push({
-      from: offset,
-      index,
-      node,
-      text: node.textContent,
-      to: offset + node.nodeSize,
-      type: node.type.name
-    });
-  });
-  return ranges;
+  return topLevelRangesForDoc(state.doc);
 }
 
 export function richPositionForSourceOffset(
@@ -3595,7 +3599,11 @@ function createRichBlockAffordanceWidget(
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("application/x-momentarise-rich-block-index", String(currentRange.index));
     event.dataTransfer.setData("text/plain", `momentarise-rich-block:${currentRange.index}`);
-    view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, currentRange.from)));
+    // Dragging a block selects it as an object, which also gives the table case
+    // a selectable handle instead of a cell selection (MME-0103).
+    selectRichBlockCommand(currentRange.index)(view.state, (transaction) => {
+      view.dispatch(transaction);
+    });
   });
   root.append(menuButton);
 
@@ -3797,6 +3805,935 @@ function preventEditorBlur(event: MouseEvent): void {
   event.preventDefault();
 }
 
+// ---------------------------------------------------------------------------
+// Block selection model — MME-0103, benchmark contract 3
+// ---------------------------------------------------------------------------
+
+/**
+ * A block selection is the state where blocks are selected as objects rather
+ * than as a text range: `Esc` enters it, arrows move it, `Shift+Arrow` extends
+ * it, `Cmd/Ctrl+A` escalates into it, and delete/duplicate/replace act on whole
+ * blocks.
+ *
+ * Why the plugin state and not the ProseMirror selection is the source of truth
+ * (the redesign after MME-0103 attempt 1 was reverted):
+ *
+ * - `NodeSelection` is not sovereign. `tableEditing()` normalises a table
+ *   `NodeSelection` into a `CellSelection`, so `Esc` on a table produced an
+ *   invisible cell selection and the next `Backspace` wiped every cell instead
+ *   of deleting the block. `allowTableNodeSelection: true` stops the conversion,
+ *   but the model must not depend on no other plugin ever reinterpreting a
+ *   selection again.
+ * - `TextSelection` is not private. A multi-block `TextSelection` is observed by
+ *   the bubble toolbar and painted by the browser as a per-character highlight,
+ *   which the acceptance criteria explicitly rule out. A depth-0 `TextSelection`
+ *   avoids the highlight but makes ProseMirror warn that the endpoints do not
+ *   point into inline content.
+ *
+ * So: the plugin state owns which blocks are selected, the ProseMirror selection
+ * is a `NodeSelection` on the anchor block (a caret position, effectively), and
+ * every operation reads block indices from the plugin state. Recorded decision:
+ * `AllSelection` covers only the whole-document stage and `CellSelection` is the
+ * thing to defend against rather than imitate, so neither replaces this; no
+ * custom `Selection` subclass is introduced.
+ */
+export interface RichBlockSelectionInfo {
+  /** Block the selection was anchored at; `Shift+Arrow` keeps it fixed. */
+  readonly anchorIndex: number;
+  readonly count: number;
+  /** Document position before the first selected block. */
+  readonly from: number;
+  readonly fromIndex: number;
+  /** Block the selection currently extends to. */
+  readonly headIndex: number;
+  /** Document position after the last selected block. */
+  readonly to: number;
+  readonly toIndex: number;
+}
+
+/**
+ * Every string the block layer can announce. All host-supplied, all templated:
+ * a screen-reader user needs to know *which* block is selected, not only how
+ * many, and needs to hear what an operation did rather than only that the
+ * selection went away.
+ *
+ * Placeholders: `{count}`, `{position}`, `{end}`, `{total}`, `{type}`,
+ * `{excerpt}`. `blockTypes` maps schema node names to spoken names, with
+ * `blockTypes.default` as the fallback.
+ */
+export interface RichBlockSelectionLabels {
+  readonly blockTypes: Readonly<Record<string, string>>;
+  readonly cleared: string;
+  readonly deleted: string;
+  readonly deletedOne: string;
+  readonly duplicated: string;
+  readonly duplicatedOne: string;
+  /** Announced when several blocks are selected. */
+  readonly multiple: string;
+  readonly pasted: string;
+  readonly pastedOne: string;
+  readonly replaced: string;
+  readonly replacedOne: string;
+  /** Announced when one block is selected; carries its identity. */
+  readonly single: string;
+}
+
+/** What an operation did, so the result is announced rather than inferred. */
+export type RichBlockSelectionNoticeKind = "deleted" | "duplicated" | "pasted" | "replaced";
+
+interface RichBlockSelectionNotice {
+  readonly count: number;
+  readonly kind: RichBlockSelectionNoticeKind;
+}
+
+export interface RichBlockSelectionPluginOptions {
+  /** Set false when the host owns the keymap. Presentation still ships. */
+  readonly keyboard?: boolean;
+  readonly labels?: Partial<RichBlockSelectionLabels>;
+  /** Set false when the host renders its own announcement surface. */
+  readonly liveRegion?: boolean;
+}
+
+interface RichBlockSelectionRange {
+  readonly anchorIndex: number;
+  readonly headIndex: number;
+}
+
+interface RichBlockSelectionPluginState {
+  /** One-shot result of the operation that produced this state. */
+  readonly notice: RichBlockSelectionNotice | null;
+  /** Null when no blocks are selected. */
+  readonly range: RichBlockSelectionRange | null;
+}
+
+const emptyRichBlockSelectionState: RichBlockSelectionPluginState = { notice: null, range: null };
+
+type RichEditorCommand = (
+  state: EditorState,
+  dispatch?: (transaction: Transaction) => void
+) => boolean;
+
+/** The slice of the editor view the block-selection handlers need. */
+interface RichBlockSelectionViewLike {
+  dispatch(transaction: Transaction): void;
+  readonly state: EditorState;
+}
+
+export const richBlockSelectionPluginKey = new PluginKey<RichBlockSelectionPluginState>(
+  "momentarise-rich-block-selection"
+);
+
+/*
+ * Defaults live next to the model so a consumer on default plugins gets a
+ * working, announced, visible block selection. Hosts override them through
+ * `labels` for localization; nothing here is a hardcoded UI literal in a
+ * surface component (Gate 13).
+ */
+const defaultRichBlockSelectionLabels: RichBlockSelectionLabels = {
+  blockTypes: {
+    blockquote: "Quote",
+    bullet_list: "Bulleted list",
+    code_block: "Code block",
+    default: "Block",
+    footnote_definition: "Footnote definition",
+    heading: "Heading",
+    horizontal_rule: "Divider",
+    ordered_list: "Numbered list",
+    paragraph: "Paragraph",
+    raw_html_block: "Raw HTML block",
+    table: "Table",
+    todo_list: "Task list",
+    unsupported_block: "Preserved block"
+  },
+  cleared: "Block selection cleared",
+  deleted: "{count} blocks deleted",
+  deletedOne: "Block deleted",
+  duplicated: "{count} blocks duplicated",
+  duplicatedOne: "Block duplicated",
+  multiple: "{count} blocks selected, {position} to {end} of {total}",
+  pasted: "{count} blocks pasted",
+  pastedOne: "Block pasted",
+  replaced: "{count} blocks replaced",
+  replacedOne: "Block replaced",
+  single: "{type}, block {position} of {total}{excerpt}"
+};
+
+export function richBlockSelection(state: EditorState): RichBlockSelectionInfo | null {
+  const range = (richBlockSelectionPluginKey.getState(state) ?? emptyRichBlockSelectionState).range;
+  if (!range) {
+    return null;
+  }
+  const ranges = topLevelRangesForDoc(state.doc);
+  if (ranges.length === 0) {
+    return null;
+  }
+  const anchorIndex = clampRichBlockIndex(range.anchorIndex, ranges.length);
+  const headIndex = clampRichBlockIndex(range.headIndex, ranges.length);
+  const fromIndex = Math.min(anchorIndex, headIndex);
+  const toIndex = Math.max(anchorIndex, headIndex);
+  return {
+    anchorIndex,
+    count: toIndex - fromIndex + 1,
+    from: ranges[fromIndex]!.from,
+    fromIndex,
+    headIndex,
+    to: ranges[toIndex]!.to,
+    toIndex
+  };
+}
+
+/**
+ * What the block layer would say right now.
+ *
+ * Carries identity, not just arithmetic: "Heading, block 1 of 7: Release notes"
+ * rather than "Block selected". Arrow-moving between two single blocks does not
+ * change the count, so an announcement built only from the count is silent for
+ * the most common navigation there is — the user hears nothing and cannot tell
+ * where the block cursor went.
+ *
+ * When an operation has just run, its result is announced instead of the state
+ * it left behind: deleting three blocks says so, rather than saying only that
+ * the selection was cleared.
+ */
+export function richBlockSelectionAnnouncement(
+  state: EditorState,
+  labels: Partial<RichBlockSelectionLabels> = {}
+): string {
+  const resolved: RichBlockSelectionLabels = {
+    ...defaultRichBlockSelectionLabels,
+    ...labels,
+    blockTypes: { ...defaultRichBlockSelectionLabels.blockTypes, ...labels.blockTypes }
+  };
+  const notice = (richBlockSelectionPluginKey.getState(state) ?? emptyRichBlockSelectionState).notice;
+  if (notice) {
+    const singular = `${notice.kind}One` as const;
+    return notice.count === 1
+      ? resolved[singular]
+      : resolved[notice.kind].replace("{count}", String(notice.count));
+  }
+  const info = richBlockSelection(state);
+  if (!info) {
+    return resolved.cleared;
+  }
+  const total = state.doc.childCount;
+  if (info.count > 1) {
+    return resolved.multiple
+      .replace("{count}", String(info.count))
+      .replace("{position}", String(info.fromIndex + 1))
+      .replace("{end}", String(info.toIndex + 1))
+      .replace("{total}", String(total));
+  }
+  const node = state.doc.maybeChild(info.fromIndex);
+  const text = node?.textContent.trim() ?? "";
+  return resolved.single
+    .replace("{type}", resolved.blockTypes[node?.type.name ?? ""] ?? resolved.blockTypes.default ?? "Block")
+    .replace("{position}", String(info.fromIndex + 1))
+    .replace("{total}", String(total))
+    .replace("{excerpt}", text ? `: ${text.length > 80 ? `${text.slice(0, 80)}…` : text}` : "");
+}
+
+/**
+ * The selected blocks as canonical Markdown, for `text/plain` on copy.
+ *
+ * Reconstructed from the ProseMirror nodes rather than sliced out of the source:
+ * a clipboard payload is a new document, not a preserved one, and the paste half
+ * parses it back through the same Markdown parser the editor loads documents
+ * with, so unknown syntax survives the round trip as opaque content.
+ */
+export function richBlockSelectionMarkdown(state: EditorState): string | null {
+  const info = richBlockSelection(state);
+  if (!info) {
+    return null;
+  }
+  const blocks: string[] = [];
+  state.doc.forEach((node, _offset, index) => {
+    if (index >= info.fromIndex && index <= info.toIndex) {
+      blocks.push(serializeReconstructedProseMirrorBlock(node));
+    }
+  });
+  return blocks.length === 0 ? null : `${blocks.join("\n\n")}\n`;
+}
+
+export function selectRichBlockCommand(index: number): RichEditorCommand {
+  return (state, dispatch) => {
+    if (index < 0 || index >= state.doc.childCount) {
+      return false;
+    }
+    if (dispatch) {
+      dispatch(richBlockSelectionTransaction(state, index, index));
+    }
+    return true;
+  };
+}
+
+export function enterRichBlockSelectionCommand(
+  state: EditorState,
+  dispatch?: (transaction: Transaction) => void
+): boolean {
+  if (richBlockSelection(state)) {
+    return false;
+  }
+  const index = topLevelIndexForSelection(state);
+  if (index === null) {
+    return false;
+  }
+  if (dispatch) {
+    dispatch(richBlockSelectionTransaction(state, index, index));
+  }
+  return true;
+}
+
+export function clearRichBlockSelectionCommand(
+  state: EditorState,
+  dispatch?: (transaction: Transaction) => void
+): boolean {
+  const info = richBlockSelection(state);
+  if (!info) {
+    return false;
+  }
+  if (dispatch) {
+    const transaction = state.tr.setMeta(richBlockSelectionPluginKey, emptyRichBlockSelectionState);
+    transaction.setSelection(Selection.near(transaction.doc.resolve(info.from), 1));
+    dispatch(transaction.scrollIntoView());
+  }
+  return true;
+}
+
+export function moveRichBlockSelectionCommand(
+  direction: -1 | 1,
+  options: { readonly extend?: boolean } = {}
+): RichEditorCommand {
+  return (state, dispatch) => {
+    const info = richBlockSelection(state);
+    if (!info) {
+      return false;
+    }
+    const nextHead = clampRichBlockIndex(info.headIndex + direction, state.doc.childCount);
+    if (nextHead === info.headIndex) {
+      // At the first or last block: consume the key rather than letting the
+      // caret escape the block layer sideways.
+      return true;
+    }
+    if (dispatch) {
+      dispatch(
+        options.extend
+          ? richBlockSelectionTransaction(state, info.anchorIndex, nextHead)
+          : richBlockSelectionTransaction(state, nextHead, nextHead)
+      );
+    }
+    return true;
+  };
+}
+
+/** `Cmd/Ctrl+A`: inline selection -> current block -> whole document. */
+export function escalateRichSelectionCommand(
+  state: EditorState,
+  dispatch?: (transaction: Transaction) => void
+): boolean {
+  const blockCount = state.doc.childCount;
+  if (blockCount === 0) {
+    return false;
+  }
+  const info = richBlockSelection(state);
+  if (info) {
+    if (info.fromIndex === 0 && info.toIndex === blockCount - 1) {
+      // Already the whole document; consume so the key does not fall through to
+      // `selectAll` and drop the block layer.
+      return true;
+    }
+    if (dispatch) {
+      dispatch(richBlockSelectionTransaction(state, 0, blockCount - 1));
+    }
+    return true;
+  }
+  const index = topLevelIndexForSelection(state);
+  if (index === null) {
+    return false;
+  }
+  const { $from } = state.selection;
+  if ($from.depth > 0 && $from.parent.inlineContent) {
+    const contentFrom = $from.start();
+    const contentTo = $from.end();
+    const alreadyWholeBlock =
+      contentTo > contentFrom && state.selection.from <= contentFrom && state.selection.to >= contentTo;
+    if (!alreadyWholeBlock && contentTo > contentFrom) {
+      if (dispatch) {
+        dispatch(
+          state.tr
+            .setSelection(TextSelection.create(state.doc, contentFrom, contentTo))
+            .setMeta(richBlockSelectionPluginKey, emptyRichBlockSelectionState)
+        );
+      }
+      return true;
+    }
+  }
+  if (dispatch) {
+    dispatch(richBlockSelectionTransaction(state, index, index));
+  }
+  return true;
+}
+
+export function deleteRichBlockSelectionCommand(
+  state: EditorState,
+  dispatch?: (transaction: Transaction) => void
+): boolean {
+  const info = richBlockSelection(state);
+  if (!info) {
+    return false;
+  }
+  if (dispatch) {
+    const transaction = state.tr;
+    if (info.fromIndex === 0 && info.toIndex === state.doc.childCount - 1) {
+      // `doc` requires `block+`; an emptied document keeps one empty paragraph,
+      // which is also what every benchmark editor leaves behind.
+      transaction.replaceWith(info.from, info.to, state.schema.nodes.paragraph!.create());
+    } else {
+      transaction.delete(info.from, info.to);
+    }
+    transaction.setMeta(richBlockSelectionPluginKey, {
+      notice: { count: info.count, kind: "deleted" },
+      range: null
+    });
+    transaction.setSelection(
+      Selection.near(transaction.doc.resolve(Math.min(info.from, transaction.doc.content.size)), 1)
+    );
+    dispatch(transaction.scrollIntoView());
+  }
+  return true;
+}
+
+export function duplicateRichBlockSelectionCommand(
+  state: EditorState,
+  dispatch?: (transaction: Transaction) => void
+): boolean {
+  const info = richBlockSelection(state);
+  if (!info) {
+    return false;
+  }
+  if (dispatch) {
+    const copies = state.doc.slice(info.from, info.to).content;
+    const transaction = state.tr.insert(info.to, copies);
+    applyRichBlockSelectionToTransaction(transaction, info.toIndex + 1, info.toIndex + info.count, {
+      count: info.count,
+      kind: "duplicated"
+    });
+    dispatch(transaction.scrollIntoView());
+  }
+  return true;
+}
+
+export function replaceRichBlockSelectionWithParagraphCommand(
+  state: EditorState,
+  dispatch?: (transaction: Transaction) => void
+): boolean {
+  const info = richBlockSelection(state);
+  if (!info) {
+    return false;
+  }
+  if (dispatch) {
+    const transaction = state.tr.replaceWith(info.from, info.to, state.schema.nodes.paragraph!.create());
+    transaction.setMeta(richBlockSelectionPluginKey, {
+      notice: { count: info.count, kind: "replaced" },
+      range: null
+    });
+    transaction.setSelection(TextSelection.create(transaction.doc, info.from + 1));
+    dispatch(transaction.scrollIntoView());
+  }
+  return true;
+}
+
+export function replaceRichBlockSelectionWithTextCommand(text: string): RichEditorCommand {
+  return (state, dispatch) => {
+    const info = richBlockSelection(state);
+    if (!info || text.length === 0) {
+      return false;
+    }
+    if (dispatch) {
+      const paragraph = state.schema.nodes.paragraph!.create(null, state.schema.text(text));
+      const transaction = state.tr.replaceWith(info.from, info.to, paragraph);
+      transaction.setMeta(richBlockSelectionPluginKey, {
+        notice: { count: info.count, kind: "replaced" },
+        range: null
+      });
+      transaction.setSelection(TextSelection.create(transaction.doc, info.from + 1 + text.length));
+      dispatch(transaction.scrollIntoView());
+    }
+    return true;
+  };
+}
+
+export function pasteRichBlockSelectionMarkdownCommand(markdown: string): RichEditorCommand {
+  return (state, dispatch) => {
+    const info = richBlockSelection(state);
+    if (!info || markdown.length === 0) {
+      return false;
+    }
+    const parseResult = createMarkdownAstFormatter().parse(markdown, { dialect: "momentarise-enhanced" });
+    const parsed = markdownDocumentToProseMirror(parseResult, state.schema as MomentariseRichSchema);
+    if (parsed.content.size === 0) {
+      return false;
+    }
+    if (dispatch) {
+      const transaction = state.tr.replaceWith(info.from, info.to, parsed.content);
+      transaction.setMeta(richBlockSelectionPluginKey, {
+        notice: { count: parsed.childCount, kind: "pasted" },
+        range: null
+      });
+      transaction.setSelection(
+        Selection.near(
+          transaction.doc.resolve(Math.min(info.from + parsed.content.size, transaction.doc.content.size)),
+          -1
+        )
+      );
+      dispatch(transaction.scrollIntoView());
+    }
+    return true;
+  };
+}
+
+/**
+ * Replaces the selected blocks with an arbitrary pasted slice.
+ *
+ * The Markdown path above is the one that carries preservation; this is the
+ * fallback for payloads that have no text/plain at all, and it exists so a
+ * multi-block selection is never partially replaced.
+ */
+export function replaceRichBlockSelectionWithSliceCommand(slice: Slice): RichEditorCommand {
+  return (state, dispatch) => {
+    const info = richBlockSelection(state);
+    if (!info || slice.content.size === 0) {
+      return false;
+    }
+    if (dispatch) {
+      const transaction = state.tr.replace(info.from, info.to, slice);
+      transaction.setMeta(richBlockSelectionPluginKey, {
+        notice: { count: info.count, kind: "pasted" },
+        range: null
+      });
+      transaction.setSelection(
+        Selection.near(transaction.doc.resolve(Math.min(info.from, transaction.doc.content.size)), 1)
+      );
+      dispatch(transaction.scrollIntoView());
+    }
+    return true;
+  };
+}
+
+export function createRichBlockSelectionPlugin(
+  options: RichBlockSelectionPluginOptions = {}
+): Plugin<RichBlockSelectionPluginState> {
+  const keyboard = options.keyboard !== false;
+  const labels: RichBlockSelectionLabels = { ...defaultRichBlockSelectionLabels, ...options.labels };
+  return new Plugin<RichBlockSelectionPluginState>({
+    key: richBlockSelectionPluginKey,
+    props: {
+      handleDOMEvents: {
+        copy(view, event) {
+          return writeRichBlockSelectionClipboard(view as unknown as RichBlockSelectionViewLike, event as ClipboardEvent, false);
+        },
+        cut(view, event) {
+          return writeRichBlockSelectionClipboard(view as unknown as RichBlockSelectionViewLike, event as ClipboardEvent, true);
+        }
+      },
+      handleKeyDown(view, event) {
+        return keyboard
+          ? handleRichBlockSelectionKeyDown(view as unknown as RichBlockSelectionViewLike, event)
+          : false;
+      },
+      handlePaste(view, event, slice) {
+        const dispatch = (transaction: Transaction): void => {
+          (view as unknown as RichBlockSelectionViewLike).dispatch(transaction);
+        };
+        const text = (event as ClipboardEvent).clipboardData?.getData("text/plain") ?? "";
+        if (pasteRichBlockSelectionMarkdownCommand(text)(view.state, dispatch)) {
+          return true;
+        }
+        /*
+         * A payload with no usable text/plain — an image, an HTML-only clipboard
+         * — would otherwise fall through to ProseMirror, which replaces only the
+         * anchor `NodeSelection`: the other selected blocks were silently left
+         * behind. The whole selected range is what the user asked to replace.
+         */
+        return replaceRichBlockSelectionWithSliceCommand(slice)(view.state, dispatch);
+      },
+      handleTextInput(view, _from, _to, text) {
+        return replaceRichBlockSelectionWithTextCommand(text)(view.state, (transaction) => {
+          (view as unknown as RichBlockSelectionViewLike).dispatch(transaction);
+        });
+      }
+    },
+    state: {
+      apply(transaction, previous, _oldState, nextState) {
+        const meta = transaction.getMeta(richBlockSelectionPluginKey) as
+          | RichBlockSelectionPluginState
+          | undefined;
+        if (meta !== undefined) {
+          return meta;
+        }
+        // A notice is one-shot: it is announced by the transaction that set it
+        // and must not be repeated by the next unrelated update.
+        const range = previous.range;
+        if (!range) {
+          return previous.notice ? emptyRichBlockSelectionState : previous;
+        }
+        // Any ordinary edit leaves the block layer. Every block-selection
+        // transaction carries the meta above, so this cannot drop a selection
+        // the model itself just made.
+        if (transaction.docChanged) {
+          return emptyRichBlockSelectionState;
+        }
+        if (!transaction.selectionSet) {
+          return previous.notice ? { notice: null, range } : previous;
+        }
+        // A pointer-driven selection is the user leaving the block layer for the
+        // caret, even when they clicked inside the selected block.
+        if (transaction.getMeta("pointer")) {
+          return emptyRichBlockSelectionState;
+        }
+        /*
+         * The browser echo (MME-0103, found in the browser and invisible to
+         * jsdom). A `NodeSelection` over a textblock is rendered as a DOM range
+         * across that block's text; `DOMObserver` reads that range back and
+         * `readDOMChange` dispatches a plain `setSelection` for it. Treating
+         * that echo as "the user moved the caret" cleared block-selection mode
+         * a few milliseconds after every single Escape — the feature worked
+         * headlessly and did nothing at all in a real browser.
+         *
+         * An echo lands inside the selected blocks. A real caret move lands
+         * outside them, and still leaves.
+         */
+        const ranges = topLevelRangesForDoc(nextState.doc);
+        const start = ranges[Math.min(range.anchorIndex, range.headIndex)];
+        const end = ranges[Math.max(range.anchorIndex, range.headIndex)];
+        if (!start || !end) {
+          return emptyRichBlockSelectionState;
+        }
+        return nextState.selection.from >= start.from && nextState.selection.to <= end.to
+          ? { notice: null, range }
+          : emptyRichBlockSelectionState;
+      },
+      init() {
+        return emptyRichBlockSelectionState;
+      }
+    },
+    view(editorView) {
+      return createRichBlockSelectionView(
+        editorView as unknown as RichBlockSelectionPaintViewLike,
+        labels,
+        options.liveRegion !== false
+      );
+    }
+  });
+}
+
+/** The slice of the editor view the presentation needs. */
+interface RichBlockSelectionPaintViewLike {
+  readonly dom: HTMLElement;
+  /**
+   * ProseMirror's mutation observer. Marking a block it manages is a DOM
+   * mutation like any other, and it reacts by re-reading that block — which
+   * redraws, which re-marks, which re-reads. Measured in Chrome: the tab locked
+   * up on the first Escape. Mutations to the editor root are exempt (the
+   * observer ignores attribute changes on its own node), which is why
+   * `data-mme-block-selection` needs no guard and the per-block marks do.
+   *
+   * This is NOT the technique the hover marking uses: that marks widget
+   * elements, which ProseMirror never reads back. This marks block DOM
+   * ProseMirror owns, which is exactly why the observer has to be paused.
+   *
+   * Known risk, recorded rather than hidden: `domObserver` is an internal field
+   * of `EditorView` and appears nowhere in prosemirror-view's public types, so a
+   * rename in a patch release would silently reintroduce the lock-up. The
+   * optional call keeps it from throwing; `tests/rich-block-selection.test.mjs`
+   * asserts the field still exists so an upgrade fails loudly instead.
+   */
+  readonly domObserver?: { start(): void; stop(): void };
+  readonly state: EditorState;
+}
+
+/**
+ * The presentation ships with the model.
+ *
+ * Attempt 1 put the selection decoration in `createRichBlockAffordancePlugin`,
+ * which is not part of `createMomentariseRichPlugins`, so a consumer on the
+ * default plugins would have got a fully functional, completely invisible block
+ * selection. This lives in the block-selection plugin itself, and marks block
+ * DOM directly rather than through a `Decoration` — the same technique the
+ * hover marking already uses, and it keeps the package free of a
+ * `prosemirror-view` dependency it does not otherwise need.
+ *
+ * Accessibility: a polite live region, never `aria-selected` (invalid on
+ * paragraph/heading/list roles) and never `aria-label` on a block (it would
+ * replace a heading's own accessible name with "Block selected").
+ */
+function createRichBlockSelectionView(
+  editorView: RichBlockSelectionPaintViewLike,
+  labels: RichBlockSelectionLabels,
+  liveRegionEnabled: boolean
+): { destroy(): void; update(): void } {
+  const host = editorView.dom;
+  let liveRegion: HTMLElement | null = null;
+  if (liveRegionEnabled && host.parentElement) {
+    liveRegion = document.createElement("div");
+    liveRegion.className = "rich-block-selection-live-region";
+    liveRegion.dataset.testid = "rich-block-selection-live-region";
+    liveRegion.setAttribute("aria-live", "polite");
+    liveRegion.setAttribute("role", "status");
+    host.parentElement.insertBefore(liveRegion, host);
+  }
+  let announcedSelection = false;
+  let lastAnnouncementKey = "none";
+  let noticeSerial = 0;
+
+  const paint = (): void => {
+    const info = richBlockSelection(editorView.state);
+    const blocks = [...host.children].filter((child) => !child.classList.contains("ProseMirror-widget"));
+    const marks = blocks.map((block, index) => ({
+      block,
+      selected: info !== null && index >= info.fromIndex && index <= info.toIndex
+    }));
+    // Only touch the DOM when a mark actually changes, and never while the
+    // observer is watching. Both matter: the first keeps ProseMirror from
+    // re-reading blocks on every unrelated update, the second is what stops the
+    // mark/re-read/redraw loop outright.
+    const changed = marks.filter(
+      ({ block, selected }) => (block.getAttribute("data-mme-block-selected") === "true") !== selected
+    );
+    if (changed.length > 0) {
+      editorView.domObserver?.stop();
+      try {
+        for (const { block, selected } of changed) {
+          if (selected) {
+            block.setAttribute("data-mme-block-selected", "true");
+          } else {
+            block.removeAttribute("data-mme-block-selected");
+          }
+        }
+      } finally {
+        editorView.domObserver?.start();
+      }
+    }
+    if (info) {
+      host.setAttribute("data-mme-block-selection", String(info.count));
+      announcedSelection = true;
+    } else {
+      host.removeAttribute("data-mme-block-selection");
+    }
+    if (!liveRegion) {
+      return;
+    }
+    /*
+     * Keyed on the state, not on the rendered string.
+     *
+     * Two adjacent paragraphs with the same text would otherwise produce the
+     * same announcement and the live region would never be touched, so arrowing
+     * between them would be silent. `notice` is one-shot, so it takes part in
+     * the key too: deleting three blocks must announce even though the state it
+     * leaves behind is the same "nothing selected" as an Escape.
+     */
+    const notice = (richBlockSelectionPluginKey.getState(editorView.state) ?? emptyRichBlockSelectionState).notice;
+    const key = notice
+      ? `notice:${notice.kind}:${notice.count}:${noticeSerial}`
+      : info
+        ? `range:${info.fromIndex}:${info.toIndex}`
+        : "none";
+    if (notice) {
+      noticeSerial += 1;
+    }
+    if (key === lastAnnouncementKey) {
+      return;
+    }
+    lastAnnouncementKey = key;
+    // Nothing is announced before the first selection, so mounting the editor
+    // never says "selection cleared" into a screen reader.
+    liveRegion.textContent = notice || info || announcedSelection
+      ? richBlockSelectionAnnouncement(editorView.state, labels)
+      : "";
+  };
+
+  paint();
+  return {
+    destroy() {
+      liveRegion?.remove();
+    },
+    update() {
+      paint();
+    }
+  };
+}
+
+function handleRichBlockSelectionKeyDown(
+  view: RichBlockSelectionViewLike,
+  event: KeyboardEvent
+): boolean {
+  const dispatch = (transaction: Transaction): void => {
+    view.dispatch(transaction);
+  };
+  const mod = event.metaKey || event.ctrlKey;
+
+  if (event.key === "Escape" && !mod && !event.altKey) {
+    /*
+     * MME-0086/0088 regression guard. `attachSurfaceOverlayDismissListeners`
+     * binds Escape with `capture: true` on the document, so it runs before this
+     * handler; when it actually dismissed an overlay it calls `preventDefault()`.
+     * Without this check one press both closed the slash menu and entered block
+     * selection.
+     */
+    if (event.defaultPrevented) {
+      return false;
+    }
+    return (
+      clearRichBlockSelectionCommand(view.state, dispatch) ||
+      enterRichBlockSelectionCommand(view.state, dispatch)
+    );
+  }
+
+  if (mod && !event.altKey && !event.shiftKey && (event.key === "a" || event.key === "A")) {
+    return escalateRichSelectionCommand(view.state, dispatch);
+  }
+
+  if (!richBlockSelection(view.state)) {
+    return false;
+  }
+  if (mod && !event.altKey && !event.shiftKey && (event.key === "d" || event.key === "D")) {
+    return duplicateRichBlockSelectionCommand(view.state, dispatch);
+  }
+  if (event.key === "Backspace" || event.key === "Delete") {
+    return deleteRichBlockSelectionCommand(view.state, dispatch);
+  }
+  if (event.key === "Enter") {
+    return replaceRichBlockSelectionWithParagraphCommand(view.state, dispatch);
+  }
+  if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
+    return moveRichBlockSelectionCommand(-1, { extend: event.shiftKey })(view.state, dispatch);
+  }
+  if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+    return moveRichBlockSelectionCommand(1, { extend: event.shiftKey })(view.state, dispatch);
+  }
+  if (event.key === "Tab") {
+    /*
+     * Tab belongs to whatever it belonged to before — the table cell walk, list
+     * indentation, or the browser's own focus order. The block layer only steps
+     * out of the way first, so the selection is not left painted around a block
+     * whose caret has moved into a cell, or around a block while focus sits on a
+     * handle somewhere else entirely.
+     */
+    clearRichBlockSelectionCommand(view.state, dispatch);
+    return false;
+  }
+  return false;
+}
+
+function writeRichBlockSelectionClipboard(
+  view: RichBlockSelectionViewLike,
+  event: ClipboardEvent,
+  cut: boolean
+): boolean {
+  const markdown = richBlockSelectionMarkdown(view.state);
+  if (markdown === null || !event.clipboardData) {
+    return false;
+  }
+  event.clipboardData.setData("text/plain", markdown);
+  event.clipboardData.setData("text/html", richBlockSelectionHtml(view.state));
+  event.preventDefault();
+  if (cut) {
+    deleteRichBlockSelectionCommand(view.state, (transaction) => {
+      view.dispatch(transaction);
+    });
+  }
+  return true;
+}
+
+function richBlockSelectionHtml(state: EditorState): string {
+  const info = richBlockSelection(state);
+  if (!info) {
+    return "";
+  }
+  const container = document.createElement("div");
+  container.appendChild(
+    DOMSerializer.fromSchema(state.schema).serializeFragment(state.doc.slice(info.from, info.to).content)
+  );
+  return container.innerHTML;
+}
+
+/**
+ * Builds the transaction that puts the editor into block-selection mode.
+ *
+ * The ProseMirror selection becomes a `NodeSelection` on the anchor block even
+ * when several blocks are selected: the plugin state carries the range, so the
+ * selection never has to be a multi-block `TextSelection` and the browser never
+ * paints a per-character highlight over the selected blocks.
+ */
+function richBlockSelectionTransaction(
+  state: EditorState,
+  anchorIndex: number,
+  headIndex: number
+): Transaction {
+  const transaction = state.tr;
+  applyRichBlockSelectionToTransaction(transaction, anchorIndex, headIndex);
+  return transaction.scrollIntoView();
+}
+
+function applyRichBlockSelectionToTransaction(
+  transaction: Transaction,
+  anchorIndex: number,
+  headIndex: number,
+  notice: RichBlockSelectionNotice | null = null
+): void {
+  const ranges = topLevelRangesForDoc(transaction.doc);
+  if (ranges.length === 0) {
+    transaction.setMeta(richBlockSelectionPluginKey, emptyRichBlockSelectionState);
+    return;
+  }
+  const anchor = clampRichBlockIndex(anchorIndex, ranges.length);
+  const head = clampRichBlockIndex(headIndex, ranges.length);
+  transaction.setMeta(richBlockSelectionPluginKey, {
+    notice,
+    range: { anchorIndex: anchor, headIndex: head }
+  });
+  const anchorRange = ranges[anchor]!;
+  transaction.setSelection(
+    NodeSelection.isSelectable(anchorRange.node)
+      ? NodeSelection.create(transaction.doc, anchorRange.from)
+      : Selection.near(transaction.doc.resolve(anchorRange.from), 1)
+  );
+}
+
+/**
+ * The top-level block the current selection belongs to.
+ *
+ * A `CellSelection` resolves through here to its owning table, which is what
+ * makes `Esc` inside a table select the table as a block instead of leaving an
+ * invisible cell selection behind.
+ */
+function topLevelIndexForSelection(state: EditorState): number | null {
+  if (state.doc.childCount === 0) {
+    return null;
+  }
+  const { $from } = state.selection;
+  const index = $from.depth === 0 ? $from.index() : $from.index(0);
+  return index >= 0 && index < state.doc.childCount ? index : null;
+}
+
+function topLevelRangesForDoc(doc: ProseMirrorNode): readonly RichTopLevelBlockRange[] {
+  const ranges: RichTopLevelBlockRange[] = [];
+  doc.forEach((node, offset, index) => {
+    ranges.push({
+      from: offset,
+      index,
+      node,
+      text: node.textContent,
+      to: offset + node.nodeSize,
+      type: node.type.name
+    });
+  });
+  return ranges;
+}
+
+function clampRichBlockIndex(index: number, blockCount: number): number {
+  return Math.max(0, Math.min(index, blockCount - 1));
+}
+
 export function serializeRichMarkdownState(state: RichMarkdownState): {
   readonly content: string;
   readonly diagnostics: readonly Diagnostic[];
@@ -3843,47 +4780,93 @@ function serializeRichMarkdownContent(state: RichMarkdownState): string {
     return state.frontmatterSource ? `${state.frontmatterSource}\n\n${body}\n` : `${body}\n`;
   }
 
-  const fallbackPrefix = state.frontmatterSource ? `${state.frontmatterSource}\n\n` : "";
   const segments: string[] = [];
   const alignedBlocks = alignRichBlocks(blocks, pairs);
   let lastOriginalIndex = -1;
+
+  /*
+   * Separators are bytes too (MME-0103).
+   *
+   * The gap between two top-level blocks is authored content: a CRLF document's
+   * "\r\n\r\n", a deliberate multi-blank-line break, the blank line a writer put
+   * after frontmatter. Emitting a literal "\n\n" whenever the surviving
+   * neighbours were not consecutive in the original silently rewrote those bytes.
+   * Measured before this fix, with a purely targeted `tr.delete` transaction:
+   *
+   *   delete block 1 of "A.\r\n\r\nB.\r\n\r\nC.\r\n"  ->  "A.\n\nC.\r\n"
+   *   delete block 1 of "A.\n\n\n\nB.\n\n\n\nC.\n"    ->  "A.\n\nC.\n"
+   *   delete block 2 of "A.\r\n\r\nB.\r\n\r\nC.\r\n"  ->  "A.\r\n\r\nB.\n"
+   *
+   * That is silent Markdown corruption, and it is the reason MME-0103 attempt 1
+   * was reverted. Note the transaction shape did not cause it and cannot fix it:
+   * every separator has to be sliced out of the source instead of invented, so
+   * each one below comes from the bytes the author actually wrote.
+   */
+  const firstPairRange = pairs[0]!.model.sourceRange!;
+  const lastPairRange = pairs[pairs.length - 1]!.model.sourceRange!;
+  const leadingPrefix = source.slice(0, firstPairRange.start.offset);
+  const documentTail = source.slice(lastPairRange.end.offset);
+  const gapAfterPair = (pairIndex: number): string | null =>
+    pairIndex >= 0 && pairIndex + 1 < pairs.length
+      ? source.slice(
+          pairs[pairIndex]!.model.sourceRange!.end.offset,
+          pairs[pairIndex + 1]!.model.sourceRange!.start.offset
+        )
+      : null;
+  /*
+   * Last resort: a block with no authored gap on either side (the document's
+   * first block moved out of position, or a one-block document that gained a
+   * second). Reuse the document's own first block gap so its spacing rhythm —
+   * and its line ending — survive; only a document with no gap at all falls
+   * through to inventing one.
+   */
+  const documentGap = (): string => {
+    for (let pairIndex = 0; pairIndex + 1 < pairs.length; pairIndex += 1) {
+      const gap = gapAfterPair(pairIndex);
+      if (gap !== null && gap.length > 0) {
+        return gap;
+      }
+    }
+    return source.includes("\r\n") ? "\r\n\r\n" : "\n\n";
+  };
+  const separatorBefore = (originalIndex: number): string => {
+    if (segments.length === 0) {
+      // Whatever preceded the original first block: frontmatter and its own gap,
+      // or leading blank lines. Correct even when block 0 itself was deleted.
+      return leadingPrefix;
+    }
+    if (originalIndex >= 0 && lastOriginalIndex >= 0 && originalIndex === lastOriginalIndex + 1) {
+      return source.slice(
+        pairs[lastOriginalIndex]!.model.sourceRange!.end.offset,
+        pairs[originalIndex]!.model.sourceRange!.start.offset
+      );
+    }
+    // The neighbours are no longer consecutive (a block between them was
+    // deleted, duplicated or moved). The surviving previous block keeps the gap
+    // its author wrote after it; failing that, the gap written before this one.
+    return gapAfterPair(lastOriginalIndex) ?? gapAfterPair(originalIndex - 1) ?? documentGap();
+  };
 
   for (const aligned of alignedBlocks) {
     if (aligned.kind === "matched") {
       const originalIndex = aligned.pairIndex;
       const range = pairs[originalIndex]!.model.sourceRange!;
-      let separator: string;
-      if (segments.length === 0) {
-        separator = originalIndex === 0 ? source.slice(0, range.start.offset) : fallbackPrefix;
-      } else if (lastOriginalIndex >= 0 && originalIndex === lastOriginalIndex + 1) {
-        separator = source.slice(pairs[lastOriginalIndex]!.model.sourceRange!.end.offset, range.start.offset);
-      } else {
-        separator = "\n\n";
-      }
-      segments.push(separator + source.slice(range.start.offset, range.end.offset));
+      segments.push(separatorBefore(originalIndex) + source.slice(range.start.offset, range.end.offset));
       lastOriginalIndex = originalIndex;
     } else {
       const originalIndex = aligned.kind === "replaced" ? aligned.pairIndex : -1;
       let text = serializeReconstructedProseMirrorBlock(aligned.block);
-      let separator: string;
       if (originalIndex >= 0) {
         const range = pairs[originalIndex]!.model.sourceRange!;
         text = applySourceLineEnding(text, source.slice(range.start.offset, range.end.offset));
-        if (segments.length === 0) {
-          separator = originalIndex === 0 ? source.slice(0, range.start.offset) : fallbackPrefix;
-        } else if (lastOriginalIndex >= 0 && originalIndex === lastOriginalIndex + 1) {
-          separator = source.slice(pairs[lastOriginalIndex]!.model.sourceRange!.end.offset, range.start.offset);
-        } else {
-          separator = "\n\n";
-        }
+        segments.push(separatorBefore(originalIndex) + text);
         // A reconstructed replacement still occupies the original pair slot,
         // so the next untouched neighbor can reuse the original gap-after.
         lastOriginalIndex = originalIndex;
       } else {
         text = applySourceLineEnding(text, source);
-        separator = segments.length === 0 ? fallbackPrefix : "\n\n";
+        segments.push(separatorBefore(-1) + text);
       }
-      segments.push(separator + text);
     }
   }
 
@@ -3891,7 +4874,10 @@ function serializeRichMarkdownContent(state: RichMarkdownState): string {
   if (lastOriginalIndex === pairs.length - 1) {
     content += source.slice(pairs[lastOriginalIndex]!.model.sourceRange!.end.offset);
   } else {
-    content = `${content.trimEnd()}\n`;
+    // The final original block is gone. The document's own trailing bytes are
+    // still the truth — trimming to a bare "\n" injected an LF into every CRLF
+    // document whose last block was deleted.
+    content = content.replace(/(?:\r?\n)+$/, "") + documentTail;
   }
   return content;
 }
@@ -4318,39 +5304,70 @@ function alignRichBlocks(
   blocks: readonly ProseMirrorNode[],
   pairs: readonly RichTopLevelBlockPair[]
 ): readonly RichBlockAlignment[] {
-  const alignment: RichBlockAlignment[] = [];
+  const alignment: (RichBlockAlignment | null)[] = blocks.map(() => null);
   const consumedPairIndexes = new Set<number>();
 
+  /*
+   * A block that still equals the pair at its OWN index keeps that pair
+   * (MME-0103).
+   *
+   * The greedy pass below matches against the first unconsumed equivalent pair
+   * anywhere in the document, which is wrong as soon as an edit makes a block
+   * equal to a LATER one. Pasting "B." over "A." in "A.\n\n\n\nB.\n\nC.\n" made
+   * the new first block claim B's pair, so the untouched B was re-slotted into
+   * A's vacated pair — and both then drew the wrong gap:
+   *
+   *   actual   "B.\n\nB.\n\n\n\nC.\n"
+   *   expected "B.\n\n\n\nB.\n\nC.\n"
+   *
+   * The blank-line run between B and C changed, and the user never touched
+   * either of them. Gate 4.5 names blank-line runs explicitly. Anchoring the
+   * blocks that did not move before resolving the ones that did fixes it, and
+   * leaves reordering untouched, because a reordered block never equals the pair
+   * at its new index.
+   */
   for (let blockIndex = 0; blockIndex < blocks.length; blockIndex += 1) {
+    const pair = pairs[blockIndex];
+    const block = blocks[blockIndex]!;
+    if (pair?.pm && richNodesEquivalent(pair.pm, block)) {
+      alignment[blockIndex] = { block, kind: "matched", pairIndex: blockIndex };
+      consumedPairIndexes.add(blockIndex);
+    }
+  }
+
+  for (let blockIndex = 0; blockIndex < blocks.length; blockIndex += 1) {
+    if (alignment[blockIndex]) {
+      continue;
+    }
     const block = blocks[blockIndex]!;
     const exactMatchIndex = findExactRichPairIndex(block, pairs, consumedPairIndexes);
     if (exactMatchIndex >= 0) {
-      alignment.push({
+      alignment[blockIndex] = {
         block,
         kind: "matched",
         pairIndex: exactMatchIndex
-      });
+      };
       consumedPairIndexes.add(exactMatchIndex);
       continue;
     }
 
     const replacementIndex = findReplacementRichPairIndex(blockIndex, blocks, pairs, consumedPairIndexes);
     if (replacementIndex >= 0) {
-      alignment.push({
+      alignment[blockIndex] = {
         block,
         kind: "replaced",
         pairIndex: replacementIndex
-      });
+      };
       consumedPairIndexes.add(replacementIndex);
     } else {
-      alignment.push({
+      alignment[blockIndex] = {
         block,
         kind: "inserted"
-      });
+      };
     }
   }
 
-  return alignment;
+  return alignment as readonly RichBlockAlignment[];
 }
 
 function findExactRichPairIndex(

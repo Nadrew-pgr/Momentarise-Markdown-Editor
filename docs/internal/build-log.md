@@ -8856,3 +8856,266 @@ were all removed; `npm test` is green at `e090cac`.
 - Visual impact: No visible editing or general UI changes from this review itself.
 - Checks run: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
 - Push status: pushed.
+
+## MME-0103 — Block selection model (attempt 2, redesigned)
+
+- Timestamp: 2026-08-02.
+- Status: code-complete, human review pending (Block C1's only issue; the
+  consolidated visual review is the gate).
+- Attempt 1 was reverted on 2026-08-01; the entry above is the specification this
+  attempt was written against.
+
+### The premise in the hardened criteria was half right, and that mattered
+
+The criteria said the corruption came from a full-document `replaceWith(0, size, …)`
+that was then diffed, and that targeted transactions on `state.tr` would fix it.
+Targeted transactions are necessary — they fix the caret mapping and make
+`tr.mapping` usable by other plugins — but they are **not sufficient**.
+Reproduced on `main` before writing any code, using nothing but
+`state.tr.delete(from, to)`:
+
+```
+delete block 1 of "A.\r\n\r\nB.\r\n\r\nC.\r\n"  ->  "A.\n\nC.\r\n"
+delete block 1 of "A.\n\n\n\nB.\n\n\n\nC.\n"    ->  "A.\n\nC.\n"
+delete block 2 of "A.\r\n\r\nB.\r\n\r\nC.\r\n"  ->  "A.\r\n\r\nB.\n"
+NodeSelection.create(doc, tablePosition)         ->  CellSelection
+```
+
+The literal `"\n\n"` lives in `serializeRichMarkdownContent`, which runs on the
+resulting document however that document was produced. So this slice is two
+changes: targeted transactions **and** separators sliced out of the source.
+
+Side effect, same fix, same function: the shipped MME-0087 drag-reorder already
+corrupted CRLF documents on `main` (`reorder C before A` gave
+`"C.\n\nA.\r\n\r\nB.\n"`; it now gives `"C.\r\n\r\nA.\r\n\r\nB.\r\n"`).
+
+### Three defects found after the headless suite was fully green
+
+1. **The DOM-observer lock-up.** Marking a block ProseMirror manages is a DOM
+   mutation like any other; `DOMObserver` re-read the block, which redrew it,
+   which re-marked it. Chrome locked up on the first Escape
+   (`Input.dispatchKeyEvent timed out`) while every headless assertion passed.
+   Fixed by making the marking idempotent and pausing `view.domObserver` around
+   it. `domObserver` is an internal field of `EditorView` and appears nowhere in
+   prosemirror-view's public types — recorded as a known risk, with a tripwire
+   assertion so an upgrade that renames it fails loudly instead of silently
+   restoring the lock-up.
+2. **The selection echo.** A `NodeSelection` over a textblock renders as a DOM
+   range; `DOMObserver` reads it back and `readDOMChange` dispatches a plain
+   `setSelection`. The plugin treated that as a caret move and cleared block mode
+   a few milliseconds after every Escape — the feature worked headlessly and did
+   nothing at all in a real browser. Fixed by distinguishing the echo (lands
+   inside the selected blocks, no `pointer` meta) from a real caret move.
+3. **Block-alignment transposition, found by the Architecture Reviewer and
+   reproduced independently.** When an edit made a block equal to a *later*
+   block, the aligner matched it to that later pair and re-slotted the untouched
+   later block into the vacated earlier pair; both survivors then drew the wrong
+   gap. Pasting `"B."` over `"A."` in `"A.\n\n\n\nB.\n\nC.\n"` gave
+   `"B.\n\nB.\n\n\n\nC.\n"` instead of `"B.\n\n\n\nB.\n\nC.\n"` — a blank-line run
+   changed between two blocks the user never touched, which Gate 4.5 names
+   explicitly. Fixed with a same-index anchoring pass in `alignRichBlocks`;
+   reordering is unaffected because a reordered block never equals the pair at
+   its new index.
+
+### Design decisions, recorded
+
+- **Plugin state is the source of truth, not the ProseMirror selection.** Keeps
+  attempt 1's judged-sound `NodeSelection`/`TextSelection` choice while fixing
+  what leaked: `NodeSelection` is not sovereign (`tableEditing()` reinterprets it)
+  and a multi-block `TextSelection` is not private (the bubble toolbar observes
+  it, the browser paints it). The PM selection is a `NodeSelection` on the anchor
+  block; every operation reads block indices from plugin state.
+- `AllSelection` covers only the whole-document stage; `CellSelection` is the
+  thing to defend against rather than imitate. No custom `Selection` subclass.
+- `tableEditing({ allowTableNodeSelection: true })`, plus `topLevelIndexForSelection`
+  resolving a `CellSelection` to its owning table, so `Esc` in a cell selects the
+  table.
+- **Presentation ships in `createMomentariseRichPlugins`**, marking block DOM
+  directly rather than through a `Decoration`, so the package gains no
+  `prosemirror-view` dependency and a default-plugin consumer cannot get an
+  invisible block-selection mode.
+- **The ring, not the tint, is the indicator.** `--mme-color-selection` measures
+  ~1.4:1 against the page in dark and weaker in light, and a framed block paints
+  its own background over it — a selected table showed no fill at all. The ring
+  uses `--mme-color-focus-ring`, the one token gated at >= 3:1 in both schemes,
+  and is drawn outside the block so a table gets the same indicator a paragraph
+  does. Measured in-browser: 1280/390 dark `rgb(138,180,255)` on `rgb(10,10,10)`;
+  1280 light `rgb(0,87,194)` on `rgb(251,252,255)`.
+- **Escape is consumed only by overlays that own it.** `md-surface` gains
+  `SurfaceOverlayRegistration.consumesEscape` (optional, defaults true) and
+  `SurfaceOverlayDismissController.consumesEscape()` (**a required method on an
+  exported interface — a breaking type change for any host implementing that
+  interface itself**). The demo's caret-derived block controls opt out: they are
+  visible most of the time while writing, so consuming Escape would have made
+  block selection need two presses every time.
+
+### Files changed
+
+- `packages/md-rich-prosemirror/src/index.ts` — byte-derived separators, the
+  same-index alignment pass, the block-selection model, `allowTableNodeSelection`.
+- `packages/md-surface/src/index.ts` — Escape consumption and `consumesEscape`.
+- `packages/md-theme/src/styles.css` — selection ring, tint, `::selection`
+  suppression, tokenised node-selection indicator, live-region hiding.
+- `apps/md-demo/src/main.ts` — `consumesEscape: false` on the block controls, the
+  `setRichBlockCaretForTest` hook, one import.
+- New: `tests/rich-block-selection.test.mjs`, `scripts/visual-check-mme0103.mjs`,
+  `fixtures/040-block-selection/` (LF + CRLF + `.gitattributes` + expectations),
+  `docs/internal/visual-checks/MME-0103/`.
+- `tests/fixtures/public-api-approved.json` — 16 new exports approved.
+- `tests/rich-table-{csv,spreadsheet}-paste.test.mjs` — the paste helper now names
+  the handler under test instead of taking whichever plugin declares `handlePaste`
+  first. A strengthening: unedited, it would have silently started testing the
+  block-selection plugin.
+
+### Tests run
+
+- `npm test` — exit 0 (full suite, twice: after implementation and after the
+  reviewer fixes).
+- `npm run test:rich-block-selection` — the new gate.
+- `npm run visual:mme-0103` — 18 screenshots across 1280 dark, 390 dark, and
+  1280 light.
+
+### Mutation testing — reversion-to-failure table
+
+Two batches, 38 mutants, **38 killed**. Batch M is the implementation as first
+written; batch N is every assertion added or tightened in response to the
+reviewers. Two mutants survived their first run and both were real gaps in the
+assertions, not equivalent mutants; both were fixed and re-killed (M21, N14).
+
+| # | Reversion | Result | Assertion that failed |
+| --- | --- | --- | --- |
+| M1 | separator for non-consecutive survivors reverts to literal `"\n\n"` | KILLED | CRLF document, middle block: deleting must leave every other byte as authored |
+| M2 | trailing bytes reverted to `trimEnd() + "\n"` | KILLED | CRLF document, last block: same |
+| M3 | leading prefix dropped when the original first block is gone | KILLED | frontmatter document, first body block: same |
+| M4 | `allowTableNodeSelection` removed | KILLED | Escape did not enter block selection on block 3 |
+| M5 | Escape stops checking `defaultPrevented` | KILLED | an Escape already consumed by an overlay must be declined |
+| M6 | overlay dismissal stops marking Escape handled | KILLED | an Escape that dismissed an overlay must be marked handled |
+| M7 | overlay dismissal marks *every* Escape handled | KILLED | an Escape that dismissed nothing must reach the editor |
+| M8 | selected blocks stop being marked in the DOM | KILLED | the selected block, and only it, is marked |
+| M9 | live region becomes `assertive` | KILLED | the announcement must be polite |
+| M10 | delete split into two dispatched transactions | KILLED | delete must be a single document-changing transaction; 2 were dispatched |
+| M11 | duplicate appends the copy at the document end | KILLED | duplicating in a CRLF document must join the copy with CRLF |
+| M12 | `Cmd+A` skips the inline stage | KILLED | the first Cmd+A stays inline |
+| M13 | `Shift+Arrow` moves instead of extending | KILLED | Shift+ArrowDown extends rather than moves |
+| M14 | typing over a block selection unhandled | KILLED | typing must be handled by the block layer |
+| M15 | copy stops writing the Markdown payload | KILLED | text/plain must be the canonical Markdown |
+| M16 | pasted Markdown inserted as plain text | KILLED | pasting restores equivalent blocks, not flattened paragraphs |
+| M17 | block layer stops declining with no selection | KILLED | Backspace must fall through to the ordinary commands |
+| M18 | plugin dropped from the default plugin set | KILLED | Escape did not enter block selection on block 1 |
+| M19 | `Enter` no longer replaces the selection | KILLED | the code fence should be gone after Enter replaced it |
+| M20 | `::selection` suppression removed | KILLED | the suppression must make the highlight transparent |
+| M21 | selection background stops being token-driven | **survived, then KILLED** | the loose check matched the `box-shadow`; tightened to the `background` declaration itself, then killed |
+| M22 | framed matrix's table case pointed at the code fence (attempt 1's exact defect) | KILLED | table: expected a table block, found `code_block` |
+| N1 | announcement drops block identity | KILLED | selecting a block announces its type, position, total and excerpt |
+| N2 | live region keyed on the rendered string again | KILLED | moving announces the new block even though the count did not change |
+| N3 | operations stop announcing what they did | KILLED | deleting announces the deletion, not merely "cleared" |
+| N4 | duplicate stops announcing | KILLED | duplicating announces the duplication |
+| N5 | plugin ignores host-supplied labels | KILLED | the host's labels must reach the live region |
+| N6 | `aria-label` written onto every selected block | KILLED | `aria-label` on a heading replaces its accessible name |
+| N7 | arrow at the first block falls through | KILLED | ArrowUp at the first block must be consumed |
+| N8 | fourth `Cmd+A` falls through to `selectAll` | KILLED | must not become an `AllSelection` |
+| N9 | cut copies but never deletes | KILLED | cut must be a single document-changing transaction; 0 were dispatched |
+| N10 | copy widened by one block | KILLED | the copied Markdown is exactly the selected blocks |
+| N11 | clearing returns the caret to the document start | KILLED | the caret returns to the block that was selected |
+| N12 | duplicate inserts the wrong block | KILLED | duplicating in a CRLF document must join with CRLF |
+| N13 | framed selection lands inside the node | KILLED | a single-block selection is a NodeSelection |
+| N14 | `Tab` leaves the selection painted behind it | **survived, then KILLED** | no assertion existed; added, then killed |
+| N15 | selection ring reverts to the low-contrast tint | KILLED | the ring needs a contrast-gated token |
+| N16 | node-selection indicator removed outright again | KILLED | the replacement indicator must be token-driven |
+
+### Behavioral parity checklist — contract 3, verified in Chrome
+
+Every row exercised through real key events in a real browser, not on paper.
+
+| Interaction | Benchmark | MME | Verdict |
+| --- | --- | --- | --- |
+| `Esc` from a caret selects the block | Notion/BlockNote | yes | same as benchmark |
+| `Esc` again clears and returns the caret | Notion | yes, to the block it was on | same as benchmark |
+| Arrow moves the block selection | Notion/BlockNote | Up/Left previous, Down/Right next | same as benchmark |
+| Arrow at the first/last block | Notion absorbs | absorbs (asserted on `defaultPrevented`) | same as benchmark |
+| `Shift+Arrow` extends | Notion | yes, anchor fixed | same as benchmark |
+| `Cmd/Ctrl+A` escalates inline -> block -> document | Notion | yes, three stages, fourth press absorbed | same as benchmark |
+| `Backspace`/`Delete` removes | Notion | yes, one transaction, byte-exact | same as benchmark |
+| `Cmd/Ctrl+D` duplicates | Notion | yes, copy after the original, authored gap | same as benchmark |
+| `Enter` replaces with an empty paragraph | Notion | yes | intentionally different (see below) |
+| Typing replaces the selection | Notion | yes, via `handleTextInput` | intentionally different for IME (see below) |
+| Copy yields the blocks' Markdown | Notion copies blocks | canonical Markdown + HTML flavour | better — the plain-text flavour is real Markdown |
+| Paste restores equivalent blocks | Notion | yes, through the document parser | same as benchmark |
+| Cut copies and deletes | Notion | yes, one transaction | same as benchmark |
+| Selection is visually distinct | Notion tint | ring at >= 3:1 plus tint | better — the tint alone fails WCAG 1.4.11 |
+| No per-character text highlight | Notion | computed `::selection` is transparent | same as benchmark |
+| Selection announced to AT | Notion announces poorly | polite live region with type, position, total, excerpt, and operation results | better |
+| `Tab` while selected | Notion moves focus on | clears the block layer, then defers | same as benchmark |
+| One `Esc` does one thing | Notion | overlay-owned Escapes do not enter block selection | same as benchmark |
+
+Intentionally different, and why:
+
+- **`Enter` leaves a wider blank-line run.** Markdown has no syntax for an empty
+  paragraph, so the replacement block emits nothing until the user types into it.
+  Inherent to a Markdown-native document; no other byte moves.
+- **IME/composition input does not replace the selection.** Composition bypasses
+  `handleTextInput` and lands inside the anchor block. Recorded rather than
+  papered over; it needs its own slice.
+- **A duplicated block is reconstructed, not byte-copied.** The original stays
+  byte-exact; the copy is emitted by the serializer, so a `*   alpha` list
+  duplicates as `- alpha`. Confined to the block the user acted on, and asserted.
+
+### Reviewer pass
+
+Three inspect-only reviewer subagents, all mandatory, all completed.
+
+- **Architecture Reviewer** — found the block-alignment transposition (fixed, and
+  its own gate added), flagged `domObserver` as internal API (recorded + tripwire),
+  the multi-block paste fall-through with no `text/plain` (fixed with
+  `replaceRichBlockSelectionWithSliceCommand`), `Mod+Shift+A`/`Mod+Shift+D` being
+  swallowed (fixed), the `||` gap chaining that would treat an empty authored gap
+  as a miss (fixed), and the `consumesEscape` breaking type change (recorded
+  above). Verified all 16 new exports have real call sites reachable from a user
+  interaction — the attempt-1 failure — and ran a corpus-wide differential over
+  39 fixtures confirming every delete/replace is a pure contiguous deletion and
+  every duplicate a pure contiguous insertion.
+- **Test Reviewer** — found five assertions that could not fail, including one
+  that re-created attempt 1's exact vacuity (the `aria-label`-on-heading guard ran
+  against a document with no heading). All five fixed and now mutation-killed
+  (N6, N7, N8, N5, plus the `includes`-based `Enter` case rewritten to full
+  equality). Also added: cut coverage, undo atomicity for all six mutating
+  operations, framed-block duplication, full-equality clipboard assertions.
+- **Accessibility Reviewer** — found the live region silent on equal-count arrow
+  moves (the most common navigation there is), operations announcing only
+  "cleared", the selection tint failing 1.4.11 in both schemes, framed blocks
+  getting no fill, and an unscoped `.ProseMirror-selectednode { outline: none }`
+  that stripped the indicator from plain node selections this feature does not
+  own. All fixed; light theme now verified in the browser.
+
+Residual risks, not fixed in this slice: composition/IME input; `domObserver` as
+internal API; and the invariant that no other plugin appends a doc change while a
+block selection is live (no live path exists today — audited — but it is not
+enforceable).
+
+### Manual verification
+
+`npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`, opened at
+`http://127.0.0.1:5174/`. Escape/arrow/Shift+Arrow/`Cmd+A` escalation/Enter/
+typing/`Cmd+D`/Backspace/undo and the slash-menu Escape collision all exercised
+through real key presses. Artifacts and what each proves:
+`docs/internal/visual-checks/MME-0103/README.md`.
+
+### Visual impact
+
+In the editing surface: a selected block gains a token-driven ring plus tint, and
+extends across framed blocks; the browser's per-character highlight is suppressed
+while blocks are selected; a plain node selection (image, divider) gains a
+tokenised indicator where prosemirror-view's untokenised outline used to be. In
+the general UI: no change — the live region is visually hidden.
+
+### Deviations from PRD
+
+None. Preservation-first throughout; the one Markdown-native consequence (`Enter`
+leaving a wider blank-line run) is documented rather than hidden.
+
+### Open questions
+
+- Composition/IME input over a block selection needs its own slice.
+- The demo re-parses after every rich edit, so undo after a block delete restores
+  the blocks but not the original gaps. Package-level undo is byte-exact; a host
+  that keeps its baseline (`@momentarise/md-react`) is unaffected. Worth an issue.

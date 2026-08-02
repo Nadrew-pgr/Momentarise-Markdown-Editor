@@ -665,13 +665,67 @@
   cursor: grabbing;
 }
 
-.rich-block-drag-instructions {
+.rich-block-drag-instructions,
+.rich-block-selection-live-region {
   position: absolute;
   inline-size: 1px;
   block-size: 1px;
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+
+/* --- block selection (MME-0103) -------------------------------------------
+ *
+ * Selection is visible; focus is not (benchmark contract 3). The state ships
+ * with the model in `createMomentariseRichPlugins`, so a consumer on the default
+ * plugins cannot end up with an invisible block-selection mode.
+ */
+
+/*
+ * The tint alone is not the indicator.
+ *
+ * `--mme-color-selection` is a low-alpha accent mix — around 1.4:1 against the
+ * page in dark and weaker in light, which is well under WCAG 1.4.11's 3:1 for a
+ * state indicator. Worse, a framed block paints its own background over it: a
+ * selected table showed no fill at all, only the tint leaking around its edge.
+ * So the ring carries the state and the tint merely reinforces it. The ring uses
+ * `--mme-color-focus-ring`, the one colour token this repository already gates at
+ * >= 3:1 against the background in both schemes (`tests/theme-contrast.test.mjs`),
+ * and it is drawn outside the block, so a table gets exactly the same indicator a
+ * paragraph does.
+ */
+.ProseMirror > [data-mme-block-selected="true"] {
+  border-radius: var(--mme-radius-sm);
+  box-shadow: 0 0 0 var(--mme-space-2xs) var(--mme-color-focus-ring);
+  background: var(--mme-color-selection);
+}
+
+/*
+ * Blocks are selected as objects, so no per-character text highlight is painted
+ * over them — an acceptance criterion, and the difference between "this block is
+ * selected" and "this text is selected".
+ */
+.ProseMirror[data-mme-block-selection] ::selection {
+  background: transparent;
+}
+
+.ProseMirror[data-mme-block-selection] > [data-mme-block-selected="true"]::selection {
+  background: transparent;
+}
+
+/*
+ * prosemirror-view paints its own untokenised light-blue outline on any node
+ * selected as an object. Replaced rather than removed: removing it outright left
+ * a plain node selection — clicking an image or a divider, which this feature
+ * does not own — with no visible indicator at all, so the next Backspace deleted
+ * something the user could not see was selected.
+ */
+.ProseMirror .ProseMirror-selectednode {
+  outline: none;
+  border-radius: var(--mme-radius-sm);
+  box-shadow: 0 0 0 var(--mme-space-2xs) var(--mme-color-focus-ring);
 }
 
 

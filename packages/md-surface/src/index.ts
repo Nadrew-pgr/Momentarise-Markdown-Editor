@@ -1206,6 +1206,15 @@ export function createSelectionBubbleToolbar(options: CreateSelectionBubbleToolb
 export type SurfaceOverlayDismissReason = "blur" | "escape" | "mode-change" | "outside-pointer";
 
 export interface SurfaceOverlayRegistration {
+  /**
+   * Whether closing this overlay uses up the Escape press. Defaults to true,
+   * which is right for anything the user opened deliberately: a menu, a palette,
+   * a bubble. Set false for a *derived* affordance — one the editor shows on its
+   * own, from the caret or the pointer. Those still close on Escape, but they
+   * must not swallow the key, or the editing surface behind them can never see
+   * an Escape at all while they happen to be on screen (MME-0103).
+   */
+  readonly consumesEscape?: boolean;
   /** Dismiss reasons this overlay responds to. Defaults to all of them. */
   readonly dismissOn?: readonly SurfaceOverlayDismissReason[];
   readonly id: string;
@@ -1232,6 +1241,11 @@ export interface CreateSurfaceOverlayDismissControllerOptions {
 }
 
 export interface SurfaceOverlayDismissController {
+  /**
+   * True when at least one of these overlays owns the Escape press, so the key
+   * must not also reach the editing surface. See `consumesEscape`.
+   */
+  consumesEscape(overlayIds: readonly string[]): boolean;
   destroy(): void;
   dismiss(reason: SurfaceOverlayDismissReason): readonly string[];
   handleFocusChange(nextFocus: Node | null): readonly string[];
@@ -1304,6 +1318,9 @@ export function createSurfaceOverlayDismissController(
   };
 
   return {
+    consumesEscape(overlayIds) {
+      return overlayIds.some((id) => registrations.get(id)?.consumesEscape !== false);
+    },
     destroy() {
       registrations.clear();
     },
@@ -1346,8 +1363,24 @@ export function attachSurfaceOverlayDismissListeners(
     options.controller.handlePointerDown(eventTargetNode(event.target));
   };
   const onKeyDown = (event: Event): void => {
-    if ((event as KeyboardEvent).key === "Escape") {
-      options.controller.dismiss("escape");
+    if ((event as KeyboardEvent).key !== "Escape") {
+      return;
+    }
+    const closed = options.controller.dismiss("escape");
+    if (options.controller.consumesEscape(closed)) {
+      /*
+       * One Escape, one meaning (MME-0103).
+       *
+       * This listener is bound with `capture: true` on the document, so it runs
+       * before the editing surface sees the key. Without marking the event as
+       * handled, a single press both dismissed the slash menu and entered the
+       * editor's block-selection state. `defaultPrevented` is the portable "this
+       * event was consumed" signal; Escape has no default action to suppress, so
+       * marking it costs nothing when nothing was open — and nothing is marked
+       * when nothing was open, so an Escape that closes no overlay still reaches
+       * the editor.
+       */
+      event.preventDefault();
     }
   };
   const onFocusIn = (event: Event): void => {
