@@ -82,7 +82,7 @@ Approved arrangement:
 
 - Removed requirement: code review "must use exactly `gpt-5.3-codex-spark` at `xhigh`". That model belongs to a different agent runtime and was never actually available; every recent issue fell back anyway. All nine instruction lines carrying it were rewritten on 2026-07-30 to the Reviewer policy above. Historical `Accepted for code continuation` lines still mention it because they record what was attempted at the time; that is evidence, not instruction, and must not be rewritten.
 - Deprioritized (not deleted, still in `docs/internal/BACKLOG.md`): HTML-table clipboard paste, further deep nested-container editing slices (beyond MME-0071), further agent-SEO/retrieval content work (sufficient until packages are actually installable), delimiter-inference paste, additional footnote container matrices.
-- Deferred: `MME-0080` final closeout remains uncommitted from the prior run; it must be finished and committed before any queue issue below starts (finish proofs, fallback review record, issue-scoped commit).
+- Resolved 2026-07-30: `MME-0080`'s closeout was completed and committed. This line is kept only so the historical reference does not read as a live blocker.
 - The queue order below overrides the old "next unblocked backlog must-have" heuristic.
 
 ### Conversation blocks and queue order
@@ -118,6 +118,8 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 Ready-to-paste prompts for each block live in `docs/internal/LAUNCHER-PROMPTS.md`, one per conversation, with the block's model, constraints, and exit gate. Use them verbatim; they encode the hard-stop rule.
 
 ## MME-0081 — React StrictMode-safe session lifecycle
+
+**Status: SHIPPED (commit `5f49a74`). Do not re-implement.** Kept for evidence and for the acceptance criteria later issues cite.
 
 ### Goal
 
@@ -159,7 +161,7 @@ No visible editing or general UI changes.
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: Architecture Reviewer, Test Reviewer; inspect-only; fallback self-review if unavailable.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer; inspect-only; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: sonnet-5.
 - Human review required: no.
 
@@ -168,6 +170,8 @@ No visible editing or general UI changes.
 - MME-0080 closeout commit.
 
 ## MME-0082 — GitHub Actions CI pipeline
+
+**Status: SHIPPED (commit `3906a32`). Do not re-implement.** Kept for evidence and for the acceptance criteria later issues cite.
 
 ### Goal
 
@@ -203,7 +207,7 @@ No visible editing or general UI changes.
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: DX Reviewer or fallback self-review.
+- Reviewer subagents: DX Reviewer; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: sonnet-5.
 - Human review required: no, but the human must have pushed the repo (done 2026-07-30).
 
@@ -212,6 +216,8 @@ No visible editing or general UI changes.
 - MME-0081.
 
 ## MME-0083 — Package publish readiness and tarball smoke install
+
+**Status: SHIPPED (commit `9d7c827`). Do not re-implement.** Kept for evidence and for the acceptance criteria later issues cite.
 
 ### Goal
 
@@ -247,7 +253,7 @@ No visible editing or general UI changes.
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: DX Reviewer, Architecture Reviewer; fallback self-review allowed.
+- Reviewer subagents: DX Reviewer, Architecture Reviewer; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: sonnet-5.
 - Human review required: no.
 
@@ -256,6 +262,8 @@ No visible editing or general UI changes.
 - MME-0082.
 
 ## MME-0084 — First npm alpha publication (human-gated)
+
+**Status: SHIPPED (commit `1900cbc`). Do not re-implement.** Kept for evidence and for the acceptance criteria later issues cite.
 
 ### Goal
 
@@ -302,7 +310,7 @@ No visible editing or general UI changes; public docs copy changes.
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: DX Reviewer; fallback self-review allowed.
+- Reviewer subagents: DX Reviewer; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: sonnet-5 with mandatory human gate above.
 - Human review required: yes (prerequisites + final go).
 
@@ -311,6 +319,8 @@ No visible editing or general UI changes; public docs copy changes.
 - MME-0083; human npm org setup.
 
 ## MME-0085 — Registry consumer example (Next.js App Router)
+
+**Status: SHIPPED (commit `ddbb74a`). Do not re-implement.** Kept for evidence and for the acceptance criteria later issues cite.
 
 ### Goal
 
@@ -347,7 +357,7 @@ New example app UI (screenshot under `docs/internal/visual-checks/MME-0085/`); n
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: DX Reviewer, UX Reviewer; fallback self-review allowed.
+- Reviewer subagents: DX Reviewer, UX Reviewer; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: sonnet-5.
 - Human review required: no.
 
@@ -356,6 +366,8 @@ New example app UI (screenshot under `docs/internal/visual-checks/MME-0085/`); n
 - MME-0084.
 
 ## MME-0086 — Editor focus and overlay hygiene
+
+**Status: SHIPPED (commit `116036a`). Do not re-implement.** Kept for evidence and for the acceptance criteria later issues cite.
 
 ### Goal
 
@@ -396,7 +408,7 @@ Editing surface loses the full-frame blue outline; overlays dismiss like Notion;
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: UX Reviewer, Accessibility Reviewer; fallback self-review allowed.
+- Reviewer subagents: UX Reviewer, Accessibility Reviewer; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: sonnet-5.
 - Human review required: queued in the consolidated visual block.
 
@@ -405,6 +417,8 @@ Editing surface loses the full-frame blue outline; overlays dismiss like Notion;
 - None (may run before publication wave if Andrew prefers visible progress first; default order keeps adoption first).
 
 ## MME-0087 — Notion-style block handles and empty-block placeholder
+
+**Status: SHIPPED (commit `1f2ab0d`). Do not re-implement.** Kept for evidence and for the acceptance criteria later issues cite.
 
 ### Goal
 
@@ -445,7 +459,7 @@ Hovering any block shows its handles Notion-style; empty blocks teach the slash 
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: UX Reviewer; fallback self-review allowed.
+- Reviewer subagents: UX Reviewer; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: sonnet-5.
 - Human review required: queued in the consolidated visual block.
 
@@ -454,6 +468,8 @@ Hovering any block shows its handles Notion-style; empty blocks teach the slash 
 - MME-0086 (overlay lifecycle groundwork).
 
 ## MME-0088 — Slash trigger correctness
+
+**Status: SHIPPED (commit `e090cac`). Do not re-implement.** Kept for evidence and for the acceptance criteria later issues cite.
 
 ### Goal
 
@@ -492,7 +508,7 @@ Slash menu stops appearing in wrong contexts; no other visible change.
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: UX Reviewer, Test Reviewer; fallback self-review allowed.
+- Reviewer subagents: UX Reviewer, Test Reviewer; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: sonnet-5.
 - Human review required: no.
 
@@ -541,7 +557,7 @@ Selection shows a full formatting bubble comparable to Notion.
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: UX Reviewer, Test Reviewer, Accessibility Reviewer; fallback self-review allowed.
+- Reviewer subagents: UX Reviewer, Test Reviewer, Accessibility Reviewer; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: opus-4.8 (UI taste + serialization-safety judgment).
 - Human review required: queued in the consolidated visual block.
 
@@ -590,7 +606,7 @@ Frontmatter becomes a visible, partially editable Properties panel in Rich/Live 
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: Architecture Reviewer, Test Reviewer, UX Reviewer; fallback self-review allowed.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer, UX Reviewer; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: opus-4.8 (preservation-critical YAML splicing).
 - Human review required: queued in the consolidated visual block.
 
@@ -640,7 +656,7 @@ The whole top chrome changes: compact modes, single status chip + popover, no fl
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: UX Reviewer, Accessibility Reviewer; fallback self-review allowed.
+- Reviewer subagents: UX Reviewer, Accessibility Reviewer; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: opus-4.8.
 - Human review required: queued in the consolidated visual block.
 
@@ -684,7 +700,7 @@ No visible editing or general UI changes.
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: Architecture Reviewer, Test Reviewer; fallback self-review allowed.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: opus-5 / fable-5 (public contract + preservation-critical).
 - Human review required: API shape sign-off before merge.
 
@@ -728,7 +744,7 @@ No visible editing or general UI changes.
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: Architecture Reviewer, Test Reviewer; fallback self-review allowed.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: opus-5 / fable-5.
 - Human review required: API shape sign-off before merge.
 
@@ -772,7 +788,7 @@ Entire docs site appearance changes to the benchmark tier.
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: UX Reviewer, DX Reviewer; fallback self-review allowed.
+- Reviewer subagents: UX Reviewer, DX Reviewer; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: opus-4.8 (design execution quality is the acceptance bar).
 - Human review required: yes — Andrew reviews screenshots before merge.
 
@@ -819,7 +835,7 @@ Docs navigation and page composition change; live editors appear in docs.
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: DX Reviewer, UX Reviewer; fallback self-review allowed.
+- Reviewer subagents: DX Reviewer, UX Reviewer; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: sonnet-5.
 - Human review required: yes — copy review in the consolidated block.
 
@@ -863,7 +879,7 @@ The site root becomes a real product landing page.
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: UX Reviewer, DX Reviewer; fallback self-review allowed.
+- Reviewer subagents: UX Reviewer, DX Reviewer; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: opus-4.8.
 - Human review required: yes — Andrew reviews before it ships publicly.
 
@@ -906,7 +922,7 @@ New public `/blog` section.
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: DX Reviewer; fallback self-review allowed.
+- Reviewer subagents: DX Reviewer; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: sonnet-5.
 - Human review required: yes — post copy approval before publish.
 
@@ -915,6 +931,8 @@ New public `/blog` section.
 - MME-0094, MME-0095.
 
 ## MME-0100 — Framework component stylesheet (packaged, not demo-only)
+
+**Status: SHIPPED (commit `e2b49f7`). Do not re-implement.** Kept for evidence and for the acceptance criteria later issues cite.
 
 ### Goal
 
@@ -962,7 +980,7 @@ The demo must look the same. The registry example goes from unstyled browser def
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: Architecture Reviewer, UX Reviewer; inspect-only; fallback self-review allowed.
+- Reviewer subagents: Architecture Reviewer, UX Reviewer; inspect-only; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: opus-4.8 (package-boundary decision plus visual fidelity).
 - Human review required: yes — Andrew compares demo and example screenshots.
 
@@ -971,6 +989,8 @@ The demo must look the same. The registry example goes from unstyled browser def
 - None. MME-0084 published the packages this stylesheet must ship alongside.
 
 ## MME-0101 — Rich mode in the React binding
+
+**Status: SHIPPED (commit `6653d85`). Do not re-implement.** Kept for evidence and for the acceptance criteria later issues cite.
 
 ### Goal
 
@@ -1015,7 +1035,7 @@ React and Next.js hosts gain a working rich editing surface; the Rich button sto
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: Architecture Reviewer, Test Reviewer; inspect-only; fallback self-review allowed.
+- Reviewer subagents: Architecture Reviewer, Test Reviewer; inspect-only; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: opus-4.8.
 - Human review required: yes — Andrew clicks Rich in the example.
 
@@ -1024,6 +1044,8 @@ React and Next.js hosts gain a working rich editing surface; the Rich button sto
 - MME-0100 (the rich surface needs the packaged stylesheet to look right in a consumer app).
 
 ## MME-0102 — Design foundation: premium by default
+
+**Status: SHIPPED (commit `481f5cb`). Do not re-implement.** Kept for evidence and for the acceptance criteria later issues cite.
 
 ### Goal
 
@@ -1094,7 +1116,7 @@ Everything: content becomes 16px document-grade with a real heading scale; chrom
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: UX Reviewer, Accessibility Reviewer, Architecture Reviewer; inspect-only; fallback self-review allowed.
+- Reviewer subagents: UX Reviewer, Accessibility Reviewer, Architecture Reviewer; inspect-only; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: opus-5 / fable-5 (the entire product's taste rides on this issue).
 - Human review required: yes — Andrew approves the look before the block closes.
 
@@ -1109,6 +1131,8 @@ These derive from `docs/internal/research/editor-ux-benchmark.md`, which defines
 Standing rule for all of them: **the behavioral parity checklist is part of the exit gate.** For each issue, produce a table of every interaction it touches, each marked `same as benchmark` / `better` / `intentionally different (reason)`, verified in a real browser — not on paper. "No overlap, 44px targets" acceptance produced correctness; this checklist is what produces "natural". BlockNote (TypeCellOS/BlockNote, MIT core) is the standing implementation reference: imitate behavior, never copy code or styling.
 
 ## MME-0103 — Block selection model
+
+**Status: SHIPPED (commit `a93cf42`). Do not re-implement.** Kept for evidence and for the acceptance criteria later issues cite.
 
 ### Goal
 
@@ -1801,6 +1825,8 @@ Hosts can offer an appearance settings panel; the demo gains one to prove it.
 
 ## MME-0114 — Visual gate integrity
 
+**Status: IN PROGRESS (Block C2). Harness built, not yet committed.**
+
 ### Goal
 
 Make the `visual:*` proof scripts a suite that can actually fail the build, instead of artifacts that rot silently.
@@ -1889,7 +1915,7 @@ AI becomes an in-document surface: inline prompt, streaming preview, accept/reje
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: UX Reviewer, Security Reviewer, Architecture Reviewer; fallback self-review allowed.
+- Reviewer subagents: UX Reviewer, Security Reviewer, Architecture Reviewer; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: opus-5 / fable-5 (streaming + preservation + policy interplay).
 - Human review required: yes — Andrew tries the flow before the block closes.
 
@@ -1934,7 +1960,7 @@ MME editor appears inside Payload's admin UI in the example app.
 
 - Implementation: sequential only.
 - Fresh context rebuild required: yes.
-- Reviewer subagents: Architecture Reviewer, DX Reviewer; fallback self-review allowed.
+- Reviewer subagents: Architecture Reviewer, DX Reviewer; mandatory. Fallback requires a genuine capability failure with the verbatim error and a recorded human acknowledgement (AGENT.md, Reviewer protocol).
 - Recommended builder model: opus-4.8.
 - Human review required: yes — Andrew tries MME inside Payload admin.
 

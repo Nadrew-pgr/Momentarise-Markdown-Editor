@@ -19,7 +19,7 @@ Before implementation starts, the agent must create or identify the test that pr
 For code issues, the preferred order is:
 
 1. Add or update fixture/test/manual check.
-2. Confirm the check fails or documents the missing behavior.
+2. Confirm the check fails, and record the failure message verbatim. A RED phase is valid only when the failure is the assertion's own message against a callable implementation. A `ReferenceError`, `TypeError: ... is not a function`, import error, or missing-file error is not RED: stub the implementation so it exists and returns a wrong value, then observe the assertion fail.
 3. Implement the smallest serious solution.
 4. Run the check again.
 5. Run reviewer/subagent verification.

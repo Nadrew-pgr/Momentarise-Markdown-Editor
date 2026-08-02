@@ -171,7 +171,7 @@ If the Pre-Issue Execution Plan is missing or incomplete, the agent must not cod
 
 Only one implementation agent may modify production code at a time.
 
-Implement issues one by one in the order listed in `docs/internal/ISSUES.md`, unless the human explicitly changes the order or the issue itself says it is blocked.
+Execution order is defined solely by the block table in `docs/internal/ISSUES.md` under `Conversation blocks and queue order`. The physical order of `## MME-` sections in that file is arbitrary and must never be used to select the next issue. An issue whose heading is followed by a `**Status: SHIPPED**` line is finished: never re-implement it, and read it only for the acceptance criteria later issues cite.
 
 When the human asks for autonomous issue-by-issue execution, keep going through every subsequent unblocked issue after each issue-scoped commit until a HITL gate, blocker, or uncertainty requires stopping. Do not stop at the first issue merely because it was the current starting point.
 
@@ -223,6 +223,16 @@ For every new or modified test, before claiming it green:
 Record the reversion-to-failure table in the issue's build-log entry or its visual-checks README. An assertion that cannot be made to fail is not a test; delete it or fix it.
 
 Assertions must also exercise the real path: use the interaction the user performs (pointer or key event) rather than the programmatic API that bypasses the code under test, and assert on the specific element the issue introduced rather than on whatever the query happened to return.
+
+### Reachability
+
+A feature that exists but cannot be reached is not implemented. This project has shipped both shapes: a function written and exported with zero call sites, and a plugin that worked perfectly but lived outside the default plugin set, so every consumer got an invisible feature.
+
+Every function, plugin, command, keybinding, or style rule an issue introduces must be reachable from the default configuration a consumer installs — the exported plugin set, the packaged stylesheet, the default keymap — and the issue must name the call site that reaches it. An export with zero call sites is a stub that looks implemented.
+
+### Verify build-log claims against the repository
+
+Every factual claim written into `docs/internal/build-log.md` — a file path, a count, a commit hash, a test name — must be re-read from the repository at the moment of writing. A claim written from memory is the same defect class as an assertion that cannot fail, and this project has already recorded a build-log entry citing a file its own script had deleted.
 
 ### No false done
 

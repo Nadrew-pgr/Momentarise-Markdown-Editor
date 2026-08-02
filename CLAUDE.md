@@ -41,7 +41,7 @@ If the brief is missing or incomplete, do not code.
 For behavior changes, use test-first/TDD:
 
 1. Add or identify the failing test/fixture/manual check.
-2. Confirm it fails or documents the missing behavior.
+2. Confirm it fails, and record the failure message verbatim. A `ReferenceError`, `TypeError: ... is not a function`, or import error is NOT a valid RED — stub the implementation so it exists and returns a wrong value, then observe the assertion's own failure.
 3. Implement the smallest serious solution.
 4. Run the check again.
 5. Run reviewer subagent verification. This is mandatory when the issue names a reviewer — self-review is not a reviewer pass, and "subagents are disabled by default" is not a valid reason to skip it (stop and ask the human to enable them). See the reviewer protocol in `AGENT.md`.
@@ -78,7 +78,7 @@ Determine the next issue from:
 - current `git status`;
 - the human's latest instruction.
 
-Default to the next unblocked issue in `docs/internal/ISSUES.md` order. Do not skip ahead or reorder issues unless the human explicitly says to.
+Take the next issue from the block table in `docs/internal/ISSUES.md` (`Conversation blocks and queue order`), within your assigned block only. The physical order of `## MME-` sections is arbitrary; an issue marked `**Status: SHIPPED**` is finished and must never be re-implemented.
 
 If those sources conflict, stop and ask for clarification.
 
@@ -91,7 +91,8 @@ If the human explicitly asks you to continue autonomously, you may continue to t
 - every acceptance criterion for the current issue is proven;
 - required tests pass;
 - required visual verification passes when the issue changes visible UI;
-- reviewer/subagent verification is complete, or fallback review is documented;
+- reviewer subagent verification is complete (fallback only with a verbatim capability error and human acknowledgement);
+- the next issue belongs to the same conversation block;
 - `docs/internal/build-log.md` is updated;
 - `git status` is clean or intentionally documented;
 - the completed issue has an issue-scoped commit, or an explicit commit blocker is documented;
@@ -102,7 +103,9 @@ If the human explicitly asks you to continue autonomously, you may continue to t
 
 Stop and ask the human if any of those conditions fail.
 
-If all continuation gates pass, do not stop at the current issue. Continue through the next unblocked issue in `docs/internal/ISSUES.md` order, then repeat this same gate cycle until a HITL stop condition appears.
+If all continuation gates pass, continue to the next issue **of the same conversation block** as defined by the block table in `docs/internal/ISSUES.md`, then repeat this gate cycle.
+
+A block boundary is an absolute HITL stop. When the assigned block's last issue is committed and pushed, write the final report and stop — even if every other continuation gate passes, even in autonomous mode. Never select an issue outside the assigned block, and never use the physical order of `## MME-` sections to pick work.
 
 Before editing the next issue, output a Pre-Issue Execution Plan: issue id, why it is unblocked, intended files/folders to create or modify, tests/checks, gates, reviewer plan, assumptions, and stop conditions.
 
