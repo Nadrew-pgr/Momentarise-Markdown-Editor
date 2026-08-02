@@ -101,6 +101,7 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | C1 | MME-0103 (attempt 2) | Block selection, redesigned on byte-derived separators | opus-5 / fable-5 | accepted 2026-08-01 |
 | C2 | MME-0114 (harness only), 0117, 0104, 0115 | Gate harness + quarantine; touch-target regression; input rules; composition | opus-4.8 | quarantine mechanism live; parity checklist for contract 5 green |
 | C3 | MME-0116 | Empty the gate quarantine | opus-4.8 | `npm run visual` exits zero, quarantine empty |
+| Cd | MME-0118 | Docs correctness repair (may run parallel, own branch) | sonnet-5 | Andrew follows the vanilla quickstart and it works |
 | D | MME-0089, 0090, 0091, 0105, 0106 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
 | D2 | MME-0107, 0108 | Markdown-native differentiators | opus-5 / fable-5 | Andrew judges syntax reveal before it defaults |
 | D3 | MME-0109 | Full-surface UX audit | opus-4.8 | Andrew reviews and appends |
@@ -787,7 +788,11 @@ Restructure public docs content into the BlockNote-style journey — Getting Sta
 
 ### Acceptance criteria
 
-- New IA: Getting Started (Introduction, Quickstart per host, Editor Setup), Foundations (Document Model, Preservation, Sessions, Save Truthfulness, Policy), Features (Rich Editing, Source Mode, Live Preview, Tables, Footnotes, Slash, Toolbar, AI, Assets, Theming, Localization), Reference (per-package APIs, CLI, Compatibility, Roadmap, FAQ, Choosing MME); every existing page mapped or explicitly redirected — no dead URLs (old paths 301/meta-refresh to new ones; `llms.txt` regenerated).
+- New IA, revised 2026-08-02 after the docs review found the current six sections incoherent (`Features` holds both concept pages and four package pages; `Styling` is a two-page section; `policy.md` and `md-policy.md` produce two near-identical sidebar entries): **three sections, not six.** `Start` (Overview with install command and demo link, **Choosing MME before the quickstarts** — today the homepage and sidebar disagree on whether you decide before or after installing, the four quickstarts, and Compatibility & Status promoted out of the basement); `Guides` (Editor UI first, since it answers "what do I get" and is currently unlinked from the homepage, then the concept pages, with `policy`/`md-policy` and `theming`/`md-theme` each merged); `Reference` (all sixteen package pages in dependency order with no exceptions, then FAQ, Glossary, Roadmap).
+- Every existing page mapped or explicitly redirected — no dead URLs (old paths 301/meta-refresh to new ones; `llms.txt` regenerated).
+- Voice: `concepts/theming.md` is the house style and the proof that these docs can be written by a person — it states values, has an opinion, and explains why ("a rebrand is a ramp swap"). Every concept page must contain at least one sentence of the form "we chose X because Y". The docs review found rationale missing across `preferences.md`, `extensions.md`, `document-model.md`, and `policy.md`, each stating what and how but never why.
+- Remove crawler-facing prose from reader-facing pages: `choosing-mme.md` instructs the reader which adjectives not to apply to the product, and `faq.md` carries an entry titled "Will Publishing These Docs Make Agents Cite MME" — an internal SEO question in a customer FAQ. Delete both; replace the FAQ entry with a question developers actually ask.
+- Collapse the three-way duplication of "Choose MME When / Choose Another Approach When", which exists with slightly different bullets in `README.md`, `docs/public/index.md`, and `choosing-mme.md`. Write it once, link to it twice.
 - Introduction page mirrors the BlockNote pattern: what it is, why, 4-bullet quick links, "Why MME?" section, live demo embed, next-step card.
 - A reusable `<LiveExample>` docs component renders a real MME editor (from workspace packages) with a code tab showing the exact source, BlockNote-style, used on ≥5 pages.
 - Each Features page states honestly: shipped / partial / roadmap, with the same truth-gate wording rules as today.
@@ -1508,6 +1513,61 @@ Decisions taken by Andrew's reviewer in response to the blocker report. MME-0114
 **Recorded honestly in the build log**, because it is the kind of fact this project exists to not hide: `MME-0080` was accepted on a gate that has never passed — it scrolls `.ProseMirror`, which has no `overflow`, so its `tableScrollable` assertion passed vacuously, and the closeout did not re-run it. The CSV paste feature itself is covered by unit tests; it is the visual gate that was vacuous. Its repair belongs to `MME-0116`.
 
 **No preservation regression exists.** The 14 footnote-family failures are stale global counts frozen at each gate's authoring date, while `MME-0062` through `MME-0071` legitimately converted preserved fallbacks into semantic nodes in the earlier fixtures too. Byte identity holds; 16/16 footnote unit tests pass.
+
+## MME-0118 — Docs correctness repair (urgent)
+
+### Goal
+
+Fix the documentation defects that make a first-time reader fail. The packages are public on npm today, so anyone who finds MME right now follows instructions that do not work.
+
+### Why this is urgent rather than part of MME-0095
+
+MME-0095 restructures the documentation. These are not structure problems: they are instructions that produce a broken result. Verified independently on 2026-08-02 by grep against `docs/public/`:
+
+- `createMomentariseSourceView` — the function that mounts the source editor — appears **zero times** in all of `docs/public/`. The vanilla quickstart's entire "Mount Views" section is two sentences of prose with no code, no function name, and no container element, so the reader ends with a `session` object and no way to render anything. Vanilla is the differentiator over every React-only competitor and it is the one path with no runnable example.
+- `@momentarise/md-theme/styles.css` appears in **exactly one** public page (`concepts/theming.md`), and in none of the four quickstarts — while that same page states the consequence outright: without it you get "unstyled browser controls" instead of the reference editor. The repository's own working example imports it. So the docs know the omission breaks the first impression, and omit it anyway.
+
+### Acceptance criteria
+
+- Every quickstart (vanilla, React, Next.js, headless) produces a working, styled editor when followed literally by someone who has never seen the repository. Prove it: build each quickstart's code verbatim in a temp project against the published `@alpha` packages and assert it renders — the same temp-dir pattern the registry consumer tests already use.
+- The vanilla quickstart mounts an editor with real code, naming `createMomentariseSourceView` and its options.
+- Every quickstart install block includes the stylesheet import with one line saying what happens without it.
+- `docs/public/packages/md-cli.md` documents the runnable invocation. It currently shows `node packages/md-cli/dist/index.js …` in every example, a path that only exists inside a clone, while the package ships a `mme` binary the docs never mention and `npx` appears nowhere. Same fix in `concepts/agentic-experience.md`.
+- Six package pages carry no code at all (`md-source-codemirror`, `md-rich-prosemirror`, `md-surface`, `md-adapter-web`, `md-adapter-theia`, `md-preview-html`) — including the source view and the rich view, which are the product. Each gains one runnable snippet before its bullet list.
+- `docs/public/index.md` gains the install command, a link to the demo, and a package map that reaches all sixteen packages instead of five. It currently has zero code blocks and no install command, making it strictly worse than `README.md` for the first thing a reader wants.
+- `roadmap.md` is corrected: it lists `llms.txt`/`llms-full.txt` as "near-term" while another public page lists them as shipped, and calls ProseMirror rich mode a "first spike" after MME-0101 shipped it. Two public pages contradicting each other on shipped status destroys trust in every other status claim.
+- `concepts/performance.md` stops pointing readers at `docs/internal/performance-budgets.json`, a path the public boundary makes unreachable.
+- The React and Next.js quickstarts stop claiming `examples/next-app/` is built "from exactly this pattern": the example uses `useMarkdownEditor` with a `containerRef`, the docs show `<MarkdownEditor options={...} />`. Both APIs are real; the claim of identity is not. Align the snippet or soften the sentence.
+- Disclaimer density is cut: the same alpha sentence appears verbatim in seven files and six package pages end with a near-identical release-notes paragraph. State it once on the homepage and once on the compatibility page, then delete the repeats. Repeated honesty reads as anxiety, and a reader skimming for "can I use this" concludes the author does not believe in it.
+- Three pages have no frontmatter (`compatibility-promise.md`, `GLOSSARY.md`, `AI_PROVIDER_ADAPTER.md`), so they sort last in the sidebar with path-derived titles — including the one page that answers "can I depend on this", which is linked from all four quickstarts. Give them frontmatter, and make `scripts/docs-lint.mjs` require the frontmatter fields rather than validating them only when present, plus fail on duplicate `(nav_section, nav_order)` pairs (there are two collisions today).
+
+### Test-first plan
+
+- RED: a docs-usability test that builds each quickstart's literal code in a temp project against published packages and asserts a mounted, styled editor; plus lint assertions for required frontmatter and duplicate nav order. Both fail today.
+- GREEN: repair the pages, then re-run.
+
+### Implementation notes
+
+Read first: `docs/public/quickstart/*.md`, `packages/md-source-codemirror/src/index.ts` (the real mounting API), `examples/next-app/app/globals.css` and `markdown-editor-client.tsx` (what a working consumer actually does), `scripts/docs-lint.mjs`, and `docs/public/concepts/theming.md` — which is the house style this repair should imitate, being the one page written in a human voice with stated rationale.
+
+### Visual impact
+
+Documentation pages change; no editor surface changes.
+
+### Out of scope
+
+- Information architecture and voice rewrite (MME-0095), docs site shell (MME-0094), screenshots beyond one homepage image, new pages other than those required above.
+
+### Execution model
+
+- Implementation: sequential only. Fresh context rebuild: yes.
+- Reviewer subagents: DX Reviewer; mandatory.
+- Recommended builder model: sonnet-5.
+- Human review required: yes — Andrew reads the vanilla quickstart and says whether he could follow it.
+
+### Blocked by
+
+- None. `docs/public/` is disjoint from the editor packages, so this may run on its own branch in parallel with an editor block under the parallel-execution policy.
 
 ## MME-0116 — Visual gate assertion repair
 
