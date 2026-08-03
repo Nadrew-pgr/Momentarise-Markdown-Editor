@@ -2,6 +2,19 @@
 
 These gates are mandatory. Do not bypass them.
 
+## Where the rules live
+
+This file is the normative gate list. Four rules with the same force live in `AGENT.md` because they describe agent behavior rather than issue acceptance; they are binding and are indexed here so nothing is missed by reading only one file:
+
+- **Mutation proof after GREEN** — `AGENT.md`, `Mutation-test every new gate`. Break the implementation, observe the assertion fail, record which reversion produced which failure, restore. A surviving mutant is a finding.
+- **Reachability** — `AGENT.md`, `Reachability`. An export with zero call sites, or a plugin outside the default set, is not implemented.
+- **Build-log claims re-read from the repository** — `AGENT.md`, `Verify build-log claims against the repository`.
+- **Reviewer mandatory, fallback needs evidence** — `AGENT.md`, `Reviewer protocol`.
+
+Two more live in `docs/internal/ISSUES.md` because they govern the queue rather than a single issue: the **styling ownership rule** (package-owned CSS ships in the packaged stylesheet, never the demo) and the **block hard-stop** (a block boundary is an absolute HITL stop).
+
+If a rule appears in two files with different wording, this file's wording is not automatically canonical — the file named above is. Fix the divergence rather than choosing.
+
 ## Gate 0 — Repo docs read
 
 Before coding, the agent must summarize:
@@ -177,7 +190,7 @@ Each UI issue must include a short `README.md` in its visual-checks folder or a 
 
 ### Required UI review levels
 
-Use human review gates for the first major visual slice of each area:
+**SUPERSEDED 2026-08-02** — human review gates are now defined by the block exit gates in `docs/internal/ISSUES.md` (`Conversation blocks and queue order`) plus each issue's own `Human review required` field. The list below is historical: Use human review gates for the first major visual slice of each area:
 
 - MME-0002, first mini web demo;
 - MME-0007, source editing baseline;
@@ -204,7 +217,7 @@ No core package may import React, Theia, VS Code, CodeMirror, ProseMirror, Elect
 
 ## Gate 2 — Fixture corpus before rich mode
 
-A representative fixture corpus must exist before rich mode.
+**RETIRED 2026-08-02 — satisfied at MME-0011; the fixture corpus exists and is exercised by the round-trip suite. Kept for history.** Original requirement: A representative fixture corpus must exist before rich mode.
 
 ### Fixture definition
 
@@ -263,7 +276,7 @@ Before rich mode, source mode must support:
 - `Cmd/Ctrl+S` hook;
 - dirty state.
 
-MME-0002 must prove that CodeMirror is a real source editor, not a textarea-like demo.
+**RETIRED 2026-08-02 — satisfied at MME-0002. Source mode has shipped and is covered by its own suites.** Original requirement: MME-0002 must prove that CodeMirror is a real source editor, not a textarea-like demo.
 
 If auto-closing pairs are enabled, `{}`, `[]`, `()`, quotes, and backticks must behave correctly.
 
@@ -296,7 +309,7 @@ If the document was opened through a real writable file handle, then `Cmd/Ctrl+S
 
 ## Gate 7 — Save Engine
 
-No serious rich mode until Save Engine has dirty/saving/saved/conflict/error, write queue, autosave, `Cmd/Ctrl+S`, tab switch flush, close guard, and conflict detection.
+**RETIRED 2026-08-02 — satisfied before MME-0012; the Save Engine ships with dirty/saving/saved/conflict/error and its own gate.** Original requirement: No serious rich mode until Save Engine has dirty/saving/saved/conflict/error, write queue, autosave, `Cmd/Ctrl+S`, tab switch flush, close guard, and conflict detection.
 
 Mandatory automated tests before proceeding to rich mode:
 
@@ -314,7 +327,7 @@ Mandatory automated tests before proceeding to rich mode:
 
 ## Gate 8 — Rich mode entry
 
-Rich mode can start only after Gates 1–7 pass.
+**RETIRED 2026-08-02 — rich mode shipped at MME-0012 and has been extended by ~40 issues since.** Original requirement: Rich mode can start only after Gates 1–7 pass.
 
 ## Gate 9 — HTML sandbox
 
