@@ -103,7 +103,7 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | B3 | MME-0102 (+ alpha.2 republish) | Design foundation — premium by default | opus-5 / fable-5 | done 2026-07-31, alpha.3 on registry |
 | C | MME-0086, 0087, 0088 | Interaction correctness, part 1 | opus-4.8 | done 2026-08-01 (0103 attempted and reverted) |
 | C1 | MME-0103 (attempt 2) | Block selection, redesigned on byte-derived separators | opus-5 / fable-5 | accepted 2026-08-01 |
-| C2 | MME-0114 ✅, 0117 ✅, 0119, 0104, 0115 | Gate harness ✅; touch targets ✅; overlay anchoring; input rules; composition | opus-4.8 | quarantine mechanism live; parity checklist for contract 5 green |
+| C2 | MME-0114 ✅, 0117 ✅, then 0119, 0104, 0115 | Gate harness ✅; touch targets ✅; overlay anchoring; input rules; composition | opus-4.8 | MME-0078 leaves quarantine; parity checklist for contract 5 green |
 | C3 | MME-0116 | Empty the gate quarantine | opus-4.8 | `npm run visual` exits zero, quarantine empty |
 | Cd | MME-0118 | Docs correctness repair (may run parallel, own branch) | sonnet-5 | Andrew follows the vanilla quickstart and it works |
 | D | MME-0089, 0090, 0091, 0105, 0106 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
@@ -1680,6 +1680,8 @@ Touch controls grow to the intended size on phones and tablets; desktop unchange
 - MME-0114 (needs the runner to prove the gate goes green).
 
 ## MME-0119 — Toolbar overlay escapes its scrolling container
+
+**Reviewer decision, 2026-08-03.** Fix by portalling the overlay, not by removing the glass effect: `backdrop-filter` is a deliberate MME-0102 design value and dropping it to fix positioning would trade a visual decision for a layout bug. Any overlay that must position against the viewport is rendered outside every ancestor that establishes a containing block — `filter`, `backdrop-filter`, `transform`, `perspective`, `will-change`, `contain` — and that rule is written into the surface contract so the next overlay cannot reintroduce it. A `scrollLeft` compensation is forbidden: it treats the symptom and breaks again on the next scroll container.
 
 **Promoted 2026-08-02 from MME-0117.** Not yet assigned to a block; Andrew schedules it.
 
