@@ -63,6 +63,17 @@ Tags: `baseline/hygiene`, `editing`, `mobile`, `desktop`
 - Package-owned block insertion before/after current framed blocks and keyboard/root-click insertion after final framed content are implemented in MME-0013.5/MME-0042; exact final-block preservation and browser proof cover code, opaque/callout, table, raw HTML, and inserted-media cases.
 - The first mobile/tablet viewport and coarse-pointer reachability baseline was implemented in `MME-0078`; full mobile rich-editor, platform keyboard, gesture, and native-shell work remains backlog.
 
+### Link Insertion On Paste Over A Selection
+
+Tags: `baseline/hygiene`, `editing`, `links`, `rich-mode`
+
+Requested by Andrew, 2026-08-03.
+
+- Pasting a URL while text is selected must wrap the selection in a Markdown link (`[selection](pasted-url)`) instead of replacing the selected text with the URL. This is the behavior of the Claude Code desktop composer, Notion, Slack, and Linear, and its absence is a moment where MME feels unfinished against products users already have in their hands.
+- In rich mode the selection then reads as a link affordance (highlighted, activatable); in source mode the same paste produces the same Markdown bytes. Both paths must serialize to identical source.
+- Scope questions to settle before promotion: what counts as a URL (scheme allowlist vs permissive), behavior when the selection already contains a link, behavior when the selection spans blocks, and whether a non-URL paste over a selection keeps today's replace behavior.
+- Preservation rule applies: this is a targeted edit over the selected range, never a document rewrite.
+
 ## Core Product Differentiators
 
 These are not generic polish. They are part of why MME exists instead of using a plain Markdown viewer/editor.
@@ -264,6 +275,25 @@ Target, to be split into issues alongside `MME-0094`/`MME-0095`:
 - Make the docs site consume the packaged `styles.css`, not just tokens, and cut bespoke CSS down to genuine site chrome.
 - Define explicitly what stays host-owned (routing, navigation data, search index, deployment) so the claim is precise rather than overstated.
 - Acceptance for the claim: a fresh project can reproduce a docs page with anchors, internal links, callouts, and a live editor using published packages only, proven by a temp-dir build like the registry consumer tests.
+
+
+## Governance debt — queued, not yet applied (2026-08-02)
+
+Findings from two independent audits (this project's internal-docs review, and the CallInt project's protocol retrospective) that are real but not yet written into the rules. Recorded here so they are not carried in memory. Each line is an instruction to write, not a topic to discuss.
+
+Already applied on 2026-08-02 and NOT repeated here: shipped-issue status markers, block-table-only ordering, block hard-stop in every instruction file, RED must be the assertion's own failure, mutation proof with a valid-mutant definition, reachability, build-log claims re-read from the repository, reviewers mandatory and explicitly read-only, evidence parity for every "the tool was unavailable" claim, issue-ID allocation, gates-with-self-invokable-exceptions, reviewer-dies-mid-review procedure, fixed reviewer brief template, tree frozen during review, out-of-scope findings escalated, guards proved falsifiable, contract-versus-verified-state separation, corrections update the contract, gate enforcement ships first, forbidden agent behaviors, `SUPERSEDED` decisions, fix-issue naming, and a structured home for raised-but-not-queued findings.
+
+Still to write:
+
+- **Parallel agents.** Disjoint top-level paths declared in the plan; one worktree and branch per agent; no two agents in the same block; nobody edits `ISSUES.md`, `build-log.md`, `QUALITY_GATES.md` except by appending their own section; a path conflict is a stop, never a negotiation; integration review runs on the merged result, not on either branch.
+- **Session recovery.** A new, compacted, or crashed session starts by reconstructing state from `git status`, `git log`, and the last five build-log entries verified against the repository — a build-log entry whose commit does not exist is a false claim. Uncommitted work is an interrupted issue of unknown state: run its checks, report what passes. Output a Recovery Report before editing. If repository and build log disagree, stop and ask. Never resume by re-implementing.
+- **Split trigger.** An issue is too big when it needs more than one RED-GREEN cycle on unrelated behaviors, when the real file set exceeds the plan by more than half or crosses an unnamed architecture boundary, when acceptance cannot be proven by one demonstrable path, or when two distinct human decisions surface inside it. Split into `-a`/`-b` children, mark the original superseded, record the trigger, implement only the first child. Quietly narrowing acceptance criteria instead is a false done with extra steps.
+- **Dependency and licence gate.** A new dependency is an Open Decision: record what it does, why existing code is insufficient, its SPDX licence, last release, transitive count, and removal cost. Copyleft in a product intended for closed distribution is a hard stop. No licence file means unusable. Lockfile committed in the same commit; subagent review mandatory for any runtime dependency.
+- **Human correction protocol.** The human decides product, priority, and acceptance — not facts. When an instruction contradicts something verifiable, say so once with the evidence, then comply and record both the disagreement and the decision. A gate waiver is valid only when recorded with gate ID, scope, reason, and expiry. Three instructions are never followed regardless of source: marking an issue accepted without evidence, committing a secret, and deleting or rewriting evidence to make a state look better than it is.
+- **Public-readiness gate.** First public exposure is human-only and gated on: a cold-reader docs review passed by an agent that never read the source, every gate green with no active quarantine and no expired `pending`, a secret scan across full git history, the private-docs boundary confirmed, licence consistency, every public surface enumerated and covered by a proof CI runs, README status matched against the build log, and a stated support posture. The readiness report may not be written by an agent that built the surface it certifies.
+- **Flaky tests.** A test that passes and fails on the same commit is a defect in the test. Never retry until green, never skip without an owning issue; record both outputs and treat it as a P1 finding.
+- **Destructive operations.** No history rewrite, hard reset on shared history, branch or remote deletion, data-dropping migration, or `rm -rf` outside a build output directory without explicit human approval in the current session.
+- **Skill language.** The `dev-workflow` skill was translated to English on 2026-08-02; audit for any remaining French that would hide duplicate rules from text search.
 
 ## Public Framework Follow-Ups
 
