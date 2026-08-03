@@ -181,7 +181,11 @@ Do not run multiple implementation agents in parallel on separate issues unless 
 
 Reviewer subagents are allowed in parallel because they do not implement production code. Their role is limited to review, verification, test analysis, UX screenshot review, architecture review, security review, or DX/docs review.
 
-A reviewer subagent must not modify source code unless explicitly asked by the human.
+Reviewers are strictly read-only. A reviewer subagent must not create, modify, or delete any file, must not run git commands that change state, and must not run commands with side effects on the working tree — even to demonstrate a fix. It returns findings; the builder applies them.
+
+This must be stated in the reviewer's own prompt, not merely assumed: every reviewer spawn begins with an explicit read-only instruction, and notes that another agent may be working in the tree concurrently. A reviewer that edits files can silently destroy the builder's uncommitted work or get its changes swept into someone else's commit — both have happened on this project.
+
+The only exception is an explicit human instruction to a specific reviewer for a specific change.
 
 ## Build method
 

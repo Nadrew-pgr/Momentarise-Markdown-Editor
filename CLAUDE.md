@@ -60,7 +60,7 @@ For behavior changes, use test-first/TDD:
 - never log or commit API keys;
 - commit every completed issue after reviewer/fallback validation and before starting the next issue;
 - push after human validation/acceptance when a remote is configured and no blocker applies;
-- reviewers/subagents review only unless explicitly asked to implement;
+- reviewers/subagents are strictly read-only: no file writes, no state-changing git commands, no side-effecting shell — the read-only instruction must appear in the reviewer's own prompt, not just be assumed;
 - a reviewer subagent is mandatory when an issue names one; fallback self-review requires a genuine capability failure plus recorded evidence and human acknowledgement;
 - do not continue to the next issue unless the human explicitly asks for autonomous issue-by-issue execution and the continuation gates below are satisfied;
 - do not mark an issue done unless every acceptance criterion has evidence.
