@@ -41,6 +41,10 @@ Every issue declares `Recommended builder model` in its execution model. Meaning
 
 A stronger model may always take a weaker-tagged issue. A weaker model must not take a stronger-tagged issue without human approval.
 
+### Issue ID allocation (2026-08-02)
+
+A numbering collision happened: two different issues were both created as `MME-0118` by two agents working in parallel. Before creating an issue, `grep "^## MME-" docs/internal/ISSUES.md | tail -20` and take the next free number **above every number that appears**, including ones in the historical section. If two issues collide anyway, the one created first keeps the number and the later one is renumbered, including every self-reference in its own body.
+
 ### Reviewer policy (2026-07-30)
 
 No specific review model is imposed anywhere in this repository. The previous `gpt-5.3-codex-spark` requirement was written for a different agent runtime, was never available in practice, and is removed from every instruction line.
@@ -99,7 +103,7 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | B3 | MME-0102 (+ alpha.2 republish) | Design foundation — premium by default | opus-5 / fable-5 | done 2026-07-31, alpha.3 on registry |
 | C | MME-0086, 0087, 0088 | Interaction correctness, part 1 | opus-4.8 | done 2026-08-01 (0103 attempted and reverted) |
 | C1 | MME-0103 (attempt 2) | Block selection, redesigned on byte-derived separators | opus-5 / fable-5 | accepted 2026-08-01 |
-| C2 | MME-0114 (harness only), 0117, 0104, 0115 | Gate harness + quarantine; touch-target regression; input rules; composition | opus-4.8 | quarantine mechanism live; parity checklist for contract 5 green |
+| C2 | MME-0114 ✅, 0117 ✅, 0119, 0104, 0115 | Gate harness ✅; touch targets ✅; overlay anchoring; input rules; composition | opus-4.8 | quarantine mechanism live; parity checklist for contract 5 green |
 | C3 | MME-0116 | Empty the gate quarantine | opus-4.8 | `npm run visual` exits zero, quarantine empty |
 | Cd | MME-0118 | Docs correctness repair (may run parallel, own branch) | sonnet-5 | Andrew follows the vanilla quickstart and it works |
 | D | MME-0089, 0090, 0091, 0105, 0106 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
@@ -1675,7 +1679,7 @@ Touch controls grow to the intended size on phones and tablets; desktop unchange
 
 - MME-0114 (needs the runner to prove the gate goes green).
 
-## MME-0118 — Toolbar overlay escapes its scrolling container
+## MME-0119 — Toolbar overlay escapes its scrolling container
 
 **Promoted 2026-08-02 from MME-0117.** Not yet assigned to a block; Andrew schedules it.
 
