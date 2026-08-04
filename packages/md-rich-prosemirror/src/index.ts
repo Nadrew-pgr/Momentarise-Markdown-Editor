@@ -258,8 +258,45 @@ export interface CreateRichMarkdownStateOptions {
 }
 
 export interface MomentariseRichPreferences {
+  readonly inputRules?: RichInputRulesPreference;
   readonly keymapDelegateToHost?: boolean;
   readonly keymapProfile?: "default" | "delegate" | "minimal";
+}
+
+/**
+ * Host control over the Markdown-as-you-type rule set: disable built-ins by id,
+ * or add rules of your own, without forking the plugin.
+ */
+export interface RichInputRulesPreference {
+  /** Built-in ids from `richInputRuleIds`, or ids of rules added by `extend`. */
+  readonly disable?: readonly string[];
+  /** Evaluated before the built-in rules, so a host rule can take precedence. */
+  readonly extend?: readonly RichInputRuleDefinition[];
+}
+
+export interface RichInputRuleContext {
+  /** Document position of the start of the caret's textblock. */
+  readonly blockStart: number;
+  /** Document position where the match starts. */
+  readonly from: number;
+  /** Literal text of the whole block, used to restore it in one undo. */
+  readonly literalText: string;
+  readonly match: RegExpMatchArray;
+  readonly state: EditorState;
+  /** Document position of the caret, which is where the match ends. */
+  readonly to: number;
+}
+
+export interface RichInputRuleDefinition {
+  readonly id: string;
+  /** Matched against the text between the block start and the caret. */
+  readonly match: RegExp;
+  /** Restricts the rule to plain paragraphs, as block-converting rules must be. */
+  readonly requiresParagraph?: boolean;
+  /** Returning null falls through to the next rule instead of ending the pass. */
+  readonly run: (context: RichInputRuleContext) => Transaction | null;
+  /** Requires a block start or whitespace before the match, so `a**b**` stays literal. */
+  readonly wordBoundary?: boolean;
 }
 
 export interface RichMarkdownState {
@@ -708,7 +745,7 @@ export function createMomentariseRichPlugins(preferences: MomentariseRichPrefere
       keyboard: !normalized.keymapDelegateToHost && normalized.keymapProfile === "default"
     }),
     createRichPasteSanitizerPlugin(),
-    createRichInputRulesPlugin(),
+    createRichInputRulesPlugin(normalized),
     createTodoTogglePlugin(),
     createDocumentEndInsertionPlugin()
   ];
@@ -1333,7 +1370,7 @@ export function canRunRichMarkdownCommand(
   return executeRichMarkdownCommand(commandId, state.editorState, () => {}, options);
 }
 
-function createRichKeymapPlugins(preferences: Required<MomentariseRichPreferences>): Plugin[] {
+function createRichKeymapPlugins(preferences: NormalizedRichPreferences): Plugin[] {
   if (preferences.keymapProfile === "minimal") {
     return [
       keymap({
@@ -2643,8 +2680,12 @@ function normalizeTableAlignment(value: unknown): TableAlignment {
   return value === "center" || value === "left" || value === "right" ? value : null;
 }
 
-function normalizeRichPreferences(preferences: MomentariseRichPreferences = {}): Required<MomentariseRichPreferences> {
+function normalizeRichPreferences(preferences: MomentariseRichPreferences = {}): NormalizedRichPreferences {
   return {
+    inputRules: {
+      disable: preferences.inputRules?.disable ?? [],
+      extend: preferences.inputRules?.extend ?? []
+    },
     keymapDelegateToHost: preferences.keymapDelegateToHost ?? false,
     keymapProfile: preferences.keymapProfile ?? "default"
   };
@@ -5675,8 +5716,41 @@ function executeRichMarkdownCommand(
 const richInputRulesPluginKey = new PluginKey("momentarise-rich-input-rules");
 
 interface RichInputRulesPluginState {
+  /** The node a block rule converted, or null for an inline conversion. */
+  readonly undoRange: { readonly from: number; readonly to: number } | null;
   readonly undoText: string;
 }
+
+/** Marks the undo itself, so the rule cannot immediately re-fire on the restored text. */
+const RICH_INPUT_RULE_UNDONE = "undone";
+
+interface NormalizedRichPreferences {
+  readonly inputRules: {
+    readonly disable: readonly string[];
+    readonly extend: readonly RichInputRuleDefinition[];
+  };
+  readonly keymapDelegateToHost: boolean;
+  readonly keymapProfile: "default" | "delegate" | "minimal";
+}
+
+/** Ids of the built-in Markdown-as-you-type rules, in evaluation order. */
+export const richInputRuleIds = [
+  "listTodo",
+  "inlineCode",
+  "link",
+  "strong",
+  "strikethrough",
+  "emphasis",
+  "heading",
+  "todo",
+  "bulletList",
+  "orderedList",
+  "blockquote",
+  "horizontalRule",
+  "codeFence"
+] as const;
+
+export type RichInputRuleId = (typeof richInputRuleIds)[number];
 
 type RichMarkdownInputRule =
   | { readonly kind: "blockquote"; readonly prefixLength: number }
@@ -5684,12 +5758,8 @@ type RichMarkdownInputRule =
   | { readonly kind: "code_block"; readonly language: string | null; readonly prefixLength: number }
   | { readonly kind: "heading"; readonly level: number; readonly prefixLength: number }
   | { readonly kind: "horizontal_rule"; readonly prefixLength: number }
-  | { readonly kind: "ordered_list"; readonly prefixLength: number }
+  | { readonly kind: "ordered_list"; readonly order: number; readonly prefixLength: number }
   | { readonly checked: boolean; readonly kind: "todo_item"; readonly prefixLength: number };
-
-type RichInlineInputRule =
-  | { readonly from: number; readonly kind: "inline_code"; readonly text: string; readonly to: number }
-  | { readonly from: number; readonly href: string; readonly kind: "link"; readonly text: string; readonly title: string | null; readonly to: number };
 
 function createRichPasteSanitizerPlugin(): Plugin {
   return new Plugin({
@@ -5830,7 +5900,8 @@ function sanitizeElementAttributes(element: Element): void {
   }
 }
 
-function createRichInputRulesPlugin(): Plugin {
+function createRichInputRulesPlugin(preferences: NormalizedRichPreferences): Plugin {
+  const rules = resolveRichInputRules(preferences.inputRules);
   return new Plugin<RichInputRulesPluginState | null>({
     appendTransaction(transactions, _oldState, state) {
       if (transactions.some((transaction) => transaction.getMeta(richInputRulesPluginKey))) {
@@ -5842,56 +5913,67 @@ function createRichInputRulesPlugin(): Plugin {
       if (!(state.selection instanceof TextSelection) || !state.selection.empty) {
         return null;
       }
+      /*
+       * MME-0088's context contract is the single answer to "is typing Markdown
+       * safe here" for slash triggers and input rules alike. Before this gate,
+       * `> ` typed at the start of a table cell pulled the cell's paragraph out
+       * of the table and left two broken tables behind, and `# ` there deleted
+       * itself silently.
+       */
+      if (!richTextInputContext(state).allowsMarkdownTriggers) {
+        return null;
+      }
       const { $from } = state.selection;
-      if ($from.parent.type !== state.schema.nodes.paragraph) {
+      if (!$from.parent.isTextblock) {
         return null;
       }
-      const text = $from.parent.textBetween(0, $from.parent.content.size, "\n", "\n");
-      const textBeforeCursor = $from.parent.textBetween(0, $from.parentOffset, "\n", "\n");
-      const listTodoRule = todoInputRuleForListItemText(textBeforeCursor);
-      if (listTodoRule) {
-        return createListTodoInputRuleTransaction(state, listTodoRule);
-      }
+      const isParagraph = $from.parent.type === state.schema.nodes.paragraph;
+      const literalText = $from.parent.textBetween(0, $from.parent.content.size, "\n", "\n");
+      const textBeforeCaret = $from.parent.textBetween(0, $from.parentOffset, "\n", "\n");
+      const blockStart = $from.start();
 
-      const inlineRule = inlineMarkdownInputRuleForText(textBeforeCursor);
-      if (inlineRule) {
-        return createInlineMarkdownInputRuleTransaction(state, inlineRule, text);
-      }
-
-      const rule = markdownInputRuleForText(textBeforeCursor);
-      if (!rule) {
-        return null;
-      }
-
-      const from = $from.before();
-      const to = $from.after();
-      const prefixFrom = $from.start();
-      const prefixTo = prefixFrom + rule.prefixLength;
-      const transaction = state.tr.delete(prefixFrom, prefixTo).setMeta(richInputRulesPluginKey, {
-        undoText: text
-      });
-      const mappedFrom = transaction.mapping.map(from);
-      const mappedTo = transaction.mapping.map(to);
-
-      if (rule.kind === "heading") {
-        transaction.setBlockType(mappedFrom, mappedTo, state.schema.nodes.heading!, {
-          level: rule.level
+      for (const rule of rules) {
+        if (rule.requiresParagraph && !isParagraph) {
+          continue;
+        }
+        const match = textBeforeCaret.match(rule.match);
+        if (!match || match.index === undefined) {
+          continue;
+        }
+        if (
+          rule.wordBoundary &&
+          match.index > 0 &&
+          !/\s/u.test(textBeforeCaret[match.index - 1] ?? "")
+        ) {
+          continue;
+        }
+        const transaction = rule.run({
+          blockStart,
+          from: $from.pos - (textBeforeCaret.length - match.index),
+          literalText,
+          match,
+          state,
+          to: $from.pos
         });
+        // A rule that cannot apply here falls through to the next one. Returning
+        // early instead once made every later rule unreachable behind `[x] `.
+        if (!transaction) {
+          continue;
+        }
+        /*
+         * The rule owns the undo *range* (a block rule records the node it
+         * produced; an inline rule records nothing and restores its textblock's
+         * content). The plugin owns the undo *text*, which only it has.
+         */
+        const declared = transaction.getMeta(richInputRulesPluginKey);
+        if (declared === undefined) {
+          transaction.setMeta(richInputRulesPluginKey, { undoRange: null, undoText: literalText });
+        } else if (declared !== null && typeof declared === "object" && "undoRange" in declared) {
+          transaction.setMeta(richInputRulesPluginKey, { ...declared, undoText: literalText });
+        }
         return transaction;
       }
-
-      const retainedParagraph = transaction.doc.nodeAt(mappedFrom);
-      const replacement = replacementForInputRule(
-        rule,
-        state.schema,
-        retainedParagraph?.type === state.schema.nodes.paragraph ? retainedParagraph : state.schema.nodes.paragraph!.create()
-      );
-      if (!replacement) {
-        return null;
-      }
-      transaction.replaceWith(mappedFrom, mappedTo, replacement);
-      const selectionPosition = Math.min(mappedFrom + selectionOffsetForInputRule(rule), transaction.doc.content.size);
-      return transaction.setSelection(TextSelection.near(transaction.doc.resolve(selectionPosition)));
+      return null;
     },
     key: richInputRulesPluginKey,
     props: {
@@ -5911,8 +5993,14 @@ function createRichInputRulesPlugin(): Plugin {
     state: {
       apply(transaction, previous) {
         const meta = transaction.getMeta(richInputRulesPluginKey);
+        // The undo itself clears the state, so a second Mod-z reaches history
+        // instead of replaying the same restore.
+        if (meta === RICH_INPUT_RULE_UNDONE) {
+          return null;
+        }
         if (meta && typeof meta === "object" && typeof meta.undoText === "string") {
           return {
+            undoRange: meta.undoRange ?? null,
             undoText: meta.undoText
           };
         }
@@ -5928,6 +6016,21 @@ function createRichInputRulesPlugin(): Plugin {
   });
 }
 
+/**
+ * Restores the literal characters a rule converted, in one step.
+ *
+ * Two shapes, because a block conversion and an inline one own different
+ * amounts of the document:
+ *
+ *  - A block rule records the node it produced, and that exact node is replaced
+ *    by a paragraph. Recording the range matters: the converted block may sit
+ *    inside a blockquote or a list item, so a fixed depth is wrong.
+ *  - An inline rule records nothing and only its textblock's *content* is
+ *    restored, leaving the block itself alone. This is the fix for a data-loss
+ *    defect: replacing `$from.before(1)`..`$from.after(1)` meant one undo after
+ *    typing `**bold**` in the second item of a list replaced the whole list
+ *    with a single paragraph, destroying every sibling item.
+ */
 function undoRichInputRuleCommand(state: EditorState, dispatch?: (transaction: Transaction) => void): boolean {
   const pluginState = richInputRulesPluginKey.getState(state) as RichInputRulesPluginState | null;
   if (!pluginState || !(state.selection instanceof TextSelection)) {
@@ -5937,15 +6040,28 @@ function undoRichInputRuleCommand(state: EditorState, dispatch?: (transaction: T
   if ($from.depth < 1) {
     return false;
   }
-  const paragraph = state.schema.nodes.paragraph!.create(
-    null,
-    pluginState.undoText ? state.schema.text(pluginState.undoText) : undefined
-  );
-  const from = $from.before(1);
-  const to = $from.after(1);
-  const transaction = state.tr.replaceWith(from, to, paragraph).setMeta(richInputRulesPluginKey, true);
-  const selectionPosition = Math.min(from + 1 + pluginState.undoText.length, transaction.doc.content.size);
-  dispatch?.(transaction.setSelection(TextSelection.near(transaction.doc.resolve(selectionPosition))));
+  const { undoRange, undoText } = pluginState;
+  const from = undoRange ? undoRange.from : $from.start();
+  const to = undoRange ? undoRange.to : $from.end();
+  if (from < 0 || to > state.doc.content.size || from > to) {
+    return false;
+  }
+  const replacement = undoRange
+    ? state.schema.nodes.paragraph!.create(null, undoText ? state.schema.text(undoText) : undefined)
+    : undoText
+      ? state.schema.text(undoText)
+      : null;
+  const transaction = state.tr;
+  if (replacement) {
+    transaction.replaceWith(from, to, replacement);
+  } else {
+    transaction.delete(from, to);
+  }
+  // A distinct marker, not `true`: it clears the plugin state so the *next*
+  // Mod-z reaches the history, instead of replaying this same restore forever.
+  transaction.setMeta(richInputRulesPluginKey, RICH_INPUT_RULE_UNDONE);
+  const caret = Math.min(from + (undoRange ? 1 : 0) + undoText.length, transaction.doc.content.size);
+  dispatch?.(transaction.setSelection(TextSelection.near(transaction.doc.resolve(caret))));
   return true;
 }
 
@@ -6568,101 +6684,254 @@ function mergeAdjacentListItems(
   return previousItem.copy(Fragment.fromArray([mergedParagraph, ...previousRest, ...currentRest]));
 }
 
-function markdownInputRuleForText(text: string): RichMarkdownInputRule | null {
-  const heading = text.match(/^(#{1,6}) $/);
-  if (heading) {
-    return {
-      kind: "heading",
-      level: heading[1]!.length,
-      prefixLength: text.length
-    };
-  }
-
-  if (text === "- [ ] ") {
-    return {
-      checked: false,
-      kind: "todo_item",
-      prefixLength: text.length
-    };
-  }
-
-  if (/^- \[[xX]\] $/.test(text)) {
-    return {
-      checked: true,
-      kind: "todo_item",
-      prefixLength: text.length
-    };
-  }
-
-  if (text === "- " || text === "* " || text === "+ ") {
-    return {
-      kind: "bullet_list",
-      prefixLength: text.length
-    };
-  }
-
-  if (text === "1. ") {
-    return {
-      kind: "ordered_list",
-      prefixLength: text.length
-    };
-  }
-
-  if (text === "> ") {
-    return {
-      kind: "blockquote",
-      prefixLength: text.length
-    };
-  }
-
-  if (text === "---" || text === "***" || text === "___") {
-    return {
-      kind: "horizontal_rule",
-      prefixLength: text.length
-    };
-  }
-
-  const codeFence = text.match(/^```([A-Za-z0-9_-]*) $/);
-  if (codeFence) {
-    const language = codeFence[1] ?? "";
-    return {
-      kind: "code_block",
-      language: normalizeOptionalString(language),
-      prefixLength: text.length
-    };
-  }
-
-  return null;
+/**
+ * The Markdown-as-you-type table, in evaluation order.
+ *
+ * Order is load-bearing for `listTodo`, which runs before the paragraph-level
+ * `todo` rule because inside a list item the conversion is item-to-item, and
+ * falls through rather than ending the pass when the caret is not in a list.
+ *
+ * `strong` is listed before `emphasis` for readability, but the ordering is NOT
+ * what stops `*italic*` swallowing `**bold**` — measured, not assumed: the
+ * emphasis pattern never matches the finished `**bold**` at all. The real guard
+ * is `wordBoundary` at the *intermediate* keystroke `**bold*`, where the
+ * character before the match is `*`. Removing the boundary check fails nine
+ * cases; reordering these two fails none.
+ */
+function defaultRichInputRules(): readonly RichInputRuleDefinition[] {
+  return [
+    {
+      id: "listTodo",
+      match: /^\[([ xX]?)\] $/u,
+      requiresParagraph: true,
+      run: ({ match, state }) =>
+        createListTodoInputRuleTransaction(state, {
+          checked: /[xX]/u.test(match[1] ?? ""),
+          prefixLength: match[0].length
+        })
+    },
+    {
+      id: "inlineCode",
+      match: /`([^`\n]+)`$/u,
+      run: createMarkedTextInputRuleRunner("code", (match, state) =>
+        state.schema.marks.code ? { mark: state.schema.marks.code.create(), text: match[1]! } : null
+      ),
+      wordBoundary: true
+    },
+    {
+      id: "link",
+      match: /(?<!!)\[([^\]\n]+)\]\((.*)\)$/u,
+      run: createMarkedTextInputRuleRunner("link", (match, state) => {
+        const parsed = parseMarkdownLinkDestinationAndTitle(match[2]!);
+        if (!parsed || !isSafeUrl(parsed.href) || !state.schema.marks.link) {
+          return null;
+        }
+        return {
+          mark: state.schema.marks.link.create({ href: parsed.href, title: parsed.title }),
+          text: match[1]!
+        };
+      }),
+      wordBoundary: true
+    },
+    {
+      id: "strong",
+      match: /\*\*([^\s*][^*]*?)\*\*$/u,
+      run: createMarkInputRuleRunner("strong"),
+      wordBoundary: true
+    },
+    {
+      id: "strikethrough",
+      match: /~~([^\s~][^~]*?)~~$/u,
+      run: createMarkInputRuleRunner("strike"),
+      wordBoundary: true
+    },
+    {
+      id: "emphasis",
+      match: /(?:\*([^\s*][^*]*?)\*|_([^\s_][^_]*?)_)$/u,
+      run: createMarkInputRuleRunner("em"),
+      wordBoundary: true
+    },
+    {
+      id: "heading",
+      match: /^(#{1,6}) $/u,
+      requiresParagraph: true,
+      run: ({ match, state }) =>
+        applyBlockInputRule(state, {
+          kind: "heading",
+          level: match[1]!.length,
+          prefixLength: match[0].length
+        })
+    },
+    {
+      // The trailing space is the trigger, not the `]`: converting on the
+      // bracket leaves the space the user then types as list content.
+      id: "todo",
+      match: /^(?:- )?\[([ xX]?)\] $/u,
+      requiresParagraph: true,
+      run: ({ match, state }) =>
+        applyBlockInputRule(state, {
+          checked: /[xX]/u.test(match[1] ?? ""),
+          kind: "todo_item",
+          prefixLength: match[0].length
+        })
+    },
+    {
+      id: "bulletList",
+      match: /^[-*+] $/u,
+      requiresParagraph: true,
+      run: ({ match, state }) =>
+        applyBlockInputRule(state, { kind: "bullet_list", prefixLength: match[0].length })
+    },
+    {
+      id: "orderedList",
+      match: /^(\d{1,9})\. $/u,
+      requiresParagraph: true,
+      run: ({ match, state }) =>
+        applyBlockInputRule(state, {
+          kind: "ordered_list",
+          order: Number.parseInt(match[1]!, 10),
+          prefixLength: match[0].length
+        })
+    },
+    {
+      id: "blockquote",
+      match: /^> $/u,
+      requiresParagraph: true,
+      run: ({ match, state }) =>
+        applyBlockInputRule(state, { kind: "blockquote", prefixLength: match[0].length })
+    },
+    {
+      id: "horizontalRule",
+      match: /^(?:---|\*\*\*|___)$/u,
+      requiresParagraph: true,
+      run: ({ match, state }) =>
+        applyBlockInputRule(state, { kind: "horizontal_rule", prefixLength: match[0].length })
+    },
+    {
+      id: "codeFence",
+      match: /^```([A-Za-z0-9_-]*) $/u,
+      requiresParagraph: true,
+      run: ({ match, state }) =>
+        applyBlockInputRule(state, {
+          kind: "code_block",
+          language: normalizeOptionalString(match[1] ?? ""),
+          prefixLength: match[0].length
+        })
+    }
+  ];
 }
 
-function inlineMarkdownInputRuleForText(text: string): RichInlineInputRule | null {
-  const inlineCode = text.match(/`([^`\n]+)`$/u);
-  if (inlineCode?.index !== undefined) {
-    return {
-      from: inlineCode.index,
-      kind: "inline_code",
-      text: inlineCode[1]!,
-      to: text.length
-    };
-  }
+function resolveRichInputRules(
+  preference: NormalizedRichPreferences["inputRules"]
+): readonly RichInputRuleDefinition[] {
+  const disabled = new Set(preference.disable);
+  return [...preference.extend, ...defaultRichInputRules()].filter((rule) => !disabled.has(rule.id));
+}
 
-  const link = text.match(/(?<!!)\[([^\]\n]+)\]\((.*)\)$/u);
-  if (link?.index !== undefined) {
-    const parsed = parseMarkdownLinkDestinationAndTitle(link[2]!);
-    if (!parsed || !isSafeUrl(parsed.href)) {
+/**
+ * Deletes the delimiters and marks what is left, rather than replacing the range
+ * with fresh text: `**a `x` b**` must keep the code span the inline-code rule
+ * already produced inside it.
+ */
+function createMarkInputRuleRunner(
+  markName: "em" | "strike" | "strong"
+): (context: RichInputRuleContext) => Transaction | null {
+  return ({ from, match, state, to }) => {
+    const markType = state.schema.marks[markName];
+    const text = match[1] ?? match[2] ?? "";
+    if (!markType || !text) {
       return null;
     }
-    return {
-      from: link.index,
-      href: parsed.href,
-      kind: "link",
-      text: link[1]!,
-      title: parsed.title,
-      to: text.length
-    };
+    const delimiterLength = (match[0].length - text.length) / 2;
+    if (!Number.isInteger(delimiterLength) || delimiterLength < 1) {
+      return null;
+    }
+    const transaction = state.tr;
+    transaction.delete(to - delimiterLength, to);
+    transaction.delete(from, from + delimiterLength);
+    const markTo = to - delimiterLength * 2;
+    transaction.addMark(from, markTo, markType.create());
+    // Before `removeStoredMark`: `setSelection` resets stored marks to null.
+    transaction.setSelection(TextSelection.create(transaction.doc, Math.min(markTo, transaction.doc.content.size)));
+    transaction.removeStoredMark(markType);
+    return transaction;
+  };
+}
+
+/** Replaces the whole match with its inner text carrying one mark. */
+function createMarkedTextInputRuleRunner(
+  markName: "code" | "link",
+  resolve: (
+    match: RegExpMatchArray,
+    state: EditorState
+  ) => { readonly mark: Mark; readonly text: string } | null
+): (context: RichInputRuleContext) => Transaction | null {
+  return ({ from, match, state, to }) => {
+    const markType = state.schema.marks[markName];
+    const resolved = resolve(match, state);
+    if (!markType || !resolved) {
+      return null;
+    }
+    const transaction = state.tr.replaceWith(from, to, state.schema.text(resolved.text, [resolved.mark]));
+    transaction.setSelection(
+      TextSelection.create(transaction.doc, Math.min(from + resolved.text.length, transaction.doc.content.size))
+    );
+    transaction.removeStoredMark(markType);
+    return transaction;
+  };
+}
+
+function applyBlockInputRule(state: EditorState, rule: RichMarkdownInputRule): Transaction | null {
+  const { $from } = state.selection;
+  if ($from.parent.type !== state.schema.nodes.paragraph) {
+    return null;
+  }
+  const from = $from.before();
+  const to = $from.after();
+  const prefixFrom = $from.start();
+  const prefixTo = prefixFrom + rule.prefixLength;
+  const transaction = state.tr.delete(prefixFrom, prefixTo);
+  const mappedFrom = transaction.mapping.map(from);
+  const mappedTo = transaction.mapping.map(to);
+
+  /*
+   * `setBlockType` and `replaceWith` are both silent no-ops where the parent
+   * forbids the target node — a callout accepts paragraphs only. Without the
+   * conversion checks below, the prefix delete would stand on its own and eat
+   * the characters the user typed.
+   */
+  if (rule.kind === "heading") {
+    transaction.setBlockType(mappedFrom, mappedTo, state.schema.nodes.heading!, {
+      level: rule.level
+    });
+    const heading = transaction.doc.nodeAt(mappedFrom);
+    if (!heading || heading.type !== state.schema.nodes.heading) {
+      return null;
+    }
+    return transaction.setMeta(richInputRulesPluginKey, {
+      undoRange: { from: mappedFrom, to: mappedFrom + heading.nodeSize }
+    });
   }
 
-  return null;
+  const retainedParagraph = transaction.doc.nodeAt(mappedFrom);
+  const replacement = replacementForInputRule(
+    rule,
+    state.schema,
+    retainedParagraph?.type === state.schema.nodes.paragraph ? retainedParagraph : state.schema.nodes.paragraph!.create()
+  );
+  if (!replacement) {
+    return null;
+  }
+  transaction.replaceWith(mappedFrom, mappedTo, replacement);
+  const converted = transaction.doc.nodeAt(mappedFrom);
+  if (converted?.type !== replacement.type) {
+    return null;
+  }
+  transaction.setMeta(richInputRulesPluginKey, {
+    undoRange: { from: mappedFrom, to: mappedFrom + converted.nodeSize }
+  });
+  const selectionPosition = Math.min(mappedFrom + selectionOffsetForInputRule(rule), transaction.doc.content.size);
+  return transaction.setSelection(TextSelection.near(transaction.doc.resolve(selectionPosition)));
 }
 
 function parseMarkdownLinkDestinationAndTitle(raw: string): { readonly href: string; readonly title: string | null } | null {
@@ -6706,52 +6975,6 @@ function parseMarkdownLinkTitle(raw: string): string | null | undefined {
 
 function unescapeMarkdownLinkPart(value: string): string {
   return value.replace(/\\([\\()"'])/gu, "$1");
-}
-
-function createInlineMarkdownInputRuleTransaction(
-  state: EditorState,
-  rule: RichInlineInputRule,
-  undoText: string
-): Transaction | null {
-  const { $from } = state.selection;
-  if ($from.parent.type !== state.schema.nodes.paragraph) {
-    return null;
-  }
-  const from = $from.start() + rule.from;
-  const to = $from.start() + rule.to;
-  const mark =
-    rule.kind === "inline_code"
-      ? state.schema.marks.code!.create()
-      : state.schema.marks.link!.create({
-          href: rule.href,
-          title: rule.title
-        });
-  const transaction = state.tr
-    .replaceWith(from, to, state.schema.text(rule.text, [mark]))
-    .setMeta(richInputRulesPluginKey, {
-      undoText
-    });
-  transaction.setSelection(TextSelection.create(transaction.doc, Math.min(from + rule.text.length, transaction.doc.content.size)));
-  transaction.removeStoredMark(mark.type);
-  return transaction;
-}
-
-function todoInputRuleForListItemText(
-  text: string
-): { readonly checked: boolean; readonly prefixLength: number } | null {
-  if (text === "[ ] ") {
-    return {
-      checked: false,
-      prefixLength: text.length
-    };
-  }
-  if (/^\[[xX]\] $/.test(text)) {
-    return {
-      checked: true,
-      prefixLength: text.length
-    };
-  }
-  return null;
 }
 
 function createListTodoInputRuleTransaction(
@@ -6836,7 +7059,7 @@ function replacementForInputRule(
     case "horizontal_rule":
       return schema.nodes.horizontal_rule!.create();
     case "ordered_list":
-      return schema.nodes.ordered_list!.create({ order: 1 }, [
+      return schema.nodes.ordered_list!.create({ order: rule.order }, [
         schema.nodes.list_item!.create(null, [paragraph])
       ]);
     case "todo_item":

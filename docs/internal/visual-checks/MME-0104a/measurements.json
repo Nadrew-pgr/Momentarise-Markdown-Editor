@@ -1,0 +1,731 @@
+{
+  "consoleErrors": [],
+  "demoUrl": "http://127.0.0.1:5174/",
+  "evidence": {
+    "390": {
+      "rows": {
+        "heading-1": {
+          "forbidden": [],
+          "markdown": "# Heading one\n",
+          "required": [
+            true
+          ]
+        },
+        "heading-2": {
+          "forbidden": [],
+          "markdown": "## Heading two\n",
+          "required": [
+            true
+          ]
+        },
+        "heading-3": {
+          "forbidden": [],
+          "markdown": "### Heading three\n",
+          "required": [
+            true
+          ]
+        },
+        "heading-6": {
+          "forbidden": [],
+          "markdown": "###### Heading six\n",
+          "required": [
+            true
+          ]
+        },
+        "bullet-list": {
+          "forbidden": [],
+          "markdown": "- Bullet\n",
+          "required": [
+            true
+          ]
+        },
+        "bullet-list-asterisk": {
+          "forbidden": [],
+          "markdown": "- Star\n",
+          "required": [
+            true
+          ]
+        },
+        "bullet-list-plus": {
+          "forbidden": [],
+          "markdown": "- Plus\n",
+          "required": [
+            true
+          ]
+        },
+        "ordered-list": {
+          "forbidden": [],
+          "markdown": "1. First\n",
+          "required": [
+            true
+          ]
+        },
+        "ordered-list-typed-start": {
+          "forbidden": [],
+          "markdown": "3. Third\n",
+          "required": [
+            true
+          ]
+        },
+        "todo-unchecked": {
+          "forbidden": [],
+          "markdown": "- [ ] Task\n",
+          "required": [
+            true
+          ]
+        },
+        "todo-checked": {
+          "forbidden": [],
+          "markdown": "- [x] Done\n",
+          "required": [
+            true
+          ]
+        },
+        "blockquote": {
+          "forbidden": [],
+          "markdown": "> Quote\n",
+          "required": [
+            true
+          ]
+        },
+        "thematic-break": {
+          "forbidden": [],
+          "markdown": "---\n",
+          "required": [
+            true
+          ]
+        },
+        "thematic-break-asterisks": {
+          "forbidden": [],
+          "markdown": "---\n",
+          "required": [
+            true
+          ]
+        },
+        "link": {
+          "forbidden": [],
+          "markdown": "see [MME](https://example.com)\n",
+          "required": [
+            true
+          ]
+        },
+        "code-fence-with-language": {
+          "forbidden": [],
+          "markdown": "```ts\nconst value = 1;\n```",
+          "required": [
+            true
+          ]
+        },
+        "strong": {
+          "forbidden": [],
+          "markdown": "**bold**\n",
+          "required": [
+            true
+          ]
+        },
+        "emphasis-asterisk": {
+          "forbidden": [],
+          "markdown": "*italic*\n",
+          "required": [
+            true
+          ]
+        },
+        "emphasis-underscore": {
+          "forbidden": [],
+          "markdown": "*soft*\n",
+          "required": [
+            true
+          ]
+        },
+        "inline-code": {
+          "forbidden": [],
+          "markdown": "`code`\n",
+          "required": [
+            true
+          ]
+        },
+        "strikethrough": {
+          "forbidden": [],
+          "markdown": "~~gone~~\n",
+          "required": [
+            true
+          ]
+        },
+        "strikethrough-single-tilde": {
+          "forbidden": [
+            false,
+            false,
+            false
+          ],
+          "markdown": "~gone~\n",
+          "required": []
+        },
+        "emphasis-does-not-swallow-strong": {
+          "forbidden": [],
+          "markdown": "**bold** and *soft*\n",
+          "required": [
+            true,
+            true
+          ]
+        },
+        "strong-does-not-swallow-emphasis": {
+          "forbidden": [],
+          "markdown": "*soft* and **bold**\n",
+          "required": [
+            true,
+            true
+          ]
+        },
+        "inline-rule-inside-a-heading": {
+          "forbidden": [],
+          "markdown": "# Title **bold**\n",
+          "required": [
+            true
+          ]
+        },
+        "no-fire-adjacent-to-punctuation": {
+          "forbidden": [
+            false
+          ],
+          "markdown": "(**bold**)\n",
+          "required": []
+        },
+        "no-fire-mid-word": {
+          "forbidden": [
+            false
+          ],
+          "markdown": "a**bold**\n",
+          "required": []
+        },
+        "no-fire-in-code-block": {
+          "forbidden": [
+            false,
+            false
+          ],
+          "markdown": "```js\n**bold**\n```",
+          "required": [
+            true
+          ]
+        }
+      },
+      "undo": {
+        "undo-heading": {
+          "markdown": "#\n",
+          "text": "# "
+        },
+        "undo-strong": {
+          "markdown": "**bold**\n",
+          "text": "**bold**"
+        },
+        "undo-todo": {
+          "markdown": "[]\n",
+          "text": "[] "
+        }
+      },
+      "tableCell": {
+        "# ": {
+          "cellText": "# one",
+          "markdown": "| A | B |\n| --- | --- |\n| # one | two |\n"
+        },
+        "> ": {
+          "cellText": "> one",
+          "markdown": "| A | B |\n| --- | --- |\n| \\> one | two |\n"
+        },
+        "- ": {
+          "cellText": "- one",
+          "markdown": "| A | B |\n| --- | --- |\n| - one | two |\n"
+        },
+        "**bold**": {
+          "cellText": "**bold**one",
+          "markdown": "| A | B |\n| --- | --- |\n| \\*\\*bold\\*\\*one | two |\n"
+        }
+      },
+      "neighbours": "Alpha\n\nBravo **loud**\n\nCharlie\n",
+      "gallery": "# Input rules\n\n## Inline\n\nTyped **bold**, *italic* and `code` in one line, plus ~~strike~~.\n\n> A quote\n\n---\n\n- Bullet item\n\n3. Third item\n\n- [ ] Open task\n\n- [x] Finished task\n\n```ts\nconst value = 1;\n```"
+    },
+    "1280": {
+      "rows": {
+        "heading-1": {
+          "forbidden": [],
+          "markdown": "# Heading one\n",
+          "required": [
+            true
+          ]
+        },
+        "heading-2": {
+          "forbidden": [],
+          "markdown": "## Heading two\n",
+          "required": [
+            true
+          ]
+        },
+        "heading-3": {
+          "forbidden": [],
+          "markdown": "### Heading three\n",
+          "required": [
+            true
+          ]
+        },
+        "heading-6": {
+          "forbidden": [],
+          "markdown": "###### Heading six\n",
+          "required": [
+            true
+          ]
+        },
+        "bullet-list": {
+          "forbidden": [],
+          "markdown": "- Bullet\n",
+          "required": [
+            true
+          ]
+        },
+        "bullet-list-asterisk": {
+          "forbidden": [],
+          "markdown": "- Star\n",
+          "required": [
+            true
+          ]
+        },
+        "bullet-list-plus": {
+          "forbidden": [],
+          "markdown": "- Plus\n",
+          "required": [
+            true
+          ]
+        },
+        "ordered-list": {
+          "forbidden": [],
+          "markdown": "1. First\n",
+          "required": [
+            true
+          ]
+        },
+        "ordered-list-typed-start": {
+          "forbidden": [],
+          "markdown": "3. Third\n",
+          "required": [
+            true
+          ]
+        },
+        "todo-unchecked": {
+          "forbidden": [],
+          "markdown": "- [ ] Task\n",
+          "required": [
+            true
+          ]
+        },
+        "todo-checked": {
+          "forbidden": [],
+          "markdown": "- [x] Done\n",
+          "required": [
+            true
+          ]
+        },
+        "blockquote": {
+          "forbidden": [],
+          "markdown": "> Quote\n",
+          "required": [
+            true
+          ]
+        },
+        "thematic-break": {
+          "forbidden": [],
+          "markdown": "---\n",
+          "required": [
+            true
+          ]
+        },
+        "thematic-break-asterisks": {
+          "forbidden": [],
+          "markdown": "---\n",
+          "required": [
+            true
+          ]
+        },
+        "link": {
+          "forbidden": [],
+          "markdown": "see [MME](https://example.com)\n",
+          "required": [
+            true
+          ]
+        },
+        "code-fence-with-language": {
+          "forbidden": [],
+          "markdown": "```ts\nconst value = 1;\n```",
+          "required": [
+            true
+          ]
+        },
+        "strong": {
+          "forbidden": [],
+          "markdown": "**bold**\n",
+          "required": [
+            true
+          ]
+        },
+        "emphasis-asterisk": {
+          "forbidden": [],
+          "markdown": "*italic*\n",
+          "required": [
+            true
+          ]
+        },
+        "emphasis-underscore": {
+          "forbidden": [],
+          "markdown": "*soft*\n",
+          "required": [
+            true
+          ]
+        },
+        "inline-code": {
+          "forbidden": [],
+          "markdown": "`code`\n",
+          "required": [
+            true
+          ]
+        },
+        "strikethrough": {
+          "forbidden": [],
+          "markdown": "~~gone~~\n",
+          "required": [
+            true
+          ]
+        },
+        "strikethrough-single-tilde": {
+          "forbidden": [
+            false,
+            false,
+            false
+          ],
+          "markdown": "~gone~\n",
+          "required": []
+        },
+        "emphasis-does-not-swallow-strong": {
+          "forbidden": [],
+          "markdown": "**bold** and *soft*\n",
+          "required": [
+            true,
+            true
+          ]
+        },
+        "strong-does-not-swallow-emphasis": {
+          "forbidden": [],
+          "markdown": "*soft* and **bold**\n",
+          "required": [
+            true,
+            true
+          ]
+        },
+        "inline-rule-inside-a-heading": {
+          "forbidden": [],
+          "markdown": "# Title **bold**\n",
+          "required": [
+            true
+          ]
+        },
+        "no-fire-adjacent-to-punctuation": {
+          "forbidden": [
+            false
+          ],
+          "markdown": "(**bold**)\n",
+          "required": []
+        },
+        "no-fire-mid-word": {
+          "forbidden": [
+            false
+          ],
+          "markdown": "a**bold**\n",
+          "required": []
+        },
+        "no-fire-in-code-block": {
+          "forbidden": [
+            false,
+            false
+          ],
+          "markdown": "```js\n**bold**\n```",
+          "required": [
+            true
+          ]
+        }
+      },
+      "undo": {
+        "undo-heading": {
+          "markdown": "#\n",
+          "text": "# "
+        },
+        "undo-strong": {
+          "markdown": "**bold**\n",
+          "text": "**bold**"
+        },
+        "undo-todo": {
+          "markdown": "[]\n",
+          "text": "[] "
+        }
+      },
+      "tableCell": {
+        "# ": {
+          "cellText": "# one",
+          "markdown": "| A | B |\n| --- | --- |\n| # one | two |\n"
+        },
+        "> ": {
+          "cellText": "> one",
+          "markdown": "| A | B |\n| --- | --- |\n| \\> one | two |\n"
+        },
+        "- ": {
+          "cellText": "- one",
+          "markdown": "| A | B |\n| --- | --- |\n| - one | two |\n"
+        },
+        "**bold**": {
+          "cellText": "**bold**one",
+          "markdown": "| A | B |\n| --- | --- |\n| \\*\\*bold\\*\\*one | two |\n"
+        }
+      },
+      "neighbours": "Alpha\n\nBravo **loud**\n\nCharlie\n",
+      "gallery": "# Input rules\n\n## Inline\n\nTyped **bold**, *italic* and `code` in one line, plus ~~strike~~.\n\n> A quote\n\n---\n\n- Bullet item\n\n3. Third item\n\n- [ ] Open task\n\n- [x] Finished task\n\n```ts\nconst value = 1;\n```"
+    },
+    "1280-light": {
+      "rows": {
+        "heading-1": {
+          "forbidden": [],
+          "markdown": "# Heading one\n",
+          "required": [
+            true
+          ]
+        },
+        "heading-2": {
+          "forbidden": [],
+          "markdown": "## Heading two\n",
+          "required": [
+            true
+          ]
+        },
+        "heading-3": {
+          "forbidden": [],
+          "markdown": "### Heading three\n",
+          "required": [
+            true
+          ]
+        },
+        "heading-6": {
+          "forbidden": [],
+          "markdown": "###### Heading six\n",
+          "required": [
+            true
+          ]
+        },
+        "bullet-list": {
+          "forbidden": [],
+          "markdown": "- Bullet\n",
+          "required": [
+            true
+          ]
+        },
+        "bullet-list-asterisk": {
+          "forbidden": [],
+          "markdown": "- Star\n",
+          "required": [
+            true
+          ]
+        },
+        "bullet-list-plus": {
+          "forbidden": [],
+          "markdown": "- Plus\n",
+          "required": [
+            true
+          ]
+        },
+        "ordered-list": {
+          "forbidden": [],
+          "markdown": "1. First\n",
+          "required": [
+            true
+          ]
+        },
+        "ordered-list-typed-start": {
+          "forbidden": [],
+          "markdown": "3. Third\n",
+          "required": [
+            true
+          ]
+        },
+        "todo-unchecked": {
+          "forbidden": [],
+          "markdown": "- [ ] Task\n",
+          "required": [
+            true
+          ]
+        },
+        "todo-checked": {
+          "forbidden": [],
+          "markdown": "- [x] Done\n",
+          "required": [
+            true
+          ]
+        },
+        "blockquote": {
+          "forbidden": [],
+          "markdown": "> Quote\n",
+          "required": [
+            true
+          ]
+        },
+        "thematic-break": {
+          "forbidden": [],
+          "markdown": "---\n",
+          "required": [
+            true
+          ]
+        },
+        "thematic-break-asterisks": {
+          "forbidden": [],
+          "markdown": "---\n",
+          "required": [
+            true
+          ]
+        },
+        "link": {
+          "forbidden": [],
+          "markdown": "see [MME](https://example.com)\n",
+          "required": [
+            true
+          ]
+        },
+        "code-fence-with-language": {
+          "forbidden": [],
+          "markdown": "```ts\nconst value = 1;\n```",
+          "required": [
+            true
+          ]
+        },
+        "strong": {
+          "forbidden": [],
+          "markdown": "**bold**\n",
+          "required": [
+            true
+          ]
+        },
+        "emphasis-asterisk": {
+          "forbidden": [],
+          "markdown": "*italic*\n",
+          "required": [
+            true
+          ]
+        },
+        "emphasis-underscore": {
+          "forbidden": [],
+          "markdown": "*soft*\n",
+          "required": [
+            true
+          ]
+        },
+        "inline-code": {
+          "forbidden": [],
+          "markdown": "`code`\n",
+          "required": [
+            true
+          ]
+        },
+        "strikethrough": {
+          "forbidden": [],
+          "markdown": "~~gone~~\n",
+          "required": [
+            true
+          ]
+        },
+        "strikethrough-single-tilde": {
+          "forbidden": [
+            false,
+            false,
+            false
+          ],
+          "markdown": "~gone~\n",
+          "required": []
+        },
+        "emphasis-does-not-swallow-strong": {
+          "forbidden": [],
+          "markdown": "**bold** and *soft*\n",
+          "required": [
+            true,
+            true
+          ]
+        },
+        "strong-does-not-swallow-emphasis": {
+          "forbidden": [],
+          "markdown": "*soft* and **bold**\n",
+          "required": [
+            true,
+            true
+          ]
+        },
+        "inline-rule-inside-a-heading": {
+          "forbidden": [],
+          "markdown": "# Title **bold**\n",
+          "required": [
+            true
+          ]
+        },
+        "no-fire-adjacent-to-punctuation": {
+          "forbidden": [
+            false
+          ],
+          "markdown": "(**bold**)\n",
+          "required": []
+        },
+        "no-fire-mid-word": {
+          "forbidden": [
+            false
+          ],
+          "markdown": "a**bold**\n",
+          "required": []
+        },
+        "no-fire-in-code-block": {
+          "forbidden": [
+            false,
+            false
+          ],
+          "markdown": "```js\n**bold**\n```",
+          "required": [
+            true
+          ]
+        }
+      },
+      "undo": {
+        "undo-heading": {
+          "markdown": "#\n",
+          "text": "# "
+        },
+        "undo-strong": {
+          "markdown": "**bold**\n",
+          "text": "**bold**"
+        },
+        "undo-todo": {
+          "markdown": "[]\n",
+          "text": "[] "
+        }
+      },
+      "tableCell": {
+        "# ": {
+          "cellText": "# one",
+          "markdown": "| A | B |\n| --- | --- |\n| # one | two |\n"
+        },
+        "> ": {
+          "cellText": "> one",
+          "markdown": "| A | B |\n| --- | --- |\n| \\> one | two |\n"
+        },
+        "- ": {
+          "cellText": "- one",
+          "markdown": "| A | B |\n| --- | --- |\n| - one | two |\n"
+        },
+        "**bold**": {
+          "cellText": "**bold**one",
+          "markdown": "| A | B |\n| --- | --- |\n| \\*\\*bold\\*\\*one | two |\n"
+        }
+      },
+      "neighbours": "Alpha\n\nBravo **loud**\n\nCharlie\n",
+      "gallery": "# Input rules\n\n## Inline\n\nTyped **bold**, *italic* and `code` in one line, plus ~~strike~~.\n\n> A quote\n\n---\n\n- Bullet item\n\n3. Third item\n\n- [ ] Open task\n\n- [x] Finished task\n\n```ts\nconst value = 1;\n```"
+    }
+  },
+  "screenshots": 3,
+  "status": "passed"
+}

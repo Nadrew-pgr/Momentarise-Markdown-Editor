@@ -200,6 +200,7 @@
     "test:rich-block-selection": "npm run build && node tests/rich-block-selection.test.mjs",
     "visual:mme-0088": "node scripts/visual-check-mme0088.mjs",
     "visual:mme-0103": "node scripts/visual-check-mme0103.mjs",
+    "visual:mme-0104a": "node scripts/visual-check-mme0104a.mjs",
     "visual": "node scripts/visual-runner.mjs",
     "visual:mme-0085": "node scripts/visual-check-mme0085.mjs",
     "visual:mme-0100": "node scripts/visual-check-mme0100.mjs",

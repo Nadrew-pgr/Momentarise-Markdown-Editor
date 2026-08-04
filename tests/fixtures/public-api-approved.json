@@ -159,6 +159,7 @@
     "richBlockSelectionMarkdown",
     "richBlockSelectionPluginKey",
     "richCommandRegistry",
+    "richInputRuleIds",
     "richPositionForSourceOffset",
     "richRangeForSourceRange",
     "richTableCellCoordinates",

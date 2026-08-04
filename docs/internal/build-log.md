@@ -9928,3 +9928,231 @@ Split it. `MME-0104a` (block + inline rules, and the rule registry) and
 `MME-0104b` (smart pairing, paste-URL-to-link) are independently testable and
 independently shippable; item 5 above is the only real coupling and it belongs
 with pairing. The four families do not share a RED-GREEN cycle.
+
+## MME-0104a — Block and inline input rules: SHIPPED
+
+- Date: 2026-08-04.
+- Block: C2b. Builder model: opus-5 (stronger than the issue's `opus-4.8` tag).
+- Status: implemented, mutation-proven, browser-proven, reviewed.
+
+### Summary
+
+Completed the Notion input-rule table for the rules that fire from the existing
+`appendTransaction` path, and gave hosts a real handle on the rule set. The three
+separate matchers (`markdownInputRuleForText`, `inlineMarkdownInputRuleForText`,
+`todoInputRuleForListItemText`) were replaced by one ordered list of rule
+definitions, which is also what fixes trap 1 from the previous attempt: a rule
+whose `run` returns `null` now falls through to the next rule instead of ending
+the whole pass.
+
+Added: `**bold**`, `*italic*`, `_italic_`, `~~strike~~`; bare `[]`/`[x]` todo;
+ordered lists honouring a typed start number; a host-configurable rule set
+(`preferences.inputRules.disable` / `.extend`, with `richInputRuleIds` for
+discovery).
+
+### Two preservation defects found and fixed on the way
+
+Both were measured against the built package, not inferred, and both are real
+corruption that shipped before this issue:
+
+1. **Block rules fired inside table cells.** Typing `> ` or `- ` at the start of
+   a table cell pulled the cell's paragraph out of the table and left two broken
+   tables behind; typing `# ` there deleted the characters silently. Fixed by
+   consulting MME-0088's `richTextInputContext` before any rule runs — the
+   contract the issue names as "the single answer to is this a safe context".
+2. **A block rule could delete its own prefix and convert nothing.**
+   `setBlockType` and `replaceWith` are both silent no-ops where the parent
+   forbids the target node. In a callout (`content: "paragraph+"`) the prefix
+   delete stood on its own and ate what the user typed. Fixed by checking that
+   the conversion actually happened and discarding the transaction otherwise.
+
+### Files changed
+
+- `packages/md-rich-prosemirror/src/index.ts` — rule definitions, the context
+  gate, the conversion checks, `richInputRuleIds`, `RichInputRuleDefinition`,
+  `RichInputRulesPreference`, `RichInputRuleContext`, `NormalizedRichPreferences`.
+- `tests/rich-input-rules.test.mjs` — 43 new cases: 35 written directly, plus a
+  5-entry table-cell loop and a 3-entry callout loop (counted from the file, not
+  from memory).
+- `scripts/visual-check-mme0104a.mjs` — new browser gate, real keyboard.
+- `scripts/visual-gates.mjs`, `package.json` — gate registration, so the script
+  is reachable rather than a file nobody runs.
+- `tests/fixtures/public-api-approved.json` — one intentional new export.
+- `docs/internal/visual-checks/MME-0104a/` — README, parity checklist, evidence.
+- `docs/internal/BACKLOG.md` — three measured defects deferred with provenance.
+
+### Tests run
+
+- `node tests/rich-input-rules.test.mjs` — green (43 new cases plus the
+  pre-existing ones).
+- `npm test` — green, exit 0, full suite including `test:public-api`,
+  `test:roundtrip`, `test:rich-fidelity`, `test:rich-targeted-serialization`,
+  `test:visual-gate-integrity`, and the consumer/tarball gates.
+- `npm run visual:mme-0104a` — green: 28 parity rows, 3 undo rows, 4 table-cell
+  preservation rows and the neighbour-preservation case, all proven with a real
+  keyboard at 1280 dark, 390 touch, and 1280 light.
+
+### RED, validated
+
+22 failing cases, **zero `TypeError`s** — every failure was the assertion's own
+message against callable code. One case failed for the wrong reason and the
+*test* was corrected, not the code: undo after `# Title` empties the paragraph
+because the characters typed after the trigger clear the plugin's undo state.
+The criterion says "immediately after a conversion", so the case now types `# `
+and undoes that.
+
+### Mutation table — reversion to failure
+
+Every mutant was applied to `packages/md-rich-prosemirror/src/index.ts`, rebuilt,
+run, and reverted. No mutant survived.
+
+| Reversion | Cases that fail |
+| --- | --- |
+| `strong` rule returns null | strong fires; both swallow-ordering cases; marks-inside-match; strong undo |
+| `strong` disabled + emphasis inner class widened to `[^\s]` | same five — emphasis then matches `*bold**` and produces em over `bold*` |
+| `richTextInputContext` gate removed | inline rule in a fence; inline rule in a code span; table cell `**bold**`; host rule in a table cell |
+| context gate **and** both conversion checks removed | the above plus table cell `# `, `> `, `- ` |
+| word-boundary guard never suppresses | 9 cases, including both mid-word cases and neighbour preservation |
+| bare todo converts on `]` instead of the trailing space | all three todo cases plus todo undo (`- [ ]  Task`, doubled space) |
+| a non-applying rule ends the pass instead of falling through | all three todo cases plus todo undo |
+| ordered list start hardcoded to 1 | ordered list typed start |
+| `undoRichInputRuleCommand` unchained from `Mod-z` | all four undo cases |
+| host `disable` preference ignored | the disable case |
+| host `extend` preference ignored | the extend case |
+| both conversion checks removed | all three callout-body cases |
+| stored mark not removed after a mark rule | both swallow-ordering cases |
+| mark rule replaces the range with fresh text | marks-inside-match |
+| mark rule marks from the block start | both ordering cases plus neighbour preservation |
+
+Two findings worth carrying forward:
+
+- **The word-boundary guard, not the rule ordering, is what stops `*italic*`
+  swallowing `**bold**`.** Mid-typing, `**bold*` matches the emphasis pattern at
+  index 1, and only the "character before the match must be a block start or
+  whitespace" rule suppresses it. Reordering alone would not have been caught —
+  typing character by character, on the real path, is what exposed it.
+- **The context gate and the conversion checks are complementary.** With only the
+  context gate removed, the table-cell block cases still pass, because the
+  conversion check then refuses the no-op. Both had to be removed together to
+  make those cases fail, and the table records that explicitly.
+
+### Manual and visual verification
+
+Dev server: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port 5174`
+(started via `.claude/launch.json`). URL: `http://127.0.0.1:5174/`.
+Artifacts: `docs/internal/visual-checks/MME-0104a/` — `input-rules-1280.png`,
+`input-rules-390.png`, `input-rules-1280-light.png`, `parity-checklist.json`,
+`measurements.json`, `README.md`.
+
+The gallery screenshot is asserted, not just captured. The first run showed the
+rules apparently failing: typing each construct back to back left the caret
+inside the list the previous construct created, where `3. ` and `[x] ` correctly
+stay literal. The gallery now starts each construct in a fresh top-level
+paragraph and the resulting document is asserted, so the screenshot cannot show
+something other than what it claims.
+
+The parity checklist for benchmark contract 5 (block and inline portions) is
+generated from the same table the browser asserts, so the published checklist
+cannot drift from what was verified.
+
+### Deviations and deferrals, with provenance
+
+- The serialization assertion for `**a `x` b**` was deliberately **not** written.
+  The node shape is asserted (the rule must preserve inner marks rather than
+  flatten them); the bytes are not, because adjacent runs sharing an outer mark
+  serialize one delimiter pair each. Verified reachable at `fe828c9` with no
+  input rule at all, via the `bold` command over a code span. Recorded in
+  `BACKLOG.md`.
+- The two fenced-code rows in the browser gate assert a prefix rather than
+  equality: a trailing fenced code block reaches `session.getContent()` without
+  the document's final newline. Verified identical at `HEAD` before this issue by
+  swapping the source file back and re-running the probe. Recorded in
+  `BACKLOG.md`.
+- `richTextInputContext` gates every rule, which closes the corruption but also
+  means inline marks cannot be typed inside a table cell. Recorded in
+  `BACKLOG.md` with what splitting the contract would need.
+- Punctuation-adjacent delimiters (`(**bold**)`) stay literal. That is exactly
+  the criterion's "block start or whitespace"; Notion converts them. Not widened,
+  because allowing punctuation reintroduces `*italic*` swallowing `**bold**` at
+  the intermediate keystroke — the mutant that killed nine cases. Recorded in
+  `BACKLOG.md` as CommonMark flanking delimiter runs.
+
+**A claim in the first version of this entry was false and is corrected here.**
+It said "inline rules remain restricted to plain paragraphs, so `**bold**` inside
+a heading stays literal", and the same sentence went into `BACKLOG.md` and the
+visual-checks README. `requiresParagraph` is set only on the block rules;
+`# Title **bold**` produces a real `strong` mark inside the `<h1>`. The claim
+described an earlier design intent rather than the implementation, which is the
+exact defect class the spec-truthfulness rule at `fe828c9` was written for. It
+was caught by the UX reviewer, verified against the built package, removed from
+all three files, and replaced by an asserted browser parity row.
+
+### Reviewer pass
+
+Two reviewers, both mandatory per the issue, both spawned with the read-only
+instruction in their own prompts and run against a frozen tree: a **Test
+Reviewer** and a **UX Reviewer**. Every factual claim either returned was
+re-measured against the built package before being acted on.
+
+Blockers, all fixed:
+
+| Finding | Fix |
+| --- | --- |
+| **Undo after an inline rule inside a list destroyed the sibling items.** `undoRichInputRuleCommand` replaced `$from.before(1)`..`$from.after(1)` — depth 1 is the whole list — so `- item one` / `- **bold**` plus one undo left only `**bold**`. Blockquotes were destroyed the same way. Real data loss. | Block rules now record the exact node they produced (correct even inside a blockquote or list item); inline rules restore only their textblock's content. Three regression cases added. |
+| **The neighbour-preservation assertion could not fail.** It asserted bytes only, and the reviewer proved it vacuous using this issue's own `disable` lever: with all 13 rules off, the output is byte-identical. It was the only test for that criterion. | The case now asserts the edited paragraph carries `strong` before asserting the bytes. Mutant "every rule disabled" kills it. |
+| **`parity-checklist.json` published undo values that were never asserted, and two were wrong**, under a README sentence claiming the checklist cannot drift from what was verified. | The undo serialization is now asserted, with the measured values, and the round-trip defect behind them is recorded in `BACKLOG.md`. |
+| **A documented "known gap" did not exist** (inline rules in headings). | Removed from three files; replaced by an asserted parity row. See Deviations. |
+
+Should-fix, all applied: the `strong`-before-`emphasis` comment claimed an
+ordering that is not load-bearing (corrected to name the word-boundary guard,
+which the mutation run had already shown); `richInputRuleIds` was not tied to the
+rule set, so 12 of 13 ids could rot silently (now every id is disabled at once
+and every rule proven inert); `strikethrough`, `inlineCode` and `link` had no
+mid-word case, so their `wordBoundary` flags were surviving mutants (cases added,
+mutants now killed); the mis-named "does not fire mid-line" todo case actually
+tested the `^` anchor (renamed); `check()` swallowed `TypeError`, so a RED phase
+could report crashes as failures (it now stops the run instead); the
+strikethrough parity verdict said "same as benchmark" while its own note admitted
+a difference (now "intentionally different"); the `_soft_` justification implied
+underscores are always preserved when the guarantee is per top-level block
+(measured and corrected); the gallery caption claimed constructs the screenshot
+did not contain (`##`, `---` and a fenced block added to the asserted document).
+
+The reviewer also reported "no build-log entry, no mutation table anywhere". That
+was true when it read the file and stale by the time it reported: this entry was
+appended while the reviewers were running.
+
+Findings recorded rather than fixed, each with provenance, in `BACKLOG.md`:
+thematic break destroyed by the next keystroke, `listTodo` having no one-step
+undo, the `link` rule discarding marks inside `[...]`, punctuation-adjacent
+delimiters, and the 390 todo layout defect.
+
+### Second mutation round, after the reviewer fixes
+
+| Reversion | Cases that fail |
+| --- | --- |
+| undo replaces the top-level block again (the data-loss defect) | all three container-undo cases |
+| the undo no longer clears the plugin state | second-undo-reaches-history |
+| block rules stop recording the converted node's range | heading, bare todo and ordered-list undo |
+| one advertised rule id renamed but still advertised | every-advertised-id-is-real |
+| `strikethrough` / `inlineCode` / `link` lose `wordBoundary` | the matching mid-word case, one each |
+| every rule disabled | 20 cases, including the neighbour byte assertion |
+
+One mutant survived the first pass and exposed a vacuity in a case written to fix
+a vacuity: the second-undo case compared `editorState` object identity, and an
+uncleared plugin state still produces a *new* `editorState` while replaying the
+same restore. It now asserts the document. The mutant kills it.
+
+### Public API
+
+One intentional new runtime export: `richInputRuleIds`. It is the discovery
+surface the acceptance criterion requires ("hosts can disable or extend without
+forking internals") and is registered in `tests/fixtures/public-api-approved.json`.
+The other additions are types, which are erased at runtime.
+
+### Visual impact
+
+Typing Markdown in rich mode now produces the block or mark immediately for
+`**bold**`, `*italic*`, `_italic_`, `~~strike~~`, `[]`/`[x]`, and `3.`. Typing
+`> ` or `- ` at the start of a table cell no longer destroys the table. No
+chrome, layout, or styling changed; no new CSS.

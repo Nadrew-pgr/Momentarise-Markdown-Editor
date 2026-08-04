@@ -50,6 +50,79 @@ Tags: `baseline/hygiene`, `markdown`, `editing`
 - Raw inline and block HTML inside Markdown should eventually render where policy allows while preserving source bytes. This is distinct from opening a standalone `.html` artifact.
 - Callouts, opaque blocks, inserted media, and document-end content need explicit editing affordances so users are not trapped inside or below framed blocks.
 
+#### Rich serializer defects measured during MME-0104a (2026-08-04)
+
+Three findings, each measured against the built package and each verified to
+reproduce at `fe828c9` — before MME-0104a — so none is caused by the input
+rules. None is in MME-0104a's acceptance criteria; each needs its own issue with
+its own RED.
+
+- **Adjacent runs sharing an outer mark serialize one delimiter pair each.**
+  `wrapMomentariseTextMarks` wraps every ProseMirror text node independently, so
+  bolding across an existing code span produces ``**a ****`x`**** b**`` instead
+  of ``**a `x` b**``. Reachable today with no input rule at all: load
+  `` a `x` b ``, select the paragraph, run the `bold` command. Preservation-critical
+  — `test:roundtrip`, `test:rich-fidelity`, `test:rich-targeted-serialization`
+  and the footnote/table suites all cover this path.
+- **A trailing fenced code block loses the document's final newline.**
+  `serializeRichMarkdownState` emits ``` ```ts\nconst value = 1;\n```\n ```, but
+  after the same content is typed in the demo `session.getContent()` returns it
+  without the final `\n`, while every other block type keeps one. Measured
+  identical at `HEAD` before MME-0104a. Lives in the session/save layer, not the
+  rich serializer.
+- **Literal block and inline syntax is serialized unescaped in paragraphs, so an
+  undo does not survive a save.** This is the widest of the three. Measured:
+
+  | Typed, then one undo | Editor shows | Serializes | Re-parses as |
+  | --- | --- | --- | --- |
+  | `# ` | `# ` | `#` | an **empty heading** — the characters are gone |
+  | `3. ` | `3. ` | `3.` | an **empty ordered list** — the characters are gone |
+  | `[] ` | `[] ` | `[]` | paragraph `[]` (trailing space dropped) |
+  | `**bold**` | `**bold**` | `**bold**` | `<strong>bold</strong>` — the undo is reversed |
+  | `a**bold**` (mid-word, never converted) | `a**bold**` | `a**bold**` | `a<strong>bold</strong>` |
+
+  So MME-0104a's "one undo restores the literal typed text" holds on screen and
+  until the next save, and then does not. Table cells already escape correctly
+  (`\>`), so the gap is the paragraph text serializer, not the concept. Fixing
+  it means escaping leading block markers and inline delimiter runs when a
+  paragraph's literal text would re-parse as something else.
+
+#### Other contract-5 gaps measured during MME-0104a (2026-08-04)
+
+- **Inline marks cannot be typed inside a table cell.** `richTextInputContext`
+  reports `table-cell` unsafe, which is what stops `> ` and `- ` from destroying
+  the table — but it also blocks `**bold**` there, so a writer cannot format
+  table text by typing. Splitting the contract into "no block conversions" and
+  "inline marks are fine" would close this; it needs its own RED, because the
+  block half is the corruption guard.
+- **The next keystroke after a thematic break destroys it.** `---` leaves a
+  `NodeSelection` on the `horizontal_rule`, so typing `---dash` yields a document
+  containing only `dash`. Pre-existing; the rule's selection offset is unchanged
+  by MME-0104a.
+- **Delimiters adjacent to punctuation never convert.** `(**bold**)`,
+  `"**bold**"` and `-**bold**` stay literal because the word-boundary guard
+  accepts only a block start or whitespace, which is exactly what MME-0104a's
+  criterion specifies. Notion converts all three. Widening it needs CommonMark's
+  left/right-flanking delimiter-run rule rather than a looser character class:
+  simply allowing punctuation reintroduces `*italic*` swallowing `**bold**`,
+  because mid-typing `**bold*` has `*` before the match. This gets worse once
+  MME-0104b pairs `(`.
+- **`listTodo` has no one-step undo.** Converting a list item with `[x] ` inside
+  an existing list records no undo text, so `Mod-z` falls through to history.
+  Pre-existing shape; every other rule in the table now records one.
+- **The `link` input rule discards marks inside `[...]`.** It replaces the match
+  with fresh text, unlike the emphasis rules which delete delimiters and mark
+  what is left. Low blast radius today only because the word-boundary guard
+  stops `**b**` converting inside the brackets first.
+
+#### Todo item presentation (2026-08-04)
+
+Seen in MME-0104a's own 390 capture, and not caused by it — no stylesheet is in
+that diff. At coarse-pointer widths the todo toggle renders at the MME-0117
+touch-target size and **overlaps the start of its own label**, and at every width
+todo items are indented deeper than sibling bullet and ordered items. Belongs
+with the block-affordance/mobile work.
+
 ### Core Editor Interactions
 
 Tags: `baseline/hygiene`, `editing`, `mobile`, `desktop`
