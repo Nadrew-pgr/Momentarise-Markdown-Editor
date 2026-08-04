@@ -1245,6 +1245,8 @@ bubble toolbar and native highlight both observe it).
 
 ## MME-0104a — Block and inline input rules
 
+**Status: SHIPPED (commit `a6c42e9`). Do not re-implement.**
+
 ### Goal
 
 Complete the Notion input-rule table for rules that fire from the existing `appendTransaction` path, plus the configurable rule set.
