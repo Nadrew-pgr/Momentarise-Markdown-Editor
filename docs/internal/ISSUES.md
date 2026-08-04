@@ -1830,6 +1830,8 @@ The More menu appears where it should on phones and tablets; desktop unchanged u
 
 ## MME-0120 — Paragraph serializer escaping: an undo must survive a save
 
+**Status: SHIPPED (commit `62480e8`). Do not re-implement.**
+
 ### Goal
 
 Make literal block markers and inline delimiters in paragraph text serialize escaped, so what the user sees on screen is what the file re-opens as.
