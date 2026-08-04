@@ -9844,3 +9844,87 @@ Desktop is unchanged. No other surface moved.
   (`scrollRange: 0`), so its three samples are the same `scrollLeft: 0` state.
   Only 390 genuinely exercises the defect's condition. The gate enforces a real
   scroll at 390 for that reason; the README says so.
+
+## MME-0104 — Markdown input rules and smart pairing: NOT STARTED, analysis only
+
+- Date: 2026-08-03.
+- Status: **not implemented.** A measured gap analysis and a validated RED were
+  produced, then the implementation was reverted rather than handed over
+  half-finished. `npm test` is green at `f2dc62b`; nothing from this issue is in
+  the tree.
+
+### Why this is recorded rather than shipped
+
+The issue is four behaviour families — inline mark rules, the missing block
+rules, a smart-pairing plugin, and paste-URL-to-link — plus undo semantics and a
+public configuration surface. Working through it revealed interactions that need
+unhurried attention (below). Rather than leave a partially working editor input
+path uncommitted, the source changes were reverted. What survives is the part
+that is expensive to rediscover: exactly what is missing, and exactly where the
+traps are.
+
+### The gap, measured against the built package (not inferred)
+
+Already working, and covered by `tests/rich-input-rules.test.mjs`:
+`#`…`######`; `- `/`* `/`+ `; `1. `; `> `; `- [ ] ` / `- [x] `; `---`/`***`/`___`;
+` ``` lang `; and the `` `code` `` inline rule.
+
+Missing:
+
+| Rule | Behaviour today |
+| --- | --- |
+| `**bold**`, `*italic*`, `_italic_`, `~~strike~~` | Stay literal; no mark applied. Only `` `code` `` fires. |
+| bare `[]` / `[x]` | Stay literal; only the long `- [ ] ` form converts. |
+| ordered list from a typed start number (`3. `) | Stays literal; only `1. ` converts, and it hardcodes `order: 1`. |
+| smart pairing of `` ` `` `(` `[` `{` `"` `'` | Does not exist. |
+| paste URL over a selection | Replaces the selection instead of wrapping it. |
+| configurable rule set | Does not exist. |
+
+### The RED, validated
+
+A new `tests/rich-markdown-input-table.test.mjs` was written covering all of the
+above plus not-fire-in-code, undo-restores-literal, and serialization exactness.
+It reported **18 failing cases, zero `TypeError`s** — a valid RED under the
+current rule, reached by first stubbing the four missing exports to return
+plausible-but-wrong values so each assertion failed with its own message rather
+than "is not a function". The file is not in the repository; it is reproducible
+from this entry, and re-writing it is the correct first step of the real issue.
+
+Two vacuity traps in that test are worth carrying forward, because both passed
+against a no-op stub before being tightened:
+
+- `# Title` and `**bold**` serialize identically whether or not the rule fired,
+  so the undo cases must assert the **node shape and marks**, not just the bytes.
+- Pairing lives in `handleTextInput`, a view-level prop. A harness that drives
+  only `tr.insertText` (as the existing input-rule test does) bypasses pairing
+  completely and would let an empty implementation pass.
+
+### Traps found while implementing, which will otherwise be rediscovered
+
+1. **`todoInputRuleForListItemText` swallows the pass.** It matches `[x] ` and,
+   outside a list, returns a rule whose transaction is `null` — which aborted the
+   whole `appendTransaction` and made any later block rule unreachable. It needs
+   to fall through, not return.
+2. **The bare-todo trigger is the trailing space, not the `]`.** Converting on
+   `]` leaves the space the user then types as content: `- [ ]  Task`.
+3. **Emphasis must be matched longest-delimiter-first.** `**` before `*`, or
+   `**bold**` matches the single-asterisk rule and produces emphasis wrapping a
+   literal asterisk.
+4. **`_soft_` serializes as `*soft*`, and that is correct.** The input rule
+   creates an `em` node, and newly created nodes serialize in the canonical form.
+   An untouched `_emphasis_` already in a document is never re-serialized and
+   stays byte-identical — verified directly, not assumed.
+5. **Pairing and the input rules interact.** Backtick pairing changes what the
+   inline-code rule sees, and the step-over rule ("typing the closer moves past
+   the auto-inserted one") must map its recorded position through intervening
+   edits — clearing it on any doc change breaks `(x)` into `(x))`.
+6. **New exports trip the public-API gate.** `test:public-api` correctly reports
+   drift for `@momentarise/md-rich-prosemirror`; the snapshot must be updated as
+   part of the issue, deliberately.
+
+### Recommendation
+
+Split it. `MME-0104a` (block + inline rules, and the rule registry) and
+`MME-0104b` (smart pairing, paste-URL-to-link) are independently testable and
+independently shippable; item 5 above is the only real coupling and it belongs
+with pairing. The four families do not share a RED-GREEN cycle.
