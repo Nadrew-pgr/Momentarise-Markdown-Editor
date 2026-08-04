@@ -103,7 +103,8 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | B3 | MME-0102 (+ alpha.2 republish) | Design foundation — premium by default | opus-5 / fable-5 | done 2026-07-31, alpha.3 on registry |
 | C | MME-0086, 0087, 0088 | Interaction correctness, part 1 | opus-4.8 | done 2026-08-01 (0103 attempted and reverted) |
 | C1 | MME-0103 (attempt 2) | Block selection, redesigned on byte-derived separators | opus-5 / fable-5 | accepted 2026-08-01 |
-| C2 | MME-0114 ✅, 0117 ✅, then 0119, 0104, 0115 | Gate harness ✅; touch targets ✅; overlay anchoring; input rules; composition | opus-4.8 | MME-0078 leaves quarantine; parity checklist for contract 5 green |
+| C2 | MME-0114 ✅, 0117 ✅, 0119 ✅ | Gate harness, touch targets, overlay anchoring — all shipped | opus-4.8 | done 2026-08-03; MME-0078 left quarantine |
+| C2b | MME-0104a, 0104b, 0115 | Input rules; pairing and paste-link; composition input | opus-4.8 | parity checklist for contract 5 green |
 | C3 | MME-0116 | Empty the gate quarantine | opus-4.8 | `npm run visual` exits zero, quarantine empty |
 | Cd | MME-0118 | Docs correctness repair (may run parallel, own branch) | sonnet-5 | Andrew follows the vanilla quickstart and it works |
 | D | MME-0089, 0090, 0091, 0105, 0106 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
@@ -1227,6 +1228,80 @@ bubble toolbar and native highlight both observe it).
 - MME-0086 (focus/overlay hygiene defines the focus semantics this builds on).
 
 ## MME-0104 — Markdown input rules and smart pairing
+
+**Status: SUPERSEDED 2026-08-03 by `MME-0104a` and `MME-0104b`.** The builder measured the gap against the built package, produced a validated RED (18 failing assertions, zero `TypeError`s), then stopped and reverted rather than hand over a half-built input path — the four rule families do not share a RED-GREEN cycle, and pairing lives in `handleTextInput` while the block and inline rules fire from `appendTransaction`. The analysis is committed at `7548249`; read it before starting either child. This entry is kept for its acceptance criteria, which the children inherit.
+
+## MME-0104a — Block and inline input rules
+
+### Goal
+
+Complete the Notion input-rule table for rules that fire from the existing `appendTransaction` path, plus the configurable rule set.
+
+### Measured gap (verified 2026-08-03 against the built package, not inferred)
+
+Present today: `#`…`######`, `- `/`* `/`+ `, `1. `, `> `, `- [ ] `/`- [x] `, `---`/`***`/`___`, fenced code with language, and `` `code` ``.
+
+Missing: `**bold**`, `*italic*`, `_italic_`, `~~strike~~` (they stay literal, no mark applied); bare `[]`/`[x]` todo; an ordered list honoring a typed start (`3. ` stays literal); and a host-configurable rule set.
+
+### Acceptance criteria
+
+- Every missing rule above fires, and none fires inside code blocks, inline code, or any context `richTextInputContext` (MME-0088) reports unsafe — that contract is the single answer to "is this a safe context" for slash triggers and input rules alike.
+- No rule fires mid-word: the character before the trigger must be a block start or whitespace.
+- `*italic*` must not swallow `**bold**`; assert both orderings.
+- One `Cmd/Ctrl+Z` immediately after a conversion restores the literal typed text, not the whole paragraph. The machinery for this already exists for current rules — extend it, do not reinvent it.
+- Rules are exposed as a configurable set hosts can disable or extend without forking internals.
+- After every rule, the serialized Markdown is exactly canonical and untouched neighbours stay byte-identical.
+- Parity checklist for contract 5, block and inline portions.
+
+### Traps recorded by the previous attempt — read before coding
+
+- `todoInputRuleForListItemText` matches `[x] ` first and, outside a list, returns nothing, which silently aborts the whole rule pass. It must fall through instead.
+- The bare `[]` variant converted one character early, so the user's space became content; require the space.
+- **Two vacuous-test traps.** `# Title` and `**bold**` serialize identically whether or not the rule fired — undo cases must assert node shape, never serialized text. And a blanket `replace` without a count edits sibling functions that share the pattern; check every site after any such edit.
+
+### Test-first plan
+
+- RED: extend `tests/rich-input-rules.test.mjs` with fire / not-fire-in-code / not-fire-mid-word / undo-restores-literal per rule. Where a function does not exist yet, stub it to return a wrong value so the assertion's own message is the failure — a `TypeError` is not RED.
+- Mutants must be plausible wrong answers: a rule firing mid-word, `*italic*` swallowing `**bold**`, undo collapsing the whole paragraph, a rule firing inside a fence.
+
+### Execution model
+
+- Sequential; fresh context rebuild; Test Reviewer and UX Reviewer mandatory, read-only, tree frozen while they run; builder model opus-4.8; human review queued in the visual block.
+
+### Blocked by
+
+- None. MME-0088 shipped the context contract.
+
+## MME-0104b — Smart pairing and paste-URL-to-link
+
+### Goal
+
+Restore bracket, quote and backtick pairing, and make pasting a URL over a selection produce a Markdown link.
+
+### Acceptance criteria
+
+- Typing an opening `` ` `` `(` `[` `{` `"` `'` inserts the closing character when the context is safe; typing the closing character over an auto-inserted one steps past it instead of duplicating; `Backspace` between an empty pair deletes both. Quotes never pair inside code blocks. Pairing never rewrites bytes the user did not type.
+- Pasting a URL over a text selection wraps it as `[selection](url)`; with no selection it inserts a plain link. Settle and record: the URL definition (scheme allowlist versus permissive), behavior when the selection already contains a link, and behavior when the selection spans blocks. A non-URL paste keeps today's replace behavior.
+- Parity checklist for contract 5, pairing and paste portions.
+
+### Traps recorded by the previous attempt — read before coding
+
+- **Pairing lives in `handleTextInput`, which an `insertText`-only harness bypasses entirely.** An empty implementation passed every assertion in the previous attempt's harness. The test must drive the real input path, and a mutant that removes pairing must be proved to fail.
+- The step-over guard loses its recorded position on the next keystroke; map it through intervening edits or `(x)` becomes `(x))`.
+
+### Test-first plan
+
+- RED: a pairing matrix and URL-paste cases driven through the real input path, each failing on its own assertion.
+- Mutants: pairing inside a code block, step-over duplicating the closing character, paste replacing instead of wrapping.
+
+### Execution model
+
+- Sequential; fresh context rebuild; Test Reviewer mandatory, read-only, tree frozen while it runs; builder model opus-4.8; human review queued in the visual block.
+
+### Blocked by
+
+- MME-0104a (both touch the same rule registration surface; sequencing avoids a merge conflict in one file).
+
 
 ### Goal
 
