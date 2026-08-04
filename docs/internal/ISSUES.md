@@ -41,6 +41,18 @@ Every issue declares `Recommended builder model` in its execution model. Meaning
 
 A stronger model may always take a weaker-tagged issue. A weaker model must not take a stronger-tagged issue without human approval.
 
+### Spec truthfulness (2026-08-03)
+
+Issue specs are contracts, and the contract-versus-verified-state rule applies to them too. Three spec defects this queue has already paid for: MME-0103's hardened criteria asserted an unverified cause as fact (the builder disproved it with a reproduction before writing code); MME-0114's spec said "the two pre-existing failures" when the real count, established only by building the runner, was forty; MME-0104 bundled four rule families into one issue without probing whether they shared a RED-GREEN cycle (they did not — two dispatch mechanisms).
+
+Rules for every spec written into this file:
+
+- Every factual claim about current behavior carries provenance: the command or file:line that established it, and the date. "Verified 2026-08-02: `editor-ai-button` measures 34px (visual gate output)" — never a bare assertion.
+- A claim without provenance is written as an assumption, labeled as one, with how the builder should check it. Builders treat unverified spec claims as hypotheses: reproduce before implementing a fix for a stated cause.
+- Numbers are measured or marked unknown. "Count unknown; the first run of the runner establishes it" is honest. A guessed number wearing the costume of a fact sends the builder to plan around fiction.
+- Scope claims get a feasibility probe against the built artifact before promotion — the MME-0104 analysis ("measured against the built package, not inferred from grep") is the model.
+- When a builder disproves a spec premise, that is a valid and valuable outcome: record it in the build log, correct the spec, and check whether the error is a class (fix the rule) or a one-off (fix the spec).
+
 ### Issue ID allocation (2026-08-02)
 
 A numbering collision happened: two different issues were both created as `MME-0118` by two agents working in parallel. Before creating an issue, `grep "^## MME-" docs/internal/ISSUES.md | tail -20` and take the next free number **above every number that appears**, including ones in the historical section. If two issues collide anyway, the one created first keeps the number and the later one is renumbered, including every self-reference in its own body.
