@@ -16,6 +16,11 @@ import {
   serializeRichMarkdownState
 } from "../packages/md-rich-prosemirror/dist/index.js";
 import { renderMarkdownToHtml } from "../packages/md-render-html/dist/index.js";
+import { createMarkdownAstParser } from "../packages/md-format/dist/index.js";
+
+const assertionParser = createMarkdownAstParser();
+const parseMarkdownForAssertions = (markdown) =>
+  assertionParser.parse(markdown, { dialect: "gfm-plus", path: "memory://live-preview-assertions.md" });
 
 const session = createMarkdownEditorSession({
   content: "# Live Preview\n\nSource stays canonical.\n",
@@ -354,13 +359,43 @@ function assertInvalidTypedLinkTitleStaysPlain(input) {
   const state = typeIntoRichState(createRichMarkdownState("", { dialect: "momentarise-enhanced" }), input);
   const links = collectMarks(state.editorState.doc.toJSON(), "link");
   assert(links.length === 0, `Invalid title syntax must not create a link mark.\n${JSON.stringify(links, null, 2)}`);
+  /*
+   * Substring, not a round trip, and that is the honest maximum here (MME-0120
+   * reviewer): the input contains a bare URL, which remark-gfm claims as an
+   * autolink literal even fully escaped, so no serializer output can hold the
+   * whole line as literal text on reopen. The recorded-unfixable autolink
+   * class in BACKLOG.md carries the measurement.
+   */
   assert(serializeRichMarkdownState(state).content.includes(input), "Invalid title syntax must remain visible as typed Markdown.");
 }
 
 function assertTypedImageLikeMarkdownPreserved(input) {
   const state = typeIntoRichState(createRichMarkdownState("", { dialect: "momentarise-enhanced" }), input);
   const output = serializeRichMarkdownState(state).content;
-  assert(output.includes(input), `Image-like Markdown must not be partially converted into a link.\n${output}`);
+  /*
+   * MME-0120 replaced a substring check with a round trip, because the substring
+   * check was satisfied by bytes that re-opened as an image node: the literal
+   * text the writer typed was silently promoted to an image on the next load.
+   * The delimiters are now escaped, so the assertion is what it always meant —
+   * the typed text comes back as text.
+   */
+  assertReopensAsLiteralText(output, input, "Image-like Markdown");
+}
+
+function assertReopensAsLiteralText(output, input, label) {
+  const blocks = parseMarkdownForAssertions(output).document.root.children.filter(
+    (node) => node.kind !== "opaque"
+  );
+  const paragraph = blocks[0];
+  assert(
+    blocks.length === 1 && paragraph?.type === "paragraph",
+    `${label} must re-open as a single paragraph.\n${output}`
+  );
+  const children = paragraph.children ?? [];
+  assert(
+    children.length === 1 && children[0].type === "text" && children[0].attributes?.value === input,
+    `${label} must re-open as the literal text that was typed.\n${output}\n${JSON.stringify(children, null, 2)}`
+  );
 }
 
 function assertUnsafeTypedLinkNotActivated(input) {
@@ -368,7 +403,13 @@ function assertUnsafeTypedLinkNotActivated(input) {
   const output = serializeRichMarkdownState(state).content;
   const links = collectMarks(state.editorState.doc.toJSON(), "link");
   assert(links.length === 0, `Unsafe typed link must not create a link mark.\n${JSON.stringify(links, null, 2)}`);
-  assert(output.includes(input), `Unsafe typed link Markdown text must remain source-visible.\n${output}`);
+  /*
+   * MME-0120: the previous substring check passed on bytes that re-opened as a
+   * real `javascript:` link — the save/reopen cycle activated the link this
+   * assertion exists to keep inert. The delimiters are now escaped, so it stays
+   * text across the round trip.
+   */
+  assertReopensAsLiteralText(output, input, "Unsafe typed link");
 }
 
 function typeIntoRichState(state, text) {

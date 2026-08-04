@@ -115,6 +115,60 @@ its own RED.
   what is left. Low blast radius today only because the word-boundary guard
   stops `**b**` converting inside the brackets first.
 
+#### Model-serializer defects measured during MME-0120 (2026-08-05)
+
+Findings measured against the built package while fixing serializer escaping;
+each verified to reproduce at `e11b8e8` unless noted, each outside MME-0120's
+scope (escaping), each needing its own RED. The first two are data loss.
+
+- **Nested todo items are indented by the checkbox width, and list items are
+  destroyed.** `serializeMomentariseListItem` indents an item's child blocks by
+  `marker.length + 1`, but for a task item the marker it measures is `- [x]`,
+  where `[x]` is content rather than a marker. Nested items land at six spaces
+  instead of two, deep enough to stop being a nested list. Measured on
+  `003-gfm-task-list` through `serializeMomentariseDocument`: **5 list items in,
+  3 out** — two items merged into their parent's paragraph text. Reachable
+  wherever a rich edit reconstructs a task list. Confirmed independently by the
+  MME-0120 Test Reviewer.
+- **A multi-line setext heading loses its second line.** `---` under two lines
+  of text is a level-2 setext heading whose content spans both lines, and no
+  ATX heading can hold a newline, so `## owner: docs-team\nstatus: review`
+  re-parses as a heading plus a paragraph. Measured on `014-mixed-real-world`.
+  No escape can fix it; the repair is to emit setext when a heading's content
+  is multi-line. MME-0120's verifier detects the case and returns the original
+  bytes rather than adding backslashes that would not help.
+- **A bare URL cannot be held as literal text.** remark-gfm claims it as an
+  autolink literal even when every ASCII punctuation character is escaped:
+  `\[label\]\(https\:\/\/example\.com\)` still parses as text plus a link. So a
+  writer who types `[label](https://example.com)` and undoes the conversion
+  gets a link back on the next load. The bytes round-trip unchanged, so this is
+  a shape defect rather than character loss; fixing it needs a different
+  mechanism from escaping — probably an opaque inline span. Asserted as a
+  known limitation in `tests/serializer-escaping.test.mjs`, and the reason two
+  `output.includes(...)` assertions in `tests/live-preview-mode.test.mjs` are
+  the honest maximum for their inputs.
+- **`linkReference` serializes its children without brackets.** `[ref]` reaches
+  the model serializer's default case and flattens to `ref` — a pre-existing
+  loss of the reference syntax (MME-0120 reviewer, measured). Preservation-
+  relevant; also the reason reference-link paragraphs cannot verify and are
+  emitted verbatim by the escaping tiers.
+- **Whitespace normalization bounds what escaping can preserve.** Four or more
+  leading spaces re-parse as indented code and a space has no backslash escape;
+  a trailing space at the end of a block is dropped by serializer and parser
+  alike; a text-node value containing `\n\n` or a trailing two-space run
+  re-opens as two blocks / text plus a break. All pre-existing normalization,
+  not character loss. An entity (`&#32;`, as the table-cell serializer already
+  uses where pipes force it) would technically survive — measured — but
+  writing entities into user files was judged worse than the normalization.
+- **The performance budgets never run the model serializer.**
+  `scripts/performance-benchmarks.mjs`'s `serializeLargeDocument` measures
+  `createMarkdownAstFormatter().serialize`, the identity formatter, and
+  `richSerializeLargeDocument` measures an untouched document (zero
+  reconstruction). A regression in `serializeMomentariseDocument` is invisible
+  to every budget (MME-0120 reviewer, measured: an 85x slowdown passed the full
+  chain; fixed by the fast path, but the coverage gap remains). Adding a
+  model-serializer operation to the budgets needs its own slice.
+
 #### Todo item presentation (2026-08-04)
 
 Seen in MME-0104a's own 390 capture, and not caused by it — no stylesheet is in

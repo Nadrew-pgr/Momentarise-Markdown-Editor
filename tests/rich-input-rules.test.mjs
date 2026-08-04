@@ -387,7 +387,10 @@ check("undo after an inline rule inside a list keeps the sibling items", () => {
   const undone = pressUndoInRichState(secondItem);
   assertRootChildTypes(undone, ["bullet_list"], "undo inside a list keeps the list");
   assertFirstListChildTypes(undone, ["list_item", "list_item"], "undo inside a list keeps both items");
-  assertSerializedMarkdown(undone, "- item one\n- **bold**\n", "undo inside a list restores only the literal");
+  // MME-0120: the escaped `\**` is the fix, not a regression. These three
+  // assertions previously pinned `**bold**`, which re-parsed as a `strong` mark
+  // and silently reversed the undo on the next save.
+  assertSerializedMarkdown(undone, "- item one\n- \\**bold**\n", "undo inside a list restores only the literal");
 });
 
 check("undo after an inline rule inside a blockquote keeps the blockquote", () => {
@@ -395,7 +398,7 @@ check("undo after an inline rule inside a blockquote keeps the blockquote", () =
   assertRootChildTypes(quoted, ["blockquote"], "blockquote before undo");
   const undone = pressUndoInRichState(quoted);
   assertRootChildTypes(undone, ["blockquote"], "undo inside a blockquote keeps the blockquote");
-  assertSerializedMarkdown(undone, "> quoted **bold**\n", "undo inside a blockquote restores only the literal");
+  assertSerializedMarkdown(undone, "> quoted \\**bold**\n", "undo inside a blockquote restores only the literal");
 });
 
 check("undo after an inline rule inside a heading keeps the heading", () => {
@@ -404,7 +407,7 @@ check("undo after an inline rule inside a heading keeps the heading", () => {
   assertNodePath(typed, ["heading"], "heading before undo");
   const undone = pressUndoInRichState(typed);
   assertNodePath(undone, ["heading"], "undo inside a heading keeps the heading");
-  assertSerializedMarkdown(undone, "# Title **bold**\n", "undo inside a heading restores only the literal");
+  assertSerializedMarkdown(undone, "# Title \\**bold**\n", "undo inside a heading restores only the literal");
 });
 
 check("a second undo reaches the history instead of replaying the restore", () => {

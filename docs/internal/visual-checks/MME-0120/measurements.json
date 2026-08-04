@@ -1,0 +1,158 @@
+{
+  "consoleErrors": [],
+  "demoUrl": "http://127.0.0.1:5174/",
+  "evidence": {
+    "390": {
+      "rows": {
+        "heading-marker": {
+          "disk": "\\#\n",
+          "onScreen": "# ",
+          "reopened": "#",
+          "tag": "p"
+        },
+        "ordered-marker": {
+          "disk": "3\\.\n",
+          "onScreen": "3. ",
+          "reopened": "3.",
+          "tag": "p"
+        },
+        "bullet-marker": {
+          "disk": "\\-\n",
+          "onScreen": "- ",
+          "reopened": "-",
+          "tag": "p"
+        },
+        "blockquote-marker": {
+          "disk": "\\>\n",
+          "onScreen": "> ",
+          "reopened": ">",
+          "tag": "p"
+        },
+        "bare-todo": {
+          "disk": "[]\n",
+          "onScreen": "[] ",
+          "reopened": "[]",
+          "tag": "p"
+        },
+        "strong-delimiters": {
+          "disk": "\\**bold**\n",
+          "onScreen": "**bold**",
+          "reopened": "**bold**",
+          "tag": "p"
+        }
+      },
+      "neighbours": {
+        "disk": "Alpha\n\nBravo a\\**bold**\n\nCharlie\n",
+        "hasStrong": false,
+        "texts": [
+          "Alpha",
+          "Bravo a**bold**",
+          "Charlie"
+        ]
+      },
+      "gallery": "\\# not a heading\n\n3\\. not a list\n\n\\- not a bullet\n\n\\> not a quote\n\na\\**bold** stays literal\n\nUntouched **bold** still renders.\n"
+    },
+    "1280": {
+      "rows": {
+        "heading-marker": {
+          "disk": "\\#\n",
+          "onScreen": "# ",
+          "reopened": "#",
+          "tag": "p"
+        },
+        "ordered-marker": {
+          "disk": "3\\.\n",
+          "onScreen": "3. ",
+          "reopened": "3.",
+          "tag": "p"
+        },
+        "bullet-marker": {
+          "disk": "\\-\n",
+          "onScreen": "- ",
+          "reopened": "-",
+          "tag": "p"
+        },
+        "blockquote-marker": {
+          "disk": "\\>\n",
+          "onScreen": "> ",
+          "reopened": ">",
+          "tag": "p"
+        },
+        "bare-todo": {
+          "disk": "[]\n",
+          "onScreen": "[] ",
+          "reopened": "[]",
+          "tag": "p"
+        },
+        "strong-delimiters": {
+          "disk": "\\**bold**\n",
+          "onScreen": "**bold**",
+          "reopened": "**bold**",
+          "tag": "p"
+        }
+      },
+      "neighbours": {
+        "disk": "Alpha\n\nBravo a\\**bold**\n\nCharlie\n",
+        "hasStrong": false,
+        "texts": [
+          "Alpha",
+          "Bravo a**bold**",
+          "Charlie"
+        ]
+      },
+      "gallery": "\\# not a heading\n\n3\\. not a list\n\n\\- not a bullet\n\n\\> not a quote\n\na\\**bold** stays literal\n\nUntouched **bold** still renders.\n"
+    },
+    "1280-light": {
+      "rows": {
+        "heading-marker": {
+          "disk": "\\#\n",
+          "onScreen": "# ",
+          "reopened": "#",
+          "tag": "p"
+        },
+        "ordered-marker": {
+          "disk": "3\\.\n",
+          "onScreen": "3. ",
+          "reopened": "3.",
+          "tag": "p"
+        },
+        "bullet-marker": {
+          "disk": "\\-\n",
+          "onScreen": "- ",
+          "reopened": "-",
+          "tag": "p"
+        },
+        "blockquote-marker": {
+          "disk": "\\>\n",
+          "onScreen": "> ",
+          "reopened": ">",
+          "tag": "p"
+        },
+        "bare-todo": {
+          "disk": "[]\n",
+          "onScreen": "[] ",
+          "reopened": "[]",
+          "tag": "p"
+        },
+        "strong-delimiters": {
+          "disk": "\\**bold**\n",
+          "onScreen": "**bold**",
+          "reopened": "**bold**",
+          "tag": "p"
+        }
+      },
+      "neighbours": {
+        "disk": "Alpha\n\nBravo a\\**bold**\n\nCharlie\n",
+        "hasStrong": false,
+        "texts": [
+          "Alpha",
+          "Bravo a**bold**",
+          "Charlie"
+        ]
+      },
+      "gallery": "\\# not a heading\n\n3\\. not a list\n\n\\- not a bullet\n\n\\> not a quote\n\na\\**bold** stays literal\n\nUntouched **bold** still renders.\n"
+    }
+  },
+  "screenshots": 3,
+  "status": "passed"
+}

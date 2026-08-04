@@ -427,10 +427,16 @@ function serializeMomentariseBlock(
   }
 
   switch (node.type) {
-    case "heading":
-      return `${"#".repeat(numberAttribute(node.attributes?.depth) ?? 1)} ${serializeMomentariseInlineList(node.children ?? [], source)}`.trimEnd();
+    case "heading": {
+      const marker = "#".repeat(numberAttribute(node.attributes?.depth) ?? 1);
+      return serializeInlineOwningBlock(node, source, "heading", (mode) =>
+        `${marker} ${serializeMomentariseInlineList(node.children ?? [], source, mode, false)}`.trimEnd()
+      );
+    }
     case "paragraph":
-      return serializeMomentariseInlineList(node.children ?? [], source);
+      return serializeInlineOwningBlock(node, source, "paragraph", (mode) =>
+        serializeMomentariseInlineList(node.children ?? [], source, mode, true)
+      );
     case "blockquote":
       return serializeMomentariseNodeList(node.children ?? [], source, indentLevel)
         .split("\n")
@@ -604,30 +610,49 @@ function serializeMomentariseListItem(
 
 function serializeMomentariseInlineList(
   nodes: readonly MomentariseNode[],
-  source: string
+  source: string,
+  escapeMode: InlineEscapeMode = "none",
+  startsLine = false
 ): string {
-  return nodes.map((node) => serializeMomentariseInline(node, source)).join("");
+  let atLineStart = startsLine;
+  let content = "";
+  for (const node of nodes) {
+    content += serializeMomentariseInline(node, source, escapeMode, atLineStart);
+    atLineStart = node.kind !== "opaque" && (node.type === "lineBreak" || node.type === "break");
+  }
+  return content;
 }
 
-function serializeMomentariseInline(node: MomentariseNode, source: string): string {
+function serializeMomentariseInline(
+  node: MomentariseNode,
+  source: string,
+  escapeMode: InlineEscapeMode = "none",
+  atLineStart = false
+): string {
   if (node.kind === "opaque") {
     return node.raw;
   }
   switch (node.type) {
     case "text":
-      return stringAttribute(node.attributes?.value) ?? rawFromRange(node, source);
+      return escapeInlineTextValue(
+        stringAttribute(node.attributes?.value) ?? rawFromRange(node, source),
+        escapeMode,
+        atLineStart
+      );
     case "inlineCode":
       return `\`${stringAttribute(node.attributes?.value) ?? rawFromRange(node, source)}\``;
     case "emphasis":
-      return `*${serializeMomentariseInlineList(node.children ?? [], source)}*`;
+      return `*${serializeMomentariseInlineList(node.children ?? [], source, escapeMode)}*`;
     case "strong":
-      return `**${serializeMomentariseInlineList(node.children ?? [], source)}**`;
+      return `**${serializeMomentariseInlineList(node.children ?? [], source, escapeMode)}**`;
     case "strikethrough":
-      return `~~${serializeMomentariseInlineList(node.children ?? [], source)}~~`;
+      return `~~${serializeMomentariseInlineList(node.children ?? [], source, escapeMode)}~~`;
     case "lineBreak":
     case "break":
       return "  \n";
     case "link": {
+      // `escapeMarkdownLabel` owns the bracket/backslash escaping inside a link
+      // label; threading the text escaper through it would escape its escapes.
       const text = serializeMomentariseInlineList(node.children ?? [], source);
       const url = stringAttribute(node.attributes?.url) ?? "";
       const title = stringAttribute(node.attributes?.title);
@@ -649,8 +674,305 @@ function serializeMomentariseInline(node: MomentariseNode, source: string): stri
       return identifier && isSafeFootnoteIdentifier(identifier) ? `[^${identifier}]` : "";
     }
     default:
-      return node.children ? serializeMomentariseInlineList(node.children, source) : rawFromRange(node, source);
+      return node.children
+        ? serializeMomentariseInlineList(node.children, source, escapeMode, atLineStart)
+        : rawFromRange(node, source);
   }
+}
+
+/*
+ * MME-0120 — literal Markdown in a paragraph must survive a save.
+ *
+ * A rich-mode edit reaches this serializer as model nodes with no source range,
+ * so its inline text was emitted verbatim. Measured at `e11b8e8`: a paragraph
+ * whose text is `# ` serialized as `#` and re-opened as an EMPTY HEADING; `3. `
+ * re-opened as an empty ordered list; `**bold**` came back bold, reversing the
+ * user's undo. Silent, user-visible data loss.
+ *
+ * The escaping is decided by measurement, not by a table of "unsafe" patterns:
+ * the block is serialized, re-parsed, and compared against the model it came
+ * from. Text that re-parses correctly is emitted byte-for-byte as before — so
+ * minimality is a property of the algorithm, not a promise about a pattern
+ * list. Only text proven to re-parse as something else is escaped, and the
+ * escape is verified the same way before it is returned.
+ */
+
+type InlineEscapeMode = "none" | "targeted" | "aggressive";
+
+function serializeInlineOwningBlock(
+  node: KnownNode,
+  source: string,
+  expectedType: "heading" | "paragraph",
+  render: (mode: InlineEscapeMode) => string
+): string {
+  const children = node.children ?? [];
+  const verbatim = render("none");
+  /*
+   * Fast path: a parsed block whose naive rendering reproduces its own source
+   * bytes exactly. Re-parsing the author's own bytes yields the author's own
+   * block, so there is nothing to verify — and this is every untouched
+   * paragraph of every parsed file. The presence of a range is NOT enough:
+   * the bytes must match, or an in-place edit of a parsed model (value changed,
+   * range kept) would ship unverified. Measured cost of verifying anyway: the
+   * 390KB corpus fixture went 33ms -> 2805ms, one parse per block.
+   */
+  if (
+    node.sourceRange &&
+    verbatim === source.slice(node.sourceRange.start.offset, node.sourceRange.end.offset)
+  ) {
+    return verbatim;
+  }
+  if (reparsesAs(verbatim, expectedType, children)) {
+    return verbatim;
+  }
+  for (const mode of ["targeted", "aggressive"] as const) {
+    const escaped = render(mode);
+    if (escaped !== verbatim && reparsesAs(escaped, expectedType, children)) {
+      return escaped;
+    }
+  }
+  /*
+   * Nothing verified. The shapes that reach here are unreachable by escaping,
+   * measured on the corpus after the footnote-definition synthesis below: a
+   * block indented by four or more spaces (an indented code block, and a space
+   * has no escape), a multi-line setext heading (no ATX heading can hold a
+   * newline), a paragraph whose reference cannot be synthesized, and a bare
+   * GFM autolink literal (remark-gfm claims it even fully escaped). Returning
+   * the escaped bytes would add backslashes to the user's file without fixing
+   * anything, so the original bytes are returned and the defect stays exactly
+   * as it was. Each class is recorded in BACKLOG.md.
+   */
+  return verbatim;
+}
+
+function escapeInlineTextValue(value: string, mode: InlineEscapeMode, atLineStart: boolean): string {
+  if (mode === "none" || value.length === 0) {
+    return value;
+  }
+  // A text node carries its own soft line breaks (measured on
+  // `021-large-performance`), and a block marker interrupts a paragraph at any
+  // line start, not only the first.
+  return value
+    .split("\n")
+    .map((line, index) => {
+      if (mode === "aggressive") {
+        return escapeEveryAsciiPunctuation(line);
+      }
+      const withLiteralBackslashes = escapeLiteralBackslashes(line);
+      const withBlockMarker =
+        atLineStart || index > 0
+          ? escapeLineStartBlockMarker(withLiteralBackslashes)
+          : withLiteralBackslashes;
+      return escapeSpuriousInlineConstructs(withBlockMarker);
+    })
+    .join("\n");
+}
+
+/*
+ * A backslash is only meaningful before ASCII punctuation, so only those are
+ * doubled. This runs before every other escape: doubling afterwards would eat
+ * the backslashes the other passes just inserted.
+ */
+function escapeLiteralBackslashes(line: string): string {
+  return line.replace(/\\(?=[!-/:-@[-`{-~])/g, "\\\\");
+}
+
+function escapeEveryAsciiPunctuation(line: string): string {
+  return line.replace(/[!-/:-@[-`{-~]/g, (character) => `\\${character}`);
+}
+
+/*
+ * Every CommonMark construct that can start or interrupt a paragraph. The
+ * ordered-list case escapes the delimiter rather than the digits, because a
+ * digit cannot carry a backslash escape: `3\.` not `\3.`.
+ */
+function escapeLineStartBlockMarker(line: string): string {
+  const indent = /^[ \t]{0,3}/.exec(line)?.[0] ?? "";
+  const rest = line.slice(indent.length);
+  const ordered = /^([0-9]{1,9})[.)](?:[ \t]|$)/.exec(rest);
+  if (ordered) {
+    return `${indent}${ordered[1]!}\\${rest.slice(ordered[1]!.length)}`;
+  }
+  const escapesFirstCharacter =
+    /^#{1,6}(?:[ \t]|$)/.test(rest) ||
+    rest.startsWith(">") ||
+    /^(?:`{3,}|~{3,})/.test(rest) ||
+    /^(?:\*[ \t]*){3,}$/.test(rest) ||
+    /^(?:-[ \t]*){3,}$/.test(rest) ||
+    /^(?:_[ \t]*){3,}$/.test(rest) ||
+    /^[-+*](?:[ \t]|$)/.test(rest) ||
+    /^(?:=+|-+)[ \t]*$/.test(rest);
+  return escapesFirstCharacter ? `${indent}\\${rest}` : line;
+}
+
+/*
+ * Escape the opening delimiter of every inline construct the line produces,
+ * then look again: neutralising `**` in `**bold**` exposes the `*bold*` the
+ * remaining run forms, and the next pass escapes that. Three passes settle the
+ * measured cases (`**a *b* c**` still escalates at a cap of two — measured by
+ * the reviewer with caps 1/2/3/8); the cap of eight only bounds pathological
+ * input.
+ */
+function escapeSpuriousInlineConstructs(line: string): string {
+  let current = line;
+  for (let pass = 0; pass < 8; pass += 1) {
+    const offsets = inlineConstructStartOffsets(current);
+    if (offsets.length === 0) {
+      return current;
+    }
+    // Insert from the end so the earlier offsets stay valid.
+    for (const offset of [...offsets].sort((first, second) => second - first)) {
+      current = `${current.slice(0, offset)}\\${current.slice(offset)}`;
+    }
+  }
+  return current;
+}
+
+function inlineConstructStartOffsets(line: string): readonly number[] {
+  const blocks = verificationBlocks(line);
+  const first = blocks[0];
+  if (!first || first.kind === "opaque" || first.type !== "paragraph") {
+    // Not a paragraph: a block-level marker survived, and that is the line-start
+    // escaper's job, not this one's.
+    return [];
+  }
+  const offsets: number[] = [];
+  for (const child of first.children ?? []) {
+    if (child.kind === "opaque" || child.type === "text" || !child.sourceRange) {
+      continue;
+    }
+    offsets.push(child.sourceRange.start.offset);
+  }
+  return offsets;
+}
+
+function reparsesAs(
+  text: string,
+  expectedType: string,
+  expectedChildren: readonly MomentariseNode[]
+): boolean {
+  /*
+   * `[^ref]` is a footnote reference only when its definition is in the same
+   * document, so verifying the block in isolation would report every reference
+   * as plain text and no footnote paragraph could ever verify. Measured at the
+   * first GREEN of this issue: 340 of the corpus's 341 "nothing verified"
+   * decisions were exactly this, and a colliding `a**bold**[^a]` shipped
+   * verbatim — the reviewer's blocker. Synthesize a definition per identifier
+   * the model expects, then drop those synthetic blocks before comparing.
+   */
+  const identifiers = verificationFootnoteIdentifiers(expectedChildren);
+  const suffix = identifiers.map((identifier) => `\n\n[^${identifier}]: mme-verification`).join("");
+  const blocks = verificationBlocks(`${text}${suffix}`).filter(
+    (block) =>
+      !(
+        identifiers.length > 0 &&
+        block.kind !== "opaque" &&
+        block.type === "footnoteDefinition" &&
+        identifiers.includes(
+          normalizeVerificationIdentifier(
+            stringAttribute(block.attributes?.identifier) ?? stringAttribute(block.attributes?.label) ?? ""
+          )
+        )
+      )
+  );
+  const first = blocks[0];
+  if (blocks.length !== 1 || !first || first.kind === "opaque" || first.type !== expectedType) {
+    return false;
+  }
+  return inlineShapeSignature(first.children) === inlineShapeSignature(expectedChildren);
+}
+
+function verificationFootnoteIdentifiers(nodes: readonly MomentariseNode[] | undefined): readonly string[] {
+  const identifiers = new Set<string>();
+  const walk = (list: readonly MomentariseNode[] | undefined): void => {
+    for (const node of list ?? []) {
+      if (node.kind !== "opaque" && node.type === "footnoteReference") {
+        const identifier =
+          stringAttribute(node.attributes?.identifier) ?? stringAttribute(node.attributes?.label);
+        if (identifier && isSafeFootnoteIdentifier(identifier)) {
+          identifiers.add(normalizeVerificationIdentifier(identifier));
+        }
+      }
+      if (node.kind !== "opaque") {
+        walk(node.children);
+      }
+    }
+  };
+  walk(nodes);
+  return [...identifiers];
+}
+
+function normalizeVerificationIdentifier(identifier: string): string {
+  // GFM footnote identifiers match case-insensitively.
+  return identifier.toLowerCase();
+}
+
+/*
+ * The parser reports detected opaque spans (wikilinks, inline HTML, LaTeX) as
+ * extra root children beside the block that contains them, so a single block
+ * legitimately parses to more than one root node. Those are dropped here: they
+ * describe the same bytes the block already carries.
+ */
+function verificationBlocks(text: string): readonly MomentariseNode[] {
+  return (verificationParser().parse(text, { dialect: verificationDialect }).document.root.children ?? []).filter(
+    (node) => node.kind !== "opaque"
+  );
+}
+
+const verificationDialect = "gfm-plus" as ParseOptions["dialect"];
+let cachedVerificationParser: MarkdownParser | null = null;
+
+function verificationParser(): MarkdownParser {
+  cachedVerificationParser ??= createMarkdownAstParser();
+  return cachedVerificationParser;
+}
+
+/*
+ * Structure and text, not identifiers: two shapes are the same when the same
+ * inline node types carry the same text in the same order. Adjacent text nodes
+ * are merged because the parser splits them at escapes, and trailing spaces are
+ * dropped from the final text because Markdown cannot represent them at the end
+ * of a block — the same normalization the parser itself applies.
+ */
+function inlineShapeSignature(nodes: readonly MomentariseNode[] | undefined): string {
+  const tokens: string[] = [];
+  for (const node of nodes ?? []) {
+    if (node.kind === "opaque") {
+      tokens.push(`opaque:${node.raw}`);
+      continue;
+    }
+    if (node.type === "text") {
+      const value = stringAttribute(node.attributes?.value) ?? "";
+      const previous = tokens[tokens.length - 1];
+      if (previous?.startsWith("text:")) {
+        tokens[tokens.length - 1] = `${previous}${value}`;
+        continue;
+      }
+      tokens.push(`text:${value}`);
+      continue;
+    }
+    // `value` carries inline code; the identifier distinguishes `[^a]` from
+    // `[^b]`, which are otherwise identical `footnoteReference()` tokens.
+    const value =
+      stringAttribute(node.attributes?.value) ??
+      (node.type === "footnoteReference"
+        ? normalizeVerificationIdentifier(
+            stringAttribute(node.attributes?.identifier) ?? stringAttribute(node.attributes?.label) ?? ""
+          )
+        : null);
+    tokens.push(
+      `${node.type}${value === null ? "" : `=${value}`}(${inlineShapeSignature(node.children)})`
+    );
+  }
+  const last = tokens[tokens.length - 1];
+  if (last?.startsWith("text:")) {
+    tokens[tokens.length - 1] = last.replace(/[ \t]+$/, "");
+  }
+  const first = tokens[0];
+  if (first?.startsWith("text:")) {
+    tokens[0] = first.replace(/^text:[ \t]+/, "text:");
+  }
+  return tokens.join("");
 }
 
 function isSafeFootnoteIdentifier(value: string): boolean {

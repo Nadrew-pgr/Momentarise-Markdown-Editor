@@ -10334,3 +10334,310 @@ Typing `(`, `[`, `{`, `"`, `'` or `` ` `` in rich mode now inserts the closing
 character and puts the caret between the pair; typing the closer steps past it;
 Backspace in an empty pair removes both. Pasting a URL over selected text turns
 that text into a link. No chrome, layout or styling changed; no new CSS.
+## MME-0120 — Paragraph serializer escaping: an undo must survive a save: SHIPPED
+
+- Date: 2026-08-05.
+- Block: C2c. Builder model: opus-5, session continued on fable-5 (both stronger
+  than the issue's `opus-4.8` tag).
+- Status: implemented, mutation-proven, browser-proven, reviewed — with two
+  reviewer blockers found and fixed before commit.
+
+### Summary
+
+A rich-mode edit reaches the model serializer as nodes with no source range, and
+its inline text was written to the file verbatim. Literal Markdown therefore
+re-parsed as the construct it looked like: the user typed `# `, undid the
+heading, saw `# ` on screen, and the file re-opened as an **empty heading with
+the characters gone**.
+
+The serializer now decides escaping by measurement instead of by a table of
+"unsafe" patterns. It serializes the block, re-parses it, and compares the
+result against the model it came from. Bytes that re-parse correctly are
+returned unchanged, so minimality is a property of the algorithm rather than a
+promise about a pattern list. Only bytes proven to re-parse as something else
+are escaped, and the escape is verified the same way before it is returned.
+
+### The defect, reproduced at `e11b8e8` before any code was written
+
+Through the real user path (type, one undo, `serializeRichMarkdownState`,
+re-parse), not from the spec's word:
+
+| typed, one undo | screen | file | re-opens as |
+| --- | --- | --- | --- |
+| `# ` | `# ` | `#` | **empty heading, characters gone** |
+| `3. ` | `3. ` | `3.` | **empty ordered list, characters gone** |
+| `- ` | `- ` | `-` | **empty list, characters gone** |
+| `> ` | `> ` | `>` | **empty blockquote, characters gone** |
+| `**bold**` | `**bold**` | `**bold**` | `strong` — the undo is reversed |
+| `a**bold**` | `a**bold**` | `a**bold**` | `strong` — never converted, comes back bold |
+
+Also reproduced through the replaced-block path inside a real three-paragraph
+document, and confirmed that untouched documents were already byte-identical
+through the same call.
+
+### How the fix works
+
+`serializeMomentariseBlock`'s `paragraph` and `heading` cases route through
+`serializeInlineOwningBlock`, which tries renderings in order and returns the
+first that verifies:
+
+0. **fast path** — a parsed block whose naive rendering reproduces its own
+   source slice byte-for-byte is returned with no verification parse:
+   re-parsing the author's own bytes yields the author's own block. The range's
+   presence alone is NOT trusted; the bytes must match (see mutation table).
+1. **verbatim** — today's bytes, verified by re-parse. Whenever this verifies,
+   output is byte-identical to before the fix.
+2. **targeted** — line-start block markers (`escapeLineStartBlockMarker`, one
+   rule per CommonMark construct that can start or interrupt a paragraph, with
+   the CommonMark 0-3 indent window), plus parse-driven inline escaping
+   (`escapeSpuriousInlineConstructs`, which escapes the opening delimiter of
+   every construct the line produces and looks again; three passes settle the
+   measured cases, the cap of eight bounds pathological input).
+3. **aggressive** — escape every ASCII punctuation character. Reached when a
+   delimiter run is split across adjacent text nodes, and for constructs the
+   targeted tier does not model (inline HTML).
+
+If none verifies, the verbatim bytes are returned: escaping that does not fix
+the collision is noise added to the user's file.
+
+Verification parses the block with **synthesized footnote definitions** for
+every `footnoteReference` identifier the model carries (reviewer blocker B1,
+below), so footnote paragraphs verify like any other paragraph.
+
+### Scope note — headings are covered too
+
+The issue names the paragraph serializer. Headings share the same inline
+serializer and the same defect (`# Title **bold**` after an undo re-opened
+bold), and MME-0104a's own suite pinned that corrupting value. The fix therefore
+covers `paragraph` and `heading`; list items and blockquotes inherit it through
+their nested paragraphs. Table cells already escaped correctly and are untouched.
+
+### Files changed
+
+- `packages/md-format/src/index.ts` — `serializeInlineOwningBlock` (+ fast
+  path), `escapeInlineTextValue`, `escapeLiteralBackslashes`,
+  `escapeEveryAsciiPunctuation`, `escapeLineStartBlockMarker`,
+  `escapeSpuriousInlineConstructs`, `inlineConstructStartOffsets`, `reparsesAs`
+  (+ footnote-definition synthesis), `verificationFootnoteIdentifiers`,
+  `normalizeVerificationIdentifier`, `verificationBlocks`,
+  `verificationParser`, `inlineShapeSignature` (+ footnote identifiers); the
+  escape mode threaded through `serializeMomentariseInlineList` /
+  `serializeMomentariseInline`.
+- `tests/serializer-escaping.test.mjs` — new suite.
+- `tests/fixtures/model-serializer-corpus-baseline.json` — 40-fixture byte
+  baseline of the model serializer, generated **before** the fix.
+- `scripts/visual-check-mme0120.mjs` — new browser gate.
+- `scripts/visual-gates.mjs`, `package.json` — gate and suite registration
+  (`test:serializer-escaping`, wired into the `npm test` chain;
+  `visual:mme-0120`).
+- `tests/rich-input-rules.test.mjs`, `tests/live-preview-mode.test.mjs` — five
+  assertions that pinned the corrupting bytes, plus a reviewer-requested
+  comment on why one substring assertion is the honest maximum.
+- `docs/internal/visual-checks/MME-0120/` — README, screenshots, measurements.
+- `docs/internal/BACKLOG.md` — six measured defect/coverage entries with
+  provenance (`Model-serializer defects measured during MME-0120`).
+
+### Reachability
+
+The escaping is not an exported helper waiting for a caller. It is inside
+`serializeMomentariseBlock`, which every rich-mode reconstruction reaches
+through `serializeMomentariseDocument` — the only call site outside `md-format`
+is `packages/md-rich-prosemirror/src/index.ts` (`serializeReconstructedProseMirrorDoc`,
+reached from the full-reconstruction fallback and the per-block wrapper; the
+reviewer verified `md-cli` uses the identity formatter only). The browser gate
+proves the path from a real keystroke to real file bytes.
+
+### RED, validated
+
+28 failing cases, **zero `TypeError`/`ReferenceError`** — every failure was the
+assertion's own message against callable code. The suite's `check()` promotes a
+crash to a hard stop precisely so a RED phase cannot report crashes as
+failures; it fired once during authoring (a `nodeCounter` temporal-dead-zone
+fault) and stopped the run, which is the behaviour it exists for.
+
+Two RED expectations were **wrong and are corrected**, both in the direction of
+fewer escapes than predicted: the trailing space of `# ` / `- ` / `> ` never
+reaches the file (the document serializer trims each block's end, and Markdown
+cannot carry it anyway), and `**bold**` needs ONE escape, not two — `\**bold**`
+re-parses as literal text because the surviving `*` run cannot pair with the
+closing `**`.
+
+### Minimality, measured on the corpus
+
+`tests/fixtures/model-serializer-corpus-baseline.json` was generated from the
+**pre-fix** serializer and is asserted byte-for-byte after it. All 40 fixtures
+are unchanged: not one byte of the corpus gained an escape. Twenty realistic
+non-colliding paragraph texts are asserted byte-identical, and the reviewer's
+independent sweep (French/accents, currency, `R&D`, `3 < 5`, dates, em-dashes,
+paths, `a|b|c`) found zero spurious escapes; corpus decision counts confirmed
+0 targeted / 0 aggressive across all fixtures.
+
+### Reviewer pass — Test Reviewer, mandatory, read-only, frozen tree
+
+Spawned with the read-only instruction in its own prompt; it measured against
+scratchpad copies of the built bundles (instrumented import-map rewrites) and
+never wrote to the tree. Its final report covered eight attack areas and ran
+its own 29-mutant sweep. Both parties' factual claims were re-measured before
+being acted on; one reviewer row was corrected by measurement (below).
+
+Blockers, all fixed before commit:
+
+| Finding | Fix |
+| --- | --- |
+| **B1 — footnote-reference paragraphs never escaped.** `reparsesAs` parsed the block in isolation, where `[^a]` is plain text, so no tier could verify and colliding text shipped verbatim: `a**bold**[^a]` reopened bold — the issue's own defect, alive in every document with footnotes. 340 of the corpus's 341 "nothing verified" decisions were this class, and the source comment claimed only two shapes reached that branch. | Verification now synthesizes a definition per expected footnote identifier and drops the synthetic blocks before comparing; `inlineShapeSignature` compares reference identifiers (case-normalized, as GFM matches them). New test: colliding bytes `a\**bold**[^a]`, reopened shape with the definition present, plus a stays-verbatim control. The false comment is rewritten to the measured truth. |
+| **B2 — eight consequential mutants survived the suite.** Marker classes whose targeted and aggressive escapes coincide for punctuation-free inputs (fence, `*` thematic break, setext, indent window), the line-start tracking pair, the aggressive tier's breadth, and the signature's leading-trim — the worst survivor: with the leading-trim deleted, `"  # head"` shipped unescaped and reopened as a heading, silent data loss under a green suite. | Six precision rows and two bespoke cases added, each carrying punctuation that distinguishes the tiers; all eight mutants added to the sweep and killed (table below). |
+| **B3 — three test comments claimed "recorded in BACKLOG.md" while nothing was recorded**, and the visual-checks folder had no README. | The BACKLOG section is written (six entries), the README is written, and this entry exists. Under the repo rule those claims are now re-read from the repository at the moment of writing. |
+
+Should-fixes, all applied: **S1** the public `serializeMomentariseDocument`
+path regressed 33ms → 2805ms on the 390KB fixture (one verification parse per
+parsed block) while every budget was blind to it — fixed with the fast path
+(measured after: **97ms**; the budget coverage gap is recorded in BACKLOG);
+**S2** the source comment said "two passes settle the measured cases" when the
+reviewer measured three (caps 1/2/3/8) — corrected, and it now cites the
+measurement; **S3** the fence/thematic/setext shape-only checks could not fail
+for the branch they name (the aggressive tier rescued the shape) — the
+precision rows now pin bytes; **S4** the visual-checks README (folded into B3).
+
+Reviewer notes acted on: the autolink-honest-maximum comment added to
+`live-preview-mode.test.mjs` (N6); `linkReference` flattening, the `\n\n`
+text-value niche, and the budget gap recorded in BACKLOG (N3, N4, S1). Notes
+accepted without action: M20/M23 are equivalent/defensive mutants with no
+discriminating input (N5); from-scratch documents pay ~1.2ms per paragraph,
+linear (N2); the suite adds ~2 minutes to the chain before the fast path cut
+it (N1; re-measured after: see Tests run).
+
+One reviewer row corrected by measurement: its M09 discriminator
+(`"line one\n=== , x!"`) does not escape at all — `=== , x!` has trailing
+content, so it is not a setext underline and there is no collision. The row
+that actually kills M09 is `"line one, x!\n==="` (pure underline, punctuation
+on the other line), and that is what the suite pins.
+
+### Mutation table — reversion to failure, final round
+
+Every mutant applied to `packages/md-format/src/index.ts`, rebuilt, run,
+reverted. History: round 1 left **seven** survivors (tier coincidence on
+one-character cases → six precision rows added); the reviewer's independent
+29-mutant sweep left **eight more** consequential survivors (B2 → six rows and
+two bespoke cases added, M09 row corrected by measurement); final round:
+
+| Reversion | Cases that fail |
+| --- | --- |
+| verification skipped (pre-fix behaviour restored) | 46 — the whole measured table, the undo table, the container and footnote cases |
+| every block escaped aggressively (blanket escaping) | 39 — including all 20 non-colliding texts and every precision row |
+| ATX heading marker class dropped | 3 |
+| bullet + ordered marker classes dropped | 1 |
+| ordered escape written before the digits (`\3.`) | 1 |
+| inline escaping runs a single pass | 2 |
+| literal backslashes not doubled | 1 |
+| line-start context ignored | 10 |
+| adjacent text nodes not merged in the signature | 1 |
+| trailing whitespace not normalized in the signature | 13 |
+| fence marker class dropped (reviewer M07) | 1 |
+| asterisk thematic-break class dropped (M08) | 1 |
+| setext underline class dropped (M09) | 1 |
+| signature leading-trim dropped (M15 — the silent-data-loss survivor) | 2 |
+| later lines of a mid-paragraph text node never marker-escape (M17) | 1 |
+| hard breaks stop marking the next node as a line start (M18) | 1 |
+| aggressive tier reduced to asterisks only (M27) | 1 |
+| leading-indent window dropped (M29) | 1 |
+| fast path trusts the range without comparing bytes | 1 |
+| footnote definitions not synthesized during verification | 1 |
+
+Twenty mutants, zero survivors. The first two were re-run with corrected
+patterns after the fast-path insertion moved their target lines — a
+`PATTERN NOT FOUND` result was treated as "not run", not as a kill.
+
+The **browser gate** was mutated too, because this repository has shipped gates
+that reported green while checking nothing:
+
+| Reversion | Gate failure |
+| --- | --- |
+| verification skipped | `'#\n' !== '\\#\n'` — the disk-bytes assertion |
+| verification skipped, with the disk assertion neutralised | `'h1' !== 'p'` — the reopened document, which is the user-visible defect |
+
+### Assertions in other suites that pinned the corrupting bytes
+
+Five, all in existing files, all corrected rather than deleted:
+
+- `tests/rich-input-rules.test.mjs` ×3 — `- item one\n- **bold**\n`,
+  `> quoted **bold**\n`, `# Title **bold**\n`. Each re-parsed as a `strong`
+  mark, so each pinned bytes that reversed the writer's undo on the next save.
+- `tests/live-preview-mode.test.mjs` ×2 — both were `output.includes(input)`
+  substring checks, and both were satisfied by bytes that re-opened as
+  something else: `![diagram](./diagram.png)` came back as an **image node**,
+  and `Read [bad](javascript:alert(1)) now` came back as a **real
+  `javascript:` link** — the exact activation the assertion exists to prevent.
+  Both are now round-trip assertions (`assertReopensAsLiteralText`), verified
+  by the reviewer as strictly stronger (the old expected bytes re-parse to
+  `strong`/image/a live `javascript:` link mark; the new bytes re-parse to the
+  literal text).
+
+### Known limitations, measured not assumed
+
+- **A bare URL cannot be held as literal text** (remark-gfm autolink literals
+  survive full escaping). The serializer proves it cannot verify and returns
+  the original bytes; asserted in the suite so the limitation cannot drift.
+- **A block indented four or more spaces** re-parses as indented code; a space
+  has no backslash escape.
+- **A multi-line setext heading** cannot become an ATX heading.
+- **`linkReference` paragraphs** cannot verify because the reference is
+  flattened before escaping ever runs (pre-existing, BACKLOG).
+
+All recorded with measurements in `docs/internal/BACKLOG.md`
+(`Model-serializer defects measured during MME-0120`).
+
+### Tests run
+
+- `node tests/serializer-escaping.test.mjs` — green, ~68s wall after the fast
+  path (the reviewer measured 2m18s before it).
+- `npm test` — green, exit 0, full chain. One incident on the way: the first
+  post-review run failed at `test:architecture`, because the fast-path comment
+  ended a sentence with the word `document` immediately before a period, which
+  matches the gate's `\bdocument\s*\.` pattern — the gate cannot tell prose
+  from code. The comment says "file" now; no gate was weakened.
+- `npm run visual:mme-0120` — green, 6 type/undo/save/reopen rows plus
+  neighbour preservation, 3 viewports, real keyboard, real writable file. One
+  environmental failure recorded honestly: running the gate while the full
+  chain rebuilt `dist/` in parallel let Vite hot-reload the page mid-run
+  ("Execution context was destroyed"); re-run on a quiet tree, green.
+- `node tests/visual-gate-integrity.test.mjs` — green.
+- Mutation sweep — 20 implementation mutants, zero survivors (table above),
+  plus the two browser-gate mutants.
+
+### Manual and visual verification
+
+Dev server: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port
+5174` (started via `.claude/launch.json`). URL: `http://127.0.0.1:5174/`.
+Artifacts: `docs/internal/visual-checks/MME-0120/` — `escaping-1280.png`,
+`escaping-390.png`, `escaping-1280-light.png`, `measurements.json`, `README.md`
+(the README explains what each screenshot proves and the gate's own mutation
+test).
+
+### Visual impact
+
+**Editing surface:** no change. Rich mode renders exactly as before; nothing
+moves, nothing is styled differently.
+
+**What the writer sees change:** a saved file now holds `\#` where it held `#`,
+so re-opening shows the paragraph the writer left on screen instead of an empty
+heading. In source mode the backslash is visible — that is the correct Markdown
+for literal text, and it appears only where the text would otherwise change
+meaning.
+
+**General UI / inspector:** no change.
+
+### Performance
+
+- Edited paragraph (the hot save path): ~0.1–1.2ms per reconstructed block —
+  one verification parse each; untouched blocks: zero parses (Gate 4.5 byte
+  slicing, reviewer-verified).
+- Public `serializeMomentariseDocument` on the parsed 390KB fixture: 33ms
+  pre-fix → 2805ms at first GREEN (every parsed block verified) → **97ms**
+  after the fast path. Residual delta over pre-fix is the blocks whose
+  rendering legitimately differs from source (decoded entities, canonical
+  delimiters) and which therefore still verify.
+
+### Open questions
+
+- None blocking. The budget coverage gap and the four unfixable classes are
+  BACKLOG entries with measurements.
