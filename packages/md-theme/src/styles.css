@@ -1385,6 +1385,30 @@
   animation: mme-overlay-enter var(--mme-motion-base) var(--mme-motion-ease);
 }
 
+/*
+ * MME-0119 — the overlay layer.
+ *
+ * Viewport-positioned overlays are portalled here, outside every ancestor that
+ * could establish a containing block for `position: fixed`. The layer itself
+ * must therefore never carry `transform`, `filter`, `backdrop-filter`,
+ * `perspective`, `will-change` or `contain` — that would recreate exactly the
+ * capture it exists to avoid. It has no box of its own: zero size, no paint, no
+ * pointer surface; only the overlays inside it are interactive.
+ */
+.mme-overlay-layer {
+  position: absolute;
+  z-index: var(--mme-z-portal);
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: 0;
+  block-size: 0;
+  pointer-events: none;
+}
+
+.mme-overlay-layer > * {
+  pointer-events: auto;
+}
+
 .toolbar-more-menu {
   position: absolute;
   z-index: var(--mme-z-menu);

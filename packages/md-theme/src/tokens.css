@@ -166,6 +166,15 @@
   --mme-z-toolbar: 20;
   --mme-z-menu: 45;
   --mme-z-overlay: 70;
+  /*
+   * MME-0119: the portal layer sits above every host chrome layer. Overlays
+   * portalled out of the app subtree lose the DOM-order tiebreak that used to
+   * settle equal z-indexes, so they need a rank that wins outright — the demo
+   * topbar is 50 and the packaged debug inspector is 65, and both were painting
+   * over the More menu at phone width. `z-index` does NOT establish a containing
+   * block for `position: fixed`, so this cannot reintroduce the defect it serves.
+   */
+  --mme-z-portal: 80;
 
   --mme-visual-viewport-height: 100dvh;
   --mme-visual-viewport-width: 100vw;

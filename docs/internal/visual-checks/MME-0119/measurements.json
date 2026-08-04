@@ -1,0 +1,111 @@
+{
+  "demoUrl": "http://127.0.0.1:5174/",
+  "evidence": {
+    "390": {
+      "measurements": [
+        {
+          "bottom": 836,
+          "itemCount": 18,
+          "occludedItems": [],
+          "capturingAncestors": [],
+          "hidden": false,
+          "inOverlayLayer": true,
+          "left": 142,
+          "present": true,
+          "right": 382,
+          "toolbarScrollLeft": 0,
+          "top": 8,
+          "viewportHeight": 844,
+          "viewportWidth": 390
+        },
+        {
+          "bottom": 836,
+          "itemCount": 18,
+          "occludedItems": [],
+          "capturingAncestors": [],
+          "hidden": false,
+          "inOverlayLayer": true,
+          "left": 142,
+          "present": true,
+          "right": 382,
+          "toolbarScrollLeft": 152,
+          "top": 8,
+          "viewportHeight": 844,
+          "viewportWidth": 390
+        },
+        {
+          "bottom": 836,
+          "itemCount": 18,
+          "occludedItems": [],
+          "capturingAncestors": [],
+          "hidden": false,
+          "inOverlayLayer": true,
+          "left": 126,
+          "present": true,
+          "right": 366,
+          "toolbarScrollLeft": 304,
+          "top": 8,
+          "viewportHeight": 844,
+          "viewportWidth": 390
+        }
+      ],
+      "scrollRange": 304
+    },
+    "768": {
+      "measurements": [
+        {
+          "bottom": 959,
+          "itemCount": 18,
+          "occludedItems": [],
+          "capturingAncestors": [],
+          "hidden": false,
+          "inOverlayLayer": true,
+          "left": 436,
+          "present": true,
+          "right": 676,
+          "toolbarScrollLeft": 0,
+          "top": 119,
+          "viewportHeight": 1024,
+          "viewportWidth": 768
+        },
+        {
+          "bottom": 959,
+          "itemCount": 18,
+          "occludedItems": [],
+          "capturingAncestors": [],
+          "hidden": false,
+          "inOverlayLayer": true,
+          "left": 436,
+          "present": true,
+          "right": 676,
+          "toolbarScrollLeft": 0,
+          "top": 119,
+          "viewportHeight": 1024,
+          "viewportWidth": 768
+        },
+        {
+          "bottom": 959,
+          "itemCount": 18,
+          "occludedItems": [],
+          "capturingAncestors": [],
+          "hidden": false,
+          "inOverlayLayer": true,
+          "left": 436,
+          "present": true,
+          "right": 676,
+          "toolbarScrollLeft": 0,
+          "top": 119,
+          "viewportHeight": 1024,
+          "viewportWidth": 768
+        }
+      ],
+      "scrollRange": 0
+    }
+  },
+  "scrollFractions": [
+    0,
+    0.5,
+    1
+  ],
+  "status": "passed"
+}

@@ -810,18 +810,63 @@ export function createToolbar(options: CreateToolbarOptions): SurfaceComponent &
   const cleanups: ListenerCleanup[] = [];
   let state = options.state;
   let moreOpen = false;
+  /*
+   * MME-0119: the More menu lives in the overlay layer, not in `root`. The
+   * toolbar carries `backdrop-filter`, which would make it the containing block
+   * for the menu's `position: fixed` and displace it by the toolbar's scroll
+   * offset. Because the node is outside this component's subtree, the reference
+   * is held here so `update()` can replace it and `destroy()` can remove it —
+   * neither happens for free once a node is portalled.
+   */
+  let portalledMenu: HTMLElement | null = null;
+
+  const detachPortalledMenu = (): void => {
+    if (!portalledMenu) {
+      return;
+    }
+    portalledMenu.removeEventListener("click", onClick);
+    portalledMenu.removeEventListener("keydown", onKeyDown);
+    portalledMenu.remove();
+    portalledMenu = null;
+  };
+
   options.host.replaceChildren(root);
 
-  const setMoreOpen = (open: boolean): void => {
+  const menuItems = (): HTMLButtonElement[] =>
+    portalledMenu ? [...portalledMenu.querySelectorAll<HTMLButtonElement>("button:not([disabled])")] : [];
+
+  const setMoreOpen = (open: boolean, options_?: { readonly focus?: boolean }): void => {
+    const wasOpen = moreOpen;
     moreOpen = open;
     const button = root.querySelector<HTMLElement>('[data-testid="toolbar-more-button"]');
-    const menu = root.querySelector<HTMLElement>('[data-testid="toolbar-more-menu"]');
+    const menu = portalledMenu;
     button?.setAttribute("aria-expanded", String(moreOpen));
     if (menu) {
-      menu.hidden = !moreOpen;
-      if (moreOpen && button) {
+      /*
+       * A hidden toolbar must take its menu with it. While the menu was a child
+       * of `root` the `[hidden] { display: none !important }` rule did that for
+       * free; portalled, it would otherwise float over the editor with no
+       * toolbar beneath it after `setState({ visible: false })` or a mode switch.
+       */
+      menu.hidden = !moreOpen || root.hidden;
+      if (moreOpen && !root.hidden && button) {
         positionToolbarMoreMenu(button, menu);
       }
+    }
+    /*
+     * Focus management, which is what actually replaces the DOM adjacency the
+     * portal removed. The menu is now last in the document, so Tab no longer
+     * reaches it — and inside a list or table the editor consumes Tab entirely.
+     * Moving focus in on open and back to the trigger on close is the WAI-ARIA
+     * menu-button pattern, and it makes the menu's DOM position irrelevant.
+     */
+    if (options_?.focus === false) {
+      return;
+    }
+    if (moreOpen && !wasOpen && !root.hidden) {
+      menuItems()[0]?.focus();
+    } else if (!moreOpen && wasOpen) {
+      (button as HTMLElement | null)?.focus();
     }
   };
 
@@ -833,13 +878,27 @@ export function createToolbar(options: CreateToolbarOptions): SurfaceComponent &
     root.dataset.layoutDensity = options.preferences.layoutDensity ?? "comfortable";
     root.setAttribute("aria-label", options.strings.toolbar.label);
     root.setAttribute("role", "toolbar");
+    const more = toolbarMore(options, state, moreOpen);
     root.replaceChildren(
       ...toolbarCommands.filter((command) => toolbarCommandVisible(options.preferences, command.group)).map((command, index) => toolbarButton(options, state, command, index === 0)),
       aiToolbarButton(options),
       ...hostToolbarButtons(options, state),
-      toolbarMore(options, state, moreOpen)
+      more.container
     );
-    setMoreOpen(moreOpen);
+    /*
+     * Replace rather than append: a portalled node is not cleared by
+     * `root.replaceChildren`, so re-rendering would otherwise leak a menu per
+     * update. The delegated listeners move with it — the menu is outside `root`
+     * now, so a click inside it never reaches the toolbar's own handler.
+     */
+    detachPortalledMenu();
+    portalledMenu = more.menu;
+    more.menu.addEventListener("click", onClick);
+    more.menu.addEventListener("keydown", onKeyDown);
+    const layer = overlayLayer(options.host);
+    mirrorHostContext(options.host, layer);
+    layer.append(more.menu);
+    setMoreOpen(moreOpen, { focus: false });
   };
 
   const onClick = (event: Event): void => {
@@ -868,6 +927,41 @@ export function createToolbar(options: CreateToolbarOptions): SurfaceComponent &
     }
   };
   const onKeyDown = (event: KeyboardEvent): void => {
+    /*
+     * Keys inside the portalled menu are its own, not the toolbar's. The
+     * toolbar's roving walk is horizontal over `visibleButtons(root)`, and the
+     * menu is no longer inside `root` — so `findIndex` returned -1 and an
+     * ArrowRight in the menu teleported focus into the toolbar behind a
+     * screen-filling overlay. A menu is a vertical list; it gets vertical keys,
+     * plus the Escape and Tab dismissal a menu button owes its user.
+     */
+    const inMenu = Boolean(portalledMenu && elementTarget(event) && portalledMenu.contains(elementTarget(event)!));
+    if (inMenu || (moreOpen && event.key === "Escape")) {
+      if (event.key === "Escape" || event.key === "Tab") {
+        event.preventDefault();
+        setMoreOpen(false);
+        return;
+      }
+      if (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Home" || event.key === "End") {
+        const items = menuItems();
+        if (items.length === 0) {
+          return;
+        }
+        event.preventDefault();
+        const active = options.host.ownerDocument.activeElement;
+        const current = Math.max(0, items.findIndex((item) => item === active));
+        const next =
+          event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? items.length - 1
+              : event.key === "ArrowDown"
+                ? (current + 1) % items.length
+                : (current - 1 + items.length) % items.length;
+        items[next]?.focus();
+        return;
+      }
+    }
     if (event.key === "Enter" || event.key === " ") {
       const command = elementTarget(event)?.closest<HTMLButtonElement>("button[data-toolbar-command-id]");
       if (command?.dataset.toolbarCommandId && !command.disabled) {
@@ -900,6 +994,24 @@ export function createToolbar(options: CreateToolbarOptions): SurfaceComponent &
 
   root.addEventListener("click", onClick);
   root.addEventListener("keydown", onKeyDown);
+  /*
+   * Outside-pointer dismissal. Without it the only way to close the menu on a
+   * phone is to run a command, because the menu covers its own trigger.
+   */
+  const onDocumentPointerDown = (event: Event): void => {
+    if (!moreOpen) {
+      return;
+    }
+    const target = elementTarget(event);
+    if (target && (portalledMenu?.contains(target) || root.contains(target))) {
+      return;
+    }
+    setMoreOpen(false, { focus: false });
+  };
+  options.host.ownerDocument.addEventListener("pointerdown", onDocumentPointerDown, true);
+  cleanups.push(() =>
+    options.host.ownerDocument.removeEventListener("pointerdown", onDocumentPointerDown, true)
+  );
   cleanups.push(options.session.on("destroy", () => destroy()));
   cleanups.push(() => root.removeEventListener("click", onClick));
   cleanups.push(() => root.removeEventListener("keydown", onKeyDown));
@@ -909,6 +1021,9 @@ export function createToolbar(options: CreateToolbarOptions): SurfaceComponent &
     for (const cleanup of cleanups.splice(0)) {
       cleanup();
     }
+    // The portalled menu is outside `root`, so removing the root does not take
+    // it with it.
+    detachPortalledMenu();
     root.remove();
   };
   return {
@@ -2718,7 +2833,89 @@ function selectionBubbleAiButton(options: CreateSelectionBubbleToolbarOptions, s
   return button;
 }
 
-function toolbarMore(options: CreateToolbarOptions, state: SurfaceToolbarState, open: boolean): HTMLDivElement {
+/**
+ * MME-0119 — the overlay layer.
+ *
+ * `position: fixed` resolves against the viewport only while no ancestor
+ * establishes a containing block for fixed descendants. `transform`, `filter`,
+ * `backdrop-filter`, `perspective`, `will-change` and `contain` all do — and
+ * MME-0102 gave `.rich-command-toolbar` a `backdrop-filter` for its glass
+ * treatment. A menu rendered inside that toolbar therefore had its correctly
+ * computed viewport coordinates re-resolved against the toolbar, displacing it by
+ * the toolbar's scroll offset until it left the screen entirely.
+ *
+ * **The contract: any surface overlay that positions against the viewport is
+ * rendered here, never inside the element that triggers it.** The layer is a
+ * direct child of `<body>` and must never itself carry a containing-block
+ * property. Compensating for a scroll offset instead is forbidden: it treats the
+ * symptom and breaks again in the next scroll container.
+ *
+ * `tests/overlay-containing-block.test.mjs` enforces this on every push.
+ */
+function overlayLayer(host: HTMLElement): HTMLElement {
+  const ownerDocument = host.ownerDocument;
+  const existing = ownerDocument.querySelector<HTMLElement>("[data-mme-overlay-layer]");
+  if (existing) {
+    return existing;
+  }
+  const layer = ownerDocument.createElement("div");
+  layer.className = "mme-overlay-layer";
+  layer.dataset.mmeOverlayLayer = "";
+  ownerDocument.body.append(layer);
+  return layer;
+}
+
+/**
+ * The second thing a portal breaks, after positioning: inheritance.
+ *
+ * The layer is a sibling of the app shell, so an overlay inside it inherits
+ * nothing the host set on that shell. Two of those matter and both are silent:
+ *
+ *  - `--mme-visual-viewport-height`, which `.toolbar-more-menu`'s `max-height`
+ *    reads. Falling back to `100dvh` means the menu is sized to the whole screen
+ *    while a software keyboard covers the bottom half — the same class of defect
+ *    MME-0119 fixed, reappearing on the vertical axis, and invisible to a
+ *    headless gate because there is no keyboard in the run.
+ *  - `--mme-density`, which sizes menu items. Frozen at 1, the menu stops
+ *    matching the toolbar it belongs to at compact or spacious density.
+ *
+ * The theme data attributes come along for the same reason: nothing styles them
+ * today, but the first `[data-layout-density] .toolbar-menu-item` rule anyone
+ * writes would otherwise silently miss the portalled menu.
+ */
+const INHERITED_OVERLAY_PROPERTIES = [
+  "--mme-density",
+  "--mme-visual-viewport-height",
+  "--mme-visual-viewport-width",
+  "--mme-keyboard-inset"
+];
+
+function mirrorHostContext(host: HTMLElement, layer: HTMLElement): void {
+  const view = host.ownerDocument.defaultView;
+  if (!view) {
+    return;
+  }
+  const shell = host.closest<HTMLElement>("[data-testid=\"reference-editor-shell\"]") ?? host;
+  const computed = view.getComputedStyle(shell);
+  for (const property of INHERITED_OVERLAY_PROPERTIES) {
+    const value = computed.getPropertyValue(property).trim();
+    if (value) {
+      layer.style.setProperty(property, value);
+    }
+  }
+  for (const attribute of ["layoutDensity", "toolbarStyle"] as const) {
+    const value = shell.dataset[attribute];
+    if (value) {
+      layer.dataset[attribute] = value;
+    }
+  }
+}
+
+function toolbarMore(
+  options: CreateToolbarOptions,
+  state: SurfaceToolbarState,
+  open: boolean
+): { container: HTMLDivElement; menu: HTMLDivElement } {
   const container = createElement(options.host, "div", "toolbar-more");
   const button = createElement(options.host, "button", "toolbar-button");
   const menu = createElement(options.host, "div", "toolbar-more-menu");
@@ -2736,10 +2933,17 @@ function toolbarMore(options: CreateToolbarOptions, state: SurfaceToolbarState, 
       const item = createElement(options.host, "button", "toolbar-menu-item");
       const disabled = commandDisabled(state, command.id);
       item.type = "button";
+      /*
+       * `role="menu"` may only own menuitem-family roles. Plain buttons drop
+       * NVDA and JAWS out of menu mode and lose the "n of 14" position
+       * announcement. `menuitemcheckbox` rather than `menuitem` because these
+       * entries toggle, and `aria-pressed` is not valid on a menuitem.
+       */
+      item.setAttribute("role", "menuitemcheckbox");
       item.disabled = disabled;
       item.dataset.richCommand = command.richCommand;
       item.dataset.toolbarCommandId = command.id;
-      item.setAttribute("aria-pressed", String(commandActive(state, command.id)));
+      item.setAttribute("aria-checked", String(commandActive(state, command.id)));
       if (command.testId) {
         item.dataset.testid = command.testId;
       }
@@ -2750,9 +2954,26 @@ function toolbarMore(options: CreateToolbarOptions, state: SurfaceToolbarState, 
       return item;
     })
   );
-  container.append(button, menu);
-  return container;
+  /*
+   * The menu is deliberately NOT appended to `container`: it is portalled into
+   * the overlay layer by the caller.
+   *
+   * `aria-controls` records the relationship for the accessibility tree, but it
+   * is NOT a substitute for DOM adjacency — only JAWS offers a command to follow
+   * it. What actually replaces the adjacency the portal removed is the focus
+   * management in `setMoreOpen`: focus moves into the menu on open and returns
+   * to this button on close.
+   */
+  menu.id = menu.id || `mme-toolbar-more-menu-${moreMenuSequence += 1}`;
+  button.setAttribute("aria-controls", menu.id);
+  button.setAttribute("aria-haspopup", "menu");
+  menu.setAttribute("role", "menu");
+  menu.setAttribute("aria-label", options.strings.toolbar.more);
+  container.append(button);
+  return { container, menu };
 }
+
+let moreMenuSequence = 0;
 
 function positionToolbarMoreMenu(button: HTMLElement, menu: HTMLElement): void {
   const rect = button.getBoundingClientRect();

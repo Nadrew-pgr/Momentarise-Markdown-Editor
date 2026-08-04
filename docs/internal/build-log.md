@@ -9629,3 +9629,218 @@ unchanged.
 - `MME-0118` needs scheduling; `MME-0078` stays quarantined until it lands.
 - The hybrid-device density change is the deliberate trade recorded above. If
   Andrew prefers tighter density on touchscreen laptops, the token is the knob.
+
+## MME-0119 — Toolbar overlay escapes its scrolling container (Block C2, issue 3 of 5)
+
+- Date: 2026-08-03.
+- Status: complete. `MME-0078` is green and has left quarantine.
+
+### Defect
+
+`.rich-command-toolbar` carries `backdrop-filter: var(--mme-blur-chrome)`
+(MME-0102's glass treatment). A `backdrop-filter` makes an element the containing
+block for `position: fixed` descendants, so the More menu — a child of that
+toolbar — had its correctly computed viewport coordinates re-resolved against the
+toolbar and was displaced by exactly the toolbar's `scrollLeft`.
+
+RED, verbatim from `visual-check-mme0078.mjs` at 390x844 with a real coarse
+pointer:
+
+```
+Error: Mobile More overlay unreachable: {"bottom":936,"left":-178,"open":true,"right":62,...,"top":108}
+```
+
+`left: -178` for an inline `left: 126px` at `scrollLeft: 304`; `bottom: 936`
+against an 844px viewport. On a phone the toolbar always scrolls, so **the More
+menu was unreachable**. `MME-0078` had never reached this assertion before
+MME-0117 repaired the touch-target one above it.
+
+### The fix: portal, per the recorded architecture decision
+
+`backdrop-filter` is a deliberate MME-0102 design value; removing it to fix
+positioning would trade a visual decision for a layout bug. So the overlay moves
+instead of the glass.
+
+- `overlayLayer()` in `packages/md-surface/src/index.ts` creates a single
+  `[data-mme-overlay-layer]` element as a direct child of `<body>`, and its doc
+  comment carries **the contract**: any surface overlay that positions against
+  the viewport renders there, never inside the element that triggers it, and the
+  layer must never itself carry a containing-block property.
+- `toolbarMore()` now returns `{ container, menu }` and appends only the button
+  to the container. `createToolbar` owns the portalled node: it replaces it on
+  every `update()` and removes it on `destroy()`, because a node outside the
+  component's own subtree is not cleaned up by `root.replaceChildren()` or
+  `root.remove()`.
+- `aria-controls`, `aria-haspopup="menu"` and `role="menu"` keep the relationship
+  the DOM no longer expresses.
+- `.mme-overlay-layer` in `packages/md-theme/src/styles.css` is a zero-size,
+  non-painting, `pointer-events: none` layer; only its children take pointer
+  events.
+
+**No `scrollLeft` compensation.** `positionToolbarMoreMenu` already computed
+correct viewport coordinates and clamped to 8px margins — the maths was never
+wrong, only the containing block was. A test assertion now forbids that function
+from reading any scroll offset, with the reason in the failure message.
+
+### Two regressions the portal introduced, both fixed in the product
+
+1. **Menu clicks stopped dispatching.** The toolbar delegates `click`/`keydown`
+   on `root`, and the menu is no longer inside `root`. The listeners now follow
+   the portalled node and are removed with it. Caught by
+   `tests/surface-components.test.mjs`, which asserts a menu command reaches the
+   shared handler.
+2. **A captured menu reference went stale.** `update()` replaces the portalled
+   node, so a reference taken once described a detached element. The test now
+   re-queries; the production code was already correct.
+
+### Reachability (AGENT.md)
+
+- `tests/overlay-containing-block.test.mjs` → `npm test` via
+  `test:overlay-containing-block`.
+- `scripts/visual-check-mme0119.mjs` → `npm run visual` via the MME-0114
+  manifest, and `npm run visual:mme-0119`.
+- `overlayLayer()` is called from `createToolbar`'s `update()`, which every
+  consumer of `createToolbar` reaches; `.mme-overlay-layer` ships in the packaged
+  stylesheet consumers import.
+
+### Tests run
+
+- `npm test` — exit 0, including the new `test:overlay-containing-block`.
+- `npm run visual -- --groups demo,docs` — **exit 0**: 36 passed, 37
+  known-failing, 0 anomalies, 0 unexpected failures, 5 not selected, 10 minutes.
+- `npm run visual -- --only mme-0078` — **passed**, and the runner reported it as
+  an `anomaly` ("expected to fail but passed — remove it from KNOWN_FAILING").
+  That is the MME-0114 quarantine mechanism doing the job it was built for: a
+  landed repair announced itself instead of rotting in the list. The entry is
+  removed and 37 remain, all owned by MME-0116.
+- `npm run visual -- --only mme-0119` — passed.
+
+### Browser evidence
+
+`docs/internal/visual-checks/MME-0119/` — six screenshots plus
+`measurements.json` and a README. Measured rects, all inside their viewport:
+
+| Viewport | `scrollLeft` | menu rect |
+| --- | --- | --- |
+| 390x844 | 0 | 142,8 → 382,836 |
+| 390x844 | 152 | 142,8 → 382,836 |
+| 390x844 | 304 | 126,8 → 366,836 |
+| 768x1024 | 0 | 436,119 → 676,959 |
+
+`capturingAncestors` is empty at every offset. The gate additionally **requires
+the toolbar to have actually scrolled** at 390: without that, every measurement
+would be the `scrollLeft: 0` case — which the broken build also passed
+horizontally, since the displacement *is* the scroll offset.
+
+### Mutation testing — reversion-to-failure table
+
+8 mutants, 8 killed. Every mutant is a plausible wrong answer a competent
+developer could have written; none deletes an implementation or throws.
+
+| # | Plausible wrong answer | Assertion that failed |
+| --- | --- | --- |
+| P1 | Portal to the toolbar's own host | "A `[data-mme-overlay-layer]` element must exist…" |
+| P2 | Portal to the toolbar's parent element, still inside the shell | same |
+| P3 | Keep the menu inside its trigger container, as before | "The More menu must not be a descendant of `.rich-command-toolbar`…" |
+| P4 | Append on re-render instead of replacing | "Re-rendering the toolbar must replace the portalled menu, not add another…" |
+| P5 | Leave the portalled menu behind on destroy | "Destroying the toolbar must remove its portalled overlay…" |
+| P6 | Compensate for the toolbar's `scrollLeft` instead of portalling | "Overlay positioning must not read a scroll offset…" |
+| P7 | Give the overlay layer a `transform` (a plausible fade/slide) | "`div.mme-overlay-layer` is an ancestor of the More menu and the packaged stylesheet gives it…" |
+| P8 | P3 against the browser gate | `mme-0119`: "the More menu must render inside [data-mme-overlay-layer]" — reported with `capturingAncestors: [rich-command-toolbar: backdrop-filter]` and `bottom: 936` against an 844px viewport |
+
+A second round, after review, covering every fix above. 9 more mutants, 9 killed —
+17 in total for this issue.
+
+| # | Plausible wrong answer | Assertion that failed |
+| --- | --- | --- |
+| Q1 | Overlay layer with no `z-index` — the state review found | `mme-0119`: menu items "are painted over by other chrome and cannot be tapped" |
+| Q2 | Open the menu without moving focus into it | "Opening the menu must move focus into it. The portalled menu is last in the document…" |
+| Q3 | Close without returning focus to the trigger | "Closing the menu must return focus to its trigger, or a keyboard user is dropped at the end of the document." |
+| Q4 | Keep `aria-pressed` on items under `role="menu"` | "`aria-pressed` is not valid on a menuitem role; use aria-checked." |
+| Q5 | Leave menu items as plain buttons | "`role=\"menu\"` may only own menuitem-family roles…" |
+| Q6 | Menu with no accessible name | "A `role=\"menu\"` with no accessible name is announced as an unnamed group." |
+| Q7 | A hidden toolbar leaves its menu visible | "Hiding the toolbar must hide its portalled menu…" |
+| Q8 | `aria-hidden="true"` on the overlay layer | "Neither the overlay layer nor the menu may be aria-hidden. A structurally perfect portal that no screen reader can see is not a fix." |
+| Q9 | Move the layer's capturing rule to an attribute selector | "`div.mme-overlay-layer` is an ancestor of the More menu and the packaged stylesheet gives it data-…" |
+
+Q1 and Q9 are the two that matter most: each reproduces a defect a reviewer found
+by hand, against a check that had passed it.
+
+**P3 was an equivalent mutant on the first attempt** and was rewritten before
+being counted: appending the menu to its container was silently undone by the
+later `overlayLayer().append()`, so the DOM was identical and the mutant proved
+nothing. The corrected version removes the portal call as well.
+
+### Reviewer pass
+
+Accessibility Reviewer and UX Reviewer, both inspect-only and mandatory, both run
+against a frozen tree. Between them they returned four blockers, and **every one
+was a defect this change introduced** — the portal moved the menu out of one
+hostile context and into another where it inherited nothing and outranked
+nothing, and the first version of the gate measured only a bounding rectangle,
+so it saw none of it.
+
+| Finding | What was wrong | Fix |
+| --- | --- | --- |
+| Tab never reached the menu | The menu used to sit immediately after its trigger, so one Tab landed on the first item — by accident of DOM adjacency. Portalled, it is last in the document, and inside a list or table the editor consumes Tab entirely. A menu covering 828px of an 844px phone screen, last in reading order. | Focus moves to the first enabled item on open and returns to the trigger on close: the WAI-ARIA menu-button pattern, which makes DOM position irrelevant. |
+| Arrow keys ejected focus out of the open menu | `onKeyDown` followed the portalled node but still called `visibleButtons(root)`; the menu is no longer in `root`, so `findIndex` returned `-1` and ArrowRight teleported focus into the toolbar *behind* the overlay. | The menu owns its keys: vertical Up/Down/Home/End roving over its own items, plus Escape and Tab to dismiss. |
+| Three of eighteen commands were painted over at 390 | The layer had no `z-index`, so the demo topbar (50) and the packaged debug inspector (65) won. "Paragraph", "H3" and "Inline code" were invisible and untappable — on exactly the viewport this issue is about. | `--mme-z-portal: 80` on the layer. `z-index` does not establish a containing block, so it cannot reintroduce the defect it serves. |
+| The menu lost its inherited context | The layer is a sibling of the app shell, so `--mme-visual-viewport-height` fell back to `100dvh` — sizing the menu to the whole screen while a software keyboard covers half of it, the same class of defect on the vertical axis — and `--mme-density` froze at 1. | `mirrorHostContext()` copies the viewport, keyboard-inset and density properties plus the theme data attributes onto the layer on every render, and the contract comment now names inheritance as the second thing a portal breaks. |
+
+Also fixed from the same round: `role="menu"` owned plain buttons with no
+accessible name (now `menuitemcheckbox` + `aria-checked` + `aria-label`, matching
+what `rich-block-menu` already did one file over); no outside-pointer dismissal,
+so on a phone the only way to close the menu was to run a command; a hidden
+toolbar left its menu floating, because `[hidden] { display: none }` used to
+cover that for free; and a comment that claimed `aria-controls` replaces DOM
+adjacency, which it does not — only JAWS can follow it.
+
+Two reviewer findings improved the checks rather than the product: the
+deterministic test only harvested `.class` tokens, so moving the layer's rules to
+an attribute selector reintroduced the whole defect while every assertion passed;
+and the browser gate asserted a rectangle, which a zero-size or fully-occluded
+menu satisfies.
+
+**One reviewer finding is recorded as a genuine improvement, not a fix:** the
+portal removed a pre-existing arrow-key defect. `visibleButtons` filters
+`!button.hidden` per button, so while the menu lived in `root` its items were in
+the roving list even when the container was hidden — `setRovingTabIndex` then put
+`tabIndex = 0` on an element inside a `display: none` box, and the toolbar lost
+its tab stop entirely.
+
+Findings accepted and queued rather than fixed here: repositioning while open
+(scroll, resize, orientation), which most editors solve by closing instead; the
+menu covering its own trigger at phone width, which is a sheet-versus-dropdown
+design question; and `data-toolbar-style` / `data-layout-density` being inert
+preferences nothing styles.
+
+### Deviations from PRD
+
+None. The architecture decision (portal, do not remove the glass) was recorded by
+Andrew's reviewer in the issue before implementation and is followed exactly.
+
+### Visual impact
+
+The More menu appears anchored to its button and fully on screen at every toolbar
+scroll position on phones and tablets. The MME-0102 glass treatment is unchanged.
+Desktop is unchanged. No other surface moved.
+
+### Open questions
+
+- Three other packaged surfaces carry `backdrop-filter`
+  (`.selection-bubble-toolbar`, `.rich-block-controls`, `.command-palette`).
+  The Accessibility Reviewer verified independently that none contains a
+  `position: fixed` descendant, so none is defective today.
+- **Correction.** An earlier draft of this entry claimed "the deterministic test
+  would fail the moment one gained an overlay". That is false and was corrected
+  after review: the test walks the ancestry of exactly one node, the More menu.
+  Nothing enumerates overlays. The nearest miss is the document status menu,
+  which is `position: fixed` under `@media (max-width: 720px)` — phone-only,
+  exactly the MME-0119 condition — and is not portalled. It is not defective
+  today because nothing on its ancestor chain captures it, but nothing tests
+  that. Generalising the check to every fixed surface the packages render is
+  queued rather than done.
+- The 768 sweep is structural, not a sweep: that toolbar does not scroll
+  (`scrollRange: 0`), so its three samples are the same `scrollLeft: 0` state.
+  Only 390 genuinely exercises the defect's condition. The gate enforces a real
+  scroll at 390 for that reason; the README says so.

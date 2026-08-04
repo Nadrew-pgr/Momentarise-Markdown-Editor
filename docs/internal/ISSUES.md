@@ -1681,6 +1681,8 @@ Touch controls grow to the intended size on phones and tablets; desktop unchange
 
 ## MME-0119 — Toolbar overlay escapes its scrolling container
 
+**Status: SHIPPED (Block C2, 2026-08-03).** The More menu is portalled into `[data-mme-overlay-layer]` under `<body>`; the MME-0102 glass treatment is untouched. `MME-0078` is green and has left quarantine. Measured inside the viewport at three toolbar scroll offsets per width; 8 mutants, 8 killed.
+
 **Reviewer decision, 2026-08-03.** Fix by portalling the overlay, not by removing the glass effect: `backdrop-filter` is a deliberate MME-0102 design value and dropping it to fix positioning would trade a visual decision for a layout bug. Any overlay that must position against the viewport is rendered outside every ancestor that establishes a containing block — `filter`, `backdrop-filter`, `transform`, `perspective`, `will-change`, `contain` — and that rule is written into the surface contract so the next overlay cannot reintroduce it. A `scrollLeft` compensation is forbidden: it treats the symptom and breaks again on the next scroll container.
 
 **Promoted 2026-08-02 from MME-0117.** Not yet assigned to a block; Andrew schedules it.
