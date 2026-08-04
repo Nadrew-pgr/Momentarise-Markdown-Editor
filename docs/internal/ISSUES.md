@@ -1288,6 +1288,8 @@ Missing: `**bold**`, `*italic*`, `_italic_`, `~~strike~~` (they stay literal, no
 
 ## MME-0104b — Smart pairing and paste-URL-to-link
 
+**Status: SHIPPED (commit `d5a2db0`). Do not re-implement.**
+
 ### Goal
 
 Restore bracket, quote and backtick pairing, and make pasting a URL over a selection produce a Markdown link.
