@@ -195,7 +195,7 @@ Public-framework packages added by the 2026-06-09 readiness review:
 - `@momentarise/md-editor` — headless editor session, events, mode registry, AI controller; host-independent, DOM-free.
 - `@momentarise/md-theme` — design tokens, host theme contract, icon set contract; contract types are DOM-free.
 - `@momentarise/md-surface` — framework-free DOM components (toolbar, slash menu, command palette, status, AI panel) consuming tokens, preferences, icons, and an i18n dictionary.
-- `@momentarise/md-react` — React binding only; vanilla remains the primary path.
+- `@momentarise/md-react` — React binding. **Superseded 2026-08-04 (D8, `docs/internal/research/docs-rationale-2026-08-04.md`):** "vanilla remains the primary path" was never a human decision; Andrew's ratified direction is React/Next.js as the primary documented path, vanilla kept working but demoted. The architecture rule is unchanged: core packages never import React.
 - `@momentarise/md-render-html` — safe, sanitized, themable Markdown-to-HTML renderer for read-only rendering, print/export, server/static rendering, and the docs site.
 
 Package tiers: model and services (md-core, md-format, md-policy, md-save, md-ai), headless engine (md-editor), view engines (md-source-codemirror, md-rich-prosemirror, md-preview-html, md-render-html), UI surface (md-theme, md-surface), framework bindings (md-react), host capability providers and shells (md-adapter-web, md-adapter-theia, md-adapter-vscode), tools (md-cli). View packages must declare CodeMirror/ProseMirror as peer dependencies so consumers never bundle duplicate editor cores. Nothing in the architecture may be React-only, Next-only, Theia-only, or browser-only.

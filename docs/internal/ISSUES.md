@@ -116,7 +116,8 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | C | MME-0086, 0087, 0088 | Interaction correctness, part 1 | opus-4.8 | done 2026-08-01 (0103 attempted and reverted) |
 | C1 | MME-0103 (attempt 2) | Block selection, redesigned on byte-derived separators | opus-5 / fable-5 | accepted 2026-08-01 |
 | C2 | MME-0114 ✅, 0117 ✅, 0119 ✅ | Gate harness, touch targets, overlay anchoring — all shipped | opus-4.8 | done 2026-08-03; MME-0078 left quarantine |
-| C2b | MME-0104a, 0104b, 0115 | Input rules; pairing and paste-link; composition input | opus-4.8 | parity checklist for contract 5 green |
+| C2b | MME-0104a ✅, 0104b ✅ | Input rules; pairing and paste-link — shipped | opus-4.8 | done 2026-08-04; 0115 deliberately not started |
+| C2c | MME-0120, 0121, 0122, 0115 | Serializer escaping (data loss); mark-run corruption; fence newline; composition | opus-4.8 | the three preservation defects reproduce no more; composition proven in browser |
 | C3 | MME-0116 | Empty the gate quarantine | opus-4.8 | `npm run visual` exits zero, quarantine empty |
 | Cd | MME-0118 | Docs correctness repair (may run parallel, own branch) | sonnet-5 | Andrew follows the vanilla quickstart and it works |
 | D | MME-0089, 0090, 0091, 0105, 0106 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
@@ -823,6 +824,8 @@ Restructure public docs content into the BlockNote-style journey — Getting Sta
 
 - New IA, revised 2026-08-02 after the docs review found the current six sections incoherent (`Features` holds both concept pages and four package pages; `Styling` is a two-page section; `policy.md` and `md-policy.md` produce two near-identical sidebar entries): **three sections, not six.** `Start` (Overview with install command and demo link, **Choosing MME before the quickstarts** — today the homepage and sidebar disagree on whether you decide before or after installing, the four quickstarts, and Compatibility & Status promoted out of the basement); `Guides` (Editor UI first, since it answers "what do I get" and is currently unlinked from the homepage, then the concept pages, with `policy`/`md-policy` and `theming`/`md-theme` each merged); `Reference` (all sixteen package pages in dependency order with no exceptions, then FAQ, Glossary, Roadmap).
 - Every existing page mapped or explicitly redirected — no dead URLs (old paths 301/meta-refresh to new ones; `llms.txt` regenerated).
+- Rationale source: `docs/internal/research/docs-rationale-2026-08-04.md` is the input record — D1-D16 supply the WHY for every rewrite, and its §5 carries per-page direction paragraphs. Apply: React/Next first among quickstarts (D8), rich-as-default framing with Source as the guarantee (D2), free use of "MME" as the public name (D9), preservation reframed to the two non-negotiable rules with the review argument up front (D3), one status banner (D10), honest contributor stance without the begging tone (D11).
+- Never fabricate rationale: §4 of that document lists decisions that were inherited or accidental (save-state taxonomy, preference-lock "reason" field, five preference layers, CodeMirror/ProseMirror). Where no ratified WHY exists, describe the mechanism without doctrine — a fabricated "we chose X because Y" is a false claim in a contract document.
 - Voice: `concepts/theming.md` is the house style and the proof that these docs can be written by a person — it states values, has an opinion, and explains why ("a rebrand is a ramp swap"). Every concept page must contain at least one sentence of the form "we chose X because Y". The docs review found rationale missing across `preferences.md`, `extensions.md`, `document-model.md`, and `policy.md`, each stating what and how but never why.
 - Remove crawler-facing prose from reader-facing pages: `choosing-mme.md` instructs the reader which adjectives not to apply to the product, and `faq.md` carries an entry titled "Will Publishing These Docs Make Agents Cite MME" — an internal SEO question in a customer FAQ. Delete both; replace the FAQ entry with a question developers actually ask.
 - Collapse the three-way duplication of "Choose MME When / Choose Another Approach When", which exists with slightly different bullets in `README.md`, `docs/public/index.md`, and `choosing-mme.md`. Write it once, link to it twice.
@@ -1643,7 +1646,7 @@ Fix the documentation defects that make a first-time reader fail. The packages a
 
 MME-0095 restructures the documentation. These are not structure problems: they are instructions that produce a broken result. Verified independently on 2026-08-02 by grep against `docs/public/`:
 
-- `createMomentariseSourceView` — the function that mounts the source editor — appears **zero times** in all of `docs/public/`. The vanilla quickstart's entire "Mount Views" section is two sentences of prose with no code, no function name, and no container element, so the reader ends with a `session` object and no way to render anything. Vanilla is the differentiator over every React-only competitor and it is the one path with no runnable example.
+- `createMomentariseSourceView` — the function that mounts the source editor — appears **zero times** in all of `docs/public/`. The vanilla quickstart's entire "Mount Views" section is two sentences of prose with no code, no function name, and no container element, so the reader ends with a `session` object and no way to render anything. (Reframed 2026-08-04 per D8, `docs/internal/research/docs-rationale-2026-08-04.md`: React/Next.js is the primary documented path — Andrew: "je préfère React… vanilla c'était pour la démo pendant le dev". The vanilla quickstart still must work when followed literally, but it is no longer the flagship; check the React and Next quickstarts first.)
 - `@momentarise/md-theme/styles.css` appears in **exactly one** public page (`concepts/theming.md`), and in none of the four quickstarts — while that same page states the consequence outright: without it you get "unstyled browser controls" instead of the reference editor. The repository's own working example imports it. So the docs know the omission breaks the first impression, and omit it anyway.
 
 ### Acceptance criteria
@@ -1820,6 +1823,79 @@ The More menu appears where it should on phones and tablets; desktop unchanged u
 - Reviewer subagents: Accessibility Reviewer, UX Reviewer; mandatory.
 - Recommended builder model: opus-4.8.
 - Human review required: no.
+
+### Blocked by
+
+- None.
+
+## MME-0120 — Paragraph serializer escaping: an undo must survive a save
+
+### Goal
+
+Make literal block markers and inline delimiters in paragraph text serialize escaped, so what the user sees on screen is what the file re-opens as.
+
+### Defect (measured 2026-08-04, provenance: BACKLOG "Rich serializer defects measured during MME-0104a"; reproduces at `fe828c9`, before the input rules — pre-existing)
+
+Type `# `, press one undo (screen correctly shows literal `# `), save, reopen: the line re-parses as an **empty heading and the characters are gone**. Same class: `3. ` → empty ordered list, characters gone; `**bold**` after undo comes back bold; `a**bold**` (never converted) comes back bold. Table cells already escape correctly (`\>`), so the gap is the paragraph text serializer, not the concept. This is user-visible silent data loss — the framework's hardest rule.
+
+### Acceptance criteria
+
+- A paragraph whose literal text would re-parse as a different construct serializes escaped (`\# `, `3\.`, `\*\*bold\*\*` or equivalent minimal escaping), and `parse(serialize(doc))` reproduces the same node shapes for every case in the measured table.
+- Escaping is minimal: text that does not collide serializes byte-identically to today (prove with the full round-trip corpus — no blanket escaping).
+- Untouched documents stay byte-identical; the fix applies to serialization of edited paragraphs only.
+- The undo-then-save path is proven end to end in a browser: type, undo, save, reload, assert the literal text survived.
+- Mutation-proved with plausible wrong answers (escape dropped for one marker class; escape applied to non-colliding text).
+
+### Execution model
+
+- Sequential; fresh context rebuild; Test Reviewer mandatory, read-only, frozen tree; builder model opus-4.8; human review: no.
+
+### Blocked by
+
+- None. Read the BACKLOG entry first; it carries the full measured table.
+
+## MME-0121 — Adjacent mark runs serialize one delimiter pair each
+
+### Goal
+
+Fix `wrapMomentariseTextMarks` wrapping every text node independently, which corrupts documents through the bold command alone.
+
+### Defect (measured 2026-08-04, same provenance; reproduces at `fe828c9`)
+
+Load `` a `x` b ``, select the paragraph, run the `bold` command: serialization produces ``**a ****`x`**** b**`` instead of ``**a `x` b**``. Reachable today with no input rule involved. Preservation-critical: the round-trip, rich-fidelity, targeted-serialization, footnote and table suites all cover this path.
+
+### Acceptance criteria
+
+- A mark spanning multiple text nodes serializes one delimiter pair around the run; mixed nested marks serialize canonically; every named suite stays green.
+- The bold-across-code-span case round-trips to the same node shapes, proven at parse level and in a browser.
+- Mutation-proved (a mutant restoring per-node wrapping must fail).
+
+### Execution model
+
+- Sequential; fresh context rebuild; Test Reviewer mandatory, read-only, frozen tree; builder model opus-4.8; human review: no.
+
+### Blocked by
+
+- MME-0120 (same serializer surface; sequencing avoids a two-agent conflict in one file).
+
+## MME-0122 — Trailing fenced code block loses the document's final newline
+
+### Goal
+
+Every block type keeps the document's final newline through the session/save layer, including a trailing fence.
+
+### Defect (measured 2026-08-04, same provenance; reproduces at `fe828c9`)
+
+`serializeRichMarkdownState` emits the trailing `\n`, but after the same content is typed in the demo, `session.getContent()` returns it without the final newline — only for a trailing fenced code block. Lives in the session/save layer, not the rich serializer.
+
+### Acceptance criteria
+
+- A document ending in a fenced code block round-trips with its final newline through the session, byte-identically, for LF and CRLF documents; no other block type regresses (corpus proof).
+- Mutation-proved.
+
+### Execution model
+
+- Sequential; fresh context rebuild; Test Reviewer mandatory, read-only, frozen tree; builder model sonnet-5; human review: no.
 
 ### Blocked by
 

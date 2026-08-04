@@ -25,7 +25,7 @@ MME aims to become the reference Markdown-native editor framework: BlockNote-cla
 
 - Editing UX: BlockNote, Notion, Obsidian Live Preview.
 - Docs: Vercel and BlockNote documentation sites.
-- Ownership/preservation: Obsidian, and stricter (byte-exact round trips).
+- Ownership/preservation: Obsidian's principles, held to two non-negotiable rules (ratified 2026-08-04, D3): unknown syntax is never destroyed, and bytes outside the edited range never change — that byte-stability is what keeps agent edits human-reviewable. Zero normalization *inside* the range the user edited is explicitly NOT promised; "byte-exact, stricter than Obsidian" was agent-authored framing, not a human decision.
 - Copying or strongly adapting best-in-class implementations (including patterns from Obsidian plugins) is explicitly allowed where licenses permit. MME differentiates on Markdown-source truth and host independence, not on novelty for its own sake.
 - Every user-facing surface should be benchmarked against the named references before public launch, not only against internal acceptance criteria.
 

@@ -368,6 +368,20 @@ Still to write:
 - **Destructive operations.** No history rewrite, hard reset on shared history, branch or remote deletion, data-dropping migration, or `rm -rf` outside a build output directory without explicit human approval in the current session.
 - **Skill language.** The `dev-workflow` skill was translated to English on 2026-08-02; audit for any remaining French that would hide duplicate rules from text search.
 
+
+### Interview-driven candidates (2026-08-04, source: docs/internal/research/docs-rationale-2026-08-04.md)
+
+- **Hybrid command-ID typing** (`dx`, D6): built-in command IDs become a typed union/const map exported by `md-editor`/`md-surface` (autocomplete, typo safety); host and agent IDs stay open strings under the `host:` convention. Non-breaking. Andrew: "Q7 en hybride j'aime bien !!"
+- **Save-state simplification pass** (`research`, D4): the six-target taxonomy is accidental complexity from build difficulties, not doctrine. Keep the truth rule ("saved" never lies), reduce the taxonomy. Needs its own design pass.
+- **Reference localization dictionaries** (`dx`, `i18n`, O2 — pending série 3): `MmeStrings`/`defaultMmeStrings` exist in `md-surface` but are essentially undocumented publicly, and no French dictionary ships despite Andrew's FR/EN ICP. Decide shipped languages, ownership, docs language.
+- **Payload CMS docs-host decision** (`research`, O3 — pending série 3, blocked on Andrew): reconcile "canonical docs are plain `.md` in the repo" with "all the docs has to be managed in Payload" (Andrew's declared first use case). Likely shape: Payload stores and round-trips real Markdown through MME contracts — which is the product's own pitch. Feeds MME-0099.
+
+### Todo checkbox overlap at 390px (measured 2026-08-04 during MME-0104b)
+
+Tags: `baseline/hygiene`, `ui`, `mobile`
+
+The 390px screenshot from `visual:mme-0104b` shows todo checkboxes overlapping their own labels. The MME-0104b diff contains no CSS, so it is pre-existing — but `[] ` now makes todos one keystroke away, so it is much easier to reach. Promotion candidate for Block D (fits MME-0089/0091 surface work); fix lands in the packaged stylesheet per the styling ownership rule.
+
 ## Public Framework Follow-Ups
 
 Tags: `public-release`, `dx`, `ax`, `research`
