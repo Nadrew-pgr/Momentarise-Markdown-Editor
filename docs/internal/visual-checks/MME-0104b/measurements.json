@@ -1,0 +1,224 @@
+{
+  "consoleErrors": [],
+  "demoUrl": "http://127.0.0.1:5174/",
+  "evidence": {
+    "390": {
+      "paste": {
+        "wrap": {
+          "hasLink": true,
+          "markdown": "Read the [docs](https://example.com) today.\n"
+        },
+        "non-url": {
+          "hasLink": false,
+          "markdown": "Read the manual today.\n"
+        },
+        "unsafe-scheme": {
+          "hasLink": false,
+          "markdown": "Read the javascript:alert(1) today.\n"
+        }
+      },
+      "rows": {
+        "pair-paren": {
+          "required": [],
+          "text": "()"
+        },
+        "pair-square": {
+          "required": [],
+          "text": "[]"
+        },
+        "pair-curly": {
+          "required": [],
+          "text": "{}"
+        },
+        "pair-double-quote": {
+          "required": [],
+          "text": "\"\""
+        },
+        "pair-single-quote": {
+          "required": [],
+          "text": "''"
+        },
+        "pair-backtick": {
+          "required": [],
+          "text": "``"
+        },
+        "step-over": {
+          "required": [],
+          "text": "(x)"
+        },
+        "step-over-after-edits": {
+          "required": [],
+          "text": "(xyz)"
+        },
+        "step-over-nested": {
+          "required": [],
+          "text": "([a])"
+        },
+        "apostrophe-in-a-word": {
+          "required": [],
+          "text": "don't"
+        },
+        "code-fence-still-typeable": {
+          "required": [
+            true
+          ],
+          "text": "const value = 1;"
+        },
+        "inline-code-through-pairing": {
+          "required": [
+            true
+          ],
+          "text": "code"
+        }
+      },
+      "backspace": "",
+      "gallery": "Read the [docs](https://momentarise.dev) today.\n\nPairs: (parens), [brackets], {braces}, \"quotes\" and `code`.\n\n\n"
+    },
+    "1280": {
+      "paste": {
+        "wrap": {
+          "hasLink": true,
+          "markdown": "Read the [docs](https://example.com) today.\n"
+        },
+        "non-url": {
+          "hasLink": false,
+          "markdown": "Read the manual today.\n"
+        },
+        "unsafe-scheme": {
+          "hasLink": false,
+          "markdown": "Read the javascript:alert(1) today.\n"
+        }
+      },
+      "rows": {
+        "pair-paren": {
+          "required": [],
+          "text": "()"
+        },
+        "pair-square": {
+          "required": [],
+          "text": "[]"
+        },
+        "pair-curly": {
+          "required": [],
+          "text": "{}"
+        },
+        "pair-double-quote": {
+          "required": [],
+          "text": "\"\""
+        },
+        "pair-single-quote": {
+          "required": [],
+          "text": "''"
+        },
+        "pair-backtick": {
+          "required": [],
+          "text": "``"
+        },
+        "step-over": {
+          "required": [],
+          "text": "(x)"
+        },
+        "step-over-after-edits": {
+          "required": [],
+          "text": "(xyz)"
+        },
+        "step-over-nested": {
+          "required": [],
+          "text": "([a])"
+        },
+        "apostrophe-in-a-word": {
+          "required": [],
+          "text": "don't"
+        },
+        "code-fence-still-typeable": {
+          "required": [
+            true
+          ],
+          "text": "const value = 1;"
+        },
+        "inline-code-through-pairing": {
+          "required": [
+            true
+          ],
+          "text": "code"
+        }
+      },
+      "backspace": "",
+      "gallery": "Read the [docs](https://momentarise.dev) today.\n\nPairs: (parens), [brackets], {braces}, \"quotes\" and `code`.\n\n\n"
+    },
+    "1280-light": {
+      "paste": {
+        "wrap": {
+          "hasLink": true,
+          "markdown": "Read the [docs](https://example.com) today.\n"
+        },
+        "non-url": {
+          "hasLink": false,
+          "markdown": "Read the manual today.\n"
+        },
+        "unsafe-scheme": {
+          "hasLink": false,
+          "markdown": "Read the javascript:alert(1) today.\n"
+        }
+      },
+      "rows": {
+        "pair-paren": {
+          "required": [],
+          "text": "()"
+        },
+        "pair-square": {
+          "required": [],
+          "text": "[]"
+        },
+        "pair-curly": {
+          "required": [],
+          "text": "{}"
+        },
+        "pair-double-quote": {
+          "required": [],
+          "text": "\"\""
+        },
+        "pair-single-quote": {
+          "required": [],
+          "text": "''"
+        },
+        "pair-backtick": {
+          "required": [],
+          "text": "``"
+        },
+        "step-over": {
+          "required": [],
+          "text": "(x)"
+        },
+        "step-over-after-edits": {
+          "required": [],
+          "text": "(xyz)"
+        },
+        "step-over-nested": {
+          "required": [],
+          "text": "([a])"
+        },
+        "apostrophe-in-a-word": {
+          "required": [],
+          "text": "don't"
+        },
+        "code-fence-still-typeable": {
+          "required": [
+            true
+          ],
+          "text": "const value = 1;"
+        },
+        "inline-code-through-pairing": {
+          "required": [
+            true
+          ],
+          "text": "code"
+        }
+      },
+      "backspace": "",
+      "gallery": "Read the [docs](https://momentarise.dev) today.\n\nPairs: (parens), [brackets], {braces}, \"quotes\" and `code`.\n\n\n"
+    }
+  },
+  "screenshots": 3,
+  "status": "passed"
+}

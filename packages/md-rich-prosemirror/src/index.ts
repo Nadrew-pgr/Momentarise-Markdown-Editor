@@ -745,6 +745,13 @@ export function createMomentariseRichPlugins(preferences: MomentariseRichPrefere
       keyboard: !normalized.keymapDelegateToHost && normalized.keymapProfile === "default"
     }),
     createRichPasteSanitizerPlugin(),
+    /*
+     * Before the input rules: pairing must see a typed character first, and the
+     * paste-link handler must run before the default replace. Both come after
+     * the block-selection and table-matrix handlers, which own their own cases.
+     */
+    createRichPairingPlugin(),
+    createRichPasteLinkPlugin(),
     createRichInputRulesPlugin(normalized),
     createTodoTogglePlugin(),
     createDocumentEndInsertionPlugin()
@@ -5724,6 +5731,54 @@ interface RichInputRulesPluginState {
 /** Marks the undo itself, so the rule cannot immediately re-fire on the restored text. */
 const RICH_INPUT_RULE_UNDONE = "undone";
 
+/**
+ * Lets a transaction that changes no text ask the input rules to look again.
+ *
+ * Stepping over an auto-inserted closing character moves only the selection, and
+ * `appendTransaction` ignores transactions that do not change the document. Without
+ * this, pairing would silently break the shipped inline-code rule: with a closing
+ * backtick already sitting ahead of the caret, `` `code` `` never presents a closing
+ * delimiter *before* the caret until the step-over happens.
+ */
+const richInputRuleTriggerKey = new PluginKey("momentarise-rich-input-rule-trigger");
+
+const richPairingPluginKey = new PluginKey<RichPairingPluginState>("momentarise-rich-pairing");
+
+interface RichPairingClosure {
+  /** Document position of the auto-inserted closing character. */
+  readonly at: number;
+  readonly character: string;
+}
+
+interface RichPairingPluginState {
+  /** Innermost last, so nested pairs step over in the order they were opened. */
+  readonly closures: readonly RichPairingClosure[];
+}
+
+const emptyRichPairingState: RichPairingPluginState = { closures: [] };
+
+/** More than this many open pairs is a runaway, not a document. */
+const RICH_PAIRING_DEPTH_LIMIT = 32;
+
+const RICH_PAIRS = new Map([
+  ["(", ")"],
+  ["[", "]"],
+  ["{", "}"],
+  ['"', '"'],
+  ["'", "'"],
+  ["`", "`"]
+]);
+
+/**
+ * Symmetric delimiters. They get two extra restrictions the brackets do not
+ * need: they never pair in code, where they are content rather than syntax, and
+ * they never pair straight after a word character, or typing `don't` would
+ * produce `don''t`.
+ */
+const RICH_SYMMETRIC_PAIRS = new Set(['"', "'", "`"]);
+
+const RICH_WORD_CHARACTER = /[\p{L}\p{N}]/u;
+
 interface NormalizedRichPreferences {
   readonly inputRules: {
     readonly disable: readonly string[];
@@ -5900,6 +5955,268 @@ function sanitizeElementAttributes(element: Element): void {
   }
 }
 
+/**
+ * Smart pairing for brackets, quotes and backticks (MME-0104b).
+ *
+ * It lives in `handleTextInput` because that is the only hook that sees a typed
+ * character before it reaches the document. That placement is also why the
+ * previous attempt's harness could not see it at all: driving `tr.insertText`
+ * bypasses this entirely, and an empty implementation passed every assertion.
+ */
+function createRichPairingPlugin(): Plugin<RichPairingPluginState> {
+  return new Plugin<RichPairingPluginState>({
+    key: richPairingPluginKey,
+    props: {
+      handleKeyDown(view, event) {
+        // A modified Backspace is delete-word or delete-to-line-start. This
+        // plugin runs ahead of every keymap and calls `preventDefault`, so
+        // without this guard it would quietly steal all three.
+        if (event.key !== "Backspace" || event.metaKey || event.ctrlKey || event.altKey) {
+          return false;
+        }
+        const { state } = view;
+        if (!(state.selection instanceof TextSelection) || !state.selection.empty) {
+          return false;
+        }
+        const { $from } = state.selection;
+        const text = $from.parent.textBetween(0, $from.parent.content.size, "\n", "\n");
+        const before = text[$from.parentOffset - 1] ?? "";
+        const after = text[$from.parentOffset] ?? "";
+        // Only an *empty* pair collapses. `(ab|)` is ordinary text by now.
+        if (!before || RICH_PAIRS.get(before) !== after) {
+          return false;
+        }
+        // Collapsing a pair the plugin would never have created deletes a
+        // character the user typed by hand: quotes do not pair inside code, so
+        // Backspace must not treat them as a pair there either.
+        if (!allowsRichPairing(state, before)) {
+          return false;
+        }
+        event.preventDefault();
+        view.dispatch(state.tr.delete($from.pos - 1, $from.pos + 1));
+        return true;
+      },
+      handleTextInput(view, from, to, text) {
+        // A pair is opened around a caret, never around a selection: wrapping a
+        // selection would rewrite bytes the user did not type.
+        if (from !== to) {
+          return false;
+        }
+        const { state } = view;
+        const $from = state.doc.resolve(from);
+        if (!$from.parent.isTextblock) {
+          return false;
+        }
+        const blockText = $from.parent.textBetween(0, $from.parent.content.size, "\n", "\n");
+        const nextCharacter = blockText[$from.parentOffset] ?? "";
+        const previousCharacter = $from.parentOffset > 0 ? blockText[$from.parentOffset - 1] ?? "" : "";
+
+        const pending = richPairingPluginKey.getState(state)?.closures ?? [];
+        const innermost = pending[pending.length - 1];
+        if (innermost && innermost.at === from && innermost.character === text && nextCharacter === text) {
+          const transaction = state.tr
+            .setSelection(TextSelection.create(state.doc, from + 1))
+            .setMeta(richPairingPluginKey, { closures: pending.slice(0, -1) })
+            // Nothing changed in the document, so the input rules must be told
+            // to look again or `` `code` `` never converts.
+            .setMeta(richInputRuleTriggerKey, true);
+          view.dispatch(transaction);
+          return true;
+        }
+
+        const closing = RICH_PAIRS.get(text);
+        if (!closing || !allowsRichPairing(state, text) || pending.length >= RICH_PAIRING_DEPTH_LIMIT) {
+          return false;
+        }
+        // Typing `(` immediately before a word means "wrap this", not "open an
+        // empty pair"; inserting a closer there would split the word.
+        if (RICH_WORD_CHARACTER.test(nextCharacter)) {
+          return false;
+        }
+        /*
+         * A symmetric delimiter never pairs straight after a word character
+         * (`don't` would become `don''t`) nor after the same delimiter. The
+         * second rule is what keeps a code fence typeable: without it ``` opens
+         * a pair, steps over it, then opens another, so the user gets ```` and
+         * the fence rule never matches.
+         */
+        if (
+          RICH_SYMMETRIC_PAIRS.has(text) &&
+          (RICH_WORD_CHARACTER.test(previousCharacter) || previousCharacter === text)
+        ) {
+          return false;
+        }
+        const transaction = state.tr.insertText(`${text}${closing}`, from, to);
+        transaction.setSelection(TextSelection.create(transaction.doc, from + 1));
+        transaction.setMeta(richPairingPluginKey, {
+          // Setting the state explicitly skips the mapping in `apply`, so the
+          // already-open closers must be mapped through *this* insertion here —
+          // otherwise the outer `)` of `([a])` is remembered at a stale position
+          // and never steps over.
+          closures: [
+            ...pending.map((closure) => ({ ...closure, at: transaction.mapping.map(closure.at) })),
+            { at: from + 1, character: closing }
+          ]
+        });
+        view.dispatch(transaction);
+        return true;
+      }
+    },
+    state: {
+      apply(transaction, previous) {
+        const meta = transaction.getMeta(richPairingPluginKey) as RichPairingPluginState | undefined;
+        if (meta) {
+          return meta;
+        }
+        if (previous.closures.length === 0 || !transaction.docChanged) {
+          return previous;
+        }
+        /*
+         * Map every recorded position through the edit rather than clearing it.
+         * Clearing on any document change is the recorded trap: the position is
+         * lost on the very next keystroke, so `(x)` becomes `(x))`.
+         */
+        // Default association: text typed *at* the recorded position pushes the
+        // closing character to the right, which is exactly what happens on screen.
+        const closures = previous.closures
+          .map((closure) => ({ ...closure, at: transaction.mapping.map(closure.at) }))
+          .filter((closure) => closure.at >= 0 && closure.at <= transaction.doc.content.size);
+        return { closures };
+      },
+      init() {
+        return emptyRichPairingState;
+      }
+    }
+  });
+}
+
+function allowsRichPairing(state: EditorState, opener: string): boolean {
+  const { reason } = richTextInputContext(state);
+  // Opaque and raw-HTML content is carried verbatim; nothing may be inserted.
+  if (reason === "not-text-block" || reason === "opaque" || reason === "raw-html") {
+    return false;
+  }
+  // In code, a quote or a backtick is content, not syntax.
+  if (RICH_SYMMETRIC_PAIRS.has(opener) && (reason === "code-block" || reason === "inline-code")) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Pasting a URL over a selection makes a Markdown link (MME-0104b).
+ *
+ * Settled and recorded here because the issue asks for it explicitly:
+ *
+ *  - **URL definition:** a single whitespace-free token with an explicit scheme
+ *    that passes `isSafeUrl` — the same `http`/`https`/`mailto` allowlist that
+ *    already governs rendered and pasted hrefs. A permissive definition would
+ *    turn `javascript:` and bare words into links.
+ *  - **Selection already containing a link:** not wrapped. Nesting a link inside
+ *    a link has no Markdown representation, so the paste falls through.
+ *  - **Selection spanning blocks:** not wrapped, for the same reason — a link
+ *    cannot span two blocks.
+ *  - **Anything that is not a URL:** falls through to the default replace.
+ */
+function createRichPasteLinkPlugin(): Plugin {
+  return new Plugin({
+    props: {
+      handlePaste(view, event) {
+        const { state } = view;
+        const linkMark = state.schema.marks.link;
+        const pasted = (event as ClipboardEvent).clipboardData?.getData("text/plain")?.trim() ?? "";
+        if (!linkMark || !isPastedLinkUrl(pasted) || !(state.selection instanceof TextSelection)) {
+          return false;
+        }
+        const { $from, $to, empty, from, to } = state.selection;
+        const mark = linkMark.create({ href: pasted, title: null });
+        if (empty) {
+          /*
+           * Inserting a link where a link cannot live splits what is there: with
+           * the caret inside `` `x y` ``, one code span became three inline
+           * nodes. The context contract is the same answer MME-0104a uses, and
+           * an existing link at the caret is the empty-selection form of the
+           * "already linked" decision recorded below.
+           */
+          if (!richTextInputContext(state).allowsMarkdownTriggers || linkMark.isInSet($from.marks())) {
+            return false;
+          }
+          const transaction = state.tr.replaceSelectionWith(state.schema.text(pasted, [mark]), false);
+          transaction.removeStoredMark(linkMark);
+          view.dispatch(transaction);
+          event.preventDefault();
+          return true;
+        }
+        if ($from.parent !== $to.parent || state.doc.rangeHasMark(from, to, linkMark)) {
+          return false;
+        }
+        /*
+         * Code is refused before the mark is applied, not after. `addMark`
+         * succeeds on a code span in the model, but the serializer emits the
+         * code span alone — so the pasted URL would be accepted on screen and
+         * absent from the file. A code block refuses the mark outright. Both
+         * fall through to the default paste, so the clipboard still lands.
+         * Table cells are deliberately *not* excluded: `| [a](b) |` is
+         * representable, so a link there is real.
+         */
+        const codeMark = state.schema.marks.code;
+        if ($from.parent.type.spec.code || (codeMark && state.doc.rangeHasMark(from, to, codeMark))) {
+          return false;
+        }
+        const transaction = state.tr.addMark(from, to, mark);
+        /*
+         * Belt and braces behind the code gate above: `addMark` is a silent
+         * no-op wherever the mark cannot apply, and dispatching anyway swallows
+         * the paste — `preventDefault` called, nothing inserted. The code gate
+         * catches every case reachable today, so no mutant of this line fails a
+         * test; it is kept because the failure it prevents is silent data loss
+         * and the cost is one comparison. Recorded as unproven in the build log
+         * rather than claimed as covered.
+         */
+        if (!transaction.doc.rangeHasMark(from, to, linkMark)) {
+          return false;
+        }
+        transaction.setSelection(TextSelection.create(transaction.doc, to));
+        transaction.removeStoredMark(linkMark);
+        view.dispatch(transaction);
+        event.preventDefault();
+        return true;
+      }
+    }
+  });
+}
+
+function isPastedLinkUrl(value: string): boolean {
+  if (!value || /\s/u.test(value) || !/^[a-z][a-z0-9+.-]*:/iu.test(value)) {
+    return false;
+  }
+  /*
+   * Representability is part of the URL definition, not a separate concern. An
+   * unbalanced parenthesis cannot survive `[text](destination)`:
+   * `https://x.example/#a)b` serializes to `[docs](https://x.example/#a)b)`,
+   * which re-parses with the href truncated at the first `)` and `b)` left as
+   * stray text. The bytes are stable; the document is not. Balanced pairs — the
+   * `…/Foo_(bar)` shape — round-trip correctly and are allowed. A destination we
+   * cannot represent falls through to the plain paste, which is exactly what it
+   * did before this issue, so nothing regresses.
+   */
+  let depth = 0;
+  for (const character of value) {
+    if (character === "(") {
+      depth += 1;
+    } else if (character === ")") {
+      depth -= 1;
+      if (depth < 0) {
+        return false;
+      }
+    }
+  }
+  if (depth !== 0) {
+    return false;
+  }
+  return isSafeUrl(value);
+}
+
 function createRichInputRulesPlugin(preferences: NormalizedRichPreferences): Plugin {
   const rules = resolveRichInputRules(preferences.inputRules);
   return new Plugin<RichInputRulesPluginState | null>({
@@ -5907,7 +6224,11 @@ function createRichInputRulesPlugin(preferences: NormalizedRichPreferences): Plu
       if (transactions.some((transaction) => transaction.getMeta(richInputRulesPluginKey))) {
         return null;
       }
-      if (!transactions.some((transaction) => transaction.docChanged)) {
+      if (
+        !transactions.some(
+          (transaction) => transaction.docChanged || transaction.getMeta(richInputRuleTriggerKey)
+        )
+      ) {
         return null;
       }
       if (!(state.selection instanceof TextSelection) || !state.selection.empty) {

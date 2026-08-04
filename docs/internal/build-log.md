@@ -10156,3 +10156,181 @@ Typing Markdown in rich mode now produces the block or mark immediately for
 `**bold**`, `*italic*`, `_italic_`, `~~strike~~`, `[]`/`[x]`, and `3.`. Typing
 `> ` or `- ` at the start of a table cell no longer destroys the table. No
 chrome, layout, or styling changed; no new CSS.
+
+## MME-0104b — Smart pairing and paste-URL-to-link: SHIPPED
+
+- Date: 2026-08-04.
+- Block: C2b. Builder model: opus-5 (stronger than the issue's `opus-4.8` tag).
+- Status: implemented, mutation-proven, browser-proven, reviewed.
+
+### Summary
+
+Rich mode gains bracket, quote and backtick pairing, and pasting a URL over a
+selection now produces a Markdown link.
+
+### The "regression" is a mode asymmetry, measured not assumed
+
+The benchmark report says auto-pairing "regressed". `git log -S` finds no pairing
+plugin ever removed from `packages/md-rich-prosemirror`, and the only
+`handleTextInput` in that package before this issue was the block-selection one.
+Source mode has had CodeMirror's `closeBrackets()` all along. So pairing was
+never lost — it existed in one mode and never in the other, which is what a
+writer feels when moving between them.
+
+### Files changed
+
+- `packages/md-rich-prosemirror/src/index.ts` — `createRichPairingPlugin`,
+  `createRichPasteLinkPlugin`, `allowsRichPairing`, `isPastedLinkUrl`, and
+  `richInputRuleTriggerKey`; both plugins registered in the default set.
+- `tests/rich-input-pairing.test.mjs` — new gate, registered as
+  `test:rich-input-pairing` and in `npm test`.
+- `scripts/visual-check-mme0104b.mjs` + `scripts/visual-gates.mjs` +
+  `package.json` — new browser gate, registered so it is reachable.
+- `docs/internal/visual-checks/MME-0104b/` — README, parity checklist, evidence.
+
+### Two interactions that shaped the implementation, both found by measuring
+
+1. **Backtick pairing would have broken the code fence.** Typing ``` opens a
+   pair, steps over it, then opens another, so the user gets ```` and the fence
+   rule never matches. Fixed by never pairing a symmetric delimiter directly
+   after the same delimiter.
+2. **Backtick pairing would have broken the shipped inline-code rule.** With a
+   closing backtick already ahead of the caret, `` `code` `` never presents a
+   closing delimiter *before* the caret until the step-over — and the step-over
+   changes only the selection, which `appendTransaction` ignores. Fixed with
+   `richInputRuleTriggerKey`: a transaction that changes no text can ask the
+   input rules to look again. This is trap 5 of the previous attempt's analysis,
+   hit in design rather than in production.
+
+A third rule exists for ordinary English: a symmetric delimiter never pairs after
+a word character, or typing `don't` produces `don''t`.
+
+### Decisions the issue asked to settle, settled
+
+- **URL definition:** a single whitespace-free token with an explicit scheme that
+  passes `isSafeUrl` — the same `http`/`https`/`mailto` allowlist that already
+  governs rendered and pasted hrefs.
+- **Selection already containing a link:** not wrapped; falls through to the
+  default replace. Nesting a link inside a link has no Markdown representation,
+  and re-pointing the existing link would be an inference about intent.
+- **Selection spanning blocks:** not wrapped; a link cannot span two blocks.
+- **Non-URL paste:** unchanged, falls through to the default replace.
+
+### RED, validated
+
+11 failing cases, **zero `TypeError`s**. The harness's own fault-guard earned its
+place immediately: the first run stopped on `view.endOfTextblock is not a
+function` and refused to count it as a failure. That case was then reframed —
+deleting one ordinary character is contentEditable's job, not a command's, so the
+assertion is that pairing does not intercept it rather than that the character
+disappears.
+
+### Tests run
+
+- `node tests/rich-input-pairing.test.mjs` — green.
+- `node tests/rich-input-rules.test.mjs` — green (MME-0104a still holds with
+  pairing enabled).
+- `npm test` — green, exit 0, full suite.
+- `npm run visual:mme-0104b` — green: 12 pairing rows, the Backspace collapse and
+  3 paste rows, driven by a real keyboard and a real `ClipboardEvent` carrying a
+  real `DataTransfer`, at 1280 dark, 390 touch and 1280 light.
+
+### Mutation table — reversion to failure
+
+Every mutant applied to `packages/md-rich-prosemirror/src/index.ts`, rebuilt,
+run against both rich-input gates, reverted. No mutant survived.
+
+| Reversion | Cases that fail |
+| --- | --- |
+| pairing plugin not registered in the default set | the six pair rows, Backspace-between-an-empty-pair, brackets-in-code (8 cases) |
+| step-over removed | step-over, step-over-after-edits, nested, neighbours, inline-code-through-pairing |
+| recorded closer position cleared on any document change (the recorded trap) | the same five |
+| already-open closers not mapped through a new pair | nested step over |
+| quotes allowed to pair inside code | quotes-do-not-pair-in-code |
+| same-delimiter guard removed | brackets-in-code and quotes-in-code, because the fence itself stops being typeable |
+| quote pairs after a word character | `don't` |
+| bracket pairs before a word character | bracket-before-a-word |
+| Backspace no longer collapses an empty pair | Backspace-between-an-empty-pair |
+| Backspace collapses a pair with content between its characters | Backspace-after-an-opening-character-with-content |
+| step-over no longer re-triggers the input rules | inline-code-through-pairing |
+| pasted URL no longer checked against the safety allowlist | unsafe-scheme |
+| paste wraps across blocks / over an existing link | selection-already-linked, selection-spanning-blocks |
+| paste replaces instead of wrapping | paste-over-a-selection |
+
+One mutant survived the first pass — "Backspace collapses a pair that has content
+between its characters" — because no case put the caret between an opener and a
+non-matching character. That case now exists (`(x)` with the caret after `(`),
+and the mutant is dead. It was one keystroke of silent data loss wide.
+
+**A row in the first version of this table was false and is corrected above.** It
+listed `inline-code-through-pairing` among the cases that fail when the pairing
+plugin is not registered. It does not: MME-0104a's inline-code rule fires on its
+own, so that row passes with pairing absent. The mutation script's own output had
+already listed only eight labels — the ninth was written from memory. Caught by
+the Test Reviewer, re-measured, corrected. Same defect class as the false gap
+claim in MME-0104a, from the same cause: writing a claim rather than reading one.
+
+### Reviewer pass
+
+**Test Reviewer**, mandatory per the issue, spawned read-only with that
+instruction in its own prompt, tree frozen. Every claim it returned was
+re-measured before being acted on; two of its premises did not survive that and
+are recorded below.
+
+Blockers, all fixed:
+
+| Finding | Fix |
+| --- | --- |
+| **A paste over a selection in code was silently swallowed.** `addMark` is a no-op where the mark cannot apply, but the handler dispatched anyway, called `preventDefault` and returned true. The user's clipboard vanished — in the preservation-critical contexts specifically. | Code blocks and code spans are refused before the mark is applied, so the paste falls through to the default and still lands. Table cells are deliberately not excluded: `\| [a](b) \|` is representable. |
+| **A pasted URL with unbalanced parentheses changed href on reopen.** `https://x.example/#a)b` serialized to `[docs](https://x.example/#a)b)`, which re-parses with the href truncated and `b)` left as stray text. Stable bytes, different document. | Representability is now part of the settled URL definition: unbalanced parentheses fall through to the plain paste, exactly as before this issue. Balanced pairs (`…/Foo_(bar)`) are linked and their round trip is asserted. |
+| **A false row in the mutation table.** | Corrected above. |
+| **"Pairing never rewrites bytes the user did not type" had no test and no mutant.** | A case types an opening character over a selection; the mutant that deletes the guard is now killed. |
+
+Should-fix, all applied: Backspace ignored modifiers, so `Cmd`/`Alt`/`Ctrl`
++`Backspace` collapsed a pair instead of deleting a word or a line — pairing runs
+ahead of every keymap and calls `preventDefault`, so it was stealing all three;
+the Backspace collapse never consulted `allowsRichPairing`, so hand-typed quotes
+inside a code block collapsed even though quotes never pair there; the
+neighbour-preservation case was byte-only and survived removing pairing entirely
+(it now leaves the pair open, which is the only form that can tell the two
+apart); two paste negatives asserted "no link mark" without asserting the
+document, so they could not distinguish a fall-through from a swallowed paste;
+the empty-selection paste branch had no already-linked or context guard, so
+pasting inside a link split it into three nodes.
+
+Two reviewer premises did not survive measurement, and the *tests* were corrected
+rather than the code: the `code` mark does not exclude `link` in this schema (the
+link applies in the model and is dropped by the serializer, which is why the gate
+is on code rather than on the mark), and inline `<b>` in a paragraph carries no
+`raw_html_source` mark, so the case built on it was removed rather than kept on a
+false premise.
+
+### Second mutation round, after the reviewer fixes
+
+| Reversion | Cases that fail |
+| --- | --- |
+| pairing fires over a selection | opening-character-over-a-selection |
+| paste wraps code, where the serializer drops the link | paste-inside-an-inline-code-span |
+| unbalanced parentheses accepted | unbalanced-parentheses (both directions) |
+| empty-selection paste ignores context and existing links | caret-inside-an-existing-link |
+| Backspace ignores modifiers | all three modifier cases |
+| Backspace ignores the pairing context gate | hand-typed-pair-inside-a-code-block |
+| `inline-code` dropped from the symmetric-pair guard | quotes-inside-an-inline-code-span |
+
+Four of these survived their first formulation, every time because a *different*
+guard refused first and the case never reached the one under mutation — a
+selection starting with a word character, a caret with a word character after it.
+Each case was moved to a position where only the intended guard can refuse.
+
+**One guard is deliberately unproven.** The "did the mark actually apply" check in
+the paste handler has no failing mutant: the code gate in front of it catches
+every case reachable today. It is kept because what it prevents is silent data
+loss and it costs one comparison, and it is recorded here as unproven rather than
+counted as covered.
+
+### Visual impact
+
+Typing `(`, `[`, `{`, `"`, `'` or `` ` `` in rich mode now inserts the closing
+character and puts the caret between the pair; typing the closer steps past it;
+Backspace in an empty pair removes both. Pasting a URL over selected text turns
+that text into a link. No chrome, layout or styling changed; no new CSS.

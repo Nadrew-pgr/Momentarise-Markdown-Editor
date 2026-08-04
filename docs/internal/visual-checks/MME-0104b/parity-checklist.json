@@ -1,0 +1,96 @@
+{
+  "contract": "5 — Markdown-as-you-type (pairing and paste portions)",
+  "demoUrl": "http://127.0.0.1:5174/",
+  "pasteDecisions": {
+    "alreadyLinkedSelection": "not wrapped; falls through to the default replace",
+    "nonUrl": "falls through to the default replace",
+    "selectionSpanningBlocks": "not wrapped; a link cannot span two blocks",
+    "urlDefinition": "a single whitespace-free token with an explicit scheme that passes the http/https/mailto allowlist"
+  },
+  "rows": [
+    {
+      "benchmark": "same as benchmark",
+      "id": "pair-paren",
+      "note": "Opening character inserts its closer.",
+      "result": "()",
+      "typed": "("
+    },
+    {
+      "benchmark": "same as benchmark",
+      "id": "pair-square",
+      "note": "Opening character inserts its closer.",
+      "result": "[]",
+      "typed": "["
+    },
+    {
+      "benchmark": "same as benchmark",
+      "id": "pair-curly",
+      "note": "Opening character inserts its closer.",
+      "result": "{}",
+      "typed": "{"
+    },
+    {
+      "benchmark": "same as benchmark",
+      "id": "pair-double-quote",
+      "note": "Opening character inserts its closer.",
+      "result": "\"\"",
+      "typed": "\""
+    },
+    {
+      "benchmark": "same as benchmark",
+      "id": "pair-single-quote",
+      "note": "Opening character inserts its closer.",
+      "result": "''",
+      "typed": "'"
+    },
+    {
+      "benchmark": "same as benchmark",
+      "id": "pair-backtick",
+      "note": "Opening character inserts its closer.",
+      "result": "``",
+      "typed": "`"
+    },
+    {
+      "benchmark": "same as benchmark",
+      "id": "step-over",
+      "note": "Typing the closing character steps past the auto-inserted one instead of duplicating it.",
+      "result": "(x)",
+      "typed": "(x)"
+    },
+    {
+      "benchmark": "same as benchmark",
+      "id": "step-over-after-edits",
+      "note": "The recorded position is mapped through the keystrokes in between, so `(xyz)` does not become `(xyz))`.",
+      "result": "(xyz)",
+      "typed": "(xyz)"
+    },
+    {
+      "benchmark": "same as benchmark",
+      "id": "step-over-nested",
+      "note": "Nested pairs step over innermost first.",
+      "result": "([a])",
+      "typed": "([a])"
+    },
+    {
+      "benchmark": "same as benchmark",
+      "id": "apostrophe-in-a-word",
+      "note": "A symmetric delimiter never pairs after a word character, or typing English produces `don''t`.",
+      "result": "don't",
+      "typed": "don't"
+    },
+    {
+      "benchmark": "same as benchmark",
+      "id": "code-fence-still-typeable",
+      "note": "A symmetric delimiter never pairs after the same delimiter, which is what keeps ``` from becoming ````.",
+      "result": "const value = 1;",
+      "typed": "```ts const value = 1;"
+    },
+    {
+      "benchmark": "same as benchmark",
+      "id": "inline-code-through-pairing",
+      "note": "Stepping over the auto-inserted backtick re-triggers the input rules, so the shipped inline-code rule still fires.",
+      "result": "code",
+      "typed": "`code`"
+    }
+  ]
+}
