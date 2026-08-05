@@ -1887,6 +1887,13 @@ Load `` a `x` b ``, select the paragraph, run the `bold` command: serialization 
 
 ## MME-0122 — Trailing fenced code block loses the document's final newline
 
+**Status: SHIPPED (commit `e8bb2d7`). Do not re-implement.** The defect line
+"Lives in the session/save layer, not the rich serializer" was disproved by
+worktree bisect: the typing path was fixed en route by MME-0120's escaping,
+the residual unclosed-fence-at-EOF loss lived in the rich serializer's tail
+assembly, and a separate demo dispatch-sync defect was found and fixed on the
+way. Full mechanism in the build log.
+
 ### Goal
 
 Every block type keeps the document's final newline through the session/save layer, including a trailing fence.
