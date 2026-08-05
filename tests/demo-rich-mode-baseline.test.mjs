@@ -53,11 +53,25 @@ for (const snippet of [
   "switchEditorMode",
   "syncRichMarkdownToSource",
   "getEditorMode",
-  "setRichSelectionAfterText"
+  "setRichSelectionAfterText",
+  // MME-0122: the source sync must be gated on a DOCUMENT comparison. The
+  // pairing type-over dispatches a selection-only transaction whose input rule
+  // changes the doc in appendTransaction; guarding on the root transaction's
+  // `docChanged` skipped the sync, and a save then wrote the previous
+  // keystroke's bytes while the screen showed the conversion. The only other
+  // automated proof lives in `visual:mme-0104a`, which is not part of
+  // `npm test` — this pin keeps a revert from passing the chain.
+  "editorState.doc.eq(documentBefore)"
 ]) {
   if (!main.includes(snippet)) {
     throw new Error(`Demo missing rich mode baseline snippet: ${snippet}`);
   }
+}
+
+if (/if \(transaction\.docChanged\) \{\s*\n\s*richChanged = true;/.test(main)) {
+  throw new Error(
+    "The rich dispatch sync must not be gated on the root transaction's docChanged (MME-0122)."
+  );
 }
 
 const surface = readFileSync("packages/md-surface/src/index.ts", "utf8");

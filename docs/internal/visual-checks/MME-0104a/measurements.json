@@ -111,7 +111,7 @@
         },
         "code-fence-with-language": {
           "forbidden": [],
-          "markdown": "```ts\nconst value = 1;\n```",
+          "markdown": "```ts\nconst value = 1;\n```\n",
           "required": [
             true
           ]
@@ -157,7 +157,7 @@
             false,
             false
           ],
-          "markdown": "~gone~\n",
+          "markdown": "\\~gone~\n",
           "required": []
         },
         "emphasis-does-not-swallow-strong": {
@@ -187,14 +187,14 @@
           "forbidden": [
             false
           ],
-          "markdown": "(**bold**)\n",
+          "markdown": "(\\**bold**)\n",
           "required": []
         },
         "no-fire-mid-word": {
           "forbidden": [
             false
           ],
-          "markdown": "a**bold**\n",
+          "markdown": "a\\**bold**\n",
           "required": []
         },
         "no-fire-in-code-block": {
@@ -202,7 +202,7 @@
             false,
             false
           ],
-          "markdown": "```js\n**bold**\n```",
+          "markdown": "```js\n**bold**\n```\n",
           "required": [
             true
           ]
@@ -210,11 +210,11 @@
       },
       "undo": {
         "undo-heading": {
-          "markdown": "#\n",
+          "markdown": "\\#\n",
           "text": "# "
         },
         "undo-strong": {
-          "markdown": "**bold**\n",
+          "markdown": "\\**bold**\n",
           "text": "**bold**"
         },
         "undo-todo": {
@@ -241,7 +241,7 @@
         }
       },
       "neighbours": "Alpha\n\nBravo **loud**\n\nCharlie\n",
-      "gallery": "# Input rules\n\n## Inline\n\nTyped **bold**, *italic* and `code` in one line, plus ~~strike~~.\n\n> A quote\n\n---\n\n- Bullet item\n\n3. Third item\n\n- [ ] Open task\n\n- [x] Finished task\n\n```ts\nconst value = 1;\n```"
+      "gallery": "# Input rules\n\n## Inline\n\nTyped **bold**, *italic* and `code` in one line, plus ~~strike~~.\n\n> A quote\n\n---\n\n- Bullet item\n\n3. Third item\n\n- [ ] Open task\n\n- [x] Finished task\n\n```ts\nconst value = 1;\n```\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
     },
     "1280": {
       "rows": {
@@ -352,7 +352,7 @@
         },
         "code-fence-with-language": {
           "forbidden": [],
-          "markdown": "```ts\nconst value = 1;\n```",
+          "markdown": "```ts\nconst value = 1;\n```\n",
           "required": [
             true
           ]
@@ -398,7 +398,7 @@
             false,
             false
           ],
-          "markdown": "~gone~\n",
+          "markdown": "\\~gone~\n",
           "required": []
         },
         "emphasis-does-not-swallow-strong": {
@@ -428,14 +428,14 @@
           "forbidden": [
             false
           ],
-          "markdown": "(**bold**)\n",
+          "markdown": "(\\**bold**)\n",
           "required": []
         },
         "no-fire-mid-word": {
           "forbidden": [
             false
           ],
-          "markdown": "a**bold**\n",
+          "markdown": "a\\**bold**\n",
           "required": []
         },
         "no-fire-in-code-block": {
@@ -443,7 +443,7 @@
             false,
             false
           ],
-          "markdown": "```js\n**bold**\n```",
+          "markdown": "```js\n**bold**\n```\n",
           "required": [
             true
           ]
@@ -451,11 +451,11 @@
       },
       "undo": {
         "undo-heading": {
-          "markdown": "#\n",
+          "markdown": "\\#\n",
           "text": "# "
         },
         "undo-strong": {
-          "markdown": "**bold**\n",
+          "markdown": "\\**bold**\n",
           "text": "**bold**"
         },
         "undo-todo": {
@@ -482,7 +482,7 @@
         }
       },
       "neighbours": "Alpha\n\nBravo **loud**\n\nCharlie\n",
-      "gallery": "# Input rules\n\n## Inline\n\nTyped **bold**, *italic* and `code` in one line, plus ~~strike~~.\n\n> A quote\n\n---\n\n- Bullet item\n\n3. Third item\n\n- [ ] Open task\n\n- [x] Finished task\n\n```ts\nconst value = 1;\n```"
+      "gallery": "# Input rules\n\n## Inline\n\nTyped **bold**, *italic* and `code` in one line, plus ~~strike~~.\n\n> A quote\n\n---\n\n- Bullet item\n\n3. Third item\n\n- [ ] Open task\n\n- [x] Finished task\n\n```ts\nconst value = 1;\n```\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
     },
     "1280-light": {
       "rows": {
@@ -593,7 +593,7 @@
         },
         "code-fence-with-language": {
           "forbidden": [],
-          "markdown": "```ts\nconst value = 1;\n```",
+          "markdown": "```ts\nconst value = 1;\n```\n",
           "required": [
             true
           ]
@@ -639,7 +639,7 @@
             false,
             false
           ],
-          "markdown": "~gone~\n",
+          "markdown": "\\~gone~\n",
           "required": []
         },
         "emphasis-does-not-swallow-strong": {
@@ -669,14 +669,14 @@
           "forbidden": [
             false
           ],
-          "markdown": "(**bold**)\n",
+          "markdown": "(\\**bold**)\n",
           "required": []
         },
         "no-fire-mid-word": {
           "forbidden": [
             false
           ],
-          "markdown": "a**bold**\n",
+          "markdown": "a\\**bold**\n",
           "required": []
         },
         "no-fire-in-code-block": {
@@ -684,7 +684,7 @@
             false,
             false
           ],
-          "markdown": "```js\n**bold**\n```",
+          "markdown": "```js\n**bold**\n```\n",
           "required": [
             true
           ]
@@ -692,11 +692,11 @@
       },
       "undo": {
         "undo-heading": {
-          "markdown": "#\n",
+          "markdown": "\\#\n",
           "text": "# "
         },
         "undo-strong": {
-          "markdown": "**bold**\n",
+          "markdown": "\\**bold**\n",
           "text": "**bold**"
         },
         "undo-todo": {
@@ -723,7 +723,7 @@
         }
       },
       "neighbours": "Alpha\n\nBravo **loud**\n\nCharlie\n",
-      "gallery": "# Input rules\n\n## Inline\n\nTyped **bold**, *italic* and `code` in one line, plus ~~strike~~.\n\n> A quote\n\n---\n\n- Bullet item\n\n3. Third item\n\n- [ ] Open task\n\n- [x] Finished task\n\n```ts\nconst value = 1;\n```"
+      "gallery": "# Input rules\n\n## Inline\n\nTyped **bold**, *italic* and `code` in one line, plus ~~strike~~.\n\n> A quote\n\n---\n\n- Bullet item\n\n3. Third item\n\n- [ ] Open task\n\n- [x] Finished task\n\n```ts\nconst value = 1;\n```\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
     }
   },
   "screenshots": 3,

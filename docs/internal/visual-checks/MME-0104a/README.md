@@ -60,7 +60,7 @@ Each row was typed with a real keyboard in the demo, at all three viewports.
 | No firing mid-word | `a**bold**` | literal, no `<strong>` | same as benchmark |
 | No firing next to punctuation | `(**bold**)` | literal, no `<strong>` | **intentionally different** — Notion converts this; see below |
 | No firing inside code | ` ```js ` + `**bold**` | literal inside `<pre>` | same as benchmark |
-| One undo restores literal | `# `, `**bold**`, `[] ` | plain paragraph with the typed characters | same as benchmark **on screen only** — see below |
+| One undo restores literal | `# `, `**bold**`, `[] ` | plain paragraph with the typed characters | same as benchmark — and since MME-0120 the literal survives a save too (`\#`, `\**bold**`) |
 
 Not covered here, deliberately: `>` **toggle** (contract 5 says "quote/toggle";
 toggle blocks are contract 6's separate issue), and pairing plus
@@ -86,30 +86,28 @@ a looser character class: allowing punctuation reintroduces `*italic*` swallowin
 `**bold**`, because mid-typing `**bold*` has `*` before the match. Recorded in
 `BACKLOG.md`.
 
-**The undo row is honest only about the screen.** One undo restores the literal
-characters in the editor, and that is asserted. It does **not** survive a save:
-`# ` serializes to `#` and re-parses as an empty heading, `3. ` to `3.` and an
-empty ordered list, `**bold**` back to bold. The undo rows in
-`parity-checklist.json` quote the measured serialization for exactly this reason,
-and the defect is recorded in `BACKLOG.md`.
+**The undo rows now round-trip.** One undo restores the literal characters on
+screen, and since MME-0120 (commit `62480e8`) the serializer escapes them —
+`\#`, `\**bold**` — so the literal survives a save and reopen. The undo rows
+in `parity-checklist.json` quote the escaped serialization, asserted by this
+gate. (This section previously recorded the pre-MME-0120 defect.)
 
 ## Known gaps recorded rather than hidden
 
-- **An undo does not survive a save.** The literal characters are restored on
-  screen but the paragraph serializer does not escape them, so `# ` re-parses as
-  an empty heading. This is the widest gap and it partially undercuts this
-  issue's own undo criterion. Recorded in `BACKLOG.md`.
+- **An undo survives a save since MME-0120** (`62480e8`): the serializer
+  escapes colliding literals, so `# ` reaches the file as `\#` and reopens as
+  the same paragraph. This bullet previously recorded the defect.
 - **Inline marks cannot be typed inside a table cell.** The context contract that
   stops `> ` destroying the table also blocks `**bold**` there. Recorded in
   `BACKLOG.md`.
-- **Adjacent runs sharing an outer mark serialize one delimiter pair each**, so
-  bolding across an existing code span produces ``**a ****`x`**** b**``. This is
-  a pre-existing `wrapMomentariseTextMarks` defect, reachable today with no input
-  rule at all via the `bold` command, and is recorded in `BACKLOG.md`.
-- **A trailing fenced code block loses the document's final newline** in
-  `session.getContent()`. Measured identical at `HEAD` before this issue, so the
-  fence rows assert a prefix rather than pinning the defect into this gate.
-  Recorded in `BACKLOG.md`.
+- **Adjacent mark runs serialize one delimiter pair since MME-0121**
+  (`6c108a1`): bolding across a code span writes ``**a `x` b**``. This bullet
+  previously recorded the per-node `wrapMomentariseTextMarks` defect.
+- **A trailing fenced code block keeps its final newline since MME-0120/0122**:
+  the bisect run for MME-0122 showed MME-0120's escaping closed the typing
+  path, and MME-0122 fixed the residual unclosed-fence-at-EOF loss and upgraded
+  this gate's fence rows from prefix to equality. This bullet previously
+  recorded the defect and the prefix workaround.
 - **The 390 capture shows a todo layout defect**, not caused by this issue (no
   stylesheet is in its diff): the touch-sized toggle overlaps the start of its
   own label, and todo items are indented deeper than sibling bullets. Recorded in

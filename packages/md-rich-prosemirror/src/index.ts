@@ -4921,13 +4921,46 @@ function serializeRichMarkdownContent(state: RichMarkdownState): string {
   let content = segments.join("");
   if (lastOriginalIndex === pairs.length - 1) {
     content += source.slice(pairs[lastOriginalIndex]!.model.sourceRange!.end.offset);
+    content = restoreFinalLineEndingSwallowedByRange(
+      content,
+      source,
+      pairs[lastOriginalIndex]!.model.sourceRange!
+    );
   } else {
     // The final original block is gone. The document's own trailing bytes are
     // still the truth — trimming to a bare "\n" injected an LF into every CRLF
     // document whose last block was deleted.
     content = content.replace(/(?:\r?\n)+$/, "") + documentTail;
+    content = restoreFinalLineEndingSwallowedByRange(content, source, lastPairRange);
   }
   return content;
+}
+
+/*
+ * MME-0122 — an unclosed fence at EOF swallows the document's final line
+ * ending into its own range: mdast gives the code node every byte up to EOF,
+ * so the tail slice after the last pair is empty and a reconstructed
+ * replacement — which is trimmed — dropped the newline the author's file ended
+ * with. The same swallow emptied `documentTail` when the final block was
+ * deleted. Re-append exactly the line ending the original range carried at its
+ * end: bytes from the file, never invented, so a file without a final newline
+ * stays without one and CRLF stays CRLF.
+ */
+function restoreFinalLineEndingSwallowedByRange(
+  content: string,
+  source: string,
+  range: SourceRange
+): string {
+  if (range.end.offset < source.length || /\r?\n$/.test(content)) {
+    // Either real tail bytes followed the range (they carry the ending
+    // themselves) or the content already ends with one.
+    return content;
+  }
+  const rangeText = source.slice(range.start.offset, range.end.offset);
+  if (!/\r?\n$/.test(rangeText)) {
+    return content;
+  }
+  return content + (rangeText.endsWith("\r\n") ? "\r\n" : "\n");
 }
 
 interface InsertedRichFootnoteReference {

@@ -110,7 +110,7 @@
     {
       "benchmark": "same as benchmark",
       "id": "code-fence-with-language",
-      "markdown": "```ts\nconst value = 1;\n```…",
+      "markdown": "```ts\nconst value = 1;\n```\n",
       "note": "``` + language + space opens the fence with that language.",
       "typed": "```ts const value = 1;"
     },
@@ -152,8 +152,8 @@
     {
       "benchmark": "intentionally different",
       "id": "strikethrough-single-tilde",
-      "markdown": "~gone~\n",
-      "note": "The other half of the row above: a single tilde does not convert.",
+      "markdown": "\\~gone~\n",
+      "note": "The other half of the row above: a single tilde does not convert. The backslash is MME-0120 escaping: remark-gfm parses single-tilde strikethrough by default, so unescaped literal ~gone~ would reopen struck through.",
       "typed": "~gone~"
     },
     {
@@ -180,21 +180,21 @@
     {
       "benchmark": "intentionally different",
       "id": "no-fire-adjacent-to-punctuation",
-      "markdown": "(**bold**)\n",
-      "note": "Notion converts this; MME does not. The criterion is 'block start or whitespace', and widening it to allow punctuation reintroduces `*italic*` swallowing `**bold**`, because mid-typing `**bold*` has `*` before the match. Recorded in BACKLOG.md as CommonMark delimiter-run flanking.",
+      "markdown": "(\\**bold**)\n",
+      "note": "Notion converts this; MME does not — and MME-0120 escapes the literal so it reopens as the same literal. The criterion is 'block start or whitespace', and widening it to allow punctuation reintroduces `*italic*` swallowing `**bold**`, because mid-typing `**bold*` has `*` before the match. Recorded in BACKLOG.md as CommonMark delimiter-run flanking.",
       "typed": "(**bold**)"
     },
     {
       "benchmark": "same as benchmark",
       "id": "no-fire-mid-word",
-      "markdown": "a**bold**\n",
+      "markdown": "a\\**bold**\n",
       "note": "The character before the delimiter must be a block start or whitespace.",
       "typed": "a**bold**"
     },
     {
       "benchmark": "same as benchmark",
       "id": "no-fire-in-code-block",
-      "markdown": "```js\n**bold**\n```…",
+      "markdown": "```js\n**bold**\n```\n",
       "note": "No rule fires where richTextInputContext reports an unsafe context.",
       "typed": "```js **bold**"
     }
@@ -203,13 +203,13 @@
     {
       "id": "undo-heading",
       "literal": "# ",
-      "markdown": "#\n",
+      "markdown": "\\#\n",
       "typed": "# "
     },
     {
       "id": "undo-strong",
       "literal": "**bold**",
-      "markdown": "**bold**\n",
+      "markdown": "\\**bold**\n",
       "typed": "**bold**"
     },
     {

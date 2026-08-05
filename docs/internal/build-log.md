@@ -10842,3 +10842,189 @@ code span, link, or image shows the same single bold run they made, instead of
 nested delimiter garbage.
 
 **General UI / inspector:** no change.
+## MME-0122 — Trailing fenced code block loses the document's final newline: SHIPPED
+
+- Date: 2026-08-05.
+- Block: C2c. Builder model: fable-5 (stronger than the issue's `sonnet-5` tag).
+- Status: implemented, mutation-proven, browser-proven, reviewed. The spec's
+  stated mechanism was disproved by bisect and corrected — a valid outcome per
+  the spec-truthfulness rule, recorded here and in `ISSUES.md`.
+
+### The spec premise, disproved by measurement
+
+The issue said the defect "lives in the session/save layer, not the rich
+serializer", with 2026-08-04 provenance. Reproduction at HEAD failed in every
+variant: typed trailing fences kept their final newline through
+`getMarkdown()`, `session` content, and the bytes a real writable handle
+received, LF and CRLF.
+
+Bisect, using git worktrees running the real demo against their own built
+packages (synthetic `node_modules` so the worktree's own sources resolved,
+verified by symbol fingerprints before trusting either probe):
+
+| commit | typed trailing fence reaches the file as |
+| --- | --- |
+| `d5a2db0` (MME-0104b, where the defect was measured) | ``` ```ts\nconst value = 1;\n``` ``` — **newline missing** |
+| `62480e8` (MME-0120) | ``` ```ts\nconst value = 1;\n```\n ``` — fixed |
+
+Mechanism, established with a keystroke-by-keystroke trace of the demo's
+re-anchoring loop (replicated headlessly in `scratchpad`-hosted probes and now
+pinned by the suite): while typing ``` ``` ``` character by character, the
+intermediate paragraph used to serialize **unescaped**; the demo re-anchors on
+the serialized bytes after every keystroke; unescaped ``` ``` ``` re-parses as
+an **unclosed fence**, and an unclosed fence's mdast range swallows the
+document's final line ending into the node — so the replaced-block tail slice
+was empty, the trimmed reconstruction dropped the newline, and the loss
+self-perpetuated through every later sync. MME-0120's escaping closed the entry
+(`\``` ` stays a paragraph), which is why the defect vanished two commits before
+this issue ran. So: not the session/save layer — the rich serializer's tail
+assembly, triggered through the demo's sync loop.
+
+### The residual live defect, found and fixed
+
+A document whose source ALREADY ends in an unclosed fence still lost its final
+line ending when the fence was edited or deleted — same swallow, no escaping
+involved. Measured at `e86c5fe` before the fix:
+
+| source | operation | produced |
+| --- | --- | --- |
+| ``` ```ts\nabc\n ``` | edit inside the fence | ``` ```ts\nabc!\n``` ``` — newline gone |
+| ``` ```ts\r\nabc\r\n ``` | edit inside the fence | CRLF ending gone |
+| `Intro.\n\n` + unclosed fence | delete the fence | `Intro.` — the file's final newline gone |
+
+Fix: `restoreFinalLineEndingSwallowedByRange` in
+`packages/md-rich-prosemirror/src/index.ts`, called from both tail-assembly
+branches of `serializeRichMarkdownContent`. It re-appends exactly the line
+ending the last pair's range carried at its end — bytes from the file, never
+invented (a file without a final newline stays without one; CRLF stays CRLF),
+and only when no real tail bytes exist and the content does not already end
+with one.
+
+### A second live defect found on the way, in the demo
+
+Upgrading the MME-0104a gate's fence rows from prefix to equality (removing
+this defect's workaround) turned the gate red on an unrelated row and exposed:
+`dispatchTransaction` in `apps/md-demo/src/main.ts` guarded its source-sync on
+the ROOT transaction's `docChanged`. The pairing type-over dispatches a
+selection-only transaction whose input rule then changes the doc in
+`appendTransaction` — the root transaction never knows. The sync was skipped,
+so the save layer kept the PREVIOUS keystroke's bytes while the screen showed
+the conversion: type `` `code` `` in full, the screen shows a code chip, and
+the file said ``\`code` `` (measured in the browser; `getRichText()` = "code"
+with the mark, `getMarkdown()` one keystroke stale). Invisible before MME-0120
+only because the stale literal and the converted mark serialized to identical
+bytes then. Fixed by comparing documents (`editorState.doc.eq(documentBefore)`);
+selection-only dispatches still skip the sync because their documents are equal.
+
+### Files changed
+
+- `packages/md-rich-prosemirror/src/index.ts` —
+  `restoreFinalLineEndingSwallowedByRange` + two call sites in
+  `serializeRichMarkdownContent`.
+- `apps/md-demo/src/main.ts` — the dispatch guard compares documents.
+- `tests/rich-trailing-newline.test.mjs` — new suite, registered as
+  `test:rich-trailing-newline` in `package.json` and the `npm test` chain.
+- `scripts/visual-check-mme0104a.mjs` — the two fenced rows upgraded from
+  prefix to equality; four rows' pinned bytes updated to MME-0120's escaping
+  (`\~gone~`, `(\**bold**)`, `a\**bold**`, undo `\#` / `\**bold**`) with
+  updated comments; the now-unused `markdownPrefix` machinery removed so no
+  future row can quietly reach for a prefix. That gate had not run since
+  before MME-0120 shipped — visual gates are not part of `npm test` — so its
+  pins recorded the pre-escaping bytes.
+- `docs/internal/visual-checks/MME-0104a/README.md` — four sections still
+  described the pre-0120/0121/0122 defects as current; rewritten to the
+  shipped state (reviewer finding).
+- `tests/demo-rich-mode-baseline.test.mjs` — in-chain pin for the dispatch
+  guard, both directions (reviewer finding).
+- `docs/internal/ISSUES.md` — status line with the mechanism correction.
+- `docs/internal/BACKLOG.md` — resolution note on the 2026-08-04 bullet.
+
+### RED, validated
+
+The new suite failed 4 cases before the fix, all with the assertion's own
+bytes (`"```ts\nabc!\n```"` where `"```ts\nabc!\n```\n"` was expected, the
+CRLF twin, the neighbour variant, and `"Intro."` for the deleted fence); the
+8 pin cases passed. Zero crashes. The browser staleness defect's RED is the
+measured `getMarkdown()` trace in the demo (`\`code`` while the screen showed
+the code chip), reproduced before the one-line fix and green after it.
+
+### Mutation table — reversion to failure
+
+Applied to `packages/md-rich-prosemirror/src/index.ts`, rebuilt, run, reverted:
+
+| Reversion | Cases that fail |
+| --- | --- |
+| restore step removed entirely (fix revert) | all 4 fix cases |
+| ending invented for files that never had one | closed-fence-without-newline pin; untouched-unclosed identity; unclosed-no-newline case |
+| CRLF collapsed to LF on restore | the CRLF case |
+| already-present ending doubled | neighbour-of-unclosed matched-pair pin; untouched-unclosed identity |
+| deleted-final-block branch loses the restore | the deleted-fence case |
+
+Five mutants, zero survivors. The demo fix's mutant is the gate itself: with
+the old `transaction.docChanged` guard, `visual:mme-0104a`'s inline-code row
+fails on the stale bytes — that failure is how the defect was found, so the
+reversion-to-failure evidence is the discovery itself.
+
+### Tests run
+
+- `node tests/rich-trailing-newline.test.mjs` — green, 13 cases.
+- Named suites green: `test:roundtrip`, `test:rich-fidelity`,
+  `test:rich-targeted-serialization`, `test:rich-mark-runs`,
+  `test:serializer-escaping`, `test:rich-input-rules`, `test:live-preview`,
+  `test:rich-footnote-editing`, `test:rich-table-editing`,
+  `test:editor-session`, `test:save-engine`.
+- `npm test` — green, exit 0, full chain.
+- `npm run visual:mme-0104a` — green across 3 viewports with the equality
+  rows: the browser proof that a typed trailing fence reaches the file with
+  its final newline, through a real keyboard.
+- `node tests/visual-gate-integrity.test.mjs` — green.
+
+### Reviewer pass — Test Reviewer, mandatory, read-only, frozen tree
+
+Spawned with the read-only instruction in its own prompt; it independently
+re-ran the bisect replica against both worktree dists (confirming the
+d5a2db0 reproduction and the 62480e8 fix byte-for-byte), probed the restore
+function with 21 edge cases of its own (multiple swallowed newlines,
+blank-line runs, frontmatter-only, paragraph-at-EOF-without-newline — no
+wrong append found), replicated the demo dispatch defect with exact bytes,
+verified all 9 changed gate pins headlessly through the real input path
+including the keymap's Mod-z for the undo rows, and confirmed the remark-gfm
+`singleTilde` claim. **Verdict: no blockers.** Four should-fixes, all
+applied:
+
+| Finding | Fix |
+| --- | --- |
+| The MME-0104a evidence README contradicted its own gate — four sections still described the pre-0120/0121/0122 defects ("on screen only", "does not survive a save", one-pair-each, the prefix workaround) as current. | All four sections rewritten to the shipped state, each noting what it previously recorded; the file joins this issue's change set. |
+| The every-block-type sweep's `endsWith` checks were weaker than needed and one conjunct was dead logic. | Replaced with exact-byte equality (`source.slice(0, -1) + "!\n"`), strictly stronger — it now also catches doubled newlines and untouched-line normalization. |
+| A leftover browser probe (`scripts/.debug-0122c.tmp.mjs`) sat untracked in the tree. | Deleted. |
+| The demo dispatch fix's only automated proof lived in `visual:mme-0104a`, which `npm test` never runs — a revert would pass the chain. | `tests/demo-rich-mode-baseline.test.mjs` now pins the guard both ways (requires `editorState.doc.eq(documentBefore)`, rejects the `transaction.docChanged` gate), proven by reverting the guard and watching both pins fail. |
+
+Reviewer notes acted on: the corpus gap (no fixture ends in an unclosed
+fence or without a final newline, so corpus gates can never cover the
+restore) recorded in BACKLOG with the reviewer's analysis; the dead
+`markdownPrefix` machinery removed from the 0104a gate so no future row can
+quietly reach for a prefix; the stale `/private/tmp/mme-theia-worktree`
+pruned along with this issue's two bisect worktrees. Reviewer positives:
+`doc.eq` cost is near-zero on selection-only dispatches (identity
+short-circuit) and gates a far costlier serialize; one dispatch produces one
+sync; nothing depended on the old skip.
+
+### Bisect hygiene
+
+The two worktrees ran their own built packages; before trusting either probe,
+the served bundle was fingerprinted (post-MME-0121 symbol absent at
+`d5a2db0`, pre-MME-0121 symbol present) because npm workspaces' relative
+`@momentarise/*` symlinks initially resolved the worktree's imports to the
+MAIN repo's packages — a poisoned probe that would have measured HEAD twice.
+A synthetic `node_modules` (deps linked to the main install, `@momentarise`
+linked to the worktree's packages) fixed resolution; one type annotation was
+added inside each worktree to un-stick a symlink-path declaration error in a
+package unrelated to the measurement. Both worktrees are removed after the
+issue; nothing from them entered the tree.
+
+### Visual impact
+
+**Editing surface:** no change. **What the writer gets:** a file ending in an
+unclosed code fence keeps its final newline when edited; typing `` `code` ``
+and saving immediately writes the code span the screen shows instead of the
+previous keystroke's literal text. **General UI / inspector:** no change.

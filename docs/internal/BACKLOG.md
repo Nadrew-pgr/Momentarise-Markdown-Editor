@@ -68,7 +68,13 @@ its own RED.
   — `test:roundtrip`, `test:rich-fidelity`, `test:rich-targeted-serialization`
   and the footnote/table suites all cover this path.
 - **A trailing fenced code block loses the document's final newline.**
-  `serializeRichMarkdownState` emits ``` ```ts\nconst value = 1;\n```\n ```, but
+  *Resolved (2026-08-05): the typing path was fixed as a side effect of
+  MME-0120 (`62480e8`, established by worktree bisect — the unescaped
+  mid-typing ``` paragraph re-parsed as an unclosed fence whose mdast range
+  swallows the final line ending), and MME-0122 fixed the residual
+  unclosed-fence-at-EOF loss and disproved this note's "session/save layer"
+  hypothesis: the mechanism was the rich serializer's tail assembly. Kept for
+  history.* `serializeRichMarkdownState` emits ``` ```ts\nconst value = 1;\n```\n ```, but
   after the same content is typed in the demo `session.getContent()` returns it
   without the final `\n`, while every other block type keeps one. Measured
   identical at `HEAD` before MME-0104a. Lives in the session/save layer, not the
@@ -188,6 +194,18 @@ toolbar hits dead space. Belongs with the block-affordance/mobile work
 (MME-0109 audit territory). The MME-0121 gate documents the geometry in
 `docs/internal/visual-checks/MME-0121/README.md` and uses the bubble at that
 width, which is the interaction that works.
+
+#### Corpus gap: no fixture ends in an unclosed fence or lacks a final newline (2026-08-05)
+
+Found by the MME-0122 reviewer: all 41 fixtures end with a final LF and
+balanced fences, so the unclosed-fence-at-EOF construct MME-0122 fixed sits
+outside every corpus-driven gate permanently — corpus identity can prove the
+fix causes no blast radius, but can never catch a regression *in* it; only
+`tests/rich-trailing-newline.test.mjs` carries that. One unclosed-fence-at-EOF
+fixture (and one no-final-newline fixture) would fold the construct into all
+corpus gates. Deferred because adding a fixture ripples baselines across
+suites (`model-serializer-corpus-baseline.json` among them) and deserves its
+own slice.
 
 #### Rich mount defects measured by the MME-0121 reviewer (2026-08-05)
 

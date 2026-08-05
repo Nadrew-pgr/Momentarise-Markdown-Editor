@@ -165,13 +165,13 @@ const PARITY_ROWS = [
     benchmark: "same as benchmark",
     id: "code-fence-with-language",
     /*
-     * A prefix, not an equality. A document whose last block is a fenced code
-     * block reaches `session.getContent()` without its final newline, while
-     * every other block type keeps one. Measured identical at HEAD before this
-     * issue, so it is a pre-existing session-layer wrinkle: asserting equality
-     * here would encode that defect into this gate.
+     * Equality, upgraded by MME-0122. This row asserted a prefix while a typed
+     * trailing fence reached `session.getContent()` without its final newline;
+     * the bisect while fixing MME-0122 showed MME-0120's escaping closed that
+     * path (the mid-typing ``` paragraph no longer re-parses as an unclosed
+     * fence that swallows the ending), and the trailing-newline suite pins it.
      */
-    markdownPrefix: "```ts\nconst value = 1;\n```",
+    markdown: "```ts\nconst value = 1;\n```\n",
     note: "``` + language + space opens the fence with that language.",
     requires: ["pre"],
     typed: "```ts const value = 1;"
@@ -220,8 +220,8 @@ const PARITY_ROWS = [
     benchmark: "intentionally different",
     forbids: ["s", "del", "strike"],
     id: "strikethrough-single-tilde",
-    markdown: "~gone~\n",
-    note: "The other half of the row above: a single tilde does not convert.",
+    markdown: "\\~gone~\n",
+    note: "The other half of the row above: a single tilde does not convert. The backslash is MME-0120 escaping: remark-gfm parses single-tilde strikethrough by default, so unescaped literal ~gone~ would reopen struck through.",
     typed: "~gone~"
   },
   {
@@ -252,17 +252,17 @@ const PARITY_ROWS = [
     benchmark: "intentionally different",
     forbids: ["strong"],
     id: "no-fire-adjacent-to-punctuation",
-    markdown: "(**bold**)\n",
-    note: "Notion converts this; MME does not. The criterion is 'block start or whitespace', and widening it to allow punctuation reintroduces `*italic*` swallowing `**bold**`, because mid-typing `**bold*` has `*` before the match. Recorded in BACKLOG.md as CommonMark delimiter-run flanking.",
+    markdown: "(\\**bold**)\n",
+    note: "Notion converts this; MME does not — and MME-0120 escapes the literal so it reopens as the same literal. The criterion is 'block start or whitespace', and widening it to allow punctuation reintroduces `*italic*` swallowing `**bold**`, because mid-typing `**bold*` has `*` before the match. Recorded in BACKLOG.md as CommonMark delimiter-run flanking.",
     typed: "(**bold**)"
   },
   {
     benchmark: "same as benchmark",
     forbids: ["strong"],
     id: "no-fire-mid-word",
-    markdown: "a**bold**\n",
-    // The bytes are identical whether or not the rule fired, so `forbids` is
-    // the assertion that carries this row.
+    markdown: "a\\**bold**\n",
+    // Since MME-0120 the not-fired path escapes, so the bytes now differ from
+    // the fired path too; `forbids` still carries the DOM half of this row.
     note: "The character before the delimiter must be a block start or whitespace.",
     typed: "a**bold**"
   },
@@ -270,7 +270,8 @@ const PARITY_ROWS = [
     benchmark: "same as benchmark",
     forbids: ["pre strong", "pre em"],
     id: "no-fire-in-code-block",
-    markdownPrefix: "```js\n**bold**\n```",
+    // Equality, upgraded by MME-0122 with the other fenced row.
+    markdown: "```js\n**bold**\n```\n",
     note: "No rule fires where richTextInputContext reports an unsafe context.",
     requires: ["pre"],
     typed: "```js **bold**"
@@ -281,13 +282,13 @@ const PARITY_ROWS = [
  * Typing the trigger, then one undo, must leave the literal characters.
  *
  * `markdown` is the **measured** serialization and is asserted, not decorative.
- * Two of these round-trip badly — `#` re-parses as an empty heading, so the
- * characters are lost on save and reopen — and that is a serializer-escaping
- * defect recorded in BACKLOG.md rather than something this gate may hide.
+ * Since MME-0120 the undone literals escape (`\#`, `\**bold**`), which is
+ * what makes them survive a save and reopen; `[]` does not collide and stays
+ * unescaped. The round-trip defect this comment used to record is fixed.
  */
 const UNDO_ROWS = [
-  { id: "undo-heading", literal: "# ", markdown: "#\n", typed: "# " },
-  { id: "undo-strong", literal: "**bold**", markdown: "**bold**\n", typed: "**bold**" },
+  { id: "undo-heading", literal: "# ", markdown: "\\#\n", typed: "# " },
+  { id: "undo-strong", literal: "**bold**", markdown: "\\**bold**\n", typed: "**bold**" },
   { id: "undo-todo", literal: "[] ", markdown: "[]\n", typed: "[] " }
 ];
 
@@ -378,18 +379,15 @@ async function main() {
         const forbidden = await matches(page, row.forbids ?? []);
         viewportEvidence.rows[row.id] = { forbidden, markdown, required };
 
-        if (row.markdownPrefix === undefined) {
-          assert.equal(
-            markdown,
-            row.markdown,
-            `@${viewport.name} ${row.id}: typing ${JSON.stringify(row.typed)} must serialize to ${JSON.stringify(row.markdown)}, got ${JSON.stringify(markdown)}.`
-          );
-        } else {
-          assert(
-            markdown.startsWith(row.markdownPrefix),
-            `@${viewport.name} ${row.id}: typing ${JSON.stringify(row.typed)} must serialize starting with ${JSON.stringify(row.markdownPrefix)}, got ${JSON.stringify(markdown)}.`
-          );
-        }
+        // Every row asserts equality. The `markdownPrefix` escape hatch two
+        // fenced rows used while the trailing-newline defect lived was removed
+        // with the defect (MME-0122), so a future row cannot quietly reach for
+        // a prefix again.
+        assert.equal(
+          markdown,
+          row.markdown,
+          `@${viewport.name} ${row.id}: typing ${JSON.stringify(row.typed)} must serialize to ${JSON.stringify(row.markdown)}, got ${JSON.stringify(markdown)}.`
+        );
         (row.requires ?? []).forEach((selector, index) => {
           assert(
             required[index],
@@ -616,7 +614,7 @@ async function main() {
           rows: PARITY_ROWS.map((row) => ({
             benchmark: row.benchmark,
             id: row.id,
-            markdown: row.markdown ?? `${row.markdownPrefix}…`,
+            markdown: row.markdown,
             note: row.note,
             typed: row.typed
           })),

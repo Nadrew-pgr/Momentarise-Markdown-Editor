@@ -4577,13 +4577,24 @@ function mountRichEditor(markdown: string): void {
       if (!richEditor) {
         return;
       }
+      /*
+       * MME-0122: compare documents, not `transaction.docChanged`. The pairing
+       * type-over dispatches a selection-only transaction, and the input rule
+       * it triggers changes the doc in `appendTransaction` — the root
+       * transaction never knows. Guarding on it skipped the sync, so the save
+       * layer kept the PREVIOUS keystroke's bytes while the screen showed the
+       * conversion: type `` `code` `` in full, save, and the file said
+       * ``\`code` `` (measured through the MME-0104a gate the moment its fence
+       * rows were upgraded to equality).
+       */
+      const documentBefore = richEditor.state.doc;
       const editorState = richEditor.state.apply(transaction);
       richEditor.updateState(editorState);
       richState = {
         ...richState,
         editorState
       };
-      if (transaction.docChanged) {
+      if (!editorState.doc.eq(documentBefore)) {
         richChanged = true;
         syncRichMarkdownToSource("rich edit");
       }
