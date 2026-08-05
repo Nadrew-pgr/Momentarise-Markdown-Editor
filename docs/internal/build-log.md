@@ -11100,3 +11100,12 @@ the block instructions say to revert rather than hand over a half-built path.
 ### Visual impact
 
 No visible editing or general UI changes — no production change ships.
+
+## Block C2c review (human-side, Andrew's reviewer) — 2026-08-05
+
+- Scope: `62480e8`/`0f9f3f8` (MME-0120), `6c108a1`/`e86c5fe` (MME-0121), `e8bb2d7`/`9db8e7c` (MME-0122), `75179ea` (MME-0115 attempt record). All verified present, tree clean, synced.
+- Verdict: all three shipped issues accepted; the MME-0115 revert is accepted as the correct outcome of the stop-and-revert rule.
+- The block's defining behavior: **two spec premises were disproved by measurement and the corrections were recorded, not argued away.** MME-0122's stated layer ("session/save") was wrong — a worktree bisect located the real mechanism, and MME-0120 had already fixed the typed path. MME-0115's 2026-08-01 defect is half-obsolete — real CDP IME telemetry shows the commit path already conforms; the live defect is the cancel path destroying selected blocks. The spec-truthfulness rule is doing its job in both directions.
+- Also notable: the reviewer's B1 on MME-0120 (footnote-reference paragraphs never escaped — real residual data loss), the measured 85× perf regression caught and fixed (2805ms→97ms), MME-0121's second per-node serializer found by review (table cells/footnote definitions injecting `**` into code spans), and the demo's stale-bytes save defect found en route in MME-0122. 35 mutants killed across the block, zero surviving.
+- Follow-ups promoted: `MME-0123` (mount drops `lineBreak` nodes and marks on images/hard breaks — silent data loss on edit of soft-broken paragraphs, provenance in BACKLOG) scheduled with `MME-0115` attempt 2 as Block C2d (opus-5/fable-5). MME-0115's spec corrected to the measured cancel-path defect. `AGENT.md` gains the rebaseline-in-same-commit rule, closing the "visual gates went stale across three issues" gap without a dedicated slice.
+- Checks: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`. Push: pushed.

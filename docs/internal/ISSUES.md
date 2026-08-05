@@ -117,7 +117,8 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | C1 | MME-0103 (attempt 2) | Block selection, redesigned on byte-derived separators | opus-5 / fable-5 | accepted 2026-08-01 |
 | C2 | MME-0114 ✅, 0117 ✅, 0119 ✅ | Gate harness, touch targets, overlay anchoring — all shipped | opus-4.8 | done 2026-08-03; MME-0078 left quarantine |
 | C2b | MME-0104a ✅, 0104b ✅ | Input rules; pairing and paste-link — shipped | opus-4.8 | done 2026-08-04; 0115 deliberately not started |
-| C2c | MME-0120, 0121, 0122, 0115 | Serializer escaping (data loss); mark-run corruption; fence newline; composition | opus-4.8 | the three preservation defects reproduce no more; composition proven in browser |
+| C2c | MME-0120 ✅, 0121 ✅, 0122 ✅ | Serializer escaping; mark runs; fence newline — shipped | opus-4.8 | done 2026-08-05; 0115 measured and reverted with handoff |
+| C2d | MME-0123, 0115 (attempt 2) | Mount fidelity (data loss); composition cancel path | opus-5 / fable-5 | soft-broken docs round-trip; cancel restores the selection |
 | C3 | MME-0116 | Empty the gate quarantine | opus-4.8 | `npm run visual` exits zero, quarantine empty |
 | Cd | MME-0118 | Docs correctness repair (may run parallel, own branch) | sonnet-5 | Andrew follows the vanilla quickstart and it works |
 | D | MME-0089, 0090, 0091, 0105, 0106 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
@@ -1832,6 +1833,8 @@ The More menu appears where it should on phones and tablets; desktop unchanged u
 
 **Status: SHIPPED (commit `62480e8`). Do not re-implement.**
 
+**Status: SHIPPED (commit `62480e8`). Do not re-implement.**
+
 ### Goal
 
 Make literal block markers and inline delimiters in paragraph text serialize escaped, so what the user sees on screen is what the file re-opens as.
@@ -1857,6 +1860,8 @@ Type `# `, press one undo (screen correctly shows literal `# `), save, reopen: t
 - None. Read the BACKLOG entry first; it carries the full measured table.
 
 ## MME-0121 — Adjacent mark runs serialize one delimiter pair each
+
+**Status: SHIPPED (commit `6c108a1`). Do not re-implement.**
 
 **Status: SHIPPED (commit `6c108a1`). Do not re-implement.** The provenance
 line "the footnote and table suites all cover this path" was disproved during
@@ -1887,6 +1892,8 @@ Load `` a `x` b ``, select the paragraph, run the `bold` command: serialization 
 
 ## MME-0122 — Trailing fenced code block loses the document's final newline
 
+**Status: SHIPPED (commit `e8bb2d7`). Do not re-implement.**
+
 **Status: SHIPPED (commit `e8bb2d7`). Do not re-implement.** The defect line
 "Lives in the session/save layer, not the rich serializer" was disproved by
 worktree bisect: the typing path was fixed en route by MME-0120's escaping,
@@ -1915,13 +1922,45 @@ Every block type keeps the document's final newline through the session/save lay
 
 - None.
 
+## MME-0123 — Mount fidelity: lineBreak nodes and marks on images and hard breaks
+
+### Goal
+
+Mounting a document into the rich view must not drop model content; today it silently loses hard line breaks and inline marks, which turns any later edit into data loss.
+
+### Defects (measured 2026-08-05 during MME-0121's review, provenance: BACKLOG "Rich serializer defects" follow-ups; both pre-existing)
+
+- `inlineNodeToProseMirror` handles only the `"break"` spelling while the parser emits `"lineBreak"`: `paragraph[text("a"), lineBreak, text("b")]` mounts as merged text `"ab"` — for both backslash-newline and two-space breaks. **Any edit to such a paragraph silently joins the lines on save.** Three whitelists in the same file accept both spellings; the producer and consumer drifted.
+- Mounting drops marks carried by images and hard breaks, so a loaded document re-fractures marks that MME-0121 now serializes correctly.
+
+### Acceptance criteria
+
+- Both break spellings mount to a ProseMirror hard break; a document containing soft-broken paragraphs round-trips byte-identically through load → edit elsewhere → save (LF and CRLF corpus rows).
+- Marks on images and hard breaks survive mount and serialize back per the MME-0121 run rules; the bold-across-break case round-trips to identical bytes.
+- The spelling drift is closed structurally: one shared constant or normalization for the break node name, so producer and consumer cannot drift again.
+- Mutation-proved (a mutant restoring the single-spelling whitelist must fail); browser proof that editing one paragraph leaves a soft-broken neighbour byte-identical.
+
+### Execution model
+
+- Sequential; fresh context rebuild; Test Reviewer mandatory, read-only, frozen tree; builder model opus-4.8; human review: no.
+
+### Blocked by
+
+- None. MME-0121's run-grouping (shipped) is the serialization side this completes.
+
 ## MME-0115 — Composition input over a block selection
 
 ### Goal
 
 Make typing with a composition event replace a block selection, the way an ordinary keystroke does.
 
-### Defect (found and left visible by MME-0103, 2026-08-01)
+**Status: attempt 1 measured and reverted 2026-08-05 (record at `75179ea`). The defect below is CORRECTED from the original spec — read this version, not the 2026-08-01 one.**
+
+### Corrected defect (measured 2026-08-05 with real CDP IME, provenance: build-log MME-0115 attempt record)
+
+The 2026-08-01 premise is half-obsolete. The **commit path already meets the acceptance criteria**: dead keys and full IME sessions over single- and multi-block selections replace the selection correctly, one undoable transaction, byte-preserving — fixed en route by MME-0120-0122. The live defect is the **cancel path**: a composition started over a block selection and then cancelled (mid-composition `Escape`) **destroys the selected blocks** instead of restoring them. Full event telemetry shows Chromium keeps flushing DOM destruction after `compositionend`, so the restore needs `view.composing`-aware deferral against ProseMirror's update cycle — three restore designs (timer, veto, append) were measured and none converges without that. Read the attempt's telemetry and handoff notes in the build log before designing.
+
+### Original defect record (2026-08-01, superseded above)
 
 IME and dead-key composition input over a block selection lands inside the anchor block instead of replacing the selection. This is not an exotic edge case: on macOS, typing an accented character (`option+e` then `e` for `é`) is a composition sequence, so the defect fires for ordinary French, Spanish, and Portuguese typing — including Andrew's own. Every non-composition keystroke replaces the selection correctly; only composition diverges.
 

@@ -214,6 +214,10 @@ A slice is not complete if it only looks implemented. It is complete only when i
 
 Do not satisfy an issue with a toy implementation that passes superficial checks but violates the framework goal. If the issue cannot be tested honestly, stop and ask for clarification.
 
+### Rebaseline contract changes in the same commit
+
+An issue that deliberately changes a rendered string, DOM id, class name, exported field, or default must run `npm run visual` as well as `npm test` before its commit, and update every assertion its change invalidated in that same commit. The visual suite is not inside `npm test`, which is exactly how nine stale pins survived three shipped issues unnoticed. Leaving a gate red for a later issue is quarantine, and quarantine requires the recorded reason and owning issue from the MME-0114 mechanism.
+
 ### Mutation-test every new gate
 
 A passing test is not evidence until it has been observed to fail. This rule exists because it has been violated repeatedly and expensively: Block B3 shipped three gates that reported green while checking nothing (one silently disabled because this repository's directory name contains a space), and Block C found nine assertions that passed against knowingly broken code — including a framed-block matrix whose table case re-tested a code fence, which is exactly how a table-corruption defect escaped into a shipped attempt.
