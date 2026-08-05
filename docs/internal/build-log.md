@@ -11028,3 +11028,75 @@ issue; nothing from them entered the tree.
 unclosed code fence keeps its final newline when edited; typing `` `code` ``
 and saving immediately writes the code span the screen shows instead of the
 previous keystroke's literal text. **General UI / inspector:** no change.
+## MME-0115 — Composition input over a block selection: NOT SHIPPED, attempt reverted
+
+- Date: 2026-08-05. Block: C2c (last issue). Builder model: fable-5.
+- Status: stopped and reverted per the stop-and-revert rule; tree returned to
+  `9db8e7c` and verified (block-selection and trailing-newline suites green).
+  No production change ships from this attempt. Everything below is measured.
+
+### The spec premise is half-disproved (2026-08-01 provenance, re-measured)
+
+Real CDP IME composition (`Input.imeSetComposition` / `Input.insertText`, which
+drives Chromium's genuine composition pipeline — viability proven) against a
+real block selection (`data-mme-block-selected` markers asserted, entered by
+click + Escape as MME-0103's gate does):
+
+- **Committed composition already meets the acceptance at HEAD.** Dead-key `é`
+  over a single-block AND a two-block selection replaces the selected blocks
+  with a paragraph containing the composed text, neighbours byte-identical
+  (`Alpha block.\n\né\n\nDelta block.\n`), and **one undo restores the
+  original document** — measured, not assumed. The issue's "lands inside the
+  anchor block" no longer holds for the commit path.
+- **Cancelled composition is the live defect, and it is data loss.** Cancelling
+  (IME cancel transitions; the Escape key is consumed by the IME and produces
+  the same transitions) destroys the selected blocks: single- and multi-block
+  selections both collapse to one empty paragraph, selection gone.
+
+### Why the attempt was reverted
+
+Three cancel-restore designs were implemented and measured in the browser;
+each failed for a timing reason the next was built to answer, and the third
+failure shows the problem needs ProseMirror-internals work, not another guess:
+
+1. **Timer restore at `compositionend`** — restored too early; the DOM
+   observer's destructive flush landed afterwards and interleaved both
+   documents (every block doubled with an empty paragraph).
+2. **`filterTransaction` veto** — refused the wrong transaction: full event
+   telemetry (page-level listeners on
+   `compositionstart/update/end/beforeinput/input`) shows the destruction is
+   the FIRST `compositionupdate` flush (selected blocks replaced by the
+   composition text `´` while it is typed); the veto refused the later cleanup
+   instead, leaving `´` behind.
+3. **`appendTransaction` restore + immediate restore at `compositionend`** —
+   the restore demonstrably ran (telemetry shows the blocks back), and
+   Chromium then flushed the cancelled composition's remaining DOM removals
+   AFTER `compositionend`, mapping them onto the restored document and
+   re-destroying it. There is no DOM event that marks the last flush of a
+   cancelled composition.
+
+A converging design must defer the restore until ProseMirror's own composition
+machinery has fully drained (`view.composing` / DOM-observer state), which is
+iteration-heavy (build + real-browser cycle per attempt) and still leaves the
+headless RED, a three-viewport CDP gate, mutation rounds, and the two
+mandatory reviewers. That is larger than this session could finish well, and
+the block instructions say to revert rather than hand over a half-built path.
+
+### Handoff for the next attempt
+
+- CDP IME is the browser-mandatory mechanism and works; the probes' setup
+  (click block → Escape → optional Shift+ArrowDown; assert
+  `data-mme-block-selected` count BEFORE composing — an unfocused editor makes
+  the repro silently test a text selection instead) is the part that was easy
+  to get wrong.
+- The commit path needs only regression pinning, not fixing; the undo
+  criterion already holds there.
+- The cancel telemetry sequence (this entry, point 2-3) is the design input:
+  destruction at first `compositionupdate` flush, cleanup flushes continuing
+  after `compositionend`.
+- Correct the issue's defect line when the next attempt starts: commit path
+  fixed en route (somewhere in MME-0103..0104b), cancel path is the defect.
+
+### Visual impact
+
+No visible editing or general UI changes — no production change ships.
