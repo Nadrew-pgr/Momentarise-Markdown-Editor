@@ -1858,6 +1858,11 @@ Type `# `, press one undo (screen correctly shows literal `# `), save, reopen: t
 
 ## MME-0121 — Adjacent mark runs serialize one delimiter pair each
 
+**Status: SHIPPED (commit `6c108a1`). Do not re-implement.** The provenance
+line "the footnote and table suites all cover this path" was disproved during
+implementation: cells and footnote definitions serialize through a second
+per-node writer (`serializeInline`), which the fix therefore covers too.
+
 ### Goal
 
 Fix `wrapMomentariseTextMarks` wrapping every text node independently, which corrupts documents through the bold command alone.
