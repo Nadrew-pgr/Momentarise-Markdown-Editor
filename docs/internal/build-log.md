@@ -10641,3 +10641,204 @@ meaning.
 
 - None blocking. The budget coverage gap and the four unfixable classes are
   BACKLOG entries with measurements.
+## MME-0121 — Adjacent mark runs serialize one delimiter pair each: SHIPPED
+
+- Date: 2026-08-05.
+- Block: C2c. Builder model: fable-5 (stronger than the issue's `opus-4.8` tag).
+- Status: implemented, mutation-proven, browser-proven, reviewed.
+
+### Summary
+
+`wrapMomentariseTextMarks` wrapped every ProseMirror text node's marks
+independently, so a mark spanning several nodes fractured into one delimiter
+pair per node: the `bold` command over `` a `x` b `` wrote
+``**a ****`x`**** b**`` to the file, which re-opened as strong nested inside
+strong. Corruption reachable from the toolbar alone, with no input rule
+involved.
+
+Serialization now groups mark runs: among the current node's unconsumed marks
+it wraps the one spanning the longest run of adjacent nodes, then recurses into
+the run with that mark consumed. Marks compare by `Mark.eq` (type and attrs),
+so adjacent links with different destinations stay separate.
+
+There were TWO per-node serializers, and the issue's provenance knew about one.
+The momentarise-model path serves paragraphs and headings; table cells and
+footnote definitions short-circuit into `serializeInline`, whose
+`wrapTextWithMarks` additionally nested the FIRST mark innermost — a bolded
+cell wrote literal `**` into the code span's content. Found by the Test
+Reviewer (the builder's belief that the momentarise table converter covered
+cells was wrong: that call site has no reachable route in persistence). Both
+serializers now group runs through one shared selection
+(`groupableInlineMarks` / `selectInlineRun`); both old per-node wrappers are
+deleted.
+
+### The defect, reproduced at `0f9f3f8` before any code was written
+
+Through the real command path (load, select the paragraph, run the command):
+
+| source | command | wrote | re-opened as |
+| --- | --- | --- | --- |
+| `` a `x` b `` | bold | ``**a ****`x`**** b**`` | `strong[strong[strong[inlineCode]]]` |
+| `a **b** c` | italic | `*a ****b**** c*` | `emphasis[strong[strong]]` |
+| `a [t](https://e.com) b` | bold | `**a ****[t](https://e.com)**** b**` | `strong[strong[strong[link]]]` |
+| `a ![alt](i.png) b` | bold | `**a **![alt](i.png)** b**` | the image outside the run |
+
+### Files changed
+
+- `packages/md-rich-prosemirror/src/index.ts` — shared run selection
+  (`groupableInlineMarks`, `selectInlineRun`, `sameResidualMarks`); the
+  momentarise path (`proseMirrorInlineRunToMomentariseNodes`,
+  `momentariseNodesForMark`, `proseMirrorInlineChildrenToMomentariseNodes`
+  routing, `proseMirrorInlineNodeToMomentariseNodes` no longer wrapping marks);
+  the cell/footnote path (`serializeInline` re-grouped via
+  `serializeInlineRun`, `serializeInlineLeaf`, `wrapSerializedInlineRun`);
+  advance-invariant guards in both grouping loops; `wrapMomentariseTextMarks`
+  and `wrapTextWithMarks` deleted (zero call sites remained — reachability
+  rule).
+- `tests/rich-mark-runs.test.mjs` — new suite, registered as
+  `test:rich-mark-runs` in `package.json` and wired into the `npm test` chain.
+- `tests/rich-input-rules.test.mjs` — the "inline rules keep marks already
+  inside the match" case gained the byte assertion its own comment said was
+  impossible while this defect lived (`**a `x` b**` now asserted).
+- `scripts/visual-check-mme0121.mjs`, `scripts/visual-gates.mjs`,
+  `package.json` — new browser gate, registered.
+- `docs/internal/visual-checks/MME-0121/` — README, screenshots, measurements.
+- `docs/internal/BACKLOG.md` — the selection-bubble/toolbar overlap at 390,
+  measured, plus a resolution note on the MME-0104a defect list.
+
+### RED, validated — two rounds
+
+First round: 9 failing cases, zero crashes — every failure was the assertion's
+own message carrying the fractured bytes (e.g. expected ``"**a `x` b**\n"``,
+actual ``"**a ****`x`**** b**\n"``). One harness fault during authoring
+(`selectFirstRichText` searches document text, and a code span's backticks are
+syntax, not text) was fixed in the harness, not counted as RED.
+
+Second round, for the reviewer's two blockers, measured before fixing:
+
+| case | corrupted bytes at the first GREEN |
+| --- | --- |
+| bold across a code span in a table cell | ``| **a **`**x**`** b** |`` — pairs per node plus literal `**` INSIDE the code span |
+| bold across a code span in a footnote definition | ``[^n]: **fa **`**x**`** fb**`` |
+| inlineCode across existing bold | `` `a b c` `` — **strong deleted** |
+| inlineCode across an image | `` `a  b` `` — **image deleted** |
+| inlineCode across a footnote reference | `` `Use a b.` `` — **reference deleted**, definition orphaned |
+| bold on half of a code span | `` `ab` `` — the bold silently dropped |
+
+All six were the assertions' own messages against callable code.
+
+### Mutation table — reversion to failure
+
+Every mutant applied to `packages/md-rich-prosemirror/src/index.ts`, rebuilt,
+run, reverted. The first round left two survivors, and both exposed missing
+cases rather than equivalent mutants — the discriminating case for each was
+measured and added:
+
+- *longest-run selection dropped* survived because `strong` happened to rank
+  first on every case's first node; the killing case italicizes a word and
+  bolds the sentence, where the first-ranked mark (`em` — measured, PM sorts
+  marks by schema rank) spans less than `strong`;
+- *non-text leaves excluded from runs* survived because run EXTENSION reads
+  marks off every node; only a run STARTING on an image discriminates it.
+
+Final round, after the reviewer-blocker fixes:
+
+| Reversion | Cases that fail |
+| --- | --- |
+| per-node wrapping restored (the acceptance criterion's named mutant) | 13 — every command row, both run-start rows, links, neighbours, cross-paragraph, typed path |
+| runs grouped by mark type instead of `Mark.eq` | adjacent links with different destinations stay separate runs |
+| longest-run selection dropped (first remaining mark wins) | a shorter first-ranked mark does not truncate a longer run |
+| non-text leaves excluded from runs (old image behaviour) | a run starting on an image keeps the image inside the pair |
+| code run flattens to empty text | 10 — every case containing a code span |
+| link run drops its destination | 3 — every case containing a link |
+| code mark allowed to wrap non-text nodes again (B2 revert) | inlineCode across an image; inlineCode across a footnote reference |
+| code run no longer breaks at residual-mark changes (B2 revert) | inlineCode across existing bold; bolding half of a code span |
+| code loses the equal-length tiebreak (code wraps outside) | the same two |
+| `serializeInline` per-node wrapping restored (B1 revert) | both table-cell and footnote-definition cases |
+
+Ten mutants, zero survivors. One mutant taught something on its first run: with
+the non-text exclusion reverted, the selected run could fail to advance and the
+suite died in an **OOM crash** (`71105:0xc42800000`) instead of an assertion —
+a hang, not a kill. Both grouping loops now carry an advance-invariant that
+throws with a message; the re-run kills that mutant through the two non-text
+cases' own assertions. An eleventh candidate (reordering the mutually-exclusive
+return branches of `wrapSerializedInlineRun`) was discarded as a no-op mutant
+rather than counted as a kill.
+
+The **browser gate** was mutated too: with per-node wrapping restored underneath
+it, it fails at `@1280 bold-across-code` on the disk bytes
+(``got "**a ****`x`**** b**\n"``).
+
+### Tests run
+
+- `node tests/rich-mark-runs.test.mjs` — green, 21 cases.
+- Named suites, all green after the change (including the reviewer-blocker
+  fixes): `test:roundtrip`, `test:rich-fidelity`,
+  `test:rich-targeted-serialization`, `test:rich-table-editing`,
+  `test:rich-table-row-operations`, `test:rich-footnote-editing`,
+  `test:rich-footnote-insertion`, `test:serializer-escaping`,
+  `test:rich-commands`, `test:rich-input-rules`, `test:live-preview`.
+- `npm test` — green, exit 0, full chain.
+- `npm run visual:mme-0121` — green, 2 rows × 3 viewports, re-run after every
+  change to the built package.
+- `node tests/visual-gate-integrity.test.mjs` — green.
+
+### Manual and visual verification
+
+Dev server: `npm run dev -w @momentarise/md-demo -- --host 127.0.0.1 --port
+5174` (via `.claude/launch.json`). URL: `http://127.0.0.1:5174/`. Artifacts:
+`docs/internal/visual-checks/MME-0121/` — `mark-runs-1280.png`,
+`mark-runs-390.png`, `mark-runs-1280-light.png`, `measurements.json`,
+`README.md`.
+
+Each viewport presses the control a writer actually uses there: the sticky
+toolbar's button at 1280 (real click), the selection bubble's button at 390
+(real tap). The 390 path was forced by a measured, pre-existing overlap — the
+bubble floats over the sticky toolbar and its padding swallows taps aimed at
+the covered button beneath (bubble 48..240 × 127..181 vs bold button
+116..160 × 108..152). Recorded in BACKLOG.md; this issue changed serialization
+only, no CSS or DOM.
+
+### Reviewer pass — Test Reviewer, mandatory, read-only, frozen tree
+
+Spawned with the read-only instruction in its own prompt; it measured against
+the built dist via read-only runs and scratchpad copies, never writing to the
+tree. Its verdict: the paragraph/heading fix real and well-tested, **two
+blockers** — both fixed before commit, both now carrying their own RED, cases,
+and mutants:
+
+| Finding | Fix |
+| --- | --- |
+| **B1 — the defect was still alive in table cells and footnote definitions.** `serializeReconstructedProseMirrorBlock` short-circuits both into a second per-node serializer (`serializeInline`/`wrapTextWithMarks`), whose `reduce` nested the FIRST mark innermost — a bolded cell wrote ``| **a **`**x**`** b** |``, literal `**` inside the code span's content. The momentarise table converter call site the builder believed covered cells has no reachable route in persistence, and the existing table suites only pin a single-node cell. | `serializeInline` now groups runs through the same shared `selectInlineRun`/`groupableInlineMarks` used by the momentarise path; `wrapTextWithMarks` deleted. Two new cases pin whole-document bytes for a bolded cell and a bolded footnote body. |
+| **B2 — code-run flattening silently deleted content.** When `code` won the longest-run contest its children flattened to text: `` `a b c` `` (strong deleted), `` `a  b` `` (image deleted), `` `Use a b.` `` (footnote reference deleted, definition orphaned), `` `ab` `` (a half-span bold dropped) — all one toolbar click away, all a regression versus the old per-node writer. | Two rules in the shared selection: a `code` mark on a non-text node is excluded from grouping (a code span cannot hold an image), and a code run breaks at any change in the other marks its nodes carry; on equal lengths any other mark outranks `code`, so code is always innermost and flattening only ever sees plain text. Four new cases with structure-preserving bytes; four new mutants. |
+
+Should-fixes, both applied: the gate comment claimed the bubble overlap was
+"recorded in BACKLOG.md" before it was (the entry now exists — same defect
+class as unverified build-log claims); README and this build-log entry were
+still pending at review time and now exist.
+
+The reviewer also verified the positives it could reach read-only: every suite
+assertion discriminating, crash promotion honest, neighbour suites green
+against the current dist, Gate 4.5 corpus identity intact, overlapping runs
+(`bold(ab)+italic(bc)`) measured correct, reachability clean with zero
+references to the deleted function.
+
+Findings recorded rather than fixed, each measured with bytes, in BACKLOG
+(`Rich mount defects measured by the MME-0121 reviewer`): mounting drops model
+`lineBreak` nodes (data loss on edit — the parser emits `lineBreak`, the mount
+handles only `break`); mounting drops marks on images/hard breaks (loaded
+documents re-fracture through the mount gap; the one-pair guarantee holds for
+command-applied marks); emphasis runs starting/ending with whitespace serialize
+delimiters that do not re-parse (md-format, pre-existing); adjacent
+same-destination links merge at mount (note only).
+
+### Visual impact
+
+**Editing surface:** no change to rendering. Bold/italic across mixed inline
+content now SAVES what the screen shows: one delimiter pair per run.
+
+**What the writer sees change:** re-opening a document after bolding across a
+code span, link, or image shows the same single bold run they made, instead of
+nested delimiter garbage.
+
+**General UI / inspector:** no change.

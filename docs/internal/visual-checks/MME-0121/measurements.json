@@ -1,0 +1,62 @@
+{
+  "consoleErrors": [],
+  "demoUrl": "http://127.0.0.1:5174/",
+  "evidence": {
+    "390": {
+      "rows": {
+        "bold-across-code": {
+          "disk": "**a `x` b**\n",
+          "emCount": 0,
+          "html": "<p><strong>a <code>x</code> b</strong></p>",
+          "strongCount": 1,
+          "text": "a x b"
+        },
+        "italic-across-bold": {
+          "disk": "*a **b** c*\n",
+          "emCount": 1,
+          "html": "<p><em>a <strong>b</strong> c</em></p>",
+          "strongCount": 1,
+          "text": "a b c"
+        }
+      }
+    },
+    "1280": {
+      "rows": {
+        "bold-across-code": {
+          "disk": "**a `x` b**\n",
+          "emCount": 0,
+          "html": "<p><strong>a <code>x</code> b</strong></p>",
+          "strongCount": 1,
+          "text": "a x b"
+        },
+        "italic-across-bold": {
+          "disk": "*a **b** c*\n",
+          "emCount": 1,
+          "html": "<p><em>a <strong>b</strong> c</em></p>",
+          "strongCount": 1,
+          "text": "a b c"
+        }
+      }
+    },
+    "1280-light": {
+      "rows": {
+        "bold-across-code": {
+          "disk": "**a `x` b**\n",
+          "emCount": 0,
+          "html": "<p><strong>a <code>x</code> b</strong></p>",
+          "strongCount": 1,
+          "text": "a x b"
+        },
+        "italic-across-bold": {
+          "disk": "*a **b** c*\n",
+          "emCount": 1,
+          "html": "<p><em>a <strong>b</strong> c</em></p>",
+          "strongCount": 1,
+          "text": "a b c"
+        }
+      }
+    }
+  },
+  "screenshots": 3,
+  "status": "passed"
+}

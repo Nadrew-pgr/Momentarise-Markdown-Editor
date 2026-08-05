@@ -58,7 +58,10 @@ rules. None is in MME-0104a's acceptance criteria; each needs its own issue with
 its own RED.
 
 - **Adjacent runs sharing an outer mark serialize one delimiter pair each.**
-  `wrapMomentariseTextMarks` wraps every ProseMirror text node independently, so
+  *Resolved by MME-0121 (2026-08-05) — run grouping in both rich serializers,
+  including the table-cell/footnote-definition path this note did not know
+  about. Kept for history.* `wrapMomentariseTextMarks` wraps every ProseMirror
+  text node independently, so
   bolding across an existing code span produces ``**a ****`x`**** b**`` instead
   of ``**a `x` b**``. Reachable today with no input rule at all: load
   `` a `x` b ``, select the paragraph, run the `bold` command. Preservation-critical
@@ -71,7 +74,10 @@ its own RED.
   identical at `HEAD` before MME-0104a. Lives in the session/save layer, not the
   rich serializer.
 - **Literal block and inline syntax is serialized unescaped in paragraphs, so an
-  undo does not survive a save.** This is the widest of the three. Measured:
+  undo does not survive a save.** *Resolved by MME-0120 (2026-08-05,
+  commit `62480e8`) — verify-then-escape in the model serializer. Kept for
+  history; the classes escaping cannot fix are recorded under
+  "Model-serializer defects measured during MME-0120".* Measured:
 
   | Typed, then one undo | Editor shows | Serializes | Re-parses as |
   | --- | --- | --- | --- |
@@ -168,6 +174,48 @@ scope (escaping), each needing its own RED. The first two are data loss.
   to every budget (MME-0120 reviewer, measured: an 85x slowdown passed the full
   chain; fixed by the fast path, but the coverage gap remains). Adding a
   model-serializer operation to the budgets needs its own slice.
+
+#### Selection bubble overlaps the sticky toolbar at coarse-pointer widths (2026-08-05)
+
+Measured while building MME-0121's browser gate; pre-existing layout behaviour
+(the change under test touched serialization only, no CSS or DOM). At 390×844
+with touch emulation, selecting the first line of a document places the
+selection bubble (MME-0089) over the sticky rich toolbar: bubble rect
+48..240 × 127..181 versus the toolbar's bold button at 116..160 × 108..152.
+The bubble's own controls work, but its padding swallows taps aimed at the
+covered toolbar buttons beneath — a writer aiming at the (visible) sticky
+toolbar hits dead space. Belongs with the block-affordance/mobile work
+(MME-0109 audit territory). The MME-0121 gate documents the geometry in
+`docs/internal/visual-checks/MME-0121/README.md` and uses the bubble at that
+width, which is the interaction that works.
+
+#### Rich mount defects measured by the MME-0121 reviewer (2026-08-05)
+
+Measured against the built package while reviewing MME-0121; all pre-existing
+(the change under review touched serialization, not mounting), each needing its
+own RED. The first is data loss.
+
+- **Mounting drops model `lineBreak` nodes entirely.** `inlineNodeToProseMirror`
+  handles only the `"break"` spelling but the parser emits `"lineBreak"`
+  (measured: `paragraph[text("a"), lineBreak, text("b")]` for both a
+  backslash-newline and a two-space break; the mounted ProseMirror doc holds the
+  merged text `"ab"`). Any edit to such a paragraph silently joins the lines on
+  save. Three whitelists in the same file accept both spellings — spelling
+  drift between producer and consumer.
+- **Mounting drops marks on images and hard breaks.** `image.create` /
+  `hard_break.create` receive no marks argument, so loading
+  `**a ![alt](i.png) b**` and editing the paragraph serializes the image
+  outside the bold run. MME-0121's one-pair guarantee therefore holds for
+  command-applied marks; loaded documents re-fracture through the mount gap
+  until the mount passes marks through.
+- **Emphasis runs starting or ending with whitespace serialize delimiters that
+  do not re-parse** (md-format level, pre-existing; identical model shapes
+  under the old wrapper): unbolding the middle of a bolded phrase yields
+  `**a **x** b**`, which re-opens with the unbold reversed; italic applied
+  over `" c"` yields `* c*`, literal asterisks. Needs CommonMark
+  flanking-aware delimiter placement or whitespace shifting.
+- **Adjacent same-destination links merge into one link at mount** (ProseMirror
+  mark model; near-equivalent semantics). Note only.
 
 #### Todo item presentation (2026-08-04)
 

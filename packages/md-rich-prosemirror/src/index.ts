@@ -5241,10 +5241,163 @@ function proseMirrorInlineChildrenToMomentariseNodes(
   node: ProseMirrorNode,
   nextId: () => ReturnType<typeof createNodeId>
 ): readonly MomentariseNode[] {
-  const children: MomentariseNode[] = [];
+  const inlineNodes: ProseMirrorNode[] = [];
   node.forEach((child) => {
-    children.push(...proseMirrorInlineNodeToMomentariseNodes(child, nextId));
+    inlineNodes.push(child);
   });
+  return proseMirrorInlineRunToMomentariseNodes(inlineNodes, nextId, []);
+}
+
+/*
+ * MME-0121 — one delimiter pair per mark run.
+ *
+ * ProseMirror stores marks per inline node, so `bold` over `` a `x` b `` yields
+ * three nodes each carrying `strong`. Wrapping each node independently
+ * serialized ``**a ****`x`**** b**`` — corruption reachable from the bold
+ * command alone, with no input rule involved. Instead: among the current node's
+ * unconsumed marks, wrap the one that spans the longest run of adjacent nodes,
+ * then recurse into the run with that mark consumed. Marks compare by
+ * `Mark.eq` (type and attrs), so two adjacent links with different
+ * destinations stay separate runs.
+ */
+function proseMirrorInlineRunToMomentariseNodes(
+  nodes: readonly ProseMirrorNode[],
+  nextId: () => ReturnType<typeof createNodeId>,
+  consumedMarks: readonly Mark[]
+): readonly MomentariseNode[] {
+  const result: MomentariseNode[] = [];
+  let index = 0;
+  while (index < nodes.length) {
+    const node = nodes[index]!;
+    const remaining = groupableInlineMarks(node, consumedMarks);
+    if (remaining.length === 0) {
+      result.push(...proseMirrorInlineNodeToMomentariseNodes(node, nextId));
+      index += 1;
+      continue;
+    }
+    const run = selectInlineRun(nodes, index, remaining, consumedMarks);
+    if (run.end <= index) {
+      // Structurally unreachable: a groupable mark always spans its own node.
+      // Guarded because the failing mode is an infinite loop, and a mutation
+      // round measured that as an OOM crash rather than a test failure.
+      throw new Error("Inline run selection must advance past the node it started on.");
+    }
+    const runChildren = proseMirrorInlineRunToMomentariseNodes(nodes.slice(index, run.end), nextId, [
+      ...consumedMarks,
+      run.mark
+    ]);
+    result.push(...momentariseNodesForMark(run.mark, runChildren, nextId));
+    index = run.end;
+  }
+  return result;
+}
+
+/**
+ * A node's marks that a run may still group, in the node's own mark order
+ * (ProseMirror sorts by schema rank). A `code` mark on a non-text node is
+ * excluded: a code span cannot hold an image, a hard break, or a footnote
+ * reference, so wrapping would delete the node from the file while the screen
+ * still showed it — the node survives bare instead, exactly as the old
+ * per-node wrapper treated non-text marks.
+ */
+function groupableInlineMarks(node: ProseMirrorNode, consumedMarks: readonly Mark[]): readonly Mark[] {
+  return node.marks.filter(
+    (mark) =>
+      !consumedMarks.some((consumed) => consumed.eq(mark)) &&
+      (mark.type.name !== "code" || node.isText)
+  );
+}
+
+/**
+ * Longest run wins, so `strong` wraps all of `` a `x` b `` once while `code`
+ * is applied inside it, on its own node only. Two rules keep `code` honest,
+ * because a code span's content is flattened to plain text when it wraps:
+ *
+ *  - a code run may not cross a non-text node or a change in the OTHER marks
+ *    its nodes carry — `` `ab` `` with only `a` bolded must serialize
+ *    ``**`a`**`b` ``, never one span that silently drops the bold;
+ *  - on equal run lengths any other mark outranks `code`, so code is always
+ *    the innermost wrapper and its children are plain text by construction.
+ *
+ * Other ties keep the node's own mark order.
+ */
+function selectInlineRun(
+  nodes: readonly ProseMirrorNode[],
+  index: number,
+  remaining: readonly Mark[],
+  consumedMarks: readonly Mark[]
+): { readonly end: number; readonly mark: Mark } {
+  const first = nodes[index]!;
+  let best = { end: index, mark: remaining[0]!, score: -1 };
+  for (const candidate of remaining) {
+    let end = index;
+    while (end < nodes.length && candidate.isInSet(nodes[end]!.marks)) {
+      if (
+        candidate.type.name === "code" &&
+        (!nodes[end]!.isText ||
+          !sameResidualMarks(first, nodes[end]!, consumedMarks, candidate))
+      ) {
+        break;
+      }
+      end += 1;
+    }
+    const score = end * 2 + (candidate.type.name === "code" ? 0 : 1);
+    if (score > best.score) {
+      best = { end, mark: candidate, score };
+    }
+  }
+  return { end: best.end, mark: best.mark };
+}
+
+function sameResidualMarks(
+  first: ProseMirrorNode,
+  node: ProseMirrorNode,
+  consumedMarks: readonly Mark[],
+  runMark: Mark
+): boolean {
+  const residual = (candidate: ProseMirrorNode): readonly Mark[] =>
+    candidate.marks.filter(
+      (mark) => !mark.eq(runMark) && !consumedMarks.some((consumed) => consumed.eq(mark))
+    );
+  const firstResidual = residual(first);
+  const nodeResidual = residual(node);
+  return (
+    firstResidual.length === nodeResidual.length &&
+    firstResidual.every((mark, markIndex) => mark.eq(nodeResidual[markIndex]!))
+  );
+}
+
+function momentariseNodesForMark(
+  mark: Mark,
+  children: readonly MomentariseNode[],
+  nextId: () => ReturnType<typeof createNodeId>
+): readonly MomentariseNode[] {
+  if (mark.type.name === "code") {
+    return [
+      knownNode(nextId, "inline", "inlineCode", [], {
+        value: children.map((child) => inlineTextContent(child)).join("")
+      })
+    ];
+  }
+  if (mark.type.name === "strong") {
+    return [knownNode(nextId, "inline", "strong", children)];
+  }
+  if (mark.type.name === "em") {
+    return [knownNode(nextId, "inline", "emphasis", children)];
+  }
+  if (mark.type.name === "strike") {
+    return [knownNode(nextId, "inline", "strikethrough", children)];
+  }
+  if (mark.type.name === "link") {
+    return [
+      knownNode(nextId, "inline", "link", children, {
+        title: stringAttribute(mark.attrs.title),
+        url: stringAttribute(mark.attrs.href) ?? ""
+      })
+    ];
+  }
+  // A mark with no Markdown syntax contributes nothing; its children stand
+  // alone, exactly as the per-node wrapper used to skip it.
   return children;
 }
 
@@ -5253,7 +5406,9 @@ function proseMirrorInlineNodeToMomentariseNodes(
   nextId: () => ReturnType<typeof createNodeId>
 ): readonly MomentariseNode[] {
   if (node.isText) {
-    return [wrapMomentariseTextMarks(knownNode(nextId, "inline", "text", [], { value: node.text ?? "" }), node.marks, nextId)];
+    // Marks are the run grouper's job; by the time a text node reaches here
+    // every mark it carries has been consumed by an enclosing run.
+    return [knownNode(nextId, "inline", "text", [], { value: node.text ?? "" })];
   }
   if (node.type.name === "hard_break") {
     return [knownNode(nextId, "inline", "lineBreak", [])];
@@ -5277,34 +5432,6 @@ function proseMirrorInlineNodeToMomentariseNodes(
     ];
   }
   return [knownNode(nextId, "inline", "text", [], { value: node.textContent })];
-}
-
-function wrapMomentariseTextMarks(
-  base: KnownNode,
-  marks: readonly Mark[],
-  nextId: () => ReturnType<typeof createNodeId>
-): KnownNode {
-  return marks.reduceRight((child, mark) => {
-    if (mark.type.name === "code") {
-      return knownNode(nextId, "inline", "inlineCode", [], { value: inlineTextContent(child) });
-    }
-    if (mark.type.name === "strong") {
-      return knownNode(nextId, "inline", "strong", [child]);
-    }
-    if (mark.type.name === "em") {
-      return knownNode(nextId, "inline", "emphasis", [child]);
-    }
-    if (mark.type.name === "strike") {
-      return knownNode(nextId, "inline", "strikethrough", [child]);
-    }
-    if (mark.type.name === "link") {
-      return knownNode(nextId, "inline", "link", [child], {
-        title: stringAttribute(mark.attrs.title),
-        url: stringAttribute(mark.attrs.href) ?? ""
-      });
-    }
-    return child;
-  }, base);
 }
 
 function inlineTextContent(node: MomentariseNode): string {
@@ -9539,32 +9666,96 @@ function serializeInline(
   node: ProseMirrorNode,
   options: { readonly escapeUnmarkedText?: boolean } = {}
 ): string {
-  const parts: string[] = [];
+  const inlineNodes: ProseMirrorNode[] = [];
   node.forEach((child) => {
-    if (child.isText) {
-      const text = options.escapeUnmarkedText && child.marks.length === 0
-        ? escapeRichTablePlainText(child.text ?? "")
-        : child.text ?? "";
-      parts.push(wrapTextWithMarks(text, child.marks));
-      return;
-    }
-    if (child.type.name === "hard_break") {
-      parts.push("  \n");
-      return;
-    }
-    if (child.type.name === "image") {
-      const alt = escapeMarkdownImageAlt(stringAttribute(child.attrs.alt) ?? "");
-      const src = stringAttribute(child.attrs.src) ?? "";
-      const title = escapeMarkdownTitle(stringAttribute(child.attrs.title));
-      parts.push(title ? `![${alt}](${src} "${title}")` : `![${alt}](${src})`);
-      return;
-    }
-    if (child.type.name === "footnote_reference") {
-      const label = stringAttribute(child.attrs.label) ?? stringAttribute(child.attrs.identifier) ?? "";
-      parts.push(stringAttribute(child.attrs.raw) ?? `[^${label}]`);
-    }
+    inlineNodes.push(child);
   });
-  return parts.join("");
+  return serializeInlineRun(inlineNodes, [], options);
+}
+
+/*
+ * MME-0121 — this serializer is the one table cells and footnote definitions
+ * actually reach (`serializeReconstructedProseMirrorBlock` short-circuits both
+ * before the momentarise-model path), and it wrapped each node's marks
+ * independently with the FIRST mark innermost, so a bolded cell wrote
+ * `| **a **`**x**`** b** |` — per-node pairs plus literal `**` injected into
+ * the code span's content. It now groups runs with the same selection rules as
+ * `proseMirrorInlineRunToMomentariseNodes`.
+ */
+function serializeInlineRun(
+  nodes: readonly ProseMirrorNode[],
+  consumedMarks: readonly Mark[],
+  options: { readonly escapeUnmarkedText?: boolean }
+): string {
+  let content = "";
+  let index = 0;
+  while (index < nodes.length) {
+    const node = nodes[index]!;
+    const remaining = groupableInlineMarks(node, consumedMarks);
+    if (remaining.length === 0) {
+      content += serializeInlineLeaf(node, options);
+      index += 1;
+      continue;
+    }
+    const run = selectInlineRun(nodes, index, remaining, consumedMarks);
+    if (run.end <= index) {
+      // Same invariant as the momentarise-side grouper, same reason.
+      throw new Error("Inline run selection must advance past the node it started on.");
+    }
+    const inner = serializeInlineRun(nodes.slice(index, run.end), [...consumedMarks, run.mark], options);
+    content += wrapSerializedInlineRun(run.mark, inner);
+    index = run.end;
+  }
+  return content;
+}
+
+function serializeInlineLeaf(
+  node: ProseMirrorNode,
+  options: { readonly escapeUnmarkedText?: boolean }
+): string {
+  if (node.isText) {
+    // Escaping applies to genuinely unmarked text only, as before the run
+    // grouper: marked text is emitted verbatim inside its delimiters.
+    return options.escapeUnmarkedText && node.marks.length === 0
+      ? escapeRichTablePlainText(node.text ?? "")
+      : node.text ?? "";
+  }
+  if (node.type.name === "hard_break") {
+    return "  \n";
+  }
+  if (node.type.name === "image") {
+    const alt = escapeMarkdownImageAlt(stringAttribute(node.attrs.alt) ?? "");
+    const src = stringAttribute(node.attrs.src) ?? "";
+    const title = escapeMarkdownTitle(stringAttribute(node.attrs.title));
+    return title ? `![${alt}](${src} "${title}")` : `![${alt}](${src})`;
+  }
+  if (node.type.name === "footnote_reference") {
+    const label = stringAttribute(node.attrs.label) ?? stringAttribute(node.attrs.identifier) ?? "";
+    return stringAttribute(node.attrs.raw) ?? `[^${label}]`;
+  }
+  return "";
+}
+
+function wrapSerializedInlineRun(mark: Mark, inner: string): string {
+  if (mark.type.name === "code") {
+    return `\`${inner}\``;
+  }
+  if (mark.type.name === "strong") {
+    return `**${inner}**`;
+  }
+  if (mark.type.name === "em") {
+    return `*${inner}*`;
+  }
+  if (mark.type.name === "strike") {
+    return `~~${inner}~~`;
+  }
+  if (mark.type.name === "link") {
+    const href = stringAttribute(mark.attrs.href) ?? "";
+    const title = stringAttribute(mark.attrs.title);
+    return title ? `[${inner}](${href} "${title}")` : `[${inner}](${href})`;
+  }
+  // `raw_html_source` and any unknown mark contribute no syntax.
+  return inner;
 }
 
 function escapeMarkdownImageAlt(value: string): string {
@@ -9573,32 +9764,6 @@ function escapeMarkdownImageAlt(value: string): string {
 
 function escapeMarkdownTitle(value: string | null): string {
   return value ? value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r?\n/g, " ") : "";
-}
-
-function wrapTextWithMarks(text: string, marks: readonly Mark[]): string {
-  return marks.reduce((value, mark) => {
-    if (mark.type.name === "raw_html_source") {
-      return value;
-    }
-    if (mark.type.name === "code") {
-      return `\`${value}\``;
-    }
-    if (mark.type.name === "strong") {
-      return `**${value}**`;
-    }
-    if (mark.type.name === "em") {
-      return `*${value}*`;
-    }
-    if (mark.type.name === "strike") {
-      return `~~${value}~~`;
-    }
-    if (mark.type.name === "link") {
-      const href = stringAttribute(mark.attrs.href) ?? "";
-      const title = stringAttribute(mark.attrs.title);
-      return title ? `[${value}](${href} "${title}")` : `[${value}](${href})`;
-    }
-    return value;
-  }, text);
 }
 
 function textNode(schema: MomentariseRichSchema, text: string | null): readonly ProseMirrorNode[] {

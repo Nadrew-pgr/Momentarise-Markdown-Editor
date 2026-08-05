@@ -203,15 +203,13 @@ check("emphasis does not swallow strong, italic typed first", () => {
 });
 
 check("inline rules keep marks already inside the match", () => {
-  // Node shape only, deliberately. The mark rule must delete its delimiters and
-  // mark what is left rather than replacing the range with fresh text, which
-  // would destroy the code span the inline-code rule just created.
+  // The mark rule must delete its delimiters and mark what is left rather than
+  // replacing the range with fresh text, which would destroy the code span the
+  // inline-code rule just created.
   //
-  // The Markdown for this doc is *not* asserted: adjacent runs sharing an outer
-  // mark serialize one delimiter pair each (`**a ****`x`**** b**`). That is a
-  // pre-existing `wrapMomentariseTextMarks` defect, reachable today with no
-  // input rule at all by running the `bold` command across a code span, and it
-  // is recorded in BACKLOG.md rather than asserted here.
+  // The byte assertion below could not be written while adjacent runs sharing
+  // an outer mark serialized one delimiter pair each (`**a ****`x`**** b**`);
+  // MME-0121 fixed that, so the bytes are now asserted alongside the shape.
   const state = typeIntoRichState(rich.createRichMarkdownState(""), "**a `x` b**");
   assertInlineNodes(
     state,
@@ -222,6 +220,7 @@ check("inline rules keep marks already inside the match", () => {
     ],
     "strong over an existing code span"
   );
+  assertSerializedMarkdown(state, "**a `x` b**\n", "strong over an existing code span bytes");
 });
 
 check("strong inline rule does not fire mid-word", () => {
