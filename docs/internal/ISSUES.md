@@ -118,7 +118,7 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | C2 | MME-0114 ✅, 0117 ✅, 0119 ✅ | Gate harness, touch targets, overlay anchoring — all shipped | opus-4.8 | done 2026-08-03; MME-0078 left quarantine |
 | C2b | MME-0104a ✅, 0104b ✅ | Input rules; pairing and paste-link — shipped | opus-4.8 | done 2026-08-04; 0115 deliberately not started |
 | C2c | MME-0120 ✅, 0121 ✅, 0122 ✅ | Serializer escaping; mark runs; fence newline — shipped | opus-4.8 | done 2026-08-05; 0115 measured and reverted with handoff |
-| C2d | MME-0123, 0115 (attempt 2) | Mount fidelity (data loss); composition cancel path | opus-5 / fable-5 | soft-broken docs round-trip; cancel restores the selection |
+| C2d | MME-0123 ✅, 0115 (attempt 2, reverted) | Mount fidelity (data loss); composition cancel path | opus-5 / fable-5 | done 2026-08-06; 0123 shipped, 0115 measured and reverted with a converging design |
 | C3 | MME-0116 | Empty the gate quarantine | opus-4.8 | `npm run visual` exits zero, quarantine empty |
 | Cd | MME-0118 | Docs correctness repair (may run parallel, own branch) | sonnet-5 | Andrew follows the vanilla quickstart and it works |
 | D | MME-0089, 0090, 0091, 0105, 0106 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
@@ -1968,7 +1968,25 @@ Mounting a document into the rich view must not drop model content; today it sil
 
 Make typing with a composition event replace a block selection, the way an ordinary keystroke does.
 
-**Status: attempt 1 measured and reverted 2026-08-05 (record at `75179ea`). The defect below is CORRECTED from the original spec — read this version, not the 2026-08-01 one.**
+**Status: attempt 1 measured and reverted 2026-08-05 (record at `75179ea`);
+attempt 2 measured and reverted 2026-08-06. The defect below is CORRECTED from
+the original spec — read this version, not the 2026-08-01 one.**
+
+**Attempt 2 found a converging design and reverted for a located reason.** The
+cancel restore itself is solved: snapshot at `compositionstart`, discriminate
+commit from cancel on `compositionend.data` (`""` means cancel — measured), and
+re-assert the snapshot under a `view.composing`-gated idempotent watchdog rather
+than hunting for the last flush. Measured working for both single- and
+multi-block selections, document and selection, on the first iteration.
+
+What is left is **not** the restore: the demo's `syncRichMarkdownToSource`
+adopts the mid-composition state as the serialization baseline, so the restored
+document serializes with a leading blank block. That is the `apps/md-demo`
+re-anchoring loop MME-0122 already had to repair, and choosing between fixing it
+there or carrying a re-anchor meta from the restore transaction decides which
+package attempt 3 changes. Settle that before writing the RED. Full design,
+telemetry, and both candidate shapes are in the build-log entry for
+2026-08-06.
 
 ### Corrected defect (measured 2026-08-05 with real CDP IME, provenance: build-log MME-0115 attempt record)
 

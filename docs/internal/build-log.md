@@ -11344,3 +11344,158 @@ and the point of the issue. **What the writer gets:** editing such a paragraph
 no longer joins its lines on save; bold across an image or a line break stays
 one delimiter pair; bolding part of a two-line paragraph no longer writes
 literal asterisks. **General UI / inspector:** no change.
+
+## MME-0115 — Composition input over a block selection: NOT SHIPPED, attempt 2 reverted
+
+- Date: 2026-08-06. Block: C2d (last issue). Builder model: opus-5.
+- Status: stopped and reverted per the stop-and-revert rule. Tree returned to
+  `74d83e5` and verified (`rich-block-selection`, `rich-mount-fidelity`,
+  `rich-core-interactions` green). No production change ships from this attempt.
+- **A converging design was found and measured working for the document and the
+  selection.** It is reverted for one specific, located reason recorded below,
+  not because the approach failed. Attempt 3 starts much further along than this
+  one did.
+
+### The recorded defect still reproduces at `74d83e5`
+
+Re-measured with real CDP IME (`Input.imeSetComposition` / `Input.insertText`),
+after MME-0123 changed the mount, using attempt 1's setup verbatim (click a
+block → `Escape` → optional `Shift+ArrowDown`, asserting the
+`data-mme-block-selected` count **before** composing):
+
+| case | commit | cancel |
+| --- | --- | --- |
+| single block | `é\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n` ✅ | `\n\nBravo block.\n\n…` — **Alpha destroyed** |
+| two blocks | `é\n\nCharlie block.\n\nDelta block.\n` ✅ | `\n\nCharlie block.\n\n…` — **both destroyed** |
+
+The commit path conforms, as attempt 1 recorded. Nothing here needed
+re-measuring; this run only confirmed the starting point had not moved.
+
+### New telemetry attempt 1 did not have
+
+Page-level listeners on the editor DOM, both outcomes:
+
+```
+COMMIT                                   CANCEL
+compositionstart  data="Alpha block."    compositionstart  data="Alpha block."
+compositionupdate data="´"               compositionupdate data="´"
+compositionupdate data="é"               compositionupdate data=""
+compositionend    data="é"               compositionend    data=""
+```
+
+Two facts follow, and both are load-bearing:
+
+1. **`compositionstart` carries the selected block's own text.** Chromium starts
+   the composition *over the block selection's DOM range*. That is why the
+   commit path works without any code: the browser's own replacement is what
+   ProseMirror reads back. The commit path is not something MME-0103 got right —
+   it is something the browser does, and any fix must avoid breaking it.
+2. **`compositionend.data` is the composed text on commit and `""` on cancel.**
+   Attempt 1 concluded "there is no DOM event that marks the last flush of a
+   cancelled composition", which is true — but it is not the same as having no
+   signal. The *outcome* is discriminated by an event; only the *drain* is not.
+
+### The design that works, and its measured result
+
+A watchdog in `createRichBlockSelectionPlugin`'s `handleDOMEvents`:
+
+- `compositionstart` — if `richBlockSelection(view.state)` is active, snapshot
+  `{ doc, anchorIndex, headIndex }`. Return false always; composition must keep
+  reaching ProseMirror or IME breaks entirely.
+- `compositionend` — if armed and `data === ""`, start the drain loop; if the
+  composition committed, disarm and touch nothing.
+- The drain loop, every 16ms for a bounded 600ms window: while
+  `view.composing === true`, do nothing (this is attempt 1's failure mode 1).
+  Once it is false, compare `view.state.doc` against the snapshot; if it
+  deviates, re-assert the snapshot; stop after 3 consecutive stable frames or at
+  the deadline.
+- The restore is one transaction: `replaceWith(0, doc.content.size,
+  snapshot.doc.content)`, then `applyRichBlockSelectionToTransaction(...)` — the
+  plugin's `apply` returns a `richBlockSelectionPluginKey` meta before it checks
+  `docChanged`, so one transaction both restores the doc and keeps the block
+  selection — plus `setMeta("addToHistory", false)`, because a cancelled
+  composition is a non-event and must not become an undo step.
+
+**Idempotence is the insight.** Attempt 1's three designs all tried to find the
+*moment* to restore. There is no such moment, but there does not need to be:
+`view.composing` says when it is safe to act, and re-asserting on every
+subsequent deviation overrules the late flushes instead of racing them.
+
+Measured with real CDP IME, first iteration, no tuning:
+
+| case | blocks after cancel | selected after cancel |
+| --- | --- | --- |
+| single block | all 4 restored, correct text | 1 ✅ |
+| two blocks | all 4 restored, correct text | 2 ✅ |
+
+and both commit rows unchanged. The working source is 135 lines in
+`packages/md-rich-prosemirror/src/index.ts`; it is described above precisely
+enough to re-type, and the revert commit's parent is `74d83e5`.
+
+### Why it is still reverted: the bytes, and the layer they live in
+
+After the restore the DOM is right and the serialization is not:
+
+```
+DOM after cancel      : Alpha block. | Bravo block. | Charlie block. | Delta block.   ✅
+getMarkdown()         : "\n\nAlpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+                         ^^^^ a blank block the writer never typed
+```
+
+Located by measurement, not inference. At the **package** level the same restore
+serializes perfectly:
+
+| step (headless, `createRichMarkdownState` + `serializeRichMarkdownState`) | bytes |
+| --- | --- |
+| baseline | `Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n` |
+| block 0 replaced by `´` (what the flush does) | `´\n\nBravo block.\n\n…` |
+| restored by the watchdog's transaction | `Alpha block.\n\nBravo block.\n\n…` ✅, `doc.eq(snapshot) === true` |
+
+So the package is correct and the residue is the **demo's re-anchoring loop**:
+`dispatchTransaction` in `apps/md-demo/src/main.ts` calls
+`syncRichMarkdownToSource("rich edit")` on every doc change, including the
+mid-composition flush. The transient `´\n\n…` becomes the serialization
+baseline, and the restored document is then serialized *against that baseline*,
+which is where the leading blank block comes from.
+
+That is a different layer with its own gates (`test:demo-rich`,
+`test:demo-rich-ux`, `visual:mme-0104a`, save truthfulness), and it is the exact
+function whose guard MME-0122 had to repair after it shipped a stale-bytes
+defect — its `documentBefore`/`doc.eq` comment is still there. Changing when the
+demo re-anchors also touches the commit path, which currently works.
+
+Shipping without it would be worse than not shipping: it converts a **visible**
+data loss into a **silent byte defect** — the writer cancels an accent, sees
+their blocks come back, and the file quietly gains a blank block. That is the
+preservation rule this project holds hardest.
+
+### Handoff for attempt 3
+
+- Start from the design above; it converges. Do not re-derive the drain
+  condition, and do not re-measure the commit path or the base defect — both are
+  recorded here and were confirmed at `74d83e5`.
+- **The whole remaining problem is the baseline, not the restore.** Two
+  candidate shapes, neither yet measured: (a) the demo defers
+  `syncRichMarkdownToSource` while `richEditor.composing` is true, so no
+  transient composition state is ever adopted as a baseline — likely correct in
+  general, and it would need the commit path re-proven; (b) the restore
+  transaction carries a meta the editor/session layer honours as "re-anchor to
+  these bytes", which keeps the demo dumb but adds a cross-layer contract.
+  Settle this before writing any test, because it decides which package the
+  issue changes.
+- Budget the rest honestly: headless RED, suite registration, mutation rounds on
+  the watchdog (the obvious mutants: drop the `view.composing` gate, drop the
+  re-assertion, invert the `data === ""` discriminator, drop
+  `addToHistory: false`), a three-viewport CDP gate, and **two** mandatory
+  reviewers (Test **and** Accessibility — block selection is an announced,
+  live-region surface). That is what did not fit here, on top of the layer
+  question.
+- CDP setup that works, unchanged from attempt 1: click a block, `Escape`,
+  optional `Shift+ArrowDown`, assert `data-mme-block-selected` **before**
+  composing. Cancel is `Input.imeSetComposition` with `text: ""`; commit is
+  `Input.insertText`.
+
+### Visual impact
+
+No visible editing or general UI changes — no production change ships from this
+attempt.
