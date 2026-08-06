@@ -1,0 +1,174 @@
+{
+  "consoleErrors": [],
+  "demoUrl": "http://127.0.0.1:5174/",
+  "evidence": {
+    "390": {
+      "rows": {
+        "neighbour-untouched": {
+          "disk": "**Intro paragraph.**\n\nalpha  \nbravo\n\nOutro paragraph.\n",
+          "mounted": {
+            "brCount": 1,
+            "brInsideStrongCount": 0,
+            "html": "<p>alpha<br>bravo</p>",
+            "strongCount": 0,
+            "text": "alphabravo"
+          },
+          "reopened": {
+            "brCount": 0,
+            "brInsideStrongCount": 0,
+            "html": "<p><strong>Intro paragraph.</strong></p>",
+            "strongCount": 1,
+            "text": "Intro paragraph."
+          }
+        },
+        "break-survives-its-own-edit": {
+          "disk": "Intro paragraph.\n\n**alpha  \nbravo**\n\nOutro paragraph.\n",
+          "mounted": {
+            "brCount": 1,
+            "brInsideStrongCount": 0,
+            "html": "<p>alpha<br>bravo</p>",
+            "strongCount": 0,
+            "text": "alphabravo"
+          },
+          "reopened": {
+            "brCount": 1,
+            "brInsideStrongCount": 1,
+            "html": "<p><strong>alpha<br>bravo</strong></p>",
+            "strongCount": 1,
+            "text": "alphabravo"
+          }
+        },
+        "run-ending-on-the-break": {
+          "disk": "Intro paragraph.\n\n**alpha**  \nbravo\n\nOutro paragraph.\n",
+          "mounted": {
+            "brCount": 1,
+            "brInsideStrongCount": 0,
+            "html": "<p>alpha<br>bravo</p>",
+            "strongCount": 0,
+            "text": "alphabravo"
+          },
+          "reopened": {
+            "brCount": 1,
+            "brInsideStrongCount": 0,
+            "html": "<p><strong>alpha</strong><br>bravo</p>",
+            "strongCount": 1,
+            "text": "alphabravo"
+          }
+        }
+      }
+    },
+    "1280": {
+      "rows": {
+        "neighbour-untouched": {
+          "disk": "**Intro paragraph.**\n\nalpha  \nbravo\n\nOutro paragraph.\n",
+          "mounted": {
+            "brCount": 1,
+            "brInsideStrongCount": 0,
+            "html": "<p>alpha<br>bravo</p>",
+            "strongCount": 0,
+            "text": "alphabravo"
+          },
+          "reopened": {
+            "brCount": 0,
+            "brInsideStrongCount": 0,
+            "html": "<p><strong>Intro paragraph.</strong></p>",
+            "strongCount": 1,
+            "text": "Intro paragraph."
+          }
+        },
+        "break-survives-its-own-edit": {
+          "disk": "Intro paragraph.\n\n**alpha  \nbravo**\n\nOutro paragraph.\n",
+          "mounted": {
+            "brCount": 1,
+            "brInsideStrongCount": 0,
+            "html": "<p>alpha<br>bravo</p>",
+            "strongCount": 0,
+            "text": "alphabravo"
+          },
+          "reopened": {
+            "brCount": 1,
+            "brInsideStrongCount": 1,
+            "html": "<p><strong>alpha<br>bravo</strong></p>",
+            "strongCount": 1,
+            "text": "alphabravo"
+          }
+        },
+        "run-ending-on-the-break": {
+          "disk": "Intro paragraph.\n\n**alpha**  \nbravo\n\nOutro paragraph.\n",
+          "mounted": {
+            "brCount": 1,
+            "brInsideStrongCount": 0,
+            "html": "<p>alpha<br>bravo</p>",
+            "strongCount": 0,
+            "text": "alphabravo"
+          },
+          "reopened": {
+            "brCount": 1,
+            "brInsideStrongCount": 0,
+            "html": "<p><strong>alpha</strong><br>bravo</p>",
+            "strongCount": 1,
+            "text": "alphabravo"
+          }
+        }
+      }
+    },
+    "1280-light": {
+      "rows": {
+        "neighbour-untouched": {
+          "disk": "**Intro paragraph.**\n\nalpha  \nbravo\n\nOutro paragraph.\n",
+          "mounted": {
+            "brCount": 1,
+            "brInsideStrongCount": 0,
+            "html": "<p>alpha<br>bravo</p>",
+            "strongCount": 0,
+            "text": "alphabravo"
+          },
+          "reopened": {
+            "brCount": 0,
+            "brInsideStrongCount": 0,
+            "html": "<p><strong>Intro paragraph.</strong></p>",
+            "strongCount": 1,
+            "text": "Intro paragraph."
+          }
+        },
+        "break-survives-its-own-edit": {
+          "disk": "Intro paragraph.\n\n**alpha  \nbravo**\n\nOutro paragraph.\n",
+          "mounted": {
+            "brCount": 1,
+            "brInsideStrongCount": 0,
+            "html": "<p>alpha<br>bravo</p>",
+            "strongCount": 0,
+            "text": "alphabravo"
+          },
+          "reopened": {
+            "brCount": 1,
+            "brInsideStrongCount": 1,
+            "html": "<p><strong>alpha<br>bravo</strong></p>",
+            "strongCount": 1,
+            "text": "alphabravo"
+          }
+        },
+        "run-ending-on-the-break": {
+          "disk": "Intro paragraph.\n\n**alpha**  \nbravo\n\nOutro paragraph.\n",
+          "mounted": {
+            "brCount": 1,
+            "brInsideStrongCount": 0,
+            "html": "<p>alpha<br>bravo</p>",
+            "strongCount": 0,
+            "text": "alphabravo"
+          },
+          "reopened": {
+            "brCount": 1,
+            "brInsideStrongCount": 0,
+            "html": "<p><strong>alpha</strong><br>bravo</p>",
+            "strongCount": 1,
+            "text": "alphabravo"
+          }
+        }
+      }
+    }
+  },
+  "screenshots": 3,
+  "source": "Intro paragraph.\n\nalpha  \nbravo\n\nOutro paragraph.\n",
+  "status": "passed"
+}

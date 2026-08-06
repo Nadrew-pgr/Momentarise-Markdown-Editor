@@ -11109,3 +11109,237 @@ No visible editing or general UI changes — no production change ships.
 - Also notable: the reviewer's B1 on MME-0120 (footnote-reference paragraphs never escaped — real residual data loss), the measured 85× perf regression caught and fixed (2805ms→97ms), MME-0121's second per-node serializer found by review (table cells/footnote definitions injecting `**` into code spans), and the demo's stale-bytes save defect found en route in MME-0122. 35 mutants killed across the block, zero surviving.
 - Follow-ups promoted: `MME-0123` (mount drops `lineBreak` nodes and marks on images/hard breaks — silent data loss on edit of soft-broken paragraphs, provenance in BACKLOG) scheduled with `MME-0115` attempt 2 as Block C2d (opus-5/fable-5). MME-0115's spec corrected to the measured cancel-path defect. `AGENT.md` gains the rebaseline-in-same-commit rule, closing the "visual gates went stale across three issues" gap without a dedicated slice.
 - Checks: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`. Push: pushed.
+
+## MME-0123 — Mount fidelity: lineBreak nodes and marks on images and hard breaks: SHIPPED
+
+- Date: 2026-08-06.
+- Block: C2d (first issue). Builder model: opus-5.
+- Status: implemented, mutation-proven (10 mutants, zero survivors), browser-proven
+  across 3 viewports, reviewed by a read-only Test Reviewer whose BLOCKER was
+  reproduced independently and fixed in this commit.
+
+### The defect, re-measured at `40d3405` before any change
+
+`packages/md-rich-prosemirror/src/index.ts` tested `node.type === "break"` at the
+mount while `packages/md-format/src/index.ts` maps mdast `break` to the
+Momentarise type `lineBreak`. Producer and consumer had drifted on the spelling;
+three neighbouring whitelists in the rich package accepted *both* spellings,
+which is exactly why the one that accepted only the dead name went unnoticed.
+
+| input | mounted ProseMirror doc | after one edit to that paragraph |
+| --- | --- | --- |
+| `alpha␠␠\nbravo\n` | `paragraph text("alphabravo")` | `**alphabravo**\n` — a line gone |
+| `alpha\\\nbravo\n` | `paragraph text("alphabravo")` | `**alphabravo**\n` — a line gone |
+| `**alpha␠␠\nbravo**\n` | `paragraph text("alphabravo"){strong}` | break gone inside the run |
+| `**a ![alt](i.png) b**\n` | image mounts with **no marks** | `**a **![alt](i.png)** b!**\n` |
+
+Typing one character was enough: `alpha␠␠\nbravo\n` became `Xalphabravo\n`.
+
+Byte identity for an *unedited* document was correct throughout the defect's
+life, because targeted serialization replays untouched blocks from their source
+ranges and never consults the mounted view. That is why no existing gate caught
+this, and why every new case asserts the mounted shape or post-edit bytes rather
+than identity alone.
+
+### The fix
+
+`@momentarise/md-core` gains `MOMENTARISE_LINE_BREAK_TYPE` and
+`isMomentariseLineBreakNode` (plus a module-private `isMomentariseLineBreakType`
+holding the one alias list). Every producer and consumer now calls them:
+
+| site | before | after |
+| --- | --- | --- |
+| `md-format:1344` `typeForMdastType` | `break: "lineBreak"` | the constant |
+| `md-rich-prosemirror:5454` PM→model | `"lineBreak"` literal | the constant |
+| `md-rich-prosemirror:9412` **the mount** | `node.type === "break"` | the predicate |
+| `md-rich-prosemirror:1788, 1836, 9208` | two-spelling whitelists | the predicate |
+| `md-format:624, 640` | two-spelling checks | the predicate |
+
+No production code in `packages/` spells a line-break type name any more. The
+only remaining `"break"` literal is `md-format:1327` `kindForMdastType`, which is
+keyed on the **mdast** vocabulary and must stay mdast-spelled. Mount also passes
+`marks` to `image.create` and `hard_break.create`.
+
+### The corruption this issue made reachable, and fixed
+
+Found by the Test Reviewer, then reproduced independently before being accepted.
+A mark run that begins or ends on a hard break emits a delimiter adjacent to a
+line ending, which CommonMark's flanking rules refuse — so the delimiters become
+literal text and the mark is lost. Measured on `alpha␠␠\nbravo\n`:
+
+| selection | wrote | reopened as |
+| --- | --- | --- |
+| PM 1..7 (line 1 + the break) | `**alpha␠␠\n**bravo\n` | `text("**alpha") … text("**bravo")` |
+| PM 6..12 (the break + line 2) | `alpha**␠␠\nbravo**\n` | `text("alpha**") … text("bravo**")` |
+
+PM 1..7 is what `Home` then `Shift+ArrowDown` produces — an ordinary gesture.
+This was **unreachable before this issue**: with the break dropped at mount, no
+selection could straddle one. Restoring the break is what made it reachable, so
+the guard belongs in this commit rather than in a follow-up. Fixed in the shared
+run grouper (`groupableInlineMarks` refuses to open a run on a `hard_break`;
+`selectInlineRun` trims a trailing one), which both serializers use — the
+momentarise-model path and the table-cell/footnote-definition path MME-0121
+found. The interior case keeps its single pair: `**alpha␠␠\nbravo**` is
+unchanged.
+
+### Test-first
+
+RED before implementation, with `MOMENTARISE_LINE_BREAK_TYPE` and
+`isMomentariseLineBreakNode` stubbed to wrong values so the failures would be the
+assertions' own rather than an import error: **14 cases failed**, e.g.
+
+```
+[two-space break mounts without losing content] two-space break mounted shape
+  expected: "paragraph text(\"alpha\") hard_break text(\"bravo\")"
+  actual:   "paragraph text(\"alphabravo\")"
+```
+
+`tests/rich-mount-fidelity.test.mjs` now runs **30 cases** (counted by
+instrumenting `check()`, not by reading the source): the shared constant, the
+mount for both spellings, the post-edit bytes plus reopened node shapes, the
+hard-break edge rule, LF and CRLF preservation, identity round trips including
+the bold-across-break rows, and the two consumers that read a break's *size*
+(footnote insertion offsets) and its *line-start* effect (block-marker escaping).
+
+### Reversion-to-failure table
+
+Ten mutants, zero survivors. Each was applied to the source, rebuilt, run, and
+reverted.
+
+| # | Reverted | Assertion that failed |
+| --- | --- | --- |
+| M1 | mount predicate → `node.type === "break"` (the mutant the issue names) | 16 cases; `two-space break mounted shape` expected `paragraph text("alpha") hard_break text("bravo")`, actual `paragraph text("alphabravo")` |
+| M2 | `MOMENTARISE_LINE_BREAK_TYPE = "break"` | 4 cases; `canonical model type name` expected `"lineBreak"`, actual `"break"` |
+| M3 | drop the mdast alias from the list | `mdast spelling` expected `true`, actual `false` |
+| M4 | `image.create(attrs, null, [])` | 3 cases; `loaded-then-edited image stays inside one pair` expected `**a ![alt](i.png) b!**\n`, actual `**a **![alt](i.png)** b!**\n` |
+| M5 | `hard_break.create()` with no marks | 2 cases; `break inside a strong run mounted shape` actual `… hard_break text("bravo"){strong}` (break unmarked) |
+| M6 | line-break serializes `"\n"` instead of `"␠␠\n"` | 5 cases; `typed-character bytes` expected `Xalpha␠␠\nbravo\n`, actual `Xalpha\nbravo\n` |
+| M7 | `modelInlineSize` stops counting a break | `a footnote inserted at the end of a soft-broken paragraph…` — `the insertion must be accepted` expected `true`, actual `false` |
+| M8 | `atLineStart` forced false after a break | 2 cases; `escaped "# with parentheses" bytes` expected `alpha␠␠\n\# (x) bravo\n`, actual `alpha␠␠\n\# \(x\) bravo\n` |
+| M9 | let a run OPEN on a hard break | 2 cases; `selection starts on the break bytes` expected `alpha␠␠\n**bravo**\n`, actual `alpha**␠␠\nbravo**\n` |
+| M10 | let a run END on a hard break | `selection ends on the break bytes` expected `**alpha**␠␠\nbravo\n`, actual `**alpha␠␠\n**bravo\n` |
+
+M7 and M8 **survived the first round** and are recorded as such: both are lines
+this issue rewrote onto the shared predicate, and neither was covered by the
+mount/bytes cases. Coverage was added for each on the path a writer actually
+takes (insert a footnote at the end of a soft-broken paragraph; type a block
+marker on its second line), and both then died. M8 needed a discriminating
+input: MME-0120's verify-then-escape tiers mean losing the line-start signal does
+not corrupt the file, it drops the paragraph to the aggressive tier — so `\# bravo`
+is identical either way and only a marker next to punctuation shows the
+difference. That mechanism was measured on both mutants of the line, not assumed.
+
+The browser gate was mutation-proven too: M1 fails it with
+`the soft-broken paragraph must mount with a real <br>` and the DOM `<p>alphabravo</p>`;
+M6 fails its byte assertion; M10 fails the `run-ending-on-the-break` row.
+
+### Files changed
+
+- `packages/md-core/src/index.ts` — the constant, the predicate, the alias list.
+- `packages/md-format/src/index.ts` — producer map and two consumers onto the shared names.
+- `packages/md-rich-prosemirror/src/index.ts` — the mount fix, marks on image/hard_break, three whitelists, and the run-edge rule.
+- `tests/rich-mount-fidelity.test.mjs` — new, 30 cases.
+- `scripts/visual-check-mme0123.mjs` — new browser gate, 3 rows × 3 viewports.
+- `docs/internal/visual-checks/MME-0123/README.md` + artifacts — new.
+- `scripts/visual-gates.mjs`, `package.json` — gate and suite registration (`test:rich-mount-fidelity` is chained into `npm test`).
+- `tests/fixtures/public-api-approved.json` — rebaselined in this commit for the two new md-core exports, per the AGENT.md rule.
+
+### Tests run
+
+- `node tests/rich-mount-fidelity.test.mjs` — green, 30 cases.
+- `npm test` — green, exit 0, full chain.
+- `npm run visual` — exit 0: **41/78 passed, 37 known-failing (the pre-existing
+  MME-0116 quarantine), 0 anomalies, 0 unexpected failures**, 5 not selected
+  (opt-in registry/theia groups). `mme-0123` passes inside the suite, not only
+  standalone. Run because this issue changes exported fields, per the AGENT.md
+  rebaseline rule.
+- `node tests/alignment-gate.test.mjs`, `node scripts/docs-lint.mjs`,
+  `git diff --check` — all exit 0.
+- `node tests/visual-gate-integrity.test.mjs` — green.
+- `node tests/public-api-report.test.mjs` — green after the rebaseline.
+- Named suites green individually: `test:fixtures`, `test:roundtrip`, `test:parser`,
+  `test:serializer`, `test:serializer-escaping`, `test:rich-prosemirror`,
+  `test:rich-fidelity`, `test:rich-targeted-serialization`, `test:rich-mark-runs`,
+  `test:rich-trailing-newline`, `test:rich-commands`, `test:live-preview`,
+  `test:rich-input-rules`, `test:rich-input-pairing`, `test:rich-list-editing`,
+  `test:rich-core-interactions`, `test:rich-block-selection`, `test:rich-security`.
+
+### Manual / browser verification
+
+`npm run visual:mme-0123` against the demo dev server at `http://127.0.0.1:5174/`
+(started by `preview_start` / the visual runner, Vite, `apps/md-demo`). Three
+viewports (1280 dark, 390 touch, 1280 light), three rows each: neighbour
+untouched, break survives its own edit, run ending on the break. Real click, real
+`Home`/`Shift+End`/`Shift+ArrowDown`, real toolbar or selection-bubble press, real
+save through a writable handle, then a reopen of the saved bytes. Artifacts in
+`docs/internal/visual-checks/MME-0123/` with the evidence and the per-row
+reversion table in that folder's `README.md`.
+
+### Reviewer pass — Test Reviewer, mandatory, read-only, frozen tree
+
+Spawned with the read-only instruction in its own prompt, including an explicit
+ban on `npm run build` (a build rewrites `packages/*/dist` under a concurrently
+working builder). It rebuilt context from `AGENT.md`, the gates, the issue, and
+the BACKLOG provenance, then drove the built packages read-only.
+
+**Verdict: ACCEPT WITH FIXES.** One BLOCKER, three MAJOR, the rest minor.
+
+| Finding | Resolution |
+| --- | --- |
+| **BLOCKER** — a mark run ending or starting on a hard break writes literal `**` into the file; this issue made it reachable | Reproduced independently before acting, then fixed in the shared run grouper; three new cases and a new browser row, both guard halves mutation-proven (M9, M10) |
+| MAJOR — the mutation comment in the suite mixed two different inputs, so its recorded strings matched no row | Replaced with the row's own measured strings, and which rows are the kill is now stated |
+| MAJOR — no reversion-to-failure table anywhere, and no build-log entry | This entry, plus a per-gate table in the visual-checks README |
+| MAJOR — "the bold-across-break case round-trips to identical bytes" had no assertion | Added `**alpha␠␠\nbravo**\n` and its CRLF twin to the identity array |
+| MINOR — the hard-break half of the marks criterion had only a shape assertion | Added the symmetric byte case (`**alpha␠␠\nbravo!**\n`) |
+| MINOR — `isMomentariseLineBreakType` was public with one call site already narrowed to `KnownNode` | Made module-private; the call site uses the node predicate; removed from the approved public API |
+| MINOR — an `editTable` row used an unmarked source, so it re-tested MME-0121 rather than the mount | Source changed to `**a ![alt](i.png) b**\n` so the marks come from the mount |
+| MINOR — the gate asserted `<strong>` and `<br>` counts separately while claiming containment | Now asserts `strong br` |
+| MINOR — `pmShape` omitted attrs, so a mount with empty image attrs would pass | Image shape now includes `src` |
+| MINOR — the backslash break normalizes to two trailing spaces; newly reachable | Recorded in BACKLOG with the strip-on-save risk; current behaviour pinned by a test |
+| MINOR — no corpus fixture contains a hard break, either spelling | Recorded in BACKLOG, with the measured caveat that a fixture would not have caught this defect (identity replays source ranges); grouped with the MME-0122 corpus gap for one future slice |
+
+Reviewer verification worth keeping: it drove `insertRichFootnote` at five caret
+offsets around the break and found all five correct, establishing that the fix
+also repairs a **pre-existing off-by-one** — `modelInlineSize` already counted a
+`lineBreak` as 1 while the mount emitted nothing, so every caret past a break
+mapped one byte early. It confirmed block alignment is unaffected (both sides of
+the comparison come from the same mount function, and the rebuild forwards
+marks), that footnote-body re-indentation keeps a break valid, and that neither
+schema spec restricts marks. Its one unverified claim — a `<br>` pasted into a
+table cell terminating the row — is recorded in BACKLOG **as a hypothesis**,
+flagged as not measured end to end.
+
+### Committed visual artifacts are stale against HEAD (measured, not this issue)
+
+Running the full suite rewrote **242 tracked files** — all but one of them
+committed PNGs, across roughly forty other issues' artifact folders (the odd one
+out being `apps/docs-site/next-env.d.ts`, which Next rewrites when its dev
+server runs). The repository tracks 432 PNGs under `docs/internal/visual-checks/`
+in total, so a full run dirties over half of them, and all of it would have been
+swept into this commit unnoticed. They
+are not caused by MME-0123, and they are not run-to-run noise — both were
+measured rather than assumed:
+
+| `MME-0021/list-todo-rich-loaded.png` | md5 |
+| --- | --- |
+| committed at `40d3405` | `97acd01d0895cb0e605cd7d351dcfc5e` |
+| rendered by HEAD's source, this issue reverted | `830c472110419d6eee812d1fd3bdfdb0` |
+| rendered with this issue applied | `830c472110419d6eee812d1fd3bdfdb0` |
+
+Two consecutive runs on identical source produce identical bytes, so the gates
+are deterministic; the drift is between the committed artifacts and what the
+code has rendered for some time — later UI issues moved the pixels while these
+gates (most of them quarantined) were not re-run. All 245 were restored and this
+commit carries only its own `MME-0123/` artifacts, matching the convention of
+`62480e8` and `6c108a1`. Belongs to MME-0116's quarantine sweep; noted here
+because "run the visual suite" and "commit only your issue" now actively
+conflict, and the next issue to follow the rebaseline rule will hit it too.
+
+### Visual impact
+
+**Editing surface:** a paragraph written with a soft line break now renders as
+two lines in rich mode instead of one merged line — the first visible change,
+and the point of the issue. **What the writer gets:** editing such a paragraph
+no longer joins its lines on save; bold across an image or a line break stays
+one delimiter pair; bolding part of a two-line paragraph no longer writes
+literal asterisks. **General UI / inspector:** no change.

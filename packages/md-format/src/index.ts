@@ -1,5 +1,7 @@
 import {
   hashMarkdownContent,
+  isMomentariseLineBreakNode,
+  MOMENTARISE_LINE_BREAK_TYPE,
   nodeId,
   type Diagnostic,
   type DocumentHash,
@@ -618,7 +620,7 @@ function serializeMomentariseInlineList(
   let content = "";
   for (const node of nodes) {
     content += serializeMomentariseInline(node, source, escapeMode, atLineStart);
-    atLineStart = node.kind !== "opaque" && (node.type === "lineBreak" || node.type === "break");
+    atLineStart = isMomentariseLineBreakNode(node);
   }
   return content;
 }
@@ -631,6 +633,11 @@ function serializeMomentariseInline(
 ): string {
   if (node.kind === "opaque") {
     return node.raw;
+  }
+  // Ahead of the switch: a `case` label can only spell the type name, and
+  // spelling it is what MME-0123 forbids. The shared predicate owns it.
+  if (isMomentariseLineBreakNode(node)) {
+    return "  \n";
   }
   switch (node.type) {
     case "text":
@@ -647,9 +654,6 @@ function serializeMomentariseInline(
       return `**${serializeMomentariseInlineList(node.children ?? [], source, escapeMode)}**`;
     case "strikethrough":
       return `~~${serializeMomentariseInlineList(node.children ?? [], source, escapeMode)}~~`;
-    case "lineBreak":
-    case "break":
-      return "  \n";
     case "link": {
       // `escapeMarkdownLabel` owns the bracket/backslash escaping inside a link
       // label; threading the text escaper through it would escape its escapes.
@@ -1336,7 +1340,7 @@ function kindForMdastType(type: string): KnownNode["kind"] {
 function typeForMdastType(type: string): string {
   const typeMap: Record<string, string> = {
     blockquote: "blockquote",
-    break: "lineBreak",
+    break: MOMENTARISE_LINE_BREAK_TYPE,
     code: "codeFence",
     definition: "definition",
     delete: "strikethrough",

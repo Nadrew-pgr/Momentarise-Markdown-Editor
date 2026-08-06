@@ -1924,6 +1924,20 @@ Every block type keeps the document's final newline through the session/save lay
 
 ## MME-0123 — Mount fidelity: lineBreak nodes and marks on images and hard breaks
 
+**Status: SHIPPED. Do not re-implement.** The drift is closed by
+`MOMENTARISE_LINE_BREAK_TYPE` and `isMomentariseLineBreakNode` in
+`@momentarise/md-core`, called by both producers and all five consumers; no
+production code spells the type name any more.
+
+One thing the issue did not anticipate, found by its Test Reviewer and
+confirmed by measurement: restoring the break to the mounted document made a
+pre-existing corruption newly **reachable** — a mark run that begins or ends on
+a hard break emits delimiters that CommonMark will not read (`**alpha  \n**bravo`
+reopens as two literal asterisks with the bold gone), by one ordinary gesture
+(`Home`, `Shift+ArrowDown`). Fixed in the same commit by a rule in the shared
+run grouper: a run may contain a hard break, never begin or end on one. Recorded
+in `BACKLOG.md` under the whitespace-flanking class it belongs to.
+
 ### Goal
 
 Mounting a document into the rich view must not drop model content; today it silently loses hard line breaks and inline marks, which turns any later edit into data loss.

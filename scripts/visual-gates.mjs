@@ -282,6 +282,7 @@ export const VISUAL_GATES = [
   demoGate("mme-0104b", "mme0104b", "MME-0104b"),
   demoGate("mme-0120", "mme0120", "MME-0120"),
   demoGate("mme-0121", "mme0121", "MME-0121"),
+  demoGate("mme-0123", "mme0123", "MME-0123"),
   demoGate("mme-0117", "mme0117", "MME-0117"),
   demoGate("mme-0119", "mme0119", "MME-0119")
 ];

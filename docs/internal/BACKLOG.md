@@ -213,14 +213,18 @@ Measured against the built package while reviewing MME-0121; all pre-existing
 (the change under review touched serialization, not mounting), each needing its
 own RED. The first is data loss.
 
-- **Mounting drops model `lineBreak` nodes entirely.** `inlineNodeToProseMirror`
+- **Mounting drops model `lineBreak` nodes entirely.** *Resolved by MME-0123
+  (2026-08-06) — one shared constant and predicate in `@momentarise/md-core`,
+  called by every producer and consumer. Kept for history.*
+  `inlineNodeToProseMirror`
   handles only the `"break"` spelling but the parser emits `"lineBreak"`
   (measured: `paragraph[text("a"), lineBreak, text("b")]` for both a
   backslash-newline and a two-space break; the mounted ProseMirror doc holds the
   merged text `"ab"`). Any edit to such a paragraph silently joins the lines on
   save. Three whitelists in the same file accept both spellings — spelling
   drift between producer and consumer.
-- **Mounting drops marks on images and hard breaks.** `image.create` /
+- **Mounting drops marks on images and hard breaks.** *Resolved by MME-0123
+  (2026-08-06). Kept for history.* `image.create` /
   `hard_break.create` receive no marks argument, so loading
   `**a ![alt](i.png) b**` and editing the paragraph serializes the image
   outside the bold run. MME-0121's one-pair guarantee therefore holds for
@@ -231,9 +235,53 @@ own RED. The first is data loss.
   under the old wrapper): unbolding the middle of a bolded phrase yields
   `**a **x** b**`, which re-opens with the unbold reversed; italic applied
   over `" c"` yields `* c*`, literal asterisks. Needs CommonMark
-  flanking-aware delimiter placement or whitespace shifting.
+  flanking-aware delimiter placement or whitespace shifting. **The hard-break
+  case of this class was closed by MME-0123** (2026-08-06): restoring the break
+  at mount made it newly reachable by one ordinary gesture (`Home`,
+  `Shift+ArrowDown` in a two-line paragraph, measured
+  `**alpha  \n**bravo` — two literal asterisks, bold gone), so that issue added
+  the rule that a mark run may contain a hard break but may never begin or end
+  on one. The whitespace-flanked *text* cases above are untouched and still
+  need the general flanking work.
 - **Adjacent same-destination links merge into one link at mount** (ProseMirror
   mark model; near-equivalent semantics). Note only.
+
+#### Break-handling residue measured during MME-0123 (2026-08-06)
+
+Three findings from MME-0123 and its Test Reviewer. None is data loss; each is
+newly *reachable* because that issue restored the hard break to the mounted
+document, and each needs its own RED.
+
+- **A backslash line break is rewritten to two trailing spaces when its
+  paragraph is edited.** `serializeMomentariseInline` emits `"  \n"` for every
+  break regardless of how the source spelled it, so `alpha\␊bravo` comes back as
+  `alpha␠␠␊bravo`. The bytes still mean a hard break and still round-trip, so
+  this is normalization rather than loss — but it swaps an explicit, robust
+  marker for two trailing spaces that `trim_trailing_whitespace`, Prettier, and
+  most editors strip on save, at which point the line break IS lost by a later
+  tool. Pre-existing in the serializer; unreachable in rich mode before
+  MME-0123, because the break never survived the mount. The durable fix is to
+  carry the source spelling as a node attribute and re-emit it. Pinned as
+  current behaviour by `tests/rich-mount-fidelity.test.mjs`
+  ("bold a backslash-broken paragraph").
+- **No fixture in the corpus contains a hard break, of either spelling.**
+  Verified across all 82 files. Gate 4.5 says the identity round trip must hold
+  "for the full fixture corpus", and the corpus has never held the construct —
+  which is part of why the mount defect survived. Honest caveat, measured: a
+  corpus fixture would *not* have caught this defect, because the identity round
+  trip replays untouched blocks from their source ranges and never consults the
+  mount; only the edited-block half of that gate would have. Adding one fixture
+  ripples baselines across suites (`model-serializer-corpus-baseline.json` among
+  them), which is the same reason the MME-0122 corpus gap was deferred — the two
+  should be done in one slice.
+- **A hard break pasted into a table cell would terminate the row.**
+  `serializeInlineLeaf` emits `"  \n"` for a `hard_break` unconditionally, and a
+  newline inside a `| … |` row ends it. Not reachable from parsing (a GFM cell
+  is single-line, and MME-0123 measured that a mounted cell returns its original
+  bytes), but `hard_break`'s `parseDOM: [{tag: "br"}]` accepts a `<br>` from
+  pasted HTML. **Hypothesis, not measured end to end** — raised by the MME-0123
+  reviewer and recorded here rather than fixed, because confirming it needs its
+  own paste harness. Pre-existing and unchanged by MME-0123.
 
 #### Todo item presentation (2026-08-04)
 

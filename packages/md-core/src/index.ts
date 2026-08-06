@@ -172,6 +172,34 @@ export interface OpaqueNode extends MomentariseNodeBase {
 
 export type MomentariseNode = KnownNode | OpaqueNode;
 
+/**
+ * The Momentarise model's inline hard-line-break node type.
+ *
+ * Producers emit this constant; consumers recognise a break through
+ * `isMomentariseLineBreakNode`. Neither spells the name itself. MME-0123 exists
+ * because they did: the parser mapped mdast's `break` to `lineBreak` while the
+ * rich mounter tested for `"break"`, so every soft-broken paragraph mounted
+ * with its lines merged and any edit joined them on save. Three neighbouring
+ * whitelists happened to accept both spellings, which is precisely why the one
+ * that did not went unnoticed. One name, one predicate, no second list.
+ */
+export const MOMENTARISE_LINE_BREAK_TYPE = "lineBreak";
+
+/**
+ * `break` is mdast's spelling of the same node. It is accepted here — and
+ * nowhere else — so a hand-built node or an older serialized model still
+ * mounts, without giving any consumer a whitelist to copy incompletely.
+ */
+const MOMENTARISE_LINE_BREAK_TYPE_ALIASES: readonly string[] = [MOMENTARISE_LINE_BREAK_TYPE, "break"];
+
+function isMomentariseLineBreakType(type: string): boolean {
+  return MOMENTARISE_LINE_BREAK_TYPE_ALIASES.includes(type);
+}
+
+export function isMomentariseLineBreakNode(node: Pick<MomentariseNodeBase, "kind" | "type">): boolean {
+  return node.kind !== "opaque" && isMomentariseLineBreakType(node.type);
+}
+
 export interface MomentariseDocument {
   readonly root: KnownNode;
   readonly dialect: DocumentDialect;

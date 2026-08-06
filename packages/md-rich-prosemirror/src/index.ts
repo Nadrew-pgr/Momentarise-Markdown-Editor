@@ -10,7 +10,14 @@ import type {
   ParseResult,
   SourceRange
 } from "@momentarise/md-core";
-import { createHeadingNodeId, hashMarkdownContent, headingSegmentFromNodeId, nodeId as createNodeId } from "@momentarise/md-core";
+import {
+  createHeadingNodeId,
+  hashMarkdownContent,
+  headingSegmentFromNodeId,
+  isMomentariseLineBreakNode,
+  MOMENTARISE_LINE_BREAK_TYPE,
+  nodeId as createNodeId
+} from "@momentarise/md-core";
 import { createMarkdownAstFormatter, serializeMomentariseDocument } from "@momentarise/md-format";
 import {
   baseKeymap,
@@ -1778,7 +1785,7 @@ function sourceOffsetForModelInlineNode(
     const valueOffset = raw.indexOf(value);
     return valueOffset >= 0 ? range.start.offset + valueOffset + inlineOffset : null;
   }
-  if (["footnoteReference", "image", "break", "lineBreak"].includes(node.type)) {
+  if (["footnoteReference", "image"].includes(node.type) || isMomentariseLineBreakNode(node)) {
     return null;
   }
   return sourceOffsetForModelInlineList(node.children ?? [], source, inlineOffset);
@@ -1826,7 +1833,7 @@ function modelInlineSize(node: MomentariseNode): number {
   if (node.type === "text" || node.type === "inlineCode") {
     return (stringAttribute(node.attributes?.value) ?? "").length;
   }
-  if (["footnoteReference", "image", "break", "lineBreak"].includes(node.type)) {
+  if (["footnoteReference", "image"].includes(node.type) || isMomentariseLineBreakNode(node)) {
     return 1;
   }
   return (node.children ?? []).reduce((size, child) => size + modelInlineSize(child), 0);
@@ -5334,6 +5341,17 @@ function proseMirrorInlineRunToMomentariseNodes(
  * per-node wrapper treated non-text marks.
  */
 function groupableInlineMarks(node: ProseMirrorNode, consumedMarks: readonly Mark[]): readonly Mark[] {
+  if (node.type.name === "hard_break") {
+    // A run may CONTAIN a hard break — `selectInlineRun` reads the break's own
+    // marks to extend across it — but it may never open on one. An opening
+    // delimiter immediately before a line ending is not left-flanking, so
+    // CommonMark reads it as literal text: bolding `alpha⏎bravo` from the
+    // break onward wrote `alpha**  \nbravo**`, which reopens with two literal
+    // `**` and the bold gone. Unreachable before MME-0123, because the break
+    // itself was being dropped at mount (measured; the closing half is trimmed
+    // in `selectInlineRun`).
+    return [];
+  }
   return node.marks.filter(
     (mark) =>
       !consumedMarks.some((consumed) => consumed.eq(mark)) &&
@@ -5373,6 +5391,14 @@ function selectInlineRun(
         break;
       }
       end += 1;
+    }
+    // The closing half of the flanking rule: a run must not END on a hard
+    // break either, or the closing delimiter lands after the break's trailing
+    // spaces and stops being right-flanking (`**alpha  \n**bravo`). Trimming
+    // can never empty the run, because `groupableInlineMarks` has already
+    // refused to open one on a break.
+    while (end > index && nodes[end - 1]!.type.name === "hard_break") {
+      end -= 1;
     }
     const score = end * 2 + (candidate.type.name === "code" ? 0 : 1);
     if (score > best.score) {
@@ -5444,7 +5470,7 @@ function proseMirrorInlineNodeToMomentariseNodes(
     return [knownNode(nextId, "inline", "text", [], { value: node.text ?? "" })];
   }
   if (node.type.name === "hard_break") {
-    return [knownNode(nextId, "inline", "lineBreak", [])];
+    return [knownNode(nextId, "inline", MOMENTARISE_LINE_BREAK_TYPE, [])];
   }
   if (node.type.name === "image") {
     return [
@@ -9198,7 +9224,7 @@ function isRepresentableRichTableInlineNode(node: MomentariseNode): boolean {
   if (node.kind === "opaque") {
     return false;
   }
-  if (["text", "inlineCode", "image", "break", "lineBreak"].includes(node.type)) {
+  if (["text", "inlineCode", "image"].includes(node.type) || isMomentariseLineBreakNode(node)) {
     return true;
   }
   if (!["emphasis", "strong", "strikethrough", "link"].includes(node.type)) {
@@ -9384,18 +9410,26 @@ function inlineNodeToProseMirror(
     );
   }
   if (node.type === "image") {
+    // The marks argument is not optional decoration: an unmarked image inside a
+    // strong run splits it at both boundaries, so a loaded `**a ![i](x) b**`
+    // saved back as `**a **![i](x)** b**` — MME-0121's one-pair guarantee
+    // undone by the mount (MME-0123).
     return [
-      schema.nodes.image.create({
-        alt: stringAttribute(node.attributes?.alt) ?? "",
-        src: safeUrlAttribute(stringAttribute(node.attributes?.url), {
-          allowDataImage: true
-        }),
-        title: stringAttribute(node.attributes?.title)
-      })
+      schema.nodes.image.create(
+        {
+          alt: stringAttribute(node.attributes?.alt) ?? "",
+          src: safeUrlAttribute(stringAttribute(node.attributes?.url), {
+            allowDataImage: true
+          }),
+          title: stringAttribute(node.attributes?.title)
+        },
+        null,
+        marks
+      )
     ];
   }
-  if (node.type === "break") {
-    return [schema.nodes.hard_break.create()];
+  if (isMomentariseLineBreakNode(node)) {
+    return [schema.nodes.hard_break.create(null, null, marks)];
   }
   return inlineChildrenToProseMirror(node.children ?? [], schema, source, marks, markRawHtmlSource);
 }
