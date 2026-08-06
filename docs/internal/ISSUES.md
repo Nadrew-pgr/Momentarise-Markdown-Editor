@@ -1924,7 +1924,7 @@ Every block type keeps the document's final newline through the session/save lay
 
 ## MME-0123 — Mount fidelity: lineBreak nodes and marks on images and hard breaks
 
-**Status: SHIPPED. Do not re-implement.** The drift is closed by
+**Status: SHIPPED (commit `fd52256`). Do not re-implement.** The drift is closed by
 `MOMENTARISE_LINE_BREAK_TYPE` and `isMomentariseLineBreakNode` in
 `@momentarise/md-core`, called by both producers and all five consumers; no
 production code spells the type name any more.

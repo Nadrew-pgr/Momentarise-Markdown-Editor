@@ -11114,6 +11114,7 @@ No visible editing or general UI changes — no production change ships.
 
 - Date: 2026-08-06.
 - Block: C2d (first issue). Builder model: opus-5.
+- Commit: `fd52256`.
 - Status: implemented, mutation-proven (10 mutants, zero survivors), browser-proven
   across 3 viewports, reviewed by a read-only Test Reviewer whose BLOCKER was
   reproduced independently and fixed in this commit.
