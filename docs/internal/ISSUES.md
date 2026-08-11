@@ -119,7 +119,6 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | C2b | MME-0104a ✅, 0104b ✅ | Input rules; pairing and paste-link — shipped | opus-4.8 | done 2026-08-04; 0115 deliberately not started |
 | C2c | MME-0120 ✅, 0121 ✅, 0122 ✅ | Serializer escaping; mark runs; fence newline — shipped | opus-4.8 | done 2026-08-05; 0115 measured and reverted with handoff |
 | C2d | MME-0123 ✅, 0115 (attempt 2, reverted) | Mount fidelity (data loss); composition cancel path | opus-5 / fable-5 | done 2026-08-06; 0123 shipped, 0115 measured and reverted with a converging design |
-| C3 | MME-0116 | Empty the gate quarantine | opus-4.8 | `npm run visual` exits zero, quarantine empty |
 | Cd | MME-0118 | Docs correctness repair (may run parallel, own branch) | sonnet-5 | Andrew follows the vanilla quickstart and it works |
 | D | MME-0089, 0090, 0091, 0105, 0106 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
 | D2 | MME-0107, 0108 | Markdown-native differentiators | opus-5 / fable-5 | Andrew judges syntax reveal before it defaults |
@@ -1706,6 +1705,7 @@ Empty the quarantine list MME-0114 created: repair or retire every `known-failin
 - `MME-0080`'s gate is rewritten against the element that actually scrolls, and re-run; its result is recorded against the original issue's evidence so the vacuous acceptance is corrected in the log rather than quietly overwritten.
 - Every repaired gate is mutation-tested per the `AGENT.md` rule.
 - `npm run visual` exits zero with no `known-failing` entries remaining.
+- **Artifact policy (decided 2026-08-06 after MME-0123's run dirtied 242 tracked PNGs, none caused by its change):** committed screenshots that drift on every re-render are false evidence and make "run the visual suite" conflict with "commit only your issue". Resolve it structurally: PNGs become unversioned gate outputs (gitignored, uploaded as CI artifacts), while each gate's `result.json` and README — the deterministic, reviewable proof — stay committed. Purge the currently committed PNGs in one dedicated commit, and make the gate-integrity test reject any newly committed PNG under `docs/internal/visual-checks/`. If a specific screenshot is load-bearing evidence for an issue record, it may be kept by exception, listed in the gate manifest with a reason.
 
 ### Test-first plan
 
@@ -1923,6 +1923,8 @@ Every block type keeps the document's final newline through the session/save lay
 - None.
 
 ## MME-0123 — Mount fidelity: lineBreak nodes and marks on images and hard breaks
+
+**Status: SHIPPED (commit `fd52256`). Do not re-implement.**
 
 **Status: SHIPPED (commit `fd52256`). Do not re-implement.** The drift is closed by
 `MOMENTARISE_LINE_BREAK_TYPE` and `isMomentariseLineBreakNode` in

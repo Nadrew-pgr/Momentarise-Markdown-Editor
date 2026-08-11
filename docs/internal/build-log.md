@@ -11499,3 +11499,12 @@ preservation rule this project holds hardest.
 
 No visible editing or general UI changes — no production change ships from this
 attempt.
+
+## Block C2d review (human-side, Andrew's reviewer) — 2026-08-06
+
+- Scope: `fd52256`/`74d83e5` (MME-0123), `561ef65` (MME-0115 attempt 2 record). Verified: commits present, tree clean, synced.
+- Verdict: MME-0123 accepted; the second MME-0115 revert accepted as correct — shipping it would have converted visible data loss into a silent byte defect, the hardest rule.
+- MME-0123 highlights: the structural close is real (one constant, `MOMENTARISE_LINE_BREAK_TYPE` + predicate, five consumers; no production code spells the type any more); the reviewer's BLOCKER was independently reproduced before acting (restoring the break made a pre-existing run-grouper corruption reachable by one ordinary gesture) and fixed at the shared grouper; the browser gate was proven able to fail before being trusted; and a false count in the build log was caught by the claims rule and corrected from instrumentation.
+- MME-0115: attempt 2 SOLVED the cancel restore (compositionend.data discriminator + idempotent view.composing-gated watchdog). Residual is the demo's re-anchoring baseline. Layer decision recorded in the issue: fix the class package-side (restore-transaction signal / no-baseline-while-composing rule), demo as first consumer; demo-only patches rejected. Scheduled as Block C2e after C3.
+- Artifact-policy decision recorded in MME-0116: PNGs become unversioned gate outputs with CI upload; `result.json` + READMEs stay committed; one purge commit; integrity test rejects newly committed PNGs; load-bearing exceptions listed in the manifest with a reason.
+- Checks: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`. Push: pushed.
