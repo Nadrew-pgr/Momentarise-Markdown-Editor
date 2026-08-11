@@ -16,3 +16,17 @@ out/
 # the summary that matters is recorded in docs/internal/build-log.md, and CI uploads the
 # JSON as a build artifact.
 docs/internal/visual-checks/visual-gate-report.json
+
+# MME-0116: screenshots are gate OUTPUT, not evidence. Every `npm run visual` re-renders
+# them, so committing them made "run the suite before you commit" and "commit only your
+# issue" contradict each other — MME-0123's run dirtied 242 tracked PNGs, none caused by
+# its change, and the reflex that teaches (`git checkout -- docs/internal/visual-checks/`)
+# is the same reflex that would hide a real rendering regression. Each gate's result.json
+# and README.md stay committed: those are diffable. CI uploads the images.
+#
+# The exceptions below are declared in KEPT_VISUAL_ARTIFACTS in scripts/visual-gates.mjs
+# with a reason and an owning issue; tests/visual-gate-integrity.test.mjs keeps the two
+# lists in sync and rejects any other committed PNG.
+docs/internal/visual-checks/**/*.png
+!docs/internal/visual-checks/MME-0011.5/*.png
+!docs/internal/visual-checks/MME-0100/before/*.png

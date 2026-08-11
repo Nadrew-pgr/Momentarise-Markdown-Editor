@@ -287,6 +287,43 @@ export const VISUAL_GATES = [
   demoGate("mme-0119", "mme0119", "MME-0119")
 ];
 
+/**
+ * MME-0116 — the artifact policy, decided 2026-08-06.
+ *
+ * A screenshot under `docs/internal/visual-checks/` is gate *output*, not
+ * evidence. Every `npm run visual` re-renders it, so committing screenshots made
+ * two rules of this repository contradict each other: "run the visual suite
+ * before your commit" and "commit only your own issue". MME-0123's run dirtied
+ * 242 tracked PNGs, not one of them caused by its change, and the reflex that
+ * teaches — `git checkout -- docs/internal/visual-checks/` — is the same reflex
+ * that hides a real rendering regression.
+ *
+ * So the images are gitignored and uploaded by CI, while each gate's
+ * `result.json` and `README.md` — the deterministic, reviewable proof a human
+ * can diff — stay committed.
+ *
+ * A screenshot may be kept only when it is load-bearing evidence *and* nothing
+ * in the suite reproduces it. Both entries below are that: no gate in
+ * `VISUAL_GATES` writes into either directory, so purging them would delete the
+ * only copy rather than remove drift. `tests/visual-gate-integrity.test.mjs`
+ * rejects every other committed PNG, and rejects an entry here that no longer
+ * matches a tracked file, so the exception list cannot quietly become the rule.
+ */
+export const KEPT_VISUAL_ARTIFACTS = [
+  {
+    issue: "MME-0011.5",
+    path: "docs/internal/visual-checks/MME-0011.5",
+    reason:
+      "MME-0011.5 has no gate script and no package.json entry: its artifacts came from `visual:mme-0011` under an MME_VISUAL_DIR override the manifest does not run. `tests/alignment-gate.test.mjs` requires the build-log entry that cites `unsupported-local-file-state.png` as the alignment gate's evidence, and the issue is still `code-complete/pending human review`."
+  },
+  {
+    issue: "MME-0100",
+    path: "docs/internal/visual-checks/MME-0100/before",
+    reason:
+      "The pre-extraction rendering in MME-0100's before/after proof. It cannot be reproduced without reverting the extraction, which is why only the `after` label is in the manifest; deleting it destroys one half of a comparison rather than a regenerable render."
+  }
+];
+
 export function gateById(id) {
   return VISUAL_GATES.find((gate) => gate.id === id);
 }

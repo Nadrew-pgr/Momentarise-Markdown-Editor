@@ -18,6 +18,7 @@
  */
 
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -32,7 +33,14 @@ import {
 } from "../scripts/visual-artifacts.mjs";
 import { SAVE_TRUTH_PAIR_EXPRESSION, assertSaveTruthPair } from "../scripts/visual-save-truth.mjs";
 import { DEMO_DISCLOSURES, openDemoDisclosuresExpression } from "../scripts/visual-demo-disclosures.mjs";
-import { DEFAULT_GROUPS, KNOWN_FAILING, OPT_IN_GROUPS, VISUAL_GATES, VISUAL_SERVERS } from "../scripts/visual-gates.mjs";
+import {
+  DEFAULT_GROUPS,
+  KEPT_VISUAL_ARTIFACTS,
+  KNOWN_FAILING,
+  OPT_IN_GROUPS,
+  VISUAL_GATES,
+  VISUAL_SERVERS
+} from "../scripts/visual-gates.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relativePath) => readFileSync(join(repoRoot, relativePath), "utf8");
@@ -476,7 +484,102 @@ assertSaveTruthPair(
 );
 
 /* ------------------------------------------------------------------ *
- * 9. The strings that are evaluated in a browser must at least parse.
+ * 9. The artifact policy (MME-0116, decided 2026-08-06).
+ *
+ * Screenshots are gate output. They re-render on every run, so committing them
+ * put "run the visual suite before committing" and "commit only your issue" in
+ * direct conflict: MME-0123's run dirtied 242 tracked PNGs, none of them caused
+ * by its change. The images are gitignored and uploaded by CI; `result.json` and
+ * `README.md` stay committed because they are diffable.
+ *
+ * This section is what stops the policy decaying back. A newly committed PNG is
+ * rejected unless it is declared in `KEPT_VISUAL_ARTIFACTS` with a reason and an
+ * owning issue — the same accountability the quarantine requires, so keeping a
+ * screenshot is a deliberate act rather than the path of least resistance.
+ * ------------------------------------------------------------------ */
+
+const VISUAL_CHECKS_DIR = "docs/internal/visual-checks";
+
+/*
+ * Deliberately not a `try { … } catch { skip }`. A check that silently disables
+ * itself when its precondition is missing is the exact defect this suite exists
+ * to prevent — Block B3 shipped a gate that reported green while disabled
+ * because this repository's directory name contains a space.
+ */
+let trackedVisualFiles;
+try {
+  trackedVisualFiles = execFileSync("git", ["ls-files", "-z", "--", VISUAL_CHECKS_DIR], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  })
+    .split("\0")
+    .filter(Boolean);
+} catch (error) {
+  throw new Error(
+    `The artifact policy check needs \`git ls-files\` to see what is committed under ${VISUAL_CHECKS_DIR}; git failed: ${error.message}`
+  );
+}
+
+const isUnder = (file, directory) => file === directory || file.startsWith(`${directory}/`);
+
+for (const kept of KEPT_VISUAL_ARTIFACTS) {
+  assert.ok(
+    kept.path?.startsWith(`${VISUAL_CHECKS_DIR}/`),
+    `A kept-artifact entry must point inside ${VISUAL_CHECKS_DIR}; it points at ${JSON.stringify(kept.path)}.`
+  );
+  assert.ok(
+    typeof kept.reason === "string" && kept.reason.length > 0,
+    `${kept.path}: a kept screenshot must record why it survives the purge. Nothing stays committed anonymously.`
+  );
+  assert.match(
+    String(kept.issue),
+    /^MME-\d{4}(\.\d+)?$/,
+    `${kept.path}: a kept screenshot must name the issue whose record it is evidence for.`
+  );
+  /*
+   * A kept path that matches nothing is how the exception list would rot into a
+   * blanket permission: it stops describing the tree, and the next reviewer
+   * reads it as broader than it is.
+   */
+  assert.ok(
+    trackedVisualFiles.some((file) => isUnder(file, kept.path) && file.endsWith(".png")),
+    `${kept.path}: declared as a kept screenshot but no committed PNG matches it. Remove the entry, or restore the evidence it claims to protect.`
+  );
+}
+
+const undeclaredScreenshots = trackedVisualFiles.filter(
+  (file) => file.endsWith(".png") && !KEPT_VISUAL_ARTIFACTS.some((kept) => isUnder(file, kept.path))
+);
+
+assert.deepEqual(
+  undeclaredScreenshots,
+  [],
+  `${undeclaredScreenshots.length} committed screenshot(s) under ${VISUAL_CHECKS_DIR} are not declared in KEPT_VISUAL_ARTIFACTS:\n` +
+    `${undeclaredScreenshots.slice(0, 10).map((file) => `  ${file}`).join("\n")}\n` +
+    "Screenshots are gate output: every run re-renders them, so a committed one is drift, not evidence. Let them be gitignored and read them from the CI artifact instead. " +
+    "If one really is load-bearing for an issue record and nothing reproduces it, declare it in KEPT_VISUAL_ARTIFACTS with a reason and an owning issue."
+);
+
+/*
+ * The manifest states the policy; `.gitignore` is what enforces it on a laptop.
+ * They are one fact, so a change to either that leaves the other behind fails
+ * here rather than at the next surprise commit.
+ */
+const gitignore = read(".gitignore");
+assert.ok(
+  gitignore.includes(`${VISUAL_CHECKS_DIR}/**/*.png`),
+  `.gitignore must ignore ${VISUAL_CHECKS_DIR}/**/*.png; without it the purge lasts exactly one visual run.`
+);
+for (const kept of KEPT_VISUAL_ARTIFACTS) {
+  assert.ok(
+    gitignore.includes(`!${kept.path}/`),
+    `.gitignore must re-include ${kept.path}/ — it is declared kept in the manifest but the ignore rule would hide it.`
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * 10. The strings that are evaluated in a browser must at least parse.
  *
  * A typo in either expression is otherwise discovered only by a browser run,
  * which is the slowest possible feedback loop for a syntax error.

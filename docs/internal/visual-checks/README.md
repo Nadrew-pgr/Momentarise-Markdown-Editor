@@ -11,6 +11,38 @@ Do not mark an issue visually verified if the browser or screenshot tooling was 
 
 Visual scripts resolve Chrome/Chromium through the shared `scripts/chrome-helpers.mjs` helper. Set `CHROME_BIN` when Chrome is installed in a non-standard location.
 
+## The artifact policy (MME-0116, decided 2026-08-06)
+
+**Screenshots are gate output. They are not committed.**
+
+A PNG here is re-rendered by every `npm run visual`. Committing them put two of this repository's own rules in direct conflict — *run the visual suite before your commit* and *commit only your issue* — because a full run rewrites every image in the tree. MME-0123's run dirtied 242 tracked PNGs, not one of them caused by its change. The habit that resolves the conflict, `git checkout -- docs/internal/visual-checks/`, is the same habit that would throw away a real rendering regression.
+
+So:
+
+| Artifact | Committed? | Why |
+| --- | --- | --- |
+| `*.png` | **No** — gitignored, uploaded by CI as `visual-gate-screenshots` | Re-rendered every run; a diff of one is noise, not signal |
+| `result.json`, `measurements.json` | Yes | Deterministic and reviewable — a human can read what changed |
+| `README.md` | Yes | Says what the gate proves and how to reproduce it |
+| `visual-gate-report.json` | No — gitignored, uploaded as `visual-gate-report` | Describes one run |
+
+To see the images for a run, download the `visual-gate-screenshots` artifact from that CI run, or reproduce them locally:
+
+```bash
+npm run visual -- --only mme-0055
+```
+
+Build-log entries written before 2026-08-06 cite screenshot paths under this directory. Those paths still name the artifact the gate produces — they are now reproduced by the command above rather than read out of the tree.
+
+### Keeping a screenshot by exception
+
+A screenshot may stay committed only when it is load-bearing evidence for an issue record **and** nothing in the suite reproduces it. Declare it in `KEPT_VISUAL_ARTIFACTS` in `scripts/visual-gates.mjs` with a reason and an owning issue, and add the matching `!` negation to `.gitignore`. Two entries qualify today:
+
+- `MME-0011.5/` — no gate script and no `package.json` entry; the artifacts came from `visual:mme-0011` under an `MME_VISUAL_DIR` override the manifest does not run, and `tests/alignment-gate.test.mjs` requires the build-log entry that cites one of them.
+- `MME-0100/before/` — the pre-extraction half of a before/after proof, unreproducible without reverting the extraction.
+
+`npm run test:visual-gate-integrity` rejects any other committed PNG, rejects an entry whose reason or owning issue is missing, and rejects an entry that no longer matches a tracked file — so the exception list cannot quietly become the rule.
+
 ## Running the gates (MME-0114)
 
 One command runs the whole suite. It starts the dev servers the gates need, runs them, tears the servers down, writes `visual-gate-report.json` here (gitignored — it describes one run), and exits non-zero if a gate expected to pass fails:

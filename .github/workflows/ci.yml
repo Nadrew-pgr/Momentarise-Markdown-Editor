@@ -141,6 +141,20 @@ jobs:
           name: visual-gate-report
           path: docs/internal/visual-checks/visual-gate-report.json
 
+      # MME-0116: screenshots stopped being committed here. They re-render on every run, so
+      # a tracked PNG recorded drift rather than evidence and made "run the suite before you
+      # commit" fight "commit only your issue" — MME-0123's run dirtied 242 of them, none
+      # caused by its change. This upload is where a human now looks at what a gate rendered;
+      # the committed result.json and README next to it are what a human diffs.
+      - name: Upload visual gate screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-gate-screenshots
+          path: docs/internal/visual-checks/**/*.png
+          if-no-files-found: error
+          retention-days: 30
+
   example-next-app:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest

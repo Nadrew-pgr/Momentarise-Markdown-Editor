@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const requiredFiles = [
   "scripts/visual-check-mme0030.mjs",
@@ -62,6 +62,17 @@ for (const snippet of [
   assert(styles.includes(snippet), `MME-0030 styles missing public-theme selector: ${snippet}`);
 }
 
+/*
+ * MME-0116: this loop used to also `existsSync` and size-check each PNG on disk.
+ * Screenshots are no longer committed — they are gate output, regenerated on every
+ * `npm run visual` and uploaded by CI — so an on-disk check here would assert that
+ * whoever runs `npm test` has previously run the browser suite on this machine.
+ * The property it was reaching for ("the gate actually produced its proof") is
+ * enforced better by the runner's `countFreshArtifacts`, which requires the file to
+ * have been written *during this run* rather than merely to exist. What stays here
+ * is the deterministic half: the gate script and its README must both still name
+ * every artifact, so dropping one silently is still caught by `npm test`.
+ */
 for (const artifact of [
   "theme-dark-desktop.png",
   "theme-dark-mobile.png",
@@ -78,9 +89,6 @@ for (const artifact of [
 ]) {
   assert(visual.includes(artifact), `MME-0030 visual script missing artifact: ${artifact}`);
   assert(readme.includes(artifact), `MME-0030 visual README missing artifact: ${artifact}`);
-  const artifactPath = `docs/internal/visual-checks/MME-0030/${artifact}`;
-  assert(existsSync(artifactPath), `MME-0030 visual artifact missing on disk: ${artifactPath}`);
-  assert(statSync(artifactPath).size > 1024, `MME-0030 visual artifact is unexpectedly small: ${artifactPath}`);
 }
 
 for (const benchmark of ["BlockNote", "Notion", "Obsidian"]) {
