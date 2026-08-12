@@ -11834,3 +11834,15 @@ None.
 
 - `26ef0f9` — artifact policy and the dedicated PNG purge.
 - `1636e1d` — the 37 gate repairs, the emptied quarantine, and this entry.
+
+## Block C3 review (human-side, Andrew's reviewer) — 2026-08-12
+
+- Scope: `26ef0f9` (artifact policy), `1636e1d` (37 gate repairs), `95fda4e` (hashes). Verified independently: commits present, tree clean, synced; 9 PNGs remain tracked, matching the declared exceptions exactly (426 purged); the quarantine list is empty (only the mechanism's own definition remains in `visual-gates.mjs`).
+- Verdict: MME-0116 accepted. `npm run visual` exits 0 with 78 passing gates, zero known-failing, zero anomalies — the first time the visual suite has been both complete and meaningful.
+- Highlights: **no gate was retired** — every one had a real property under its stale assertion, which retroactively justifies the "repair, do not weaken" rule. `MME-0080`'s gate passed for the first time (it scrolled `.ProseMirror`, `overflow-x: visible`; rewritten against `.rich-editor-host`, `overflow-x: auto`, measured 400→463 of a 463 maximum) and the correction was recorded against the original issue's evidence rather than quietly overwritten. Three further defects surfaced only because repairs went deeper than the point where each gate previously died: `mme-0042` measured a 16px fold gutter as its "last block" and clicked outside the editor, `mme-0013.5` placed no caret and typed nothing at all, `mme-0018` opened the slash menu before the rich mount settled.
+- The reviewer's most valuable catch: `mme-0004` had dropped `source preserved` alongside a genuinely stale parser check, leaving the round-trip gate passing on a failing round trip — the exact defect class this issue exists to end, and it would have shipped. Independently confirmed by the builder before acting. 45 mutants, 45 killed, with five faulty mutants recorded and three unfalsifiable assertions deleted rather than left in place.
+- Two flagged items resolved by this review:
+  1. **Table defect, mine.** The `C2e` row (MME-0115 attempt 3) was overwritten by an overlapping replacement in my 2026-08-06 edit, leaving `MME-0116` unassigned; the builder correctly added the `C3` row rather than proceed silently. `C2e` is restored, and a block-table integrity rule now requires re-reading the table after any edit and forbids overlapping replacements in one pass.
+  2. **Stale `dist/` after mutation rounds.** Gate scripts run against built output, so a suite run straight after mutation can report a failure that exists only in stale `dist/` — it already caused one false diagnosis this block. `AGENT.md` now requires a rebuild after any mutation round before any suite result is reported or acted on.
+- Open questions accepted as recorded, none blocking: the artifact staleness rule proves recency rather than meaning and is now explicitly unowned; the `selection` AI entry-point inconsistency stays with `MME-0098`; the `visual-gates` CI job has still never executed — it will first run on the next push that touches a gate.
+- Checks: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`. Push: pushed.

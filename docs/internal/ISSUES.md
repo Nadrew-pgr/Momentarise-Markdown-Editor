@@ -53,6 +53,12 @@ Rules for every spec written into this file:
 - Scope claims get a feasibility probe against the built artifact before promotion — the MME-0104 analysis ("measured against the built package, not inferred from grep") is the model.
 - When a builder disproves a spec premise, that is a valid and valuable outcome: record it in the build log, correct the spec, and check whether the error is a class (fix the rule) or a one-off (fix the spec).
 
+### Block-table integrity (2026-08-12)
+
+The block table is the only artifact that defines execution order, so a row lost to an edit is a silently unassigned issue. It has happened once: a `C2e` row added on 2026-08-06 was overwritten by an overlapping replacement in the same pass, and the C3 builder had to notice `MME-0116` was unassigned and add its row itself.
+
+Rules: after any edit to the table, re-read it and confirm every issue that is not marked `**Status: SHIPPED**` appears in exactly one row. When an agent finds its own issue unassigned, adding the row is correct — record it in the build log as a table defect rather than proceeding silently. Never apply two overlapping replacements to the table in one pass; edit it once, then verify.
+
 ### Issue ID allocation (2026-08-02)
 
 A numbering collision happened: two different issues were both created as `MME-0118` by two agents working in parallel. Before creating an issue, `grep "^## MME-" docs/internal/ISSUES.md | tail -20` and take the next free number **above every number that appears**, including ones in the historical section. If two issues collide anyway, the one created first keeps the number and the later one is renumbered, including every self-reference in its own body.
@@ -120,6 +126,7 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | C2c | MME-0120 ✅, 0121 ✅, 0122 ✅ | Serializer escaping; mark runs; fence newline — shipped | opus-4.8 | done 2026-08-05; 0115 measured and reverted with handoff |
 | C2d | MME-0123 ✅, 0115 (attempt 2, reverted) | Mount fidelity (data loss); composition cancel path | opus-5 / fable-5 | done 2026-08-06; 0123 shipped, 0115 measured and reverted with a converging design |
 | C3 | MME-0116 ✅ | Visual gate assertion repair; artifact policy | opus-5 | done 2026-08-12; quarantine emptied, `npm run visual` exits 0 |
+| C2e | MME-0115 (attempt 3) | Composition cancel — land the attempt-2 design, package-side | opus-5 / fable-5 | cancel restores selection AND bytes, in demo and headless |
 | Cd | MME-0118 | Docs correctness repair (may run parallel, own branch) | sonnet-5 | Andrew follows the vanilla quickstart and it works |
 | D | MME-0089, 0090, 0091, 0105, 0106 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
 | D2 | MME-0107, 0108 | Markdown-native differentiators | opus-5 / fable-5 | Andrew judges syntax reveal before it defaults |

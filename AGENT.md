@@ -214,6 +214,10 @@ A slice is not complete if it only looks implemented. It is complete only when i
 
 Do not satisfy an issue with a toy implementation that passes superficial checks but violates the framework goal. If the issue cannot be tested honestly, stop and ask for clarification.
 
+### Rebuild after mutation testing, before trusting any suite
+
+Gate scripts run against built `dist/`, not source. A mutation round leaves `dist/` in whatever state the last mutant produced, so a suite run straight after mutation can report a failure that exists only in stale build output — this has already cost one false diagnosis. Run the package build after any mutation round and before any suite run whose result you intend to report or act on.
+
 ### Rebaseline contract changes in the same commit
 
 An issue that deliberately changes a rendered string, DOM id, class name, exported field, or default must run `npm run visual` as well as `npm test` before its commit, and update every assertion its change invalidated in that same commit. The visual suite is not inside `npm test`, which is exactly how nine stale pins survived three shipped issues unnoticed. Leaving a gate red for a later issue is quarantine, and quarantine requires the recorded reason and owning issue from the MME-0114 mechanism.
