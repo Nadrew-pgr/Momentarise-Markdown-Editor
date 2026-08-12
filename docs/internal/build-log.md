@@ -12265,3 +12265,16 @@ None.
   can lift a list item out of its list, which is why the turn-into control is
   disabled there. MME-0105 owns it; this gate pins the disabled state so that
   issue must revisit the row.
+
+### Suites, commit, push
+
+- `npm test`: exit 0 on the committed tree.
+- `npm run visual`: **80/80 passed, 0 known-failing, 0 anomalies, 0 unexpected
+  failures, 5 not selected** (the opt-in `registry` and `theia` groups). Run in
+  full because this issue changes a default, a rendered string (`H3` became
+  `Heading 3`) and a public export.
+- `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
+- One unrelated generated file was restored rather than committed:
+  `apps/docs-site/next-env.d.ts`, which a Next dev server rewrote during the
+  visual run.
+- Commit: `8f4156c`. Push: pushed to `origin/main`.
