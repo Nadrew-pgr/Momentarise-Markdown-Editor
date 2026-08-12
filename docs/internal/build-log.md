@@ -12041,3 +12041,16 @@ Cancelling an accented character over a selected block puts the blocks back
 instead of deleting them, and the selection stays painted. Committing one
 replaces the selection exactly as an ordinary keystroke does. No other visible
 editing or general UI change.
+
+## Block C2e review (human-side, Andrew's reviewer) — 2026-08-12
+
+- Scope: `7fd28e7` (implementation), `5df5b6a` (results). Verified: both present, tree clean, synced with origin.
+- Verdict: MME-0115 accepted at attempt 3. The preservation wave that began at MME-0103 is closed.
+- What makes this attempt right: the fix is purely additive inside the plugin set every consumer already installs, so it is reachable by default rather than opt-in; the baseline rule ships as two package exports with the demo as their first consumer, which is exactly the layer decision recorded on 2026-08-06 — a demo-only patch was refused.
+- Two handoff premises disproved by measurement and recorded rather than quietly worked around: `view.composing` is not the guard window (ProseMirror dispatches a document change at `compositionstart` before setting it), and `addToHistory: false` on the restore corrupts the following undo, because history replays the composition's inverse steps onto the restored document. Both would have produced a plausible-looking fix that failed in use.
+- One mechanism deleted rather than shipped: the restore initially carried the composition's history id, no mutant could kill it, and measurement showed the restore always lands inside the composition's undo event by adjacency. Removing unfalsifiable machinery is the correct outcome of the mutation rule and is worth naming as such.
+- Reviewer value again decisive: the Accessibility Reviewer found the drain standing down after ~48 ms while the code documented 600 ms, so a flush at +80 ms destroyed the block silently while the live region announced "Block selection cleared" — indistinguishable from a deliberate Escape. The Test Reviewer found two mutants being killed for the wrong reason and browser cancel rows with no positive control.
+- Honest self-report retained: one early mutation battery was discarded because the harness's first-occurrence replace corrupted the source and produced six meaningless kills. Recording a discarded battery rather than counting it is the behavior the mutation rule depends on.
+- Open question resolved: the host-transaction announcement loss is promoted as `MME-0124` and scheduled into Block D, where the surface work already lives. It is pre-existing, affects the plain-keystroke path, and its acceptance requires a class fix plus a real assistive-technology observation path — asserting that a DOM node holds a string is explicitly insufficient.
+- Three residuals accepted as recorded: the demo's re-render consuming the one-shot notice (now MME-0124), a composition committed to empty text reading as a cancel (folded into MME-0124's scope decision), and a save forced inside the guard window writing pre-composition bytes and self-correcting.
+- Checks: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`. Push: pushed.

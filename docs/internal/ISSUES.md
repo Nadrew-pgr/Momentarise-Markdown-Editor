@@ -128,7 +128,7 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | C3 | MME-0116 ✅ | Visual gate assertion repair; artifact policy | opus-5 | done 2026-08-12; quarantine emptied, `npm run visual` exits 0 |
 | C2e | MME-0115 ✅ (attempt 3) | Composition cancel — the attempt-2 design plus the package-side baseline rule | opus-5 / fable-5 | done 2026-08-12; cancel restores selection AND bytes, proven with real CDP IME and headlessly |
 | Cd | MME-0118 | Docs correctness repair (may run parallel, own branch) | sonnet-5 | Andrew follows the vanilla quickstart and it works |
-| D | MME-0089, 0090, 0091, 0105, 0106 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
+| D | MME-0089, 0090, 0091, 0105, 0106, 0124 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
 | D2 | MME-0107, 0108 | Markdown-native differentiators | opus-5 / fable-5 | Andrew judges syntax reveal before it defaults |
 | D3 | MME-0109 | Full-surface UX audit | opus-4.8 | Andrew reviews and appends |
 | E | MME-0098 | AI writing surface (BlockNote tier) | opus-5 / fable-5 | Andrew tries the AI flow |
@@ -1976,6 +1976,8 @@ Mounting a document into the rich view must not drop model content; today it sil
 
 ## MME-0115 — Composition input over a block selection
 
+**Status: SHIPPED (commit `7fd28e7`, attempt 3). Do not re-implement.**
+
 ### Goal
 
 Make typing with a composition event replace a block selection, the way an ordinary keystroke does.
@@ -2052,6 +2054,32 @@ Typing an accented character over a selected block replaces it instead of editin
 ### Blocked by
 
 - MME-0103 (shipped).
+
+## MME-0124 — Host transactions consume the block layer's one-shot announcement
+
+### Goal
+
+Make block-selection state changes reliably announced to assistive technology, on every path.
+
+### Defect (measured 2026-08-12 during MME-0115 attempt 3, pre-existing — not caused by that issue)
+
+`refreshFindMatches` dispatches a transaction that clears the block layer's one-shot live-region notice before any screen reader can observe it. It fires on the plain-keystroke path as much as the composition path, so a blind user gets silence where a sighted user sees blocks appear, vanish, or be replaced. Adjacent residual from the same attempt, to fix or explicitly scope out here: a composition committed to empty text currently reads as a cancel.
+
+### Acceptance criteria
+
+- A block-selection announcement survives any number of intervening host transactions until an assistive technology has had a chance to observe it — the notice is not a value cleared by the next dispatch. The mechanism is the builder's call (a sequence number the host cannot clobber, a time-based hold, or an announcement queue) provided it is the class fix: any host dispatching its own transactions must not be able to swallow announcements by accident.
+- Covered paths: selection made, cleared, replaced by typing, replaced by a committed composition, restored after a cancelled composition, and deleted — each with the correct distinct message, not a generic one.
+- Proven with a real assistive-technology observation path, not by asserting that a DOM node holds a string: the browser gate must show the live region carried the message across at least one intervening unrelated transaction.
+- The demo is a consumer of the fix, not the place it lives.
+- Mutation-proved; a mutant restoring the clobberable one-shot must fail.
+
+### Execution model
+
+- Sequential; fresh context rebuild; Accessibility Reviewer and Test Reviewer mandatory, read-only in their own prompts, frozen tree; builder model opus-4.8; human review: no.
+
+### Blocked by
+
+- None. MME-0115 (shipped) recorded the measurement.
 
 ## MME-0112 — Theme presets and live theme switcher
 
