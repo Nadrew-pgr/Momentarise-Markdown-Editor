@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { assertFootnoteMembership } from "./visual-footnote-membership.mjs";
 
 const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
@@ -200,18 +201,28 @@ async function main() {
       `window.__MME_DEMO_VISUAL_CHECK__.loadWritableMarkdownFileForTest("rich-footnotes.md", ${JSON.stringify(source)})`
     );
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.switchEditorMode("rich")`);
-    await waitFor(
-      cdp,
-      `(() => {
-        const editor = document.querySelector('[data-testid="rich-editor-host"] .ProseMirror');
-        return Boolean(
-          editor?.querySelector('[data-mme-footnote-definition="true"]') &&
-          editor.querySelectorAll('[data-mme-footnote-reference="true"]').length === 3 &&
-          editor.querySelectorAll('[data-mme-preserved-footnote="true"]').length === 6
-        );
-      })()`,
-      "semantic footnotes and preserved fallbacks"
-    );
+    /*
+     * MME-0116: this demanded exactly 6 preserved fallbacks. MME-0059, MME-0060
+     * and MME-0071 gave multi-paragraph, continuation and inline-HTML
+     * definitions semantic support, converting three of fixture 022's fallbacks
+     * — so the total is 3 and the gate was red for being out of date.
+     *
+     * Named identities replace the total. What MME-0056 proves is that a simple
+     * definition becomes editable while the constructs the rich view cannot
+     * represent keep their bytes; the duplicate pair and the missing-colon line
+     * are those constructs, and they are named rather than counted so the next
+     * semantic conversion cannot silently invalidate this.
+     */
+    await assertFootnoteMembership(evaluate, cdp, {
+      notPreserved: ["[^simple]:"],
+      preserved: [
+        "[^duplicate]: First duplicate definition",
+        "[^duplicate]: Second duplicate definition",
+        "[^malformed] Missing colon"
+      ],
+      references: 3,
+      semantic: ["simple", "complex", "multi", "unsafe"]
+    });
     assert(await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getMarkdown() === ${JSON.stringify(source)}`), "Untouched rich mount must preserve footnote source bytes.");
     await screenshot(cdp, "footnote-editable-desktop.png");
 

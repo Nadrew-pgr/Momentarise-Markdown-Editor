@@ -11508,3 +11508,324 @@ attempt.
 - MME-0115: attempt 2 SOLVED the cancel restore (compositionend.data discriminator + idempotent view.composing-gated watchdog). Residual is the demo's re-anchoring baseline. Layer decision recorded in the issue: fix the class package-side (restore-transaction signal / no-baseline-while-composing rule), demo as first consumer; demo-only patches rejected. Scheduled as Block C2e after C3.
 - Artifact-policy decision recorded in MME-0116: PNGs become unversioned gate outputs with CI upload; `result.json` + READMEs stay committed; one purge commit; integrity test rejects newly committed PNGs; load-bearing exceptions listed in the manifest with a reason.
 - Checks: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`. Push: pushed.
+
+## MME-0116 — Visual gate assertion repair (Block C3, issue 1 of 1)
+
+- Date: 2026-08-11/12.
+- Status: complete. Quarantine emptied: 37 gates repaired, 0 retired.
+  `npm run visual` exits 0 with 78/78 passing and 0 `known-failing` entries.
+
+### RED, from the runner's own report
+
+`npm run visual` before any repair: **41 passed, 37 known-failing, 0 anomalies,
+0 unexpected failures, 5 not selected.** Every quarantined gate's verbatim failure
+was captured before it was touched; each repair below quotes the one it fixed.
+
+Final state: **78 passed, 0 known-failing, 0 anomalies, 0 unexpected failures,
+5 not selected** (the opt-in `registry` and `theia` groups).
+
+### Job 1 — the artifact policy (commit `26ef0f9`, dedicated)
+
+Decided 2026-08-06 after MME-0123's run dirtied 242 tracked PNGs, none caused by
+its change. A screenshot under `docs/internal/visual-checks/` is gate *output*:
+every run re-renders it, so committing them made "run the visual suite before your
+commit" and "commit only your issue" contradict each other, and the habit that
+resolves that conflict is the same habit that throws away a real rendering
+regression.
+
+- `.gitignore` ignores `docs/internal/visual-checks/**/*.png`; CI uploads them as
+  the `visual-gate-screenshots` artifact.
+- **426 committed PNGs purged.** `result.json`, `measurements.json` and `README.md`
+  stay committed: those are diffable, so they are the reviewable proof.
+- `KEPT_VISUAL_ARTIFACTS` in `scripts/visual-gates.mjs` declares the two
+  load-bearing exceptions (9 PNGs): `MME-0011.5`, which has no gate script and no
+  `package.json` entry and whose build-log citation `tests/alignment-gate.test.mjs`
+  requires, and `MME-0100/before`, the half of a comparison that cannot be
+  re-rendered without reverting the extraction it documents.
+- `tests/visual-gate-integrity.test.mjs` rejects any other committed PNG, an
+  exception without a reason or an owning issue, an exception that no longer
+  matches a tracked file, and a `.gitignore` that has drifted from the manifest.
+- **22 artifact directories held nothing but PNGs** and would have vanished from a
+  fresh clone, breaking the manifest's own `existsSync` contract and removing the
+  last committed word on what those gates prove. Each gained a README naming its
+  artifacts and the command that regenerates them.
+- Two deterministic tests read screenshot bytes off disk (`default-theme-v1`,
+  `demo-render-html-baseline`). Both would have made `npm test` depend on whether
+  the browser suite had run on that machine. The property they wanted — "the gate
+  produced its proof" — is the runner's `countFreshArtifacts`, which checks the
+  stronger version: written *during this run*, not merely present. Their naming
+  contracts stay.
+
+### Job 2 — the 37 repairs
+
+Worked in classification order, one gate at a time, each with its own judgement
+about what the gate exists to prove. Nothing was retired: every quarantined gate
+had a real property underneath its stale assertion.
+
+**Class A — read through a collapsed disclosure (3).** `mme-0002`, `mme-0004`,
+`mme-0007` read a diagnostic with `innerText` inside the closed "Technical
+diagnostics" `<details>`, so each asserted against `""`. They now open the
+disclosure with a real summary click, and each throws explicitly if the text is
+still empty rather than passing on nothing. Deliberately not `textContent`: that
+would assert text no user can see.
+
+**Residual staleness (2).** `mme-0008` demanded the word `autosave` in the event
+log; the debounced autosave is the Save Engine's own timer and was never logged.
+`mme-0009` demanded `blocked` as the last save action for an imported copy; the
+demo now generates the download and records `download/export generated; original
+target unchanged`, and the gate asserts that producing a download must not claim
+the original target was written.
+
+**Class B — behaviour a later issue deliberately changed (16).** Each updated to
+the current contract. Where the value has exactly one declaration in the
+repository, the gate now *reads it from there* rather than re-freezing a new
+literal — `scripts/visual-packaged-strings.mjs` (`primaryExport`/`primarySave`,
+the namespaced command ids MME-0027 introduced, `emptyPlaceholder`) and the
+packaged neutral ramp for `mme-0025`. That is not a weakening: each compares a
+*source* value against a *rendered* value, so it proves the packaged value reaches
+the surface, and a deliberate change updates one file instead of leaving nine
+gates red. Also here: `mme-0013.5` and `mme-0014`, where MME-0029's block
+affordance made every `textContent` read carry a `+::` prefix — the decoration is
+stripped from a clone and the comparison stays exact, because a heading whose real
+text gained a prefix is a corruption, not chrome.
+
+**The footnote family — 13 frozen totals.** Each of MME-0056 and MME-0059→0071
+shipped semantic support for one more construct, and each conversion applied to
+every *earlier* fixture too, while only the issue's own gate was written. Every
+gate had frozen a document-wide total at its authoring date. `expect 7 fallbacks`
+was true the day it was written and false one issue later, thirteen times over.
+`scripts/visual-footnote-membership.mjs` replaces the totals with named
+identities: *this* definition is semantic, *that* one is preserved with its bytes,
+and `notPreserved` names the converted ones so a rich view that gave up and fell
+back on everything cannot satisfy the check. `mme-0071`'s totals were still
+correct today and were converted anyway, because MME-0105 is the issue that would
+have broken them.
+
+**Class D — the gate's own machinery (3).** `mme-0029` read `opacity` in the same
+tick as the hover that reveals the handle, across a 100ms transition; it now polls
+until the transition settles. `mme-0071`'s blanket `[style]` payload probe matched
+MME-0087's affordance widgets — 8 false positives, none of them payload; it now
+excludes ProseMirror's own decoration widgets, which keeps the security check
+editor-wide instead of narrowing the selector. `mme-0080` is below.
+
+### MME-0080: recorded against the original issue's evidence
+
+MME-0080 was accepted in 2026-06 on a gate that had never passed. It scrolled
+`table.parentElement` — `.ProseMirror`, which is `overflow-x: visible` and
+therefore not a scroll container — so its `waitForFunction(scrollLeft > 0)` could
+only time out, and its `tableScrollable` precondition measured that same
+non-scrolling element.
+
+Rewritten against `.rich-editor-host`, the element that actually carries
+`overflow-x: auto`. The gate now also refuses to call anything scrollable unless
+its computed overflow permits scrolling, so the specific bug cannot recur. Measured
+at 390px: `scrollLeft` 400 → 463 (463 is the true maximum, 853 − 390),
+`scrollerOverflow: auto`, and the page never overflows. **The feature's behaviour
+is confirmed; only the gate was vacuous.** The correction, the numbers and the
+`result.json` that had never existed are recorded in
+`docs/internal/visual-checks/MME-0080/README.md`.
+
+### Two defects found only because the repairs went deeper
+
+Both were invisible while the gates died earlier, which is the MME-0114 pattern
+repeating one level down.
+
+1. **`mme-0042` measured the wrong "last block".** All three of its last-block
+   lookups filtered out only `[data-rich-block-affordance]`; the fold gutter mounts
+   a *second* ProseMirror widget after it, so `at(-1)` returned a 16px button and
+   the mouse scenario computed its click point 24px outside the editor, clicking
+   the host instead of the document. All three now filter on ProseMirror's own
+   `.ProseMirror-widget` marker.
+2. **`mme-0013.5` never typed anything.** It called `.focus()` on `.ProseMirror`,
+   which is not placing a caret: on the empty document it loads there was no
+   selection inside a text block, so every `Input.insertText` went nowhere and the
+   document stayed empty (`markdown: ""`, `headingText: null` in the RED snapshot).
+   It now clicks into the editor — the interaction the user performs.
+
+### Mutation testing — 45 mutants, 45 killed
+
+Full reversion-to-failure table below. Five mutants were faulty (the mutation did
+not reach the code under test) and were corrected and re-run; one assertion was
+**deleted rather than kept**, because no mutation could make it fail.
+
+| # | Reversion | Assertion that failed |
+| --- | --- | --- |
+| A1 | A purged screenshot is committed again | "committed screenshot(s) … not declared in KEPT_VISUAL_ARTIFACTS" |
+| A2 | A kept entry loses its reason | "a kept screenshot must record why it survives the purge." |
+| A3 | A kept entry names no issue | "must name the issue whose record it is evidence for." |
+| A4 | A kept entry matches no committed screenshot | "declared as a kept screenshot but no committed PNG matches it." |
+| A5 | A kept entry points outside visual-checks | "must point inside docs/internal/visual-checks; it points at \"docs/public\"." |
+| A6 | `.gitignore` stops ignoring screenshots | "without it the purge lasts exactly one visual run." |
+| A7 | `.gitignore` loses a kept negation | "must re-include docs/internal/visual-checks/MME-0100/before/" |
+| M1 | Cmd+S stops reporting itself as a keyboard shortcut | Expected save shortcut event log to include "keyboard shortcut". |
+| M2 | `mme-0002`'s disclosure repair removed | "Event log read as empty. The disclosure opened…" |
+| M3 | The parser status line never leaves `pending` | "still reads the initial placeholder \"pending\" on load." |
+| M4 | `mme-0007`'s disclosure repair removed | "Round-trip diagnostics read as empty after opening the disclosure…" |
+| M5 | The parser stops emitting `opaque_preserved` (in `dist/`) | Expected opaque_preserved diagnostic to include "opaque_preserved". |
+| M6 | The round trip fails (`parserStatusLabel` returns `fail`) | "reads \"fail\" on load; the round trip must pass." |
+| M7 | The serializer drops its preservation claim | Expected serializer status on load to include "source preserved". |
+| M8 | Generating a download claims the original file was saved | "Timed out waiting for imported copy exports without claiming the original target was written." |
+| M9 | The imported-copy button is relabelled with the save word | "md-surface renders the same label (\"Save\") for a real save and for an imported copy…" |
+| M10 | A built-in command loses MME-0027's namespace | "has the un-namespaced id \"heading1\"." |
+| M11 | The affordance decoration is no longer stripped (heading) | "Timed out waiting for live heading input rule." |
+| M12 | `mme-0013.5`'s caret repair reverted to `.focus()` | "Timed out waiting for live heading input rule." |
+| M13 | The affordance decoration is no longer stripped (lookup) | "Cannot find heading for hover: Root" |
+| M14 | Folded blocks lose the class marking them hidden | "Timed out waiting for H3 collapsed descendants." |
+| M15 | Rich mode is offered for HTML artifacts again | "Timed out waiting for HTML artifact opens in source with no rich mode offered." |
+| M16 | Sandboxed Preview stops being offered | "HTML artifact offers modes […]; MME-0044 gives it Source and Preview." |
+| M17 | The baseline env-file hard deny stops blocking | "Timed out waiting for policy blocked AI suggestion without reaching the provider…" |
+| M18 | The surface reports a BYOK key still held | "Timed out waiting for AI session ready with no BYOK key retained in the input." |
+| M19 | The unwired selection AI control is presented as available | "presented as available (disabled: false, hidden: false)…" |
+| M20 | `summarize` withdrawn from the slash entry point | "Timed out waiting for slash menu AI action available." |
+| M21 | MME-0055 native tables reverted | "Timed out waiting for GFM table mounts as a native rich table…" |
+| M22 | The AI prompt docks instead of floating | "Timed out waiting for inline AI prompt opens out of flow and smaller than the editor host." |
+| M23 | Light scheme stops resolving `--mme-color-bg` from the ramp | "should resolve to the packaged --mme-neutral-1 (#fbfcff), got #ffffff." |
+| M24 | A host action stops carrying its prompt to the inline input | "Timed out waiting for host parameterized AI prompt reaches the inline prompt input." |
+| M25 | Sending the inline prompt stops reaching the provider | "Timed out waiting for sending the host AI action reaches the demo AI provider." |
+| M26 | The block affordance never becomes visible on hover | "Block handle must be visible and inside the viewport: {…\"opacity\":0…}" |
+| M27 | An empty document shows no placeholder | "Timed out waiting for empty document placeholder reads…" |
+| M28 | The preserved fallback loses its edit-in-source caption | "Timed out waiting for well-formed table mounts natively…" |
+| M29 | The well-formed table stops mounting natively | same |
+| M30 | The semantic footnote loses its distinguishing marker | "Timed out waiting for unsafe-HTML definition mounts semantically…" |
+| M31 | A preserved footnote stops saying where to edit it | same |
+| M32 | `mme-0042`'s widget filter reverted to affordance-only | "Mouse insertion after final callout failed." |
+| M33 | The final table stops mounting natively | "Timed out waiting for the fixture's table mounts natively and is the final block." |
+| M34 | A topbar control is made invisible | "constrained controls must remain reachable: […]" |
+| M35 | A control is parked outside any scrollable range | "constrained controls must remain reachable: [… \"left\":-9999 …]" |
+| M36 | MME-0080 edge-whitespace encoding removed | "the trailing space must survive as an entity." |
+| M37 | The selected table cell loses its focus indicator | "Selected table cell must retain a visible focus indicator." |
+| M38 | `mme-0071`'s widget exclusion removed | "Inline-HTML mount incomplete: {\"activePayloadDom\":8,…}" |
+| M39 | An inline raw-HTML wrapper gains a live event handler | "Inline-HTML mount incomplete: {\"activePayloadDom\":14,…}" |
+| M40 | `mme-0080`'s repair reverted to `.ProseMirror` | "Constrained CSV table containment failed: {…\"scrollerOverflow\":\"visible\"…}" |
+| M41 | The editor host stops scrolling on both axes | "Constrained CSV table containment failed: {…\"tableScrollWidth\":853…}" |
+| F1 | Every footnote definition falls back — run against all 14 | "[^simple] must mount as a semantic definition; semantic: []", plus each gate's own structural assertion |
+| F2 | A preserved fallback loses its source bytes — all 14 | "\"[^duplicate]: First duplicate definition\" must stay a preserved fallback with its bytes intact" |
+
+F1 and F2 were each run against all fourteen footnote gates, killing all fourteen
+both times — 28 of the 45.
+
+**Faulty mutants, corrected and re-run.** Renaming the `debug-inspector` testid
+broke the demo's own `queryRequired` at startup, so the gate died before its
+assertion. Mutating `packages/md-format/src/index.ts` and
+`packages/md-surface/src/index.ts` never reached the running code: the demo loads
+the built `dist/`. Mutating the affordance widget's markup was equivalent — the
+product re-set the attribute on the next line, and stripping the whole widget
+makes text added inside it irrelevant. Removing `allowTopLevelRichStructures` was
+equivalent for a malformed table, which falls back either way. Setting
+`overflow-x: visible` on `.rich-editor-host` was equivalent, because CSS computes
+it back to `auto` when `overflow-y` is not visible.
+
+**One assertion deleted rather than left unfalsifiable.** A field-scanning
+no-key-leak check was written into `mme-0017` and removed: the demo clears the
+BYOK input before the snapshot, so nothing could make it fail. The property is
+covered by `assertNoKeyLeak` and by `keyInputHasValue === false`, both
+mutation-proven. Two negative checks in `mme-0008` were removed for the same
+reason after the reviewer showed the `waitForSaveState` above them throws first.
+
+### Reviewer pass
+
+Test Reviewer subagent, inspect-only, run against a frozen tree with the read-only
+instruction in its own prompt. It returned 2 blockers, 10 should-fix and 6 notes.
+**All were real; all are fixed**, and two of them were assertions this issue had
+weakened:
+
+1. **BLOCKER — `mme-0004` accepted a failing round trip.** Replacing the stale
+   `pre-parser identity` assertion had also dropped `source preserved`, which was
+   *not* stale: `serializerStatusLabel` renders `pass (source preserved)` or the
+   bare `fail`, so the round-trip gate would have passed on a failing round trip.
+   Restored, and both status lines must now start with `pass`.
+2. **BLOCKER — the suite was not green.** `mme-0018` was failing. Traced below.
+3. `mme-0080`'s end assertion (`scrollLeft > 0`) was already satisfied at
+   capture-start — the host sits mid-scroll after the paste at 400 of 463. Now
+   asserts movement and the true maximum.
+4. `MME-0080/result.json` was untracked; committed, and the README records the
+   correction.
+5. `mme-0018`'s new comment claimed the selection AI control is unwired. It is
+   wired and gated on the `selection` entry point; only the unconditional
+   `disabled`/`hidden` suppresses it. Premise corrected, and the failure message
+   now tells whoever lands MME-0098 to update the gate rather than restore the
+   defect.
+6. `mme-0008`'s two negative checks could not fail (see above).
+7. `mme-0015`'s `offeredModes` also matched `#app`, which carries the *current*
+   mode — so the `source` membership check was satisfiable by the app root even
+   with the button gone. Scoped to `button[data-editor-mode]`.
+8. `QUARANTINED_ON` was a fallback for a missing `since`. Correct while one batch
+   entered on one date; with the list empty it would stamp 2026-08-02 on an entry
+   made years later and still pass the date-format check. Removed: every entry
+   dates itself or fails.
+9. Two exports in `visual-rich-text.mjs` had zero call sites while two gates
+   inlined the same logic. Wired up (AGENT.md reachability).
+10. The browser-expression parse check now covers all five new expression
+    builders — the guard that catches a backtick inside a comment inside a
+    template literal, which cost two debugging cycles in this issue.
+11. The "proves recency, not meaning" limit in the visual-checks README was
+    assigned to MME-0116, which does not fix it. Re-recorded as unowned, with what
+    closing it would take.
+12. Footnote membership was keyed on `aria-label` minus its prefix, which derives
+    from the *label* attribute. Re-keyed on `data-mme-footnote-identifier`.
+
+The reviewer also verified, and I did not have to change: that all 14 membership
+call sites' needles exist in the fixtures they load, that every gate's artifact
+directory still has a committed file so the manifest's `existsSync` survives a
+fresh clone, that the sourced-expectation helpers compare source against rendered
+rather than a value against itself, and that `node --check` passes on all 47
+changed scripts.
+
+### mme-0018: a race, found because the repair went one level deeper
+
+After the reviewer's blocker, `mme-0018` was flaky — 2 of 3, then 5 of 5 failing.
+The failure snapshot was the tell: `aiItems` already contained `summarize` while
+`open` was false and `query` was `""`, i.e. the menu opened and was then reset.
+`toolbar.visible` is not the same event as "the rich view finished mounting", and
+a mount landing after the menu opens closes it. The gate had never reached this
+line before — it died at the selection-AI step — so the race was invisible.
+
+Two attempts are recorded because both failed: waiting on `.ProseMirror` (3 of 5
+still failed), then clicking the editor host's centre and typing, which lands in
+empty space where ProseMirror places no caret. The repair that works is the one
+`AGENT.md` asks for and the passing `mme-0013` already used: anchor the caret on
+real text, then type `/summ` so the editor's own input rule opens the menu from
+state it has already settled on. 5 of 5, then green in the full suite.
+
+### Tests run
+
+- `npm run visual` — exit 0: **78 passed, 0 known-failing, 0 anomalies, 0
+  unexpected failures, 5 not selected.**
+- `npm test` — exit 0, including `test:visual-gate-integrity` with the new
+  artifact-policy section.
+- `node scripts/docs-lint.mjs`, `npm run test:alignment`, `git diff --check`.
+
+One caveat worth recording: an intermediate full-suite run reported `mme-0018`
+failing when `packages/*/dist/` had drifted from source during mutation testing.
+`npm run build` restored it. Gate scripts run against the built packages, so a
+mutation round must be followed by a rebuild before the suite is trusted.
+
+### Visual impact
+
+No visible editing or general UI changes. Every change is to gate scripts, the
+manifest, the integrity test, CI and documentation; no production code was
+modified. The MME-0086 and MME-0087 `measurements.json` rebaselines in this commit
+are MME-0117 fallout (affordance `left` -20 → -40, `declaredGutter` 24 → 44) that
+MME-0117 should have carried under the rebaseline rule; MME-0078's `result.json`
+records a different block command being applied by that gate, which is unrelated
+to this issue and is left as recorded evidence rather than silently reverted.
+
+### Deviations from PRD
+
+None.
+
+### Open questions
+
+- The staleness rule proves recency, not meaning: a gate reduced to writing one
+  hardcoded `result.json` would still pass. MME-0114 recorded this as owned by
+  MME-0116; MME-0116 does not fix it, so it is now recorded as **unowned** in
+  `docs/internal/visual-checks/README.md`. Closing it means per-gate expected
+  filenames in the manifest.
+- The demo's default preferences still advertise `selection` in `aiEntryPoints`
+  while no selection AI entry point exists. That is the product defect MME-0114
+  routed to `MME-0098`; `mme-0018` asserts the current honest state and names
+  MME-0098 in its failure message rather than going red for a defect it does not
+  own.
+- The `visual-gates` CI job has still never executed, so its Chrome and AppArmor
+  assumptions remain reasoned rather than proven. The new
+  `visual-gate-screenshots` upload step inherits that.

@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { assertFootnoteMembership } from "./visual-footnote-membership.mjs";
 
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
 const visualDir = "docs/internal/visual-checks/MME-0063";
@@ -173,6 +174,7 @@ async function main() {
       const buttons = Array.from(editor?.querySelectorAll('[data-todo-toggle]') ?? []);
       return {
         buttons: buttons.length,
+        todoItems: editor?.querySelectorAll('[data-type="todo-item"]').length ?? 0,
         checked: buttons.filter((button) => button.getAttribute('aria-pressed') === 'true').length,
         completeLabels: buttons.filter((button) => button.getAttribute('aria-label') === 'Mark todo complete').length,
         fallbacks: editor?.querySelectorAll('[data-mme-preserved-footnote="true"]').length ?? 0,
@@ -190,13 +192,33 @@ async function main() {
       mounted.orderedTodos === 2 &&
       mounted.nestedLists >= 3 &&
       mounted.orderedStart === "3" &&
-      mounted.buttons === 7 &&
+      /*
+       * MME-0116: was `buttons === 7`, frozen when only this fixture's own
+       * definitions mounted as task lists. Later loose-list, quote and
+       * inline-HTML support added semantic task lists elsewhere in the same
+       * fixture, so there are 10. The invariant that does not rot — and the one
+       * that matters for a checkbox you can actually click — is one toggle per
+       * mounted todo item.
+       */
+      mounted.buttons === mounted.todoItems &&
       mounted.checked >= 4 &&
       mounted.completeLabels >= 1 &&
-      mounted.incompleteLabels >= 1 &&
-      mounted.fallbacks >= 5,
+      mounted.incompleteLabels >= 1,
       `Task-list mount incomplete: ${JSON.stringify(mounted)}`
     );
+    /*
+     * MME-0116: `fallbacks >= 5` replaced by named identities — fixture 027 keeps
+     * two fallbacks now that later issues absorbed the rest.
+     */
+    await assertFootnoteMembership(evaluate, cdp, {
+      notPreserved: ["[^task-flat]:", "[^task-nested]:", "[^task-ordered]:", "[^quoted-task]:"],
+      preserved: [
+        "[^multiple-task]: Multiple nested children stay source-only.",
+        "[^nested-container]: Container task definition stays source-only."
+      ],
+      references: 3,
+      semantic: ["task-flat", "task-nested", "task-ordered", "loose-task", "quoted-task", "unsafe-task"]
+    });
     assert(await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getMarkdown() === ${JSON.stringify(source)}`), "Untouched Rich mount changed source bytes.");
     await screenshot(cdp, "footnote-task-list-rich-desktop.png");
 

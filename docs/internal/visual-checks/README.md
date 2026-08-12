@@ -76,12 +76,14 @@ Gates outside the selected groups are reported as `not-selected` with the reason
 
 Two rules the runner enforces that individual scripts cannot:
 
-- **Fresh artifacts.** A gate that exits 0 without writing anything into its artifact directory during this run is failed. Last month's screenshots are not evidence about today. (Known limit, owned by `MME-0116`: this proves recency, not meaning — a gate reduced to writing one hardcoded `result.json` would still pass.)
+- **Fresh artifacts.** A gate that exits 0 without writing anything into its artifact directory during this run is failed. Last month's screenshots are not evidence about today. (Known limit, **unowned**: this proves recency, not meaning — a gate reduced to writing one hardcoded `result.json` would still pass. MME-0114 recorded it as owned by MME-0116; MME-0116 did not fix it and does not own it, so it is written down here rather than left attached to a closed issue. Closing it means per-gate expected filenames in the manifest.)
 - **Pinned URLs.** Each gate runs against the server the runner actually started, not the port hardcoded in the script — several gates still default to a port nothing has served since MME-0009.
 
 ## The quarantine
 
-MME-0114's first full run found 38 red gates. Repairing them is `MME-0116` (stale assertions) and `MME-0117` (a live coarse-pointer regression), so each one is listed in `KNOWN_FAILING` in `scripts/visual-gates.mjs` with a one-line reason, an owning issue, and the date it entered.
+**The quarantine is empty.** MME-0114's first full run found 38 red gates; MME-0117 and MME-0119 shipped the product fixes, and MME-0116 repaired the remaining 37 — including MME-0080's gate, which had never passed. `npm run visual` now reports every selected gate as `passed`.
+
+The mechanism stays, because it is what stops the next batch of red gates going quiet. A gate that must be exempted is listed in `KNOWN_FAILING` in `scripts/visual-gates.mjs` with a one-line reason, an owning issue, and the date it entered.
 
 The rules, all asserted by `npm run test:visual-gate-integrity`:
 

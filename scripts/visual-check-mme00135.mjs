@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { richTextExpression } from "./visual-rich-text.mjs";
 
 const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://localhost:5174/";
@@ -90,7 +91,14 @@ async function getSnapshot(cdp) {
       markdown: window.__MME_DEMO_VISUAL_CHECK__.getMarkdown(),
       richText: window.__MME_DEMO_VISUAL_CHECK__.getRichText(),
       richUx: window.__MME_DEMO_VISUAL_CHECK__.getRichUxState(),
-      headingText: document.querySelector(".ProseMirror h1")?.textContent ?? null,
+      /*
+       * MME-0116: was a plain textContent read, which since MME-0029 also returns
+       * the block-affordance decoration mounted inside every top-level block --
+       * the heading read "+::Reco" rather than "Reco". Strip the decoration and
+       * keep comparing exactly, rather than loosening the comparison to tolerate
+       * a prefix: a heading that really gained one is a corruption, not chrome.
+       */
+      headingText: ${richTextExpression(".ProseMirror h1")},
       todoButtonCount: document.querySelectorAll("[data-todo-toggle]").length,
       checkedTodoCount: document.querySelectorAll('[data-todo-toggle][aria-pressed="true"]').length,
       toolbar: window.__MME_DEMO_VISUAL_CHECK__.getToolbarState(),
@@ -191,8 +199,21 @@ async function dispatchKey(cdp, key) {
   });
 }
 
+/*
+ * MME-0116: this called `.focus()` on `.ProseMirror`. Focusing an element is not
+ * placing a caret — on the empty document this gate loads there was no selection
+ * inside a text block, so every `Input.insertText` that followed went nowhere and
+ * the document stayed empty. The snapshot in the RED run shows it: `markdown` is
+ * "" and `headingText` is null, which is not the affordance-prefix problem the
+ * quarantine entry named.
+ *
+ * Click into the editor the way a user does. `AGENT.md` requires exactly this —
+ * the interaction the user performs rather than the programmatic API that
+ * bypasses the code under test — and it is also what actually puts a caret in the
+ * first block.
+ */
 async function focusRichEditor(cdp) {
-  await evaluate(cdp, `document.querySelector(".ProseMirror")?.focus()`);
+  await clickBySelector(cdp, ".ProseMirror");
 }
 
 async function insertTextSlowly(cdp, text) {
@@ -388,13 +409,22 @@ async function main() {
 
     await clickByTestId(cdp, "insert-after-block-button");
     await insertTextSlowly(cdp, "After code");
+    /*
+     * MME-0116: this demanded "```\nAfter code" — the closing fence with the new
+     * paragraph on the very next line. The serializer emits the blank line that
+     * separates two Markdown blocks, so the real output is "```\n\nAfter code",
+     * and the missing blank line the old assertion required would be a defect
+     * rather than the thing to check for. Assert the correct separation instead
+     * of relaxing to a substring that would also accept a paragraph swallowed
+     * into the fence.
+     */
     const final = await waitForSnapshot(
       cdp,
       (snapshot) =>
-        String(snapshot.markdown).includes("```\nAfter code") &&
+        String(snapshot.markdown).includes("```\n\nAfter code") &&
         String(snapshot.parserStatus).includes("pass") &&
         String(snapshot.serializerStatus).includes("pass"),
-      "paragraph after code block"
+      "paragraph after code block, separated by the blank line Markdown requires"
     );
     if (!String(final.markdown).includes("```js title=\"demo\"")) {
       throw new Error("Code block info string did not survive paragraph insertion.");

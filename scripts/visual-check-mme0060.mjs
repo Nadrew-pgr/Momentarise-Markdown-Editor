@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { assertFootnoteMembership } from "./visual-footnote-membership.mjs";
 
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
 const visualDir = "docs/internal/visual-checks/MME-0060";
@@ -162,8 +163,20 @@ async function main() {
     await waitFor(cdp, `(() => {
       const editor = document.querySelector('[data-testid="rich-editor-host"] .ProseMirror');
       const detail = editor?.querySelector('[data-mme-footnote-definition="true"][data-mme-footnote-identifier="detail"]');
-      return Boolean(detail && detail.querySelectorAll('[data-mme-footnote-body="true"] > p').length === 3 && editor.querySelectorAll('[data-mme-preserved-footnote="true"]').length >= 3);
-    })()`, "multi-paragraph definition and fallbacks");
+      return Boolean(detail && detail.querySelectorAll('[data-mme-footnote-body="true"] > p').length === 3);
+    })()`, "the multi-paragraph definition MME-0060 shipped keeps its three paragraphs");
+    /*
+     * MME-0116: the `>= 3` fallback floor left with the count. MME-0061 and
+     * MME-0071 converted two of fixture 024's fallbacks, leaving one. The
+     * three-paragraph structure above is what MME-0060 actually shipped and it
+     * stays; the fallback half is now named rather than counted.
+     */
+    await assertFootnoteMembership(evaluate, cdp, {
+      notPreserved: ["[^detail]:", "[^nested-block]:", "[^unsafe]:"],
+      preserved: ["[^nested-container]: Container definition stays source-only."],
+      references: 2,
+      semantic: ["detail", "nested-block", "unsafe"]
+    });
     assert(await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getMarkdown() === ${JSON.stringify(source)}`), "Untouched Rich mount changed source bytes.");
     await screenshot(cdp, "footnote-multiparagraph-rich-desktop.png");
 

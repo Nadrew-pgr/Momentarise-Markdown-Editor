@@ -149,25 +149,25 @@
     "fold": {
       "390": [
         {
-          "gap": 8,
+          "gap": 0,
           "offPage": false,
           "overlaps": false,
           "tag": "H1"
         },
         {
-          "gap": 24,
+          "gap": 16,
           "offPage": false,
           "overlaps": false,
           "tag": "PRE"
         },
         {
-          "gap": 24,
+          "gap": 16,
           "offPage": false,
           "overlaps": false,
           "tag": "BLOCKQUOTE"
         },
         {
-          "gap": 8,
+          "gap": 0,
           "offPage": false,
           "overlaps": false,
           "tag": "P"
@@ -204,7 +204,7 @@
         "paddingLeft": 24
       },
       "390-gutter": {
-        "declaredGutter": 24,
+        "declaredGutter": 44,
         "paddingLeft": 48
       }
     },
@@ -216,67 +216,67 @@
           "visible": [
             {
               "index": 0,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 4
             },
             {
               "index": 1,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 2,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 3,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 4,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 5,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 6,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 3
             },
             {
               "index": 7,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 8,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 9,
-              "left": -68,
+              "left": -88,
               "offPage": true,
               "verticalDelta": -665
             },
             {
               "index": 10,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             }
@@ -289,67 +289,67 @@
           "visible": [
             {
               "index": 0,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 4
             },
             {
               "index": 1,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 2,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 3,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 4,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 5,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 6,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 3
             },
             {
               "index": 7,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 8,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 9,
-              "left": -68,
+              "left": -88,
               "offPage": true,
               "verticalDelta": -665
             },
             {
               "index": 10,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             }
@@ -362,67 +362,67 @@
           "visible": [
             {
               "index": 0,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 4
             },
             {
               "index": 1,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 2,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 3,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 4,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 5,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 6,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 3
             },
             {
               "index": 7,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 8,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 9,
-              "left": -68,
+              "left": -88,
               "offPage": true,
               "verticalDelta": -665
             },
             {
               "index": 10,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             }
@@ -435,67 +435,67 @@
           "visible": [
             {
               "index": 0,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 4
             },
             {
               "index": 1,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 2,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 3,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 4,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 5,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 6,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 3
             },
             {
               "index": 7,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 8,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 9,
-              "left": -68,
+              "left": -88,
               "offPage": true,
               "verticalDelta": -665
             },
             {
               "index": 10,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             }
@@ -508,67 +508,67 @@
           "visible": [
             {
               "index": 0,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 4
             },
             {
               "index": 1,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 2,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 3,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 4,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 5,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 6,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 3
             },
             {
               "index": 7,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 8,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 9,
-              "left": -68,
+              "left": -88,
               "offPage": true,
               "verticalDelta": -665
             },
             {
               "index": 10,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             }
@@ -581,67 +581,67 @@
           "visible": [
             {
               "index": 0,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 4
             },
             {
               "index": 1,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 2,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 3,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 4,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 5,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 6,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 3
             },
             {
               "index": 7,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 8,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 9,
-              "left": -68,
+              "left": -88,
               "offPage": true,
               "verticalDelta": -665
             },
             {
               "index": 10,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             }
@@ -654,67 +654,67 @@
           "visible": [
             {
               "index": 0,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 4
             },
             {
               "index": 1,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 2,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 3,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 4,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 5,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 6,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 3
             },
             {
               "index": 7,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 8,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 9,
-              "left": -68,
+              "left": -88,
               "offPage": true,
               "verticalDelta": -665
             },
             {
               "index": 10,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             }
@@ -727,67 +727,67 @@
           "visible": [
             {
               "index": 0,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 4
             },
             {
               "index": 1,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 2,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 3,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 4,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 5,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 6,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 3
             },
             {
               "index": 7,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 8,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 9,
-              "left": -68,
+              "left": -88,
               "offPage": true,
               "verticalDelta": -665
             },
             {
               "index": 10,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             }
@@ -800,67 +800,67 @@
           "visible": [
             {
               "index": 0,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 4
             },
             {
               "index": 1,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 2,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 3,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 4,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 5,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 6,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 3
             },
             {
               "index": 7,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 8,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 9,
-              "left": -68,
+              "left": -88,
               "offPage": true,
               "verticalDelta": -665
             },
             {
               "index": 10,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             }
@@ -873,55 +873,55 @@
           "visible": [
             {
               "index": 0,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 4
             },
             {
               "index": 1,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 2,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 3,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 4,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 5,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 6,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 3
             },
             {
               "index": 7,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 8,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
@@ -933,7 +933,7 @@
             },
             {
               "index": 10,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             }
@@ -946,55 +946,55 @@
           "visible": [
             {
               "index": 0,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 4
             },
             {
               "index": 1,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 2,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 3,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 4,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 5,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 6,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 3
             },
             {
               "index": 7,
-              "left": -19,
+              "left": -39,
               "offPage": true,
               "verticalDelta": 2
             },
             {
               "index": 8,
-              "left": -17,
+              "left": -37,
               "offPage": true,
               "verticalDelta": 2
             },
@@ -1006,7 +1006,7 @@
             },
             {
               "index": 10,
-              "left": -20,
+              "left": -40,
               "offPage": true,
               "verticalDelta": 2
             }

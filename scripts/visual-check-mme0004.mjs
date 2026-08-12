@@ -2,6 +2,11 @@ import { spawn } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import {
+  DEMO_DISCLOSURES,
+  assertDisclosuresOpened,
+  openDemoDisclosuresExpression
+} from "./visual-demo-disclosures.mjs";
 
 const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5173/";
@@ -136,6 +141,49 @@ function assertIncludes(value, expected, label) {
   }
 }
 
+/**
+ * MME-0116 — the round-trip panel reports a passing round trip.
+ *
+ * Read each line by its own `data-testid` rather than scanning the panel's
+ * `innerText`: a substring search over the whole panel cannot tell which line a
+ * word came from, so "strict" appearing anywhere would satisfy a check meant for
+ * the mode line.
+ *
+ * The outcome is what matters, not merely that the placeholder was replaced. The
+ * demo renders `pass (remark AST)` / `pass (source preserved)` on a passing round
+ * trip and the bare string `fail` otherwise (`parserStatusLabel` and
+ * `serializerStatusLabel` in apps/md-demo/src/main.ts), so a check that only
+ * rejected the initial `pending` would accept a failing round trip — in the gate
+ * whose entire subject is the round trip. `pending` is rejected too, because a
+ * panel that never ran is a different failure with the same symptom.
+ */
+async function assertRoundTripPasses(cdp, when) {
+  for (const [testId, label] of [
+    ["parser-status", "parser status"],
+    ["serializer-status", "serializer status"]
+  ]) {
+    const value = String(
+      await evaluate(cdp, `document.querySelector('[data-testid="${testId}"]').innerText`)
+    ).trim();
+    if (value === "pending") {
+      throw new Error(`Round-trip ${label} still reads the initial placeholder "pending" ${when}.`);
+    }
+    if (!value.startsWith("pass")) {
+      throw new Error(`Round-trip ${label} reads ${JSON.stringify(value)} ${when}; the round trip must pass.`);
+    }
+  }
+  /*
+   * The serializer line carries the preservation claim itself, which is the one
+   * string in this panel a reader relies on. MME-0005 replaced the parser, so
+   * that half is asserted as `pass (…)` rather than by a pinned engine name; the
+   * preservation half has never changed and is pinned.
+   */
+  const serializer = String(
+    await evaluate(cdp, `document.querySelector('[data-testid="serializer-status"]').innerText`)
+  ).trim();
+  assertIncludes(serializer, "source preserved", `serializer status ${when}`);
+}
+
 async function main() {
   await mkdir(visualDir, { recursive: true });
 
@@ -200,6 +248,17 @@ async function main() {
     await loadEvent;
     await wait(200);
 
+    /*
+     * MME-0116: the round-trip panel lives inside the collapsed "Technical
+     * diagnostics" disclosure, and `innerText` returns "" for content inside a
+     * closed `<details>`. Open it the way a user does before reading it.
+     */
+    assertDisclosuresOpened(
+      await evaluate(cdp, openDemoDisclosuresExpression([DEMO_DISCLOSURES.debugInspector])),
+      "MME-0004"
+    );
+    await wait(120);
+
     const statusText = await evaluate(
       cdp,
       "document.querySelector('[data-testid=\"roundtrip-status\"]').innerText"
@@ -210,9 +269,28 @@ async function main() {
     );
     assertIncludes(statusText, "source-mode-fixture.md", "round-trip fixture status");
     assertIncludes(statusText, "strict", "round-trip mode");
-    assertIncludes(statusText, "pre-parser identity", "parser status");
-    assertIncludes(statusText, "source preserved", "serializer status");
-    assertIncludes(diagnosticsText, "pre_parser_identity_mode", "round-trip diagnostics");
+    /*
+     * MME-0116: this used to demand the literal "pre-parser identity" and the
+     * `pre_parser_identity_mode` diagnostic. MME-0005 replaced the identity
+     * formatter with the real remark AST parser, so both had been unsatisfiable
+     * since 2026-05. Pinning the new literal instead would only move the rot to
+     * the next parser change — and MME-0005's own gate already pins the parser
+     * identity, which is *its* contract.
+     *
+     * What MME-0004 exists to prove is the panel: fixture, mode, parser,
+     * serializer and diagnostics all resolved to real values, and still resolved
+     * after an edit. So assert that shape. `pending` is the markup's initial
+     * placeholder, which is exactly the failure this must catch.
+     */
+    await assertRoundTripPasses(cdp, "on load");
+    /*
+     * Not "the list is non-empty": `renderDiagnostics` emits one entry per
+     * diagnostic, so a clean document legitimately produces none and that check
+     * would go red for a good round trip. What must never appear is an error.
+     */
+    if (/\berror\b/i.test(diagnosticsText)) {
+      throw new Error(`Round-trip diagnostics report an error on load: ${JSON.stringify(diagnosticsText)}`);
+    }
     await screenshot(cdp, "roundtrip-status-loaded.png");
 
     await evaluate(cdp, "window.__MME_DEMO_VISUAL_CHECK__.setCursorToEnd()");
@@ -224,8 +302,8 @@ async function main() {
       cdp,
       "document.querySelector('[data-testid=\"roundtrip-status\"]').innerText"
     );
-    assertIncludes(updatedStatusText, "pre-parser identity", "parser status after edit");
-    assertIncludes(updatedStatusText, "source preserved", "serializer status after edit");
+    await assertRoundTripPasses(cdp, "after edit");
+    assertIncludes(updatedStatusText, "source-mode-fixture.md", "round-trip fixture status after edit");
     await screenshot(cdp, "roundtrip-status-after-edit.png");
 
     cdp.close();

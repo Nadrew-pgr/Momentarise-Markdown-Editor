@@ -119,6 +119,7 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | C2b | MME-0104a ✅, 0104b ✅ | Input rules; pairing and paste-link — shipped | opus-4.8 | done 2026-08-04; 0115 deliberately not started |
 | C2c | MME-0120 ✅, 0121 ✅, 0122 ✅ | Serializer escaping; mark runs; fence newline — shipped | opus-4.8 | done 2026-08-05; 0115 measured and reverted with handoff |
 | C2d | MME-0123 ✅, 0115 (attempt 2, reverted) | Mount fidelity (data loss); composition cancel path | opus-5 / fable-5 | done 2026-08-06; 0123 shipped, 0115 measured and reverted with a converging design |
+| C3 | MME-0116 ✅ | Visual gate assertion repair; artifact policy | opus-5 | done 2026-08-12; quarantine emptied, `npm run visual` exits 0 |
 | Cd | MME-0118 | Docs correctness repair (may run parallel, own branch) | sonnet-5 | Andrew follows the vanilla quickstart and it works |
 | D | MME-0089, 0090, 0091, 0105, 0106 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
 | D2 | MME-0107, 0108 | Markdown-native differentiators | opus-5 / fable-5 | Andrew judges syntax reveal before it defaults |
@@ -1692,6 +1693,8 @@ Documentation pages change; no editor surface changes.
 - None. `docs/public/` is disjoint from the editor packages, so this may run on its own branch in parallel with an editor block under the parallel-execution policy.
 
 ## MME-0116 — Visual gate assertion repair
+
+**Status: SHIPPED (Block C3, 2026-08-12).** Quarantine emptied: 37 gates repaired, none retired. `npm run visual` exits 0 with 78 passing, 0 `known-failing`, 0 anomalies. The artifact policy shipped as a dedicated purge commit (426 PNGs, 9 kept by declared exception). MME-0080's gate passed for the first time and its correction is recorded against the original issue's evidence. 45 mutants, 45 killed.
 
 ### Goal
 

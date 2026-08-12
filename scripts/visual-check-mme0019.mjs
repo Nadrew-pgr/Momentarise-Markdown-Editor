@@ -225,15 +225,32 @@ async function main() {
 
     await clickByTestId(cdp, "rich-mode-button");
     await waitFor(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getEditorMode() === "rich"`, "rich mode active");
+    /*
+     * MME-0116: this waited for the GFM table to mount as a preserved raw block
+     * (`pre[data-unsupported="true"]`). MME-0055 shipped native rich tables, so a
+     * well-formed table is now a real editable table — the raw block it waited
+     * for is the *old* behaviour, and waiting for it was asserting that a shipped
+     * feature had not shipped.
+     *
+     * The preservation guarantee this gate exists for is unchanged and is checked
+     * immediately below: the mount must leave the Markdown byte-identical. What
+     * changes here is the mechanism assertion — the table must mount as a table
+     * with its real structure, rather than be flattened into paragraphs, which is
+     * the failure mode that would actually corrupt the document.
+     */
     await waitFor(
       cdp,
       `(() => {
-        const unsupported = document.querySelector('[data-testid="rich-editor-host"] pre[data-unsupported="true"]');
-        return Boolean(unsupported && unsupported.textContent.includes("| Feature | Status | Notes |"));
+        const table = document.querySelector('[data-testid="rich-editor-host"] table');
+        if (!table) {
+          return false;
+        }
+        const headers = [...table.querySelectorAll("th")].map((cell) => cell.textContent.trim());
+        return headers.join("|") === "Feature|Status|Notes" && table.querySelectorAll("td").length === 6;
       })()`,
-      "table rendered as raw unsupported block in rich mode"
+      "GFM table mounts as a native rich table with its three headers and six cells"
     );
-    await screenshot(cdp, "fidelity-rich-table-raw-block.png");
+    await screenshot(cdp, "fidelity-rich-table-native.png");
 
     const markdownAfterMount = await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getMarkdown()`);
     if (markdownAfterMount !== fidelityMarkdown) {

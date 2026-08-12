@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { assertFootnoteMembership } from "./visual-footnote-membership.mjs";
 
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
 const visualDir = "docs/internal/visual-checks/MME-0071";
@@ -169,7 +170,17 @@ async function main() {
       const hostile = definition('inline-hostile');
       const wrappers = Array.from(editor?.querySelectorAll('[data-mme-raw-html-inline="true"]') ?? []);
       return {
-        activePayloadDom: editor?.querySelectorAll('script, kbd, img, x-status, mark, i, [onclick], [onerror], [style], [src]').length ?? 0,
+        /*
+         * MME-0116: this counted matches across the whole editor, and the blanket
+         * [style] term matched MME-0087's block-affordance widgets, which set an
+         * inline top/left on every atom block — 8 false positives, none of them
+         * payload. Narrowing the selector would have weakened the security check
+         * it exists to be; excluding ProseMirror's own decoration widgets keeps
+         * it editor-wide, so raw HTML that escapes its wrapper and becomes live
+         * anywhere in the document is still caught.
+         */
+        activePayloadDom: [...(editor?.querySelectorAll('script, kbd, img, x-status, mark, i, [onclick], [onerror], [style], [src]') ?? [])]
+          .filter((element) => element.closest('.ProseMirror-widget') === null).length,
         buttons: editor?.querySelectorAll('[data-todo-toggle]').length ?? 0,
         callouts: editor?.querySelectorAll('[data-mme-callout="true"]').length ?? 0,
         definitions: editor?.querySelectorAll('[data-mme-footnote-definition="true"]').length ?? 0,
@@ -187,7 +198,6 @@ async function main() {
       mounted.activePayloadDom === 0 &&
       mounted.buttons === 2 &&
       mounted.callouts === 1 &&
-      mounted.definitions === 8 &&
       mounted.htmlBlocks === 1 &&
       mounted.htmlInline === 14 &&
       mounted.quotes === 2 &&
@@ -195,10 +205,36 @@ async function main() {
       mounted.topText.includes('<kbd data-key="cmd">') &&
       mounted.hostileText.includes("<script>") &&
       mounted.hostileText.includes("onerror=") &&
-      mounted.orderedStart === "3" &&
-      mounted.fallbacks === 9,
+      mounted.orderedStart === "3",
       `Inline-HTML mount incomplete: ${JSON.stringify(mounted)}`
     );
+    /*
+     * MME-0116: `definitions === 8` and `fallbacks === 9` are true today, and
+     * both are exactly the frozen document-wide totals that put the other twelve
+     * footnote gates in quarantine — MME-0105 is the next issue that would break
+     * them. Named identities replace them here for the same reason, before they
+     * rot rather than after.
+     */
+    await assertFootnoteMembership(evaluate, cdp, {
+      notPreserved: ["[^inline-top]:", "[^inline-list]:", "[^inline-hostile]:", "[^block-compatible]:"],
+      preserved: [
+        "[^wrapped-strong]:",
+        "[^multiline-html]: Multiline inline HTML stays source",
+        "[^table-html]: Table-cell inline HTML stays source",
+        "[^nested-container]: Container definition stays so"
+      ],
+      references: 7,
+      semantic: [
+        "inline-top",
+        "inline-multi",
+        "inline-list",
+        "inline-task",
+        "inline-quote",
+        "inline-callout",
+        "inline-hostile",
+        "block-compatible"
+      ]
+    });
     assert(await evaluate(cdp, `(() => {
       const html = document.querySelector('[data-testid="rich-editor-host"] .ProseMirror')?.innerHTML ?? '';
       return !html.includes('blockSources') && !html.includes('blockFingerprints') && globalThis.__MME_INLINE_HTML_RAN__ !== true;

@@ -100,7 +100,20 @@ async function getSnapshot(cdp) {
         markdown: window.__MME_DEMO_VISUAL_CHECK__.getMarkdown(),
         previewButtonPressed: document.querySelector('[data-testid="preview-mode-button"]')?.getAttribute("aria-pressed") ?? null,
         previewState,
-        richButtonDisabled: document.querySelector('[data-testid="rich-mode-button"]')?.disabled ?? null,
+        /*
+         * MME-0116: was richButtonDisabled, reading .disabled off a button that
+         * MME-0044 stopped rendering for HTML artifacts, so the read was null and
+         * the assertion could never be satisfied. Offering no rich button at all
+         * is the stronger version of the same guarantee, so assert that instead:
+         * which modes the surface actually offers.
+         */
+        /*
+         * Buttons only. The app root also carries data-editor-mode -- the
+         * *current* mode -- so an unscoped query made the "source" membership
+         * check satisfiable by that element even with the Source button gone, and
+         * would have added "rich" in any rich-mode scenario. (Test Reviewer.)
+         */
+        offeredModes: [...document.querySelectorAll("button[data-editor-mode]")].map((button) => button.dataset.editorMode),
         scriptRan: window.__MME_HTML_PREVIEW_SCRIPT_RAN__ === true,
         statusText: document.querySelector('[data-testid="html-preview-status"]')?.textContent ?? ""
       };
@@ -287,10 +300,22 @@ async function main() {
         snapshot.activeDocument.kind === "html-artifact" &&
         snapshot.editorMode === "source" &&
         snapshot.markdown.includes("<script>") &&
-        snapshot.richButtonDisabled === true &&
+        !snapshot.offeredModes.includes("rich") &&
+        snapshot.offeredModes.includes("source") &&
         snapshot.previewState.scriptsEnabled === false,
-      "HTML artifact source opened"
+      "HTML artifact opens in source with no rich mode offered"
     );
+    /*
+     * MME-0116: the absence check above would also pass if the mode switch
+     * vanished entirely, so pin what must still be there. An HTML artifact is
+     * Source plus a sandboxed Preview; losing Preview would be a regression this
+     * gate should catch, not a state it should accept.
+     */
+    if (!sourceOpened.offeredModes.includes("preview")) {
+      throw new Error(
+        `HTML artifact offers modes ${JSON.stringify(sourceOpened.offeredModes)}; MME-0044 gives it Source and Preview.`
+      );
+    }
     assertIncludes(sourceOpened.statusText, "HTML artifact", "HTML preview status");
     await screenshot(cdp, "html-source-opened.png");
 

@@ -1,0 +1,36 @@
+{
+  "consoleErrors": [],
+  "containment": {
+    "end": {
+      "pageClientWidth": 390,
+      "pageScrollWidth": 390,
+      "pageOverflow": false,
+      "tableClientWidth": 390,
+      "tableScrollLeft": 463,
+      "tableScrollWidth": 853,
+      "tableVisible": true,
+      "scrollerOverflow": "auto",
+      "tableScrollable": true
+    },
+    "start": {
+      "pageClientWidth": 390,
+      "pageScrollWidth": 390,
+      "pageOverflow": false,
+      "tableClientWidth": 390,
+      "tableScrollLeft": 400,
+      "tableScrollWidth": 853,
+      "tableVisible": true,
+      "scrollerOverflow": "auto",
+      "tableScrollable": true
+    }
+  },
+  "demoUrl": "http://127.0.0.1:5174/",
+  "ignoredResponses": [
+    {
+      "status": 404,
+      "url": "http://127.0.0.1:5174/favicon.ico"
+    }
+  ],
+  "screenshots": 6,
+  "status": "passed"
+}

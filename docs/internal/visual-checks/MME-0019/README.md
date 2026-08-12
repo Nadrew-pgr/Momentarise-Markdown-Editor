@@ -9,7 +9,7 @@ Capture command: `npm run visual:mme-0019` (headless Chrome via CDP; the script 
 ## Artifacts
 
 - `fidelity-source-table.png` — the fidelity-check document (GFM table, strikethrough, todo) opened in source mode.
-- `fidelity-rich-table-raw-block.png` — rich mode: the GFM table renders as a raw/opaque unsupported block (monospace pre, bytes intact, including the compact `| :-- | :-: | --: |` delimiter row) instead of a flattened editable paragraph; `~~struck words~~` renders with the new strikethrough mark; the todo renders as a checkbox row.
+- `fidelity-rich-table-native.png` — rich mode: the GFM table renders as a native editable table (three headers, six body cells) rather than being flattened into paragraphs; `~~struck words~~` renders with the strikethrough mark; the todo renders as a checkbox row. **Renamed from `fidelity-rich-table-raw-block.png` by MME-0116:** until MME-0055 shipped native rich tables this fixture mounted as a preserved `pre[data-unsupported="true"]` raw block, and both the filename and the gate still described that older behaviour. Byte identity through the mount is unchanged and is still asserted.
 - `fidelity-rich-after-edit.png` — rich mode after running a block command on the paragraph: the table, strikethrough, and todo source lines remain byte-identical (asserted in-browser before the capture).
 
 ## In-browser assertions enforced by the script

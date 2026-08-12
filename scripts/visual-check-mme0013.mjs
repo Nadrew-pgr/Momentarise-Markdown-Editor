@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { surfaceCommandId } from "./visual-packaged-strings.mjs";
 
 const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
@@ -210,6 +211,21 @@ async function waitForSnapshot(cdp, predicate, label) {
 
 async function main() {
   await mkdir(visualDir, { recursive: true });
+
+  /*
+   * MME-0116: these two assertions demanded the bare ids `heading1` and
+   * `heading2`. MME-0027 namespaced every built-in command so a host extension
+   * cannot collide with one, making both unsatisfiable — and `snapshot.slash.items`
+   * is an array, so `includes("heading1")` is exact equality, not a substring
+   * match that would have quietly kept passing.
+   *
+   * Read the ids from the registry that renders them rather than re-freezing the
+   * new spelling: `surfaceCommandId` also fails if a built-in loses its namespace,
+   * which is the MME-0027 contract itself.
+   */
+  const heading1Id = await surfaceCommandId("heading1");
+  const heading2Id = await surfaceCommandId("heading2");
+
   const chrome = spawn(
     chromePath,
     [
@@ -284,8 +300,8 @@ async function main() {
     await dispatchKey(cdp, "ArrowDown");
     await waitForSnapshot(
       cdp,
-      (snapshot) => snapshot.slash.open === true && snapshot.slash.selectedId === "heading2",
-      "slash keyboard navigation"
+      (snapshot) => snapshot.slash.open === true && snapshot.slash.selectedId === heading2Id,
+      `slash keyboard navigation selects ${JSON.stringify(heading2Id)}`
     );
     await screenshot(cdp, "slash-menu-keyboard-navigation.png");
     await dispatchKey(cdp, "Escape");
@@ -297,8 +313,8 @@ async function main() {
     await cdp.send("Input.insertText", { text: " /h1" });
     await waitForSnapshot(
       cdp,
-      (snapshot) => snapshot.slash.open === true && snapshot.slash.items.includes("heading1"),
-      "slash heading query"
+      (snapshot) => snapshot.slash.open === true && snapshot.slash.items.includes(heading1Id),
+      `slash heading query offers ${JSON.stringify(heading1Id)}`
     );
     await screenshot(cdp, "slash-menu-heading-query.png");
 

@@ -1,10 +1,10 @@
 {
   "consoleErrors": [],
   "blockOverlay": {
-    "bottom": 389,
-    "left": 46,
+    "bottom": 358,
+    "left": 42,
     "open": true,
-    "right": 266,
+    "right": 262,
     "targets": [
       {
         "height": 44,
@@ -19,7 +19,7 @@
         "width": 206
       }
     ],
-    "top": 216
+    "top": 185
   },
   "commands": {
     "activeElement": "ProseMirror ProseMirror-focused",
@@ -34,44 +34,44 @@
     "documentOverflowX": false,
     "documentOverflowY": false,
     "keyboardOpen": "false",
-    "markdown": "> [!NOTE] Touch viewport proof\n>\n\nEdit this Markdown without replacing the durable source.\n\n- [ ] Reach task controls\n\n```ts\nconst viewport = \"host-owned\";\n```\n\n| Surface | State |\n| --- | --- |\n| Mobile | reachable |\n\n> [!NOTE] Final boundary\n> Keep this source exact.\n",
+    "markdown": "1. Touch viewport proof\n\nEdit this Markdown without replacing the durable source.\n\n- [ ] Reach task controls\n\n```ts\nconst viewport = \"host-owned\";\n```\n\n| Surface | State |\n| --- | --- |\n| Mobile | reachable |\n\n> [!NOTE] Final boundary\n> Keep this source exact.\n",
     "shellHeight": 844,
     "shellScrollLeft": 0,
     "targetSizes": [
       {
         "height": 44,
         "testid": "new-file-button",
-        "width": 86
+        "width": 53
       },
       {
         "height": 44,
         "testid": "open-file-button",
-        "width": 86
+        "width": 82
       },
       {
         "height": 44,
         "testid": "save-as-button",
-        "width": 86
+        "width": 75
       },
       {
         "height": 44,
         "testid": "asset-upload-button",
-        "width": 121
+        "width": 125
       },
       {
         "height": 44,
         "testid": "source-mode-button",
-        "width": 58
+        "width": 66
       },
       {
         "height": 44,
         "testid": "rich-mode-button",
-        "width": 44
+        "width": 49
       },
       {
         "height": 44,
         "testid": "live-preview-mode-button",
-        "width": 94
+        "width": 99
       },
       {
         "height": 44,
@@ -121,12 +121,12 @@
       {
         "height": 44,
         "testid": "editor-status-button",
-        "width": 160
+        "width": 182
       },
       {
         "height": 44,
         "testid": "memory-save-button",
-        "width": 72
+        "width": 52
       },
       {
         "height": 44,
@@ -261,7 +261,7 @@
     ],
     "topbarClientWidth": 366,
     "topbarScrollLeft": 0,
-    "topbarScrollWidth": 982,
+    "topbarScrollWidth": 1080,
     "topbarScrollable": true,
     "viewportHeight": 844,
     "viewportMode": "visual",
@@ -289,37 +289,37 @@
       {
         "height": 44,
         "testid": "new-file-button",
-        "width": 86
+        "width": 53
       },
       {
         "height": 44,
         "testid": "open-file-button",
-        "width": 86
+        "width": 82
       },
       {
         "height": 44,
         "testid": "save-as-button",
-        "width": 86
+        "width": 75
       },
       {
         "height": 44,
         "testid": "asset-upload-button",
-        "width": 121
+        "width": 125
       },
       {
         "height": 44,
         "testid": "source-mode-button",
-        "width": 58
+        "width": 66
       },
       {
         "height": 44,
         "testid": "rich-mode-button",
-        "width": 44
+        "width": 49
       },
       {
         "height": 44,
         "testid": "live-preview-mode-button",
-        "width": 94
+        "width": 99
       },
       {
         "height": 44,
@@ -369,12 +369,12 @@
       {
         "height": 44,
         "testid": "editor-status-button",
-        "width": 163
+        "width": 185
       },
       {
         "height": 44,
         "testid": "memory-save-button",
-        "width": 72
+        "width": 52
       },
       {
         "height": 44,
@@ -509,7 +509,7 @@
     ],
     "topbarClientWidth": 366,
     "topbarScrollLeft": 0,
-    "topbarScrollWidth": 985,
+    "topbarScrollWidth": 1084,
     "topbarScrollable": true,
     "viewportHeight": 844,
     "viewportMode": "visual",
@@ -535,37 +535,37 @@
       {
         "height": 44,
         "testid": "new-file-button",
-        "width": 86
+        "width": 53
       },
       {
         "height": 44,
         "testid": "open-file-button",
-        "width": 86
+        "width": 82
       },
       {
         "height": 44,
         "testid": "save-as-button",
-        "width": 86
+        "width": 75
       },
       {
         "height": 44,
         "testid": "asset-upload-button",
-        "width": 121
+        "width": 125
       },
       {
         "height": 44,
         "testid": "source-mode-button",
-        "width": 58
+        "width": 66
       },
       {
         "height": 44,
         "testid": "rich-mode-button",
-        "width": 44
+        "width": 49
       },
       {
         "height": 44,
         "testid": "live-preview-mode-button",
-        "width": 94
+        "width": 99
       },
       {
         "height": 44,
@@ -615,12 +615,12 @@
       {
         "height": 44,
         "testid": "editor-status-button",
-        "width": 174
+        "width": 196
       },
       {
         "height": 44,
         "testid": "memory-save-button",
-        "width": 72
+        "width": 52
       },
       {
         "height": 44,
@@ -755,7 +755,7 @@
     ],
     "topbarClientWidth": 366,
     "topbarScrollLeft": 0,
-    "topbarScrollWidth": 996,
+    "topbarScrollWidth": 1095,
     "topbarScrollable": true,
     "viewportHeight": 844,
     "viewportMode": "visual",
@@ -781,37 +781,37 @@
       {
         "height": 44,
         "testid": "new-file-button",
-        "width": 86
+        "width": 53
       },
       {
         "height": 44,
         "testid": "open-file-button",
-        "width": 86
+        "width": 82
       },
       {
         "height": 44,
         "testid": "save-as-button",
-        "width": 86
+        "width": 75
       },
       {
         "height": 44,
         "testid": "asset-upload-button",
-        "width": 121
+        "width": 125
       },
       {
         "height": 44,
         "testid": "source-mode-button",
-        "width": 60
+        "width": 66
       },
       {
         "height": 44,
         "testid": "rich-mode-button",
-        "width": 44
+        "width": 49
       },
       {
         "height": 44,
         "testid": "live-preview-mode-button",
-        "width": 94
+        "width": 99
       },
       {
         "height": 44,
@@ -861,17 +861,17 @@
       {
         "height": 44,
         "testid": "editor-status-button",
-        "width": 174
+        "width": 196
       },
       {
         "height": 44,
         "testid": "memory-save-button",
-        "width": 72
+        "width": 52
       }
     ],
     "topbarClientWidth": 366,
     "topbarScrollLeft": 0,
-    "topbarScrollWidth": 998,
+    "topbarScrollWidth": 1095,
     "topbarScrollable": true,
     "viewportHeight": 844,
     "viewportMode": "visual",
@@ -879,90 +879,90 @@
   },
   "screenshots": 5,
   "statusOverlay": {
-    "bottom": 407,
-    "left": 12,
+    "bottom": 381,
+    "left": 19,
     "open": true,
     "right": 378,
-    "top": 104
+    "top": 80
   },
   "status": "passed",
   "moreOverlay": {
     "bottom": 836,
-    "left": 222,
+    "left": 126,
     "open": true,
-    "right": 390,
+    "right": 366,
     "targets": [
       {
         "height": 44,
-        "width": 156
+        "width": 226
       },
       {
         "height": 44,
-        "width": 156
+        "width": 226
       },
       {
         "height": 44,
-        "width": 156
+        "width": 226
       },
       {
         "height": 44,
-        "width": 156
+        "width": 226
       },
       {
         "height": 44,
-        "width": 156
+        "width": 226
       },
       {
         "height": 44,
-        "width": 156
+        "width": 226
       },
       {
         "height": 44,
-        "width": 156
+        "width": 226
       },
       {
         "height": 44,
-        "width": 156
+        "width": 226
       },
       {
         "height": 44,
-        "width": 156
+        "width": 226
       },
       {
         "height": 44,
-        "width": 156
+        "width": 226
       },
       {
         "height": 44,
-        "width": 156
+        "width": 226
       },
       {
         "height": 44,
-        "width": 156
+        "width": 226
       },
       {
         "height": 44,
-        "width": 156
+        "width": 226
       },
       {
         "height": 44,
-        "width": 156
+        "width": 226
       },
       {
         "height": 44,
-        "width": 156
+        "width": 226
       },
       {
         "height": 44,
-        "width": 156
+        "width": 226
       },
       {
         "height": 44,
-        "width": 156
+        "width": 226
       },
       {
         "height": 44,
-        "width": 156
+        "width": 226
       }
     ],
     "top": 8
@@ -971,7 +971,7 @@
     "activeElement": "BODY",
     "blockAffordanceOpacity": 1,
     "brandRect": {
-      "left": 14,
+      "left": 16,
       "width": 132
     },
     "coarsePointer": true,
@@ -987,37 +987,37 @@
       {
         "height": 44,
         "testid": "new-file-button",
-        "width": 44
+        "width": 49
       },
       {
         "height": 44,
         "testid": "open-file-button",
-        "width": 71
+        "width": 78
       },
       {
         "height": 44,
         "testid": "save-as-button",
-        "width": 64
+        "width": 71
       },
       {
         "height": 44,
         "testid": "asset-upload-button",
-        "width": 113
+        "width": 121
       },
       {
         "height": 44,
         "testid": "source-mode-button",
-        "width": 58
+        "width": 66
       },
       {
         "height": 44,
         "testid": "rich-mode-button",
-        "width": 44
+        "width": 49
       },
       {
         "height": 44,
         "testid": "live-preview-mode-button",
-        "width": 94
+        "width": 99
       },
       {
         "height": 44,
@@ -1067,12 +1067,12 @@
       {
         "height": 44,
         "testid": "editor-status-button",
-        "width": 159
+        "width": 180
       },
       {
         "height": 44,
         "testid": "memory-save-button",
-        "width": 46
+        "width": 52
       },
       {
         "height": 44,
@@ -1205,9 +1205,9 @@
         "width": 44
       }
     ],
-    "topbarClientWidth": 600,
+    "topbarClientWidth": 596,
     "topbarScrollLeft": 0,
-    "topbarScrollWidth": 789,
+    "topbarScrollWidth": 910,
     "topbarScrollable": true,
     "viewportHeight": 1024,
     "viewportMode": "visual",

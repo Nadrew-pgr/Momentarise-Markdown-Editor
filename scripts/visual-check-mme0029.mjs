@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { surfaceStatusString } from "./visual-packaged-strings.mjs";
 
 const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
@@ -135,6 +136,7 @@ async function waitFor(cdp, expression, label) {
 async function main() {
   await mkdir(visualDir, { recursive: true });
   const mixedFixture = await readFile("fixtures/014-mixed-real-world/input.md", "utf8");
+  const emptyPlaceholder = await surfaceStatusString("emptyPlaceholder");
   const chrome = spawn(
     chromePath,
     [
@@ -209,21 +211,44 @@ async function main() {
       x: hoverPoint.x,
       y: hoverPoint.y
     });
-    const visibleHandleState = await evaluate(
-      cdp,
-      `JSON.stringify((() => {
-        const handle = document.querySelector('[data-rich-block-drag-handle]');
-        const rect = handle.getBoundingClientRect();
-        const style = getComputedStyle(handle.closest('[data-rich-block-affordance]'));
-        return {
-          height: rect.height,
-          opacity: Number(style.opacity),
-          width: rect.width,
-          x: rect.left,
-          y: rect.top
-        };
-      })())`
-    );
+    /*
+     * MME-0116: this read `opacity` in the same tick as the hover that reveals the
+     * handle. `.rich-block-affordance` fades in over `--mme-motion-fast` (100ms),
+     * so the read always caught opacity 0 and the gate reported an invisible
+     * handle while the product was working — the passing MME-0087 gate happens to
+     * do enough work in between that the transition has settled by the time it
+     * looks.
+     *
+     * Poll until the transition settles instead of sleeping a guessed interval:
+     * a fixed wait is either flaky or slower than it needs to be, and it hides a
+     * handle that becomes visible late. The assertion itself is unchanged — if
+     * the handle never becomes visible, the last polled state is what the failure
+     * reports.
+     */
+    const readHandleState = async () =>
+      evaluate(
+        cdp,
+        `JSON.stringify((() => {
+          const handle = document.querySelector('[data-rich-block-drag-handle]');
+          const rect = handle.getBoundingClientRect();
+          const style = getComputedStyle(handle.closest('[data-rich-block-affordance]'));
+          return {
+            height: rect.height,
+            opacity: Number(style.opacity),
+            width: rect.width,
+            x: rect.left,
+            y: rect.top
+          };
+        })())`
+      );
+    let visibleHandleState = await readHandleState();
+    for (const deadline = Date.now() + 3000; Date.now() < deadline; ) {
+      if (JSON.parse(visibleHandleState).opacity > 0) {
+        break;
+      }
+      await wait(50);
+      visibleHandleState = await readHandleState();
+    }
     const handleState = JSON.parse(visibleHandleState);
     if (handleState.width < 16 || handleState.height < 16 || handleState.opacity <= 0 || handleState.x < 0) {
       throw new Error(`Block handle must be visible and inside the viewport: ${visibleHandleState}`);
@@ -331,10 +356,17 @@ async function main() {
     );
 
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.loadEmptyMarkdownForTest()`);
+    /*
+     * MME-0116: this pinned the literal "Type / for commands". The copy is now
+     * "Write, or press '/' for commands" — a deliberate wording change that left
+     * the gate red without anything being broken. Read it from the package that
+     * declares it, so the next rewording updates one place and this follows,
+     * while an empty document that shows no placeholder at all still fails.
+     */
     await waitFor(
       cdp,
-      `window.__MME_DEMO_VISUAL_CHECK__.getBlockAffordanceState().placeholder === "Type / for commands"`,
-      "empty document placeholder"
+      `window.__MME_DEMO_VISUAL_CHECK__.getBlockAffordanceState().placeholder === ${JSON.stringify(emptyPlaceholder)}`,
+      `empty document placeholder reads ${JSON.stringify(emptyPlaceholder)}`
     );
     await screenshot(cdp, "empty-placeholder.png");
 

@@ -195,17 +195,53 @@ async function main() {
     await evaluate(cdp, `document.querySelector('[data-testid="editor-ai-button"]').click()`);
     await waitFor(cdp, `document.querySelector('[data-testid="ai-action-continue"]')?.offsetParent !== null`, "AI action menu");
     await evaluate(cdp, `document.querySelector('[data-testid="ai-action-continue"]').click()`);
+    /*
+     * MME-0116: this waited for `editor-ai-assistant-panel` to become visible.
+     * MME-0028.5 rerouted every AI action to the inline prompt, so that panel now
+     * stays hidden and the gate waited forever for a surface the product stopped
+     * opening.
+     *
+     * What MME-0023 proves is the *shape* of the AI surface, not which element
+     * implements it: something that floats over the document instead of a panel
+     * that reflows the editor. The layout-stability check below is the other half
+     * of the same claim and is untouched.
+     *
+     * The old predicate also pinned `position: fixed` and 460x260 pixels. Those
+     * described the retired panel — the inline prompt is measured at absolute,
+     * 520x560 — and re-pinning today's numbers would just reset the same clock.
+     * So this asserts the properties that make it a popover rather than a dock:
+     * taken out of normal flow, and strictly smaller than the editor host in both
+     * dimensions. A surface that went back to being a full-height sidebar fails.
+     */
     await waitFor(
       cdp,
       `(() => {
-        const panel = document.querySelector('[data-testid="editor-ai-assistant-panel"]');
-        if (!panel || panel.hidden) return false;
-        const style = getComputedStyle(panel);
+        const panel = document.querySelector('[data-testid="inline-ai-prompt"]');
+        const host = document.querySelector('[data-testid="editor-host"]');
+        if (!panel || !host || panel.hidden || panel.offsetParent === null) return false;
+        const outOfFlow = ["absolute", "fixed"].includes(getComputedStyle(panel).position);
         const rect = panel.getBoundingClientRect();
-        return style.position === "fixed" && rect.width <= 460 && rect.height < 260;
+        const hostRect = host.getBoundingClientRect();
+        return outOfFlow && rect.width < hostRect.width && rect.height < hostRect.height;
       })()`,
-      "compact fixed AI assistant popover"
+      "inline AI prompt opens out of flow and smaller than the editor host"
     );
+    /*
+     * The retired panel must stay retired: an AI action that reopened it would
+     * mean two AI surfaces exist, which is the state MME-0028.5 removed.
+     */
+    const legacyPanelVisible = await evaluate(
+      cdp,
+      `(() => {
+        const panel = document.querySelector('[data-testid="editor-ai-assistant-panel"]');
+        return Boolean(panel && !panel.hidden && panel.offsetParent !== null);
+      })()`
+    );
+    if (legacyPanelVisible) {
+      throw new Error(
+        "The legacy assistant panel opened alongside the inline prompt. MME-0028.5 routes AI actions through the inline prompt only."
+      );
+    }
     const afterTop = await evaluate(
       cdp,
       `document.querySelector('[data-testid="editor-host"]').getBoundingClientRect().top`

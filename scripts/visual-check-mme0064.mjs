@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { assertFootnoteMembership } from "./visual-footnote-membership.mjs";
 
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
 const visualDir = "docs/internal/visual-checks/MME-0064";
@@ -181,16 +182,40 @@ async function main() {
         taskParagraphs: task?.querySelectorAll('[data-todo-content] > p').length ?? 0
       };
     })()`);
+    /*
+     * MME-0116: `definitions === 3` and `fallbacks >= 7` were both document-wide
+     * totals frozen at MME-0064's authoring date. MME-0065 through MME-0071 made
+     * fixture 028's remaining definitions semantic — 8 definitions, 2 fallbacks
+     * today. The loose-list structure below is what MME-0064 shipped: paragraphs
+     * kept inside loose items, and the ordered starts (`3`, nested `7`) that a
+     * naive re-render would renumber.
+     */
     assert(
-      mounted.definitions === 3 &&
       mounted.bulletParagraphs >= 4 &&
       mounted.buttons === 2 &&
       mounted.taskParagraphs >= 4 &&
       mounted.orderedStart === "3" &&
-      mounted.nestedStart === "7" &&
-      mounted.fallbacks >= 7,
+      mounted.nestedStart === "7",
       `Loose-list mount incomplete: ${JSON.stringify(mounted)}`
     );
+    await assertFootnoteMembership(evaluate, cdp, {
+      notPreserved: ["[^loose-bullets]:", "[^loose-task]:", "[^loose-ordered]:", "[^table-child]:"],
+      preserved: [
+        "[^multiple-nested]: Multiple nested lists stay source-only.",
+        "[^nested-container]: Container definition stays source-only."
+      ],
+      references: 3,
+      semantic: [
+        "loose-bullets",
+        "loose-task",
+        "loose-ordered",
+        "quoted-child",
+        "code-child",
+        "raw-child",
+        "table-child",
+        "callout-child"
+      ]
+    });
     assert(await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getMarkdown() === ${JSON.stringify(source)}`), "Untouched Rich mount changed source bytes.");
     await screenshot(cdp, "footnote-loose-list-rich-desktop.png");
 

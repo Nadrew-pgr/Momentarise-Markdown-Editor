@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { assertFootnoteMembership } from "./visual-footnote-membership.mjs";
 
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
 const visualDir = "docs/internal/visual-checks/MME-0070";
@@ -182,21 +183,42 @@ async function main() {
         taskText: task?.textContent ?? null
       };
     })()`);
+    /*
+     * MME-0116: `definitions === 3`, `htmlBlocks === 3`, `roles === 3` and
+     * `fallbacks >= 8` were document-wide totals; MME-0071 made fixture 034's
+     * inline-html and paragraph-html definitions semantic, so there are 5
+     * definitions and 7 fallbacks. `roles` counts raw-HTML blocks carrying
+     * `role="region"`, so it becomes the relationship it stood for: every raw-HTML
+     * block announces itself as a region.
+     * `activePayloadDom === 0` is the security invariant and stays exact: raw
+     * HTML must never become live DOM.
+     */
     assert(
       mounted.activePayloadDom === 0 &&
       mounted.buttons === 2 &&
-      mounted.definitions === 3 &&
-      mounted.htmlBlocks === 3 &&
-      mounted.roles === 3 &&
+      mounted.htmlBlocks >= 3 &&
+      mounted.roles === mounted.htmlBlocks &&
       mounted.topLabel === "Raw HTML source block" &&
       mounted.topText.includes('<aside data-kind="note">') &&
       mounted.listText.includes("data-state='draft'") &&
       mounted.taskText.includes("<script>") &&
       mounted.taskText.includes("onclick=") &&
-      mounted.orderedStart === "3" &&
-      mounted.fallbacks >= 8,
+      mounted.orderedStart === "3",
       `Raw-HTML mount incomplete: ${JSON.stringify(mounted)}`
     );
+    await assertFootnoteMembership(evaluate, cdp, {
+      notPreserved: ["[^html-top]:", "[^html-list]:", "[^html-task]:", "[^inline-html]:"],
+      preserved: [
+        "[^malformed-html]: Malformed block HTML stays source-only.",
+        "[^quote-html]: Quote-contained HTML stays source-only.",
+        "[^mixed-containers]: Raw HTML plus nested list stays source-only.",
+        "[^multiple-html]: Multiple raw HTML containers stay source-only.",
+        "[^duplicate]: First duplicate HTML stays source-only.",
+        "[^nested-container]: Container definition stays source-only."
+      ],
+      references: 3,
+      semantic: ["html-top", "html-list", "html-task", "inline-html", "paragraph-html"]
+    });
     assert(await evaluate(cdp, `(() => {
       const html = document.querySelector('[data-testid="rich-editor-host"] .ProseMirror')?.innerHTML ?? '';
       return !html.includes('blockSources') && !html.includes('blockFingerprints') && globalThis.__MME_HTML_RAN__ !== true;
@@ -224,12 +246,17 @@ async function main() {
     assert(await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getTestDiskContent() === ${JSON.stringify(editedSource)}`), "Saved content differs from edited Markdown.");
     await screenshot(cdp, "footnote-raw-html-saved-desktop.png");
 
+    /*
+     * MME-0116: this also required `[^inline-html]` to be a fallback. MME-0071
+     * made inline-HTML definitions semantic, which the membership assertion above
+     * records. The accessibility property moves to the malformed and
+     * mixed-container definitions, which genuinely remain preserved.
+     */
     assert(await evaluate(cdp, `(() => {
-      const fallbacks = Array.from(document.querySelectorAll('[data-mme-preserved-footnote="true"]'));
-      const inline = fallbacks.find((element) => element.textContent?.includes('[^inline-html]:'));
+      const fallbacks = [...document.querySelectorAll('[data-mme-preserved-footnote="true"]')];
       const malformed = fallbacks.find((element) => element.textContent?.includes('[^malformed-html]:'));
       const mixed = fallbacks.find((element) => element.textContent?.includes('[^mixed-containers]:'));
-      return inline?.getAttribute('aria-label') === 'Preserved Markdown footnote. Edit in Source mode.' && Boolean(malformed && mixed);
+      return malformed?.getAttribute('aria-label') === 'Preserved Markdown footnote. Edit in Source mode.' && Boolean(mixed);
     })()`), "Raw-HTML fallback was not explicit and accessible.");
     await evaluate(cdp, `Array.from(document.querySelectorAll('[data-mme-preserved-footnote="true"]')).find((element) => element.textContent?.includes('[^inline-html]:'))?.scrollIntoView({ block: "center" })`);
     await wait(150);
@@ -245,8 +272,13 @@ async function main() {
       const h = host?.getBoundingClientRect();
       const f = fallback?.getBoundingClientRect();
       return {
+        /*
+         * MME-0116: "definitions.length === 3" was a document-wide total, now 5.
+         * Containment at 390 holds for whatever mounted; the floors stop this
+         * passing on an empty set.
+         */
         contained: Boolean(
-          h && f && definitions.length === 3 && htmlBlocks.length === 3 &&
+          h && f && definitions.length >= 3 && htmlBlocks.length >= 3 &&
           f.width > 0 && f.height > 0 && f.right <= h.right + 1 &&
           definitions.every((definition) => definition.getBoundingClientRect().right <= h.right + 1) &&
           htmlBlocks.every((block) => block.getBoundingClientRect().right <= h.right + 1)

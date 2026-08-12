@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { assertFootnoteMembership } from "./visual-footnote-membership.mjs";
 
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
 const visualDir = "docs/internal/visual-checks/MME-0069";
@@ -160,7 +161,20 @@ async function main() {
 
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.loadWritableMarkdownFileForTest("callout-footnotes.md", ${JSON.stringify(source)})`);
     await evaluate(cdp, 'window.__MME_DEMO_VISUAL_CHECK__.switchEditorMode("rich")');
-    await waitFor(cdp, `document.querySelectorAll('[data-testid="rich-editor-host"] [data-mme-callout="true"]').length === 3`, "semantic callout footnotes");
+    /*
+     * MME-0116: this waited for exactly 3 semantic callouts. MME-0071 made
+     * fixture 033's `[^unsafe-body]` callout semantic too, so there are 4 — the
+     * equality could never be satisfied. Wait for the three this issue shipped by
+     * identity; the per-callout type, fold and title assertions below are what
+     * MME-0069 actually proves.
+     */
+    await waitFor(
+      cdp,
+      `["callout-top", "callout-list", "callout-task"].every((identifier) =>
+        Boolean(document.querySelector('[data-testid="rich-editor-host"] [data-mme-footnote-definition="true"][data-mme-footnote-identifier="' + identifier + '"] [data-mme-callout="true"]'))
+      )`,
+      "the three callout definitions MME-0069 shipped mount semantically"
+    );
     const mounted = await evaluate(cdp, `(() => {
       const editor = document.querySelector('[data-testid="rich-editor-host"] .ProseMirror');
       const definition = (identifier) => editor?.querySelector('[data-mme-footnote-definition="true"][data-mme-footnote-identifier="' + identifier + '"]');
@@ -176,7 +190,8 @@ async function main() {
         fallbacks: editor?.querySelectorAll('[data-mme-preserved-footnote="true"]').length ?? 0,
         orderedStart: ordered?.querySelector('ol')?.getAttribute('start') ?? null,
         roles: editor?.querySelectorAll('[data-mme-callout="true"][role="note"]').length ?? 0,
-        headersLocked: headers.length === 3 && headers.every((header) => header.getAttribute('contenteditable') === 'false'),
+        /* MME-0116: was "headers.length === 3"; MME-0071 added a fourth callout. The property is that every callout header is locked, not how many there are. */
+        headersLocked: headers.length >= 3 && headers.every((header) => header.getAttribute('contenteditable') === 'false'),
         topType: top?.getAttribute('data-mme-callout-type') ?? null,
         topFold: top?.getAttribute('data-mme-callout-fold') ?? null,
         topTitle: top?.querySelector('[data-mme-callout-title-label="true"]')?.textContent ?? null,
@@ -189,11 +204,18 @@ async function main() {
         scriptElements: editor?.querySelectorAll('script').length ?? 0
       };
     })()`);
+    /*
+     * MME-0116: `definitions === 4`, `callouts === 3`, `roles === 3` and
+     * `fallbacks >= 9` were document-wide totals frozen before MME-0071 made the
+     * unsafe-body callout semantic — there are 5 definitions and 4 callouts now.
+     * `roles` becomes the relationship it stood for: every callout carries
+     * `role="note"`. `headersLocked` keeps its own count because a locked header
+     * is per-callout and this gate names three.
+     */
     assert(
-      mounted.definitions === 4 &&
       mounted.buttons === 2 &&
-      mounted.callouts === 3 &&
-      mounted.roles === 3 &&
+      mounted.callouts >= 3 &&
+      mounted.roles === mounted.callouts &&
       mounted.headersLocked &&
       mounted.topType === "NOTE" &&
       mounted.topFold === "none" &&
@@ -205,10 +227,23 @@ async function main() {
       mounted.taskFold === "+" &&
       mounted.taskTitle === "Release tip" &&
       mounted.orderedStart === "3" &&
-      mounted.fallbacks >= 9 &&
       mounted.scriptElements === 0,
       `Callout mount incomplete: ${JSON.stringify(mounted)}`
     );
+    await assertFootnoteMembership(evaluate, cdp, {
+      notPreserved: ["[^callout-top]:", "[^callout-list]:", "[^callout-task]:", "[^unsafe-body]:"],
+      preserved: [
+        "[^marker-only]: Callout without a body stays source-only.",
+        "[^malformed-type]: Malformed type stays source-only.",
+        "[^malformed-fold]: Malformed fold marker stays source-only.",
+        "[^nested-callout]: Nested callout stays source-only.",
+        "[^duplicate]: First duplicate callout stays source-only.",
+        "[^duplicate]: Second duplicate callout stays source-only.",
+        "[^nested-container]: Container definition stays source-only."
+      ],
+      references: 3,
+      semantic: ["callout-top", "callout-list", "callout-task", "quote-existing", "unsafe-body"]
+    });
     assert(await evaluate(cdp, `(() => {
       const html = document.querySelector('[data-testid="rich-editor-host"] .ProseMirror')?.innerHTML ?? '';
       return !html.includes('blockSources') && !html.includes('blockFingerprints') && !document.querySelector('[onclick="boom()"]');
@@ -236,12 +271,18 @@ async function main() {
     assert(await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getTestDiskContent() === ${JSON.stringify(editedSource)}`), "Saved content differs from edited Markdown.");
     await screenshot(cdp, "footnote-callouts-saved-desktop.png");
 
+    /*
+     * MME-0116: this also required `[^unsafe-body]` to be a fallback. MME-0071
+     * made it semantic, which the membership assertion above records. The
+     * property here — a preserved block announces itself to assistive
+     * technology — is checked on the two callout constructs that genuinely
+     * remain preserved.
+     */
     assert(await evaluate(cdp, `(() => {
-      const fallbacks = Array.from(document.querySelectorAll('[data-mme-preserved-footnote="true"]'));
+      const fallbacks = [...document.querySelectorAll('[data-mme-preserved-footnote="true"]')];
       const marker = fallbacks.find((element) => element.textContent?.includes('[^marker-only]:'));
       const nested = fallbacks.find((element) => element.textContent?.includes('[^nested-callout]:'));
-      const unsafe = fallbacks.find((element) => element.textContent?.includes('[^unsafe-body]:'));
-      return marker?.getAttribute('aria-label') === 'Preserved Markdown footnote. Edit in Source mode.' && Boolean(nested && unsafe);
+      return marker?.getAttribute('aria-label') === 'Preserved Markdown footnote. Edit in Source mode.' && Boolean(nested);
     })()`), "Callout fallback was not explicit and accessible.");
     await evaluate(cdp, `Array.from(document.querySelectorAll('[data-mme-preserved-footnote="true"]')).find((element) => element.textContent?.includes('[^nested-callout]:'))?.scrollIntoView({ block: "center" })`);
     await wait(150);
@@ -257,8 +298,13 @@ async function main() {
       const h = host?.getBoundingClientRect();
       const f = fallback?.getBoundingClientRect();
       return {
+        /*
+         * MME-0116: "definitions.length === 4" and "callouts.length === 3" were
+         * the same document-wide totals as above, now 5 and 4. Containment at 390
+         * holds for whatever mounted; the floors stop this passing on an empty set.
+         */
         contained: Boolean(
-          h && f && definitions.length === 4 && callouts.length === 3 &&
+          h && f && definitions.length >= 4 && callouts.length >= 3 &&
           f.width > 0 && f.height > 0 && f.right <= h.right + 1 &&
           definitions.every((definition) => definition.getBoundingClientRect().right <= h.right + 1) &&
           callouts.every((callout) => callout.getBoundingClientRect().right <= h.right + 1)

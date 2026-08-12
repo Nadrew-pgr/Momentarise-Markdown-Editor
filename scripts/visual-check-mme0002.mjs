@@ -2,6 +2,11 @@ import { spawn } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import {
+  DEMO_DISCLOSURES,
+  assertDisclosuresOpened,
+  openDemoDisclosuresExpression
+} from "./visual-demo-disclosures.mjs";
 
 const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5173/";
@@ -342,10 +347,29 @@ async function main() {
 
     await keyChord(cdp, "s");
     await wait(100);
+    /*
+     * MME-0116: the event log lives inside the collapsed "Technical diagnostics"
+     * disclosure, and `innerText` is the empty string for content inside a closed
+     * `<details>` — so this assertion has been running against `""` since the
+     * reference surface demoted the panel. Open it the way a user does, then read
+     * what is actually on screen. Deliberately not `textContent`: that would
+     * assert text no user can see.
+     */
+    assertDisclosuresOpened(
+      await evaluate(cdp, openDemoDisclosuresExpression([DEMO_DISCLOSURES.debugInspector])),
+      "MME-0002"
+    );
+    await wait(120);
     const eventLog = await evaluate(
       cdp,
       "document.querySelector('[data-testid=\"event-log\"]').innerText"
     );
+    if (typeof eventLog !== "string" || eventLog.trim().length === 0) {
+      throw new Error(
+        "Event log read as empty. The disclosure opened, so the panel itself is gone or renamed — " +
+          "fix the gate against its new home instead of letting the assertion pass on nothing."
+      );
+    }
     assertIncludes(eventLog, "keyboard shortcut", "save shortcut event log");
     await screenshot(cdp, "save-shortcut-event-log.png");
 

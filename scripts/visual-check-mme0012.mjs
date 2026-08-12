@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { surfaceStatusString } from "./visual-packaged-strings.mjs";
 
 const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
@@ -264,14 +265,34 @@ async function main() {
         richFixture
       )})`
     );
+    /*
+     * MME-0116: this demanded the literal `Export`. MME-0020 relabelled the
+     * imported-copy primary action to `Export copy`, so the gate had been red
+     * since 2026-05 for being out of date, not for anything being wrong.
+     *
+     * Re-pinning `Export copy` would rot at the next copy change. The property
+     * this gate is actually for is save truthfulness: an imported copy must not
+     * offer a plain `Save`, because there is nothing to save it to. So take the
+     * expected label from the package that renders it, and assert separately that
+     * it is not the save label — which is what fails if someone makes the button
+     * lie again.
+     */
+    const exportLabel = await surfaceStatusString("primaryExport");
+    const saveLabel = await surfaceStatusString("primarySave");
+    if (exportLabel === saveLabel) {
+      throw new Error(
+        `md-surface renders the same label (${JSON.stringify(exportLabel)}) for a real save and for an ` +
+          "imported copy that can only be exported. That is the save-truthfulness lie this gate exists to catch."
+      );
+    }
     await waitForSnapshot(
       cdp,
       (snapshot) =>
         snapshot.editorMode === "source" &&
-        snapshot.primaryAction === "Export" &&
+        snapshot.primaryAction === exportLabel &&
         snapshot.sourcePressed === "true" &&
         snapshot.richPressed === "false",
-      "source mode selected with honest imported-copy action"
+      `source mode selected with honest imported-copy action (${JSON.stringify(exportLabel)})`
     );
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.switchEditorMode("rich")`);
     await waitForSnapshot(

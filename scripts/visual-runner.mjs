@@ -21,12 +21,13 @@
  *     `anomaly`, or `not-selected` naming the group that was not requested.
  *     There is no "quietly skipped".
  *
- * The quarantine (MME-0114 addendum). 38 gates are red for reasons owned by
- * `MME-0116` and `MME-0117`, each named in `KNOWN_FAILING` with a reason. The
- * build fails only on a gate expected to pass, because a permanently red job is
- * a job everyone learns to ignore — but quarantined gates still run, and one
- * that starts *passing* is reported as an `anomaly` so a landed repair gets
- * noticed instead of rotting in the list.
+ * The quarantine (MME-0114 addendum) is EMPTY as of MME-0116: all 38 gates that
+ * entered it have been repaired or retired. The mechanism stays, because it is
+ * what stops the next batch of red gates going quiet — a quarantined gate is
+ * named in `KNOWN_FAILING` with a reason and an owning issue, the build fails
+ * only on a gate expected to pass, and a quarantined gate that starts *passing*
+ * is reported as an `anomaly` so a landed repair gets noticed instead of rotting
+ * in the list.
  *
  * The runner also pins each gate's URL to the server it actually started, so a
  * gate whose hardcoded default points at a port nothing has served since

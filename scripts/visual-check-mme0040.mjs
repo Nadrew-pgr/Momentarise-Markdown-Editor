@@ -218,18 +218,48 @@ async function main() {
     await screenshot(cdp, "table-read-semantic.png");
 
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.switchEditorMode("rich")`);
+    /*
+     * MME-0116: this required *both* of the fixture's table-like blocks to mount
+     * as preserved fallbacks. MME-0055 shipped native rich tables, so the
+     * well-formed one is now an editable table and only the malformed one still
+     * falls back — the old predicate asserted that a shipped feature had not
+     * shipped.
+     *
+     * The preservation guarantee is what MME-0040 is for, and it is unchanged:
+     * syntax the rich view cannot represent must keep its bytes rather than be
+     * flattened. So this asserts both halves of the current split, by membership
+     * rather than by a count that the next semantic conversion would rot:
+     *
+     *   - the well-formed table mounts natively, and the escaped pipe survives
+     *     into a real cell rather than splitting it — the corruption this fixture
+     *     exists to catch;
+     *   - the malformed block stays raw, with its bytes and the affordance that
+     *     tells the user where to edit it.
+     */
     await waitFor(
       cdp,
       `(() => {
-        const figures = Array.from(document.querySelectorAll('[data-mme-preserved-table="true"]'));
-        return figures.length >= 2 &&
-          figures.some((figure) => figure.textContent.includes("| Feature | Owner | Status |")) &&
-          figures.some((figure) => figure.textContent.includes("| broken table-like block | should stay raw |")) &&
-          figures.every((figure) => figure.textContent.includes("Preserved Markdown table") && figure.textContent.includes("Edit in Source mode"));
+        const editor = document.querySelector('[data-testid="rich-editor-host"] .ProseMirror');
+        const table = editor?.querySelector("table");
+        if (!table) {
+          return false;
+        }
+        const headers = [...table.querySelectorAll("th")].map((cell) => cell.textContent.trim()).join("|");
+        const cells = [...table.querySelectorAll("td")].map((cell) => cell.textContent.trim());
+        const figures = [...document.querySelectorAll('[data-mme-preserved-table="true"]')];
+        return (
+          headers === "Feature|Owner|Status" &&
+          cells.includes("Escaped | pipe") &&
+          figures.length === 1 &&
+          figures[0].textContent.includes("| broken table-like block | should stay raw |") &&
+          figures[0].textContent.includes("| missing delimiter row |") &&
+          figures[0].textContent.includes("Preserved Markdown table") &&
+          figures[0].textContent.includes("Edit in Source mode")
+        );
       })()`,
-      "rich preserved-table fallback"
+      "well-formed table mounts natively (escaped pipe intact) while the malformed block stays preserved"
     );
-    await screenshot(cdp, "rich-preserved-table-fallback.png");
+    await screenshot(cdp, "rich-native-table-and-preserved-fallback.png");
 
     const markdownAfterRichMount = await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getMarkdown()`);
     if (markdownAfterRichMount !== tableMarkdown) {

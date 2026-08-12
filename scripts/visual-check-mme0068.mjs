@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { assertFootnoteMembership } from "./visual-footnote-membership.mjs";
 
 const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
@@ -229,9 +230,16 @@ async function main() {
         wideHeaders: definition('table-wide')?.querySelectorAll('th').length ?? 0
       };
     })()`);
+    /*
+     * MME-0116: `definitions === 5`, `roles === 5` and `fallbacks >= 6` were
+     * document-wide totals; MME-0069 through MME-0071 absorbed fixture 032's
+     * definitions, leaving 7 definitions and 4 fallbacks. The table structure
+     * below — four tables, three rows each, an eight-column wide one — is what
+     * MME-0068 shipped, and the script-element and payload checks below it are
+     * the security half, both untouched.
+     */
     assert(
-      mounted.definitions === 5 &&
-      mounted.roles === 5 &&
+      mounted.roles === mounted.definitions &&
       mounted.tables === 4 &&
       mounted.topRows === 3 &&
       mounted.listRows === 3 &&
@@ -239,7 +247,6 @@ async function main() {
       mounted.wideHeaders === 8 &&
       mounted.orderedStart === "3" &&
       mounted.buttons === 2 &&
-      mounted.fallbacks >= 6 &&
       mounted.scriptElements === 0 &&
       await evaluate(cdp, "window.__MME_TABLE_FOOTNOTE_RAN__ !== true"),
       `Table-footnote mount incomplete: ${JSON.stringify(mounted)}`
@@ -248,6 +255,17 @@ async function main() {
       const html = document.querySelector('[data-testid="rich-editor-host"] .ProseMirror')?.innerHTML ?? '';
       return !html.includes('blockSources') && !html.includes('blockFingerprints') && !document.querySelector('[onclick="boom()"]');
     })()`), "Source metadata leaked or fallback HTML became active DOM.");
+    await assertFootnoteMembership(evaluate, cdp, {
+      notPreserved: ["[^table-top]:", "[^table-list]:", "[^table-task]:", "[^table-wide]:"],
+      preserved: [
+        "[^quote-table]: Quote-contained table stays source-only.",
+        "[^mixed-containers]: Table plus nested list stays source-only.",
+        "[^unsafe-cell]: Unsafe table cell stays source-only.",
+        "[^nested-container]: Container definition stays source-only."
+      ],
+      references: 5,
+      semantic: ["table-top", "table-list", "table-task", "table-wide", "fenced-existing", "callout-child", "raw-child"]
+    });
     assert(await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getMarkdown() === ${JSON.stringify(source)}`), "Untouched Rich mount changed source bytes.");
     await screenshot(cdp, "footnote-tables-rich-desktop.png");
 
@@ -307,7 +325,8 @@ async function main() {
       const fallbackRect = fallback?.getBoundingClientRect();
       return {
         contained: Boolean(
-          hostRect && fallbackRect && definitions.length === 5 && ordinaryTables.every(Boolean) &&
+          /* MME-0116: "definitions.length === 5" was a document-wide total; the containment property does not depend on it. */
+          hostRect && fallbackRect && definitions.length >= 5 && ordinaryTables.every(Boolean) &&
           fallbackRect.right <= hostRect.right + 1 &&
           definitions.every((definition) => definition.getBoundingClientRect().right <= hostRect.right + 1) &&
           ordinaryTables.every((table) => table.getBoundingClientRect().width > 0)

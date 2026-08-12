@@ -33,6 +33,13 @@ import {
 } from "../scripts/visual-artifacts.mjs";
 import { SAVE_TRUTH_PAIR_EXPRESSION, assertSaveTruthPair } from "../scripts/visual-save-truth.mjs";
 import { DEMO_DISCLOSURES, openDemoDisclosuresExpression } from "../scripts/visual-demo-disclosures.mjs";
+import { footnoteMembershipExpression } from "../scripts/visual-footnote-membership.mjs";
+import {
+  richContentBlocksExpression,
+  richTextExpression,
+  richTextIndexExpression,
+  richTextListExpression
+} from "../scripts/visual-rich-text.mjs";
 import {
   DEFAULT_GROUPS,
   KEPT_VISUAL_ARTIFACTS,
@@ -100,10 +107,11 @@ assert.equal(
 
 const knownGroups = new Set([...DEFAULT_GROUPS, ...OPT_IN_GROUPS]);
 
-// The only issue allowed to own a quarantined gate. MME-0116 repairs the stale
-// assertions. MME-0117 (touch targets) and MME-0119 (overlay containing block)
-// have shipped and their gates left the list. A new owner is a deliberate edit
-// here, not something a gate can claim for itself.
+// The only issue allowed to own a quarantined gate. The list is empty today —
+// MME-0116 repaired the last 37 entries, after MME-0117 and MME-0119 shipped
+// their product fixes — so this set currently guards nothing. It stays because a
+// new owner must be a deliberate edit here, not something a gate can claim for
+// itself, and MME-0116 remains the reference for what an owner has to be.
 const QUARANTINE_OWNERS = new Set(["MME-0116"]);
 
 const seenIds = new Set();
@@ -585,9 +593,20 @@ for (const kept of KEPT_VISUAL_ARTIFACTS) {
  * which is the slowest possible feedback loop for a syntax error.
  * ------------------------------------------------------------------ */
 
+/*
+ * MME-0116 added five more expression builders, and a backtick inside a comment
+ * *inside* one of these template literals silently terminated the literal twice
+ * during that issue — a class of error a browser run finds nine minutes later and
+ * this finds instantly.
+ */
 for (const [name, expression] of [
   ["SAVE_TRUTH_PAIR_EXPRESSION", SAVE_TRUTH_PAIR_EXPRESSION],
-  ["openDemoDisclosuresExpression", openDemoDisclosuresExpression(Object.values(DEMO_DISCLOSURES))]
+  ["openDemoDisclosuresExpression", openDemoDisclosuresExpression(Object.values(DEMO_DISCLOSURES))],
+  ["footnoteMembershipExpression", footnoteMembershipExpression()],
+  ["richContentBlocksExpression", richContentBlocksExpression()],
+  ["richTextExpression", richTextExpression(".ProseMirror h1")],
+  ["richTextIndexExpression", richTextIndexExpression(".ProseMirror h1", "Root")],
+  ["richTextListExpression", richTextListExpression(".rich-fold-hidden")]
 ]) {
   assert.doesNotThrow(
     // Parse only — never executed here, and it touches no DOM at parse time.

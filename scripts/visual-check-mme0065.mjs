@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { assertFootnoteMembership } from "./visual-footnote-membership.mjs";
 
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
 const visualDir = "docs/internal/visual-checks/MME-0065";
@@ -181,17 +182,35 @@ async function main() {
         orderedQuoteParagraphs: ordered?.querySelectorAll('ol blockquote > p').length ?? 0
       };
     })()`);
+    /*
+     * MME-0116: `definitions === 3`, `roles === 3` and `fallbacks >= 8` were
+     * document-wide totals; MME-0071 made fixture 029's unsafe-body definition
+     * semantic, so there are 4 definitions and 7 fallbacks.
+     *
+     * `roles` is kept as a relationship rather than a number: every semantic
+     * definition must carry `role="doc-footnote"`. That is the accessibility
+     * contract the frozen 3 was standing in for, and it cannot rot.
+     */
     assert(
-      mounted.definitions === 3 &&
       mounted.buttons === 2 &&
-      mounted.roles === 3 &&
+      mounted.roles === mounted.definitions &&
       mounted.topQuoteParagraphs === 2 &&
       mounted.orderedQuoteParagraphs === 2 &&
       mounted.taskQuoteParagraphs === 2 &&
-      mounted.orderedStart === "3" &&
-      mounted.fallbacks >= 8,
+      mounted.orderedStart === "3",
       `Blockquote mount incomplete: ${JSON.stringify(mounted)}`
     );
+    await assertFootnoteMembership(evaluate, cdp, {
+      notPreserved: ["[^quote-top]:", "[^quote-list]:", "[^quote-task]:", "[^callout]:"],
+      preserved: [
+        "[^nested-quote]: Nested quote stays source-only.",
+        "[^quote-code-child]: Quote containing code stays source-only.",
+        "[^mixed-containers]: Quote plus nested list stays source-only.",
+        "[^nested-container]: Container definition stays source-only."
+      ],
+      references: 3,
+      semantic: ["quote-top", "quote-list", "quote-task", "callout"]
+    });
     assert(await evaluate(cdp, `(() => {
       const html = document.querySelector('[data-testid="rich-editor-host"] .ProseMirror')?.innerHTML ?? '';
       return !html.includes('blockSources') && !html.includes('blockFingerprints');
@@ -213,12 +232,21 @@ async function main() {
     assert(await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getTestDiskContent() === ${JSON.stringify(editedSource)}`), "Saved content differs from Source Markdown.");
     await screenshot(cdp, "footnote-blockquote-saved-desktop.png");
 
+    /*
+     * MME-0116: this required `[^callout]` to be a preserved fallback. MME-0069
+     * shipped semantic callouts, so it is a real definition now — the membership
+     * assertion above lists it under `semantic` and names it in `notPreserved`.
+     *
+     * The property here is unchanged and still worth checking on a fallback that
+     * genuinely remains: a preserved block must announce itself, so a screen
+     * reader user is told this region is source-only rather than meeting an
+     * unlabelled figure. The nested quote is the fixture's clearest such case.
+     */
     assert(await evaluate(cdp, `(() => {
-      const fallbacks = Array.from(document.querySelectorAll('[data-mme-preserved-footnote="true"]'));
-      const callout = fallbacks.find((element) => element.textContent?.includes('[^callout]:'));
+      const fallbacks = [...document.querySelectorAll('[data-mme-preserved-footnote="true"]')];
       const nested = fallbacks.find((element) => element.textContent?.includes('[^nested-quote]:'));
-      return callout?.getAttribute('aria-label') === 'Preserved Markdown footnote. Edit in Source mode.' && Boolean(nested);
-    })()`), "Callout or nested quote fallback was not explicit and accessible.");
+      return nested?.getAttribute('aria-label') === 'Preserved Markdown footnote. Edit in Source mode.';
+    })()`), "Nested quote fallback was not explicit and accessible.");
     await evaluate(cdp, `Array.from(document.querySelectorAll('[data-mme-preserved-footnote="true"]')).find((element) => element.textContent?.includes('[^callout]:'))?.scrollIntoView({ block: "center" })`);
     await wait(150);
     await screenshot(cdp, "footnote-blockquote-unsupported-desktop.png");
@@ -232,8 +260,16 @@ async function main() {
       const fallback = host?.querySelector('[data-mme-preserved-footnote="true"]');
       const h = host?.getBoundingClientRect();
       const f = fallback?.getBoundingClientRect();
+      /*
+       * MME-0116: the "details.length === 3" term was the same document-wide
+       * total as above and is now 4, after MME-0071 made the unsafe-body
+       * definition semantic. The overflow property this assertion exists for
+       * does not depend on how many there are: every definition, and every quote
+       * inside one, must stay within the host at 390. So it is asserted over
+       * whatever mounted, with a floor that keeps it from passing on an empty set.
+       */
       return Boolean(
-        h && f && details.length === 3 && quotes.length >= 3 &&
+        h && f && details.length >= 3 && quotes.length >= 3 &&
         f.width > 0 && f.height > 0 && f.right <= h.right + 1 &&
         details.every((detail) => detail.getBoundingClientRect().right <= h.right + 1) &&
         quotes.every((quote) => quote.getBoundingClientRect().right <= h.right + 1)

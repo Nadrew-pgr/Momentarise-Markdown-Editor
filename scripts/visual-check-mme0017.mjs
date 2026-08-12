@@ -225,13 +225,28 @@ async function main() {
     );
 
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.startMockAiSessionForTest()`);
+    /*
+     * MME-0116: this read `snapshot.ai.keyInputValue === ""`. MME-0028.6 removed
+     * that field precisely so the raw BYOK key never enters page state, replacing
+     * it with the boolean `keyInputHasValue` — so the predicate had been reading
+     * `undefined === ""` and could never be true. It has been unsatisfiable since
+     * 2026-06-30, and it was the no-key-leak check.
+     *
+     * Assert the same property against the field that exists: after
+     * `startAiSession`, the key input must be empty, which is what says the raw
+     * key was not retained. The complementary "no key text anywhere in the
+     * exposed state" half is `assertNoKeyLeak` immediately below — a second,
+     * field-scanning version of it was written here and then removed, because no
+     * mutation could make it fail: the demo clears the input before this snapshot
+     * is taken, so there is nothing left for it to find.
+     */
     const sessionReady = await waitForSnapshot(
       cdp,
       (snapshot) =>
         snapshot.ai.hasSession === true &&
-        snapshot.ai.keyInputValue === "" &&
+        snapshot.ai.keyInputHasValue === false &&
         snapshot.ai.statusText.includes("ready"),
-      "AI session ready"
+      "AI session ready with no BYOK key retained in the input"
     );
     assertNoKeyLeak(sessionReady, "session-ready state");
     await screenshot(cdp, "ai-panel-session-ready.png");
@@ -262,14 +277,30 @@ async function main() {
 
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.loadAiPolicyDeniedDocumentForTest()`);
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.startMockAiSessionForTest()`);
+    /*
+     * MME-0116: this demanded `providerRequestCount === 0`. The count is the mock
+     * provider's cumulative request log (`demoAiProvider.requests.length`), and
+     * the accepted-suggestion scenario above legitimately makes one request — so
+     * the absolute zero was only ever true when this scenario ran first.
+     *
+     * Checked rather than assumed: the observed state at this point is
+     * `pendingStatus: "blocked"`, `statusText: "AI blocked by policy before
+     * provider call"`, count 1 — the one request belongs to the earlier accepted
+     * suggestion, not to this denied document. So this is a stale assertion, not
+     * a policy bypass.
+     *
+     * The delta is the real invariant and is stronger than the old absolute: a
+     * denied document must add no provider request, whatever happened before it.
+     */
+    const beforeBlocked = (await getSnapshot(cdp)).ai.providerRequestCount;
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.generateAiSuggestionForTest("summarize", "Summarize.")`);
     const blocked = await waitForSnapshot(
       cdp,
       (snapshot) =>
         snapshot.ai.pendingStatus === "blocked" &&
-        snapshot.ai.providerRequestCount === 0 &&
+        snapshot.ai.providerRequestCount === beforeBlocked &&
         snapshot.ai.statusText.includes("blocked"),
-      "policy blocked AI suggestion"
+      `policy blocked AI suggestion without reaching the provider (request count stays ${beforeBlocked})`
     );
     assertNoKeyLeak(blocked, "policy-blocked state");
     await screenshot(cdp, "ai-policy-blocked.png");

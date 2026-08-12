@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { assertFootnoteMembership } from "./visual-footnote-membership.mjs";
 
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
 const visualDir = "docs/internal/visual-checks/MME-0066";
@@ -179,19 +180,35 @@ async function main() {
         scriptElements: editor?.querySelectorAll('script').length ?? 0
       };
     })()`);
+    /*
+     * MME-0116: `definitions === 3`, `roles === 3` and `fallbacks >= 7` were
+     * document-wide totals frozen at MME-0066's authoring date; MME-0067 through
+     * MME-0071 absorbed fixture 030's code definitions, leaving 7 definitions and
+     * 3 fallbacks. `roles` becomes a relationship — every semantic definition
+     * carries its ARIA role — which is the contract the number stood for. The
+     * language attributes below are what MME-0066 shipped and stay exact.
+     */
     assert(
-      mounted.definitions === 3 &&
+      mounted.roles === mounted.definitions &&
       mounted.buttons === 2 &&
-      mounted.roles === 3 &&
       mounted.topLanguage === "language-ts" &&
       mounted.orderedLanguage === "language-js" &&
       mounted.taskLanguage === "language-bash" &&
       mounted.orderedStart === "3" &&
-      mounted.fallbacks >= 7 &&
       mounted.scriptElements === 0 &&
       await evaluate(cdp, "window.__MME_CODE_RAN__ !== true"),
       `Fenced-code mount incomplete: ${JSON.stringify(mounted)}`
     );
+    await assertFootnoteMembership(evaluate, cdp, {
+      notPreserved: ["[^code-top]:", "[^code-list]:", "[^code-task]:", "[^table-child]:"],
+      preserved: [
+        "[^quote-code]: Quote-contained code stays source-only.",
+        "[^mixed-containers]: Code plus nested list stays source-only.",
+        "[^nested-container]: Container definition stays source-only."
+      ],
+      references: 3,
+      semantic: ["code-top", "code-list", "code-task", "indented-code", "table-child", "callout-child", "raw-child"]
+    });
     assert(await evaluate(cdp, `(() => {
       const html = document.querySelector('[data-testid="rich-editor-host"] .ProseMirror')?.innerHTML ?? '';
       return !html.includes('blockSources') && !html.includes('blockFingerprints') && !document.querySelector('[onclick="boom()"]');
@@ -213,12 +230,18 @@ async function main() {
     assert(await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getTestDiskContent() === ${JSON.stringify(editedSource)}`), "Saved content differs from Source Markdown.");
     await screenshot(cdp, "footnote-fenced-code-saved-desktop.png");
 
+    /*
+     * MME-0116: this required `[^indented-code]` to be a preserved fallback.
+     * MME-0067 shipped indented-code definitions, so it mounts semantically now
+     * — the membership assertion above lists it under `semantic`. The property
+     * being checked is that a fallback announces itself to assistive technology,
+     * so it moves to `[^mixed-containers]`, which genuinely remains one.
+     */
     assert(await evaluate(cdp, `(() => {
-      const fallbacks = Array.from(document.querySelectorAll('[data-mme-preserved-footnote="true"]'));
-      const indented = fallbacks.find((element) => element.textContent?.includes('[^indented-code]:'));
+      const fallbacks = [...document.querySelectorAll('[data-mme-preserved-footnote="true"]')];
       const mixed = fallbacks.find((element) => element.textContent?.includes('[^mixed-containers]:'));
-      return indented?.getAttribute('aria-label') === 'Preserved Markdown footnote. Edit in Source mode.' && Boolean(mixed);
-    })()`), "Indented-code or mixed-container fallback was not explicit and accessible.");
+      return mixed?.getAttribute('aria-label') === 'Preserved Markdown footnote. Edit in Source mode.';
+    })()`), "Mixed-container fallback was not explicit and accessible.");
     await evaluate(cdp, `Array.from(document.querySelectorAll('[data-mme-preserved-footnote="true"]')).find((element) => element.textContent?.includes('[^indented-code]:'))?.scrollIntoView({ block: "center" })`);
     await wait(150);
     await screenshot(cdp, "footnote-fenced-code-unsupported-desktop.png");
@@ -232,8 +255,13 @@ async function main() {
       const fallback = host?.querySelector('[data-mme-preserved-footnote="true"]');
       const h = host?.getBoundingClientRect();
       const f = fallback?.getBoundingClientRect();
+      /*
+       * MME-0116: "details.length === 3" and "codeBlocks.length === 3" were the
+       * same document-wide totals as above. The property is that nothing
+       * overflows the host at 390; floors keep it from passing on an empty set.
+       */
       return Boolean(
-        h && f && details.length === 3 && codeBlocks.length === 3 &&
+        h && f && details.length >= 3 && codeBlocks.length >= 3 &&
         f.width > 0 && f.height > 0 && f.right <= h.right + 1 &&
         details.every((detail) => detail.getBoundingClientRect().right <= h.right + 1) &&
         codeBlocks.every((block) => block.getBoundingClientRect().right <= h.right + 1)

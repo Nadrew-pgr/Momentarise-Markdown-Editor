@@ -258,14 +258,39 @@ async function main() {
 
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.startMockAiSessionForTest()`);
     await clickByTestId(cdp, "command-palette-ai-action-host:translate-selection");
+    /*
+     * MME-0116: this read the legacy `ai-prompt-input`. MME-0028.5 routes every
+     * AI action through the inline prompt, and the legacy field is only written
+     * at submit time — so at this point in the scenario it was still empty and
+     * the wait could never succeed.
+     *
+     * The property is unchanged: a host-registered AI action must carry its own
+     * parameterised prompt into the input the user is about to send. Only the
+     * input moved.
+     */
     await waitFor(
       cdp,
-      `document.querySelector('[data-testid="ai-prompt-input"]').value === "Translate the selection to French with a plain tone."`,
-      "host parameterized AI prompt"
+      `document.querySelector('[data-testid="inline-ai-prompt-input"]')?.value === "Translate the selection to French with a plain tone."`,
+      "host parameterized AI prompt reaches the inline prompt input"
     );
     await screenshot(cdp, "extension-ai-host-prompt.png");
+    /*
+     * MME-0116: the provider-reached assertion used to follow the palette click
+     * directly, because the legacy flow submitted the action in one step. Under
+     * MME-0028.5 the palette action fills the inline prompt and the user sends
+     * it, so the send is now part of the scenario rather than something the gate
+     * can assume. Clicking the generate button is that step — the interaction the
+     * user performs, not a programmatic shortcut past it.
+     */
+    const before = await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getAiWritingState().providerRequestCount`);
+    await clickByTestId(cdp, "inline-ai-generate-button");
+    await waitFor(
+      cdp,
+      `window.__MME_DEMO_VISUAL_CHECK__.getAiWritingState().providerRequestCount > ${before}`,
+      "sending the host AI action reaches the demo AI provider"
+    );
     const aiState = await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getAiWritingState()`);
-    assert(aiState.providerRequestCount > 0, "host AI action did not reach the demo AI provider");
+    assert(aiState.providerRequestCount > before, "host AI action did not reach the demo AI provider");
 
     await evaluate(
       cdp,

@@ -175,7 +175,15 @@ async function main() {
     const containmentAtStart = await page.evaluate(() => {
       const host = document.querySelector('[data-testid="rich-editor-host"]');
       const table = host?.querySelectorAll("table")[4];
-      const scroller = table?.parentElement;
+      /*
+       * MME-0116: this read `table.parentElement`, which is `.ProseMirror` — and
+       * `.ProseMirror` has `overflow-x: visible`, so it is not a scroll container
+       * at all. Nothing this gate did could move it, which is why the gate has
+       * never passed. The real scroll box is `.rich-editor-host`, the element
+       * that carries `overflow-x: auto`.
+       */
+      const scroller = host;
+      const scrollerOverflow = scroller ? getComputedStyle(scroller).overflowX : null;
       return {
         pageClientWidth: document.documentElement.clientWidth,
         pageScrollWidth: document.documentElement.scrollWidth,
@@ -183,29 +191,52 @@ async function main() {
         tableClientWidth: scroller?.clientWidth ?? null,
         tableScrollLeft: scroller?.scrollLeft ?? null,
         tableScrollWidth: scroller?.scrollWidth ?? null,
-        tableScrollable: Boolean(scroller && scroller.scrollWidth > scroller.clientWidth)
+        tableVisible: Boolean(table),
+        /*
+         * Both halves matter. A box that overflows but cannot scroll is the bug
+         * being repaired, so the gate refuses to call anything scrollable unless
+         * the computed overflow actually permits scrolling.
+         */
+        scrollerOverflow,
+        tableScrollable: Boolean(
+          scroller &&
+          scroller.scrollWidth > scroller.clientWidth &&
+          ["auto", "scroll"].includes(scrollerOverflow)
+        )
       };
     });
     assert(
-      !containmentAtStart.pageOverflow && containmentAtStart.tableScrollable,
-      "Constrained CSV table containment failed."
+      containmentAtStart.tableVisible &&
+        !containmentAtStart.pageOverflow &&
+        containmentAtStart.tableScrollable,
+      `Constrained CSV table containment failed: ${JSON.stringify(containmentAtStart)}`
     );
-    await screenshot(page, "csv-paste-wide-constrained-left.png");
+    /* Named for the scroll position it is taken at, which is where the paste left the host. */
+    await screenshot(page, "csv-paste-wide-constrained-start.png");
     await page.evaluate(() => {
-      const host = document.querySelector('[data-testid="rich-editor-host"]');
-      const table = host?.querySelectorAll("table")[4];
-      const scroller = table?.parentElement;
+      const scroller = document.querySelector('[data-testid="rich-editor-host"]');
       scroller?.scrollTo({ left: scroller.scrollWidth });
     });
-    await page.waitForFunction(() => {
-      const host = document.querySelector('[data-testid="rich-editor-host"]');
-      const table = host?.querySelectorAll("table")[4];
-      return (table?.parentElement?.scrollLeft ?? 0) > 0;
-    });
+    await page.waitForFunction(
+      (from) => {
+        const scroller = document.querySelector('[data-testid="rich-editor-host"]');
+        return (scroller?.scrollLeft ?? 0) > from;
+      },
+      {},
+      containmentAtStart.tableScrollLeft
+    );
     const containmentAtEnd = await page.evaluate(() => {
       const host = document.querySelector('[data-testid="rich-editor-host"]');
       const table = host?.querySelectorAll("table")[4];
-      const scroller = table?.parentElement;
+      /*
+       * MME-0116: this read `table.parentElement`, which is `.ProseMirror` — and
+       * `.ProseMirror` has `overflow-x: visible`, so it is not a scroll container
+       * at all. Nothing this gate did could move it, which is why the gate has
+       * never passed. The real scroll box is `.rich-editor-host`, the element
+       * that carries `overflow-x: auto`.
+       */
+      const scroller = host;
+      const scrollerOverflow = scroller ? getComputedStyle(scroller).overflowX : null;
       return {
         pageClientWidth: document.documentElement.clientWidth,
         pageScrollWidth: document.documentElement.scrollWidth,
@@ -213,14 +244,35 @@ async function main() {
         tableClientWidth: scroller?.clientWidth ?? null,
         tableScrollLeft: scroller?.scrollLeft ?? null,
         tableScrollWidth: scroller?.scrollWidth ?? null,
-        tableScrollable: Boolean(scroller && scroller.scrollWidth > scroller.clientWidth)
+        tableVisible: Boolean(table),
+        /*
+         * Both halves matter. A box that overflows but cannot scroll is the bug
+         * being repaired, so the gate refuses to call anything scrollable unless
+         * the computed overflow actually permits scrolling.
+         */
+        scrollerOverflow,
+        tableScrollable: Boolean(
+          scroller &&
+          scroller.scrollWidth > scroller.clientWidth &&
+          ["auto", "scroll"].includes(scrollerOverflow)
+        )
       };
     });
+    /*
+     * MME-0116, second pass (Test Reviewer): `tableScrollLeft > 0` was already
+     * true at capture-start — the host sits mid-scroll after the paste, measured
+     * 400 of a 463 maximum — so the assertion, and the `waitForFunction` above
+     * it, were both satisfied before the scroll they exist to prove. Assert the
+     * movement and the destination instead: strictly further right than where it
+     * started, and pinned to the true maximum.
+     */
     assert(
-      !containmentAtEnd.pageOverflow &&
+      containmentAtEnd.tableVisible &&
+        !containmentAtEnd.pageOverflow &&
         containmentAtEnd.tableScrollable &&
-        containmentAtEnd.tableScrollLeft > 0,
-      "Constrained CSV table end position failed."
+        containmentAtEnd.tableScrollLeft > containmentAtStart.tableScrollLeft &&
+        containmentAtEnd.tableScrollLeft === containmentAtEnd.tableScrollWidth - containmentAtEnd.tableClientWidth,
+      `Constrained CSV table end position failed: ${JSON.stringify({ end: containmentAtEnd, start: containmentAtStart })}`
     );
     await screenshot(page, "csv-paste-wide-constrained-right.png");
 

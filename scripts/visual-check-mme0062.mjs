@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { assertFootnoteMembership } from "./visual-footnote-membership.mjs";
 
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
 const visualDir = "docs/internal/visual-checks/MME-0062";
@@ -174,13 +175,27 @@ async function main() {
         orderedStart: ordered?.querySelector('ol')?.getAttribute('start') ?? null
       };
     })()`);
+    /*
+     * MME-0116: `fallbacks >= 6` was frozen at MME-0062's authoring date;
+     * MME-0063 through MME-0071 converted four of fixture 026's fallbacks, so two
+     * remain and the floor could never be met. The nested-list structure above is
+     * what MME-0062 shipped and stays exact.
+     */
     assert(
       mounted.bulletLists >= 3 &&
       mounted.orderedLists >= 3 &&
-      mounted.orderedStart === "3" &&
-      mounted.fallbacks >= 6,
+      mounted.orderedStart === "3",
       `Nested-list mount incomplete: ${JSON.stringify(mounted)}`
     );
+    await assertFootnoteMembership(evaluate, cdp, {
+      notPreserved: ["[^nested-bullets]:", "[^nested-ordered]:", "[^task-nested]:", "[^quoted-nested]:"],
+      preserved: [
+        "[^multiple-nested]: Multiple nested children stay source-only.",
+        "[^nested-container]: Container definition stays source-only."
+      ],
+      references: 2,
+      semantic: ["nested-bullets", "nested-ordered", "task-nested", "loose-nested", "quoted-nested", "unsafe-nested"]
+    });
     assert(await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getMarkdown() === ${JSON.stringify(source)}`), "Untouched Rich mount changed source bytes.");
     await screenshot(cdp, "footnote-nested-list-rich-desktop.png");
 

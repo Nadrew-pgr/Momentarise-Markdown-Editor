@@ -239,9 +239,20 @@ async function main() {
     await pressKey(cdp, "Tab");
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.typeRichTextForTest("Tab ")`);
     const editedMarkdown = await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getMarkdown()`);
+    /*
+     * MME-0116: this expected `| Tab | Parser | ready |`. The typed text is
+     * `"Tab "` with a trailing space, and MME-0080 added edge-whitespace
+     * encoding, so the cell correctly serialises as `Tab&#32;` — the entity is
+     * the feature. Expecting the bare `Tab` was expecting the trailing space to
+     * be silently dropped, which is the data loss MME-0080 fixed.
+     *
+     * Both halves are asserted: Tab moved to the next row's first cell (the
+     * navigation this scenario is about), and the trailing space survived as an
+     * entity rather than being trimmed.
+     */
     assert(
-      editedMarkdown.includes("| Tab | Parser | ready |"),
-      `Tab must move into the next row's first cell before typing.\n${editedMarkdown}`
+      editedMarkdown.includes("| Tab&#32; | Parser | ready |"),
+      `Tab must move into the next row's first cell before typing, and the trailing space must survive as an entity.\n${editedMarkdown}`
     );
     await pressKey(cdp, "Tab", { shiftKey: true });
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.typeRichTextForTest("revisited")`);
@@ -325,7 +336,19 @@ async function main() {
     );
     assert(wideTable?.overflow, "Wide table must expose horizontal overflow on a constrained editor.");
     assert(wideTable?.reachesEnd, "Wide table must remain reachable after horizontal scrolling.");
-    assert(wideTable?.focusVisible && wideTable.focusShadow !== "none", "Keyboard-focused rich table must retain a visible focus indicator.");
+    /*
+     * MME-0116: this also required a box-shadow on `.rich-editor-host`. MME-0086
+     * deliberately removed that rule — the comment survives in
+     * apps/md-demo/src/styles.css: outlining the entire writing area the moment a
+     * caret lands is what Notion, Obsidian and BlockNote all avoid, and focus is
+     * carried by the caret and by `:focus-visible` on the controls inside.
+     *
+     * The accessibility guarantee is the *cell* indicator, which is the next
+     * assertion and is unchanged: a keyboard user must be able to see which cell
+     * they are in. Requiring the host ring as well asserted a design decision
+     * that was reversed on purpose, so it goes; requiring the cell ring stays.
+     */
+    assert(wideTable?.focusVisible, "Keyboard-focused rich table must keep the editing surface focus-visible.");
     assert(wideTable?.selectedCellShadow !== "none", "Selected table cell must retain a visible focus indicator.");
     await screenshot(cdp, "table-wide-constrained.png");
     cdp.close();

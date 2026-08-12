@@ -59,7 +59,7 @@
         }
       },
       "1280-scroll": {
-        "after": 294.2255859375,
+        "after": 294.09613037109375,
         "before": 414.3800048828125,
         "blockAfter": 238.0625,
         "blockBefore": 358.0625,
@@ -100,18 +100,18 @@
         "covered": true,
         "measured": true,
         "nextText": {
-          "x": 0,
+          "x": -40,
           "y": 572.90625,
-          "width": 376.046875,
+          "width": 416.046875,
           "height": 99.265625,
           "top": 572.90625,
           "right": 376.046875,
           "bottom": 672.171875,
-          "left": 0
+          "left": -40
         }
       },
       "390-scroll": {
-        "after": 445.6162109375,
+        "after": 445.0475158691406,
         "before": 566.0400390625,
         "blockAfter": 389.3125,
         "blockBefore": 509.3125,

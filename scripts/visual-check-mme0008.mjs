@@ -309,7 +309,24 @@ async function main() {
     );
     assertIncludes(autosaved.saveLabel, "saved", "autosaved status");
     assertIncludes(autosaved.targetLabel, "memory only, not persisted", "autosaved target label");
-    assertIncludes(autosaved.eventLog, "autosave", "autosave event log");
+    /*
+     * MME-0116: this used to demand the word `autosave` in the event log. The
+     * demo only calls `logEvent` on an explicit flush; the debounced autosave is
+     * the Save Engine's own timer (`autosaveDelayMs: 1000`) and was never logged,
+     * so the assertion had been unsatisfiable rather than protective.
+     *
+     * It is deleted rather than replaced. Two negative checks were written here
+     * first — that nothing yet claims a keyboard-shortcut save — and the Test
+     * Reviewer showed they cannot fail: the `waitForSaveState` above already
+     * throws if the debounce never lands, and nothing in this scenario has
+     * pressed a key, so no mutation short of reordering the gate could make them
+     * fire. `AGENT.md`: an assertion that cannot be made to fail is not a test.
+     *
+     * The autosave coverage is the wait itself, which is mutation-proven: it
+     * requires `saved`, a `memory-only` target and `currentHash === lastSavedHash`
+     * to arrive with no user action at all, and it is what the reversion table
+     * records for this gate.
+     */
     await screenshot(cdp, "save-engine-autosaved.png");
 
     await evaluate(cdp, "window.__MME_DEMO_VISUAL_CHECK__.setCursorToEnd()");

@@ -2,6 +2,11 @@ import { spawn } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import {
+  DEMO_DISCLOSURES,
+  assertDisclosuresOpened,
+  openDemoDisclosuresExpression
+} from "./visual-demo-disclosures.mjs";
 
 const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5173/";
@@ -329,10 +334,27 @@ async function main() {
     assertIncludes(codeFenceMarkdown, "```ts", "code fence opening");
     assertIncludes(codeFenceMarkdown, "const insideFence = true;", "code fence editing");
     assertIncludes(codeFenceMarkdown, "[[MME-0007 visual opaque]]", "opaque syntax typed");
+    /*
+     * MME-0116: the diagnostics list lives inside the collapsed "Technical
+     * diagnostics" disclosure. `innerText` is "" for content inside a closed
+     * `<details>`, so this assertion had been running against the empty string
+     * since the reference surface demoted the panel. Open it the way a user does.
+     */
+    assertDisclosuresOpened(
+      await evaluate(cdp, openDemoDisclosuresExpression([DEMO_DISCLOSURES.debugInspector])),
+      "MME-0007"
+    );
+    await wait(120);
     const diagnosticsText = await evaluate(
       cdp,
       "document.querySelector('[data-testid=\"roundtrip-diagnostics\"]').innerText"
     );
+    if (typeof diagnosticsText !== "string" || diagnosticsText.trim().length === 0) {
+      throw new Error(
+        "Round-trip diagnostics read as empty after opening the disclosure — the panel is gone or renamed. " +
+          "Point the gate at its new home rather than letting the assertion pass on nothing."
+      );
+    }
     assertIncludes(diagnosticsText, "opaque_preserved", "opaque_preserved diagnostic");
     await screenshot(cdp, "source-editing-code-fence-keyboard.png");
 

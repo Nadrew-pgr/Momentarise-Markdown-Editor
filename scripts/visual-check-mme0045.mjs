@@ -169,6 +169,21 @@ async function overflowingCommandSurfaces(cdp) {
   );
 }
 
+/*
+ * MME-0116: this measured every control at whatever scroll offset the page
+ * happened to be at, and failed anything whose box fell outside the viewport.
+ * MME-0078 made the narrow topbar a horizontal scroller, so at 390px several
+ * controls legitimately start off-screen — they are reached by scrolling the bar,
+ * exactly as designed. The gate never scrolled, so it reported a working design
+ * as unreachable.
+ *
+ * Scrolling each control into view first is the interaction a user performs, and
+ * it is the only change: everything the check proved before it still has to
+ * hold afterwards — present, enabled, non-zero, not `display:none` or
+ * `visibility:hidden`, fully inside the viewport, and the topmost element at its
+ * own centre. A control hidden behind an overlay, clipped to nothing, or parked
+ * somewhere no scroll can reach still fails.
+ */
 async function unreachableControls(cdp, selectors) {
   return evaluate(
     cdp,
@@ -178,6 +193,7 @@ async function unreachableControls(cdp, selectors) {
         if (!node) {
           return { label, reason: "missing", selector };
         }
+        node.scrollIntoView({ block: "nearest", inline: "nearest" });
         const style = getComputedStyle(node);
         const rect = node.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;

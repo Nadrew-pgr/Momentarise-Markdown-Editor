@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { richContentBlocksExpression } from "./visual-rich-text.mjs";
 
 const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
@@ -207,7 +208,41 @@ async function main() {
 
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.loadImportedCopyForTest("keyboard-final-table.md", ${JSON.stringify(finalTableMarkdown)})`);
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.switchEditorMode("rich")`);
-    await waitFor(cdp, `document.querySelectorAll('[data-mme-preserved-table="true"]').length === 1`, "final table fallback");
+    /*
+     * MME-0116: this waited for one `[data-mme-preserved-table="true"]` figure.
+     * MME-0055 gave well-formed GFM tables a native mount, so this fixture's
+     * table is no longer a preserved fallback and the count is 0.
+     *
+     * The scenario is about where an insertion lands, not about how the final
+     * block is mounted — and a native table is the harder case, because arrowing
+     * out of an editable nested structure is real behaviour rather than stepping
+     * past an atom. So the precondition follows the current mount instead of
+     * being deleted: there must be exactly one table and it must be the last
+     * block, which is what makes "after the final block" meaningful below.
+     *
+     * Second defect, found once the first was repaired and this gate could reach
+     * its callout scenario for the first time: all three "last block" lookups
+     * filtered out only `[data-rich-block-affordance]`. The fold gutter mounts a
+     * second ProseMirror widget *after* that one, so `at(-1)` returned a 16px
+     * button and the mouse scenario computed its click point 24px outside the
+     * editor, clicking the host instead of the document. All three now filter on
+     * ProseMirror's own `.ProseMirror-widget` marker, which covers every
+     * decoration rather than the one that existed when the gate was written.
+     */
+    await waitFor(
+      cdp,
+      `(() => {
+        const editor = document.querySelector('[data-testid="rich-editor-host"] .ProseMirror');
+        if (!editor) {
+          return false;
+        }
+        const blocks = ${richContentBlocksExpression()};
+        const last = blocks.at(-1);
+        // The table is itself the last top-level block, not a wrapper around one.
+        return editor.querySelectorAll("table").length === 1 && Boolean(last && (last.matches("table") || last.querySelector("table")));
+      })()`,
+      "the fixture's table mounts natively and is the final block"
+    );
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.selectFinalRichBlockForTest()`);
     await cdp.send("Input.dispatchKeyEvent", { key: "ArrowDown", type: "keyDown" });
     await cdp.send("Input.insertText", { text: "Keyboard paragraph after final table." });
@@ -226,7 +261,7 @@ async function main() {
         cdp,
         `JSON.stringify((() => {
           const editor = document.querySelector('[data-testid="rich-editor-host"] .ProseMirror');
-          const last = Array.from(editor.children).filter((child) => !child.matches('[data-rich-block-affordance]')).at(-1);
+          const last = ${richContentBlocksExpression()}.at(-1);
           const rect = last.getBoundingClientRect();
           return { x: rect.left + Math.min(160, rect.width / 2), y: rect.bottom + 28 };
         })())`
@@ -254,7 +289,7 @@ async function main() {
       cdp,
       `JSON.stringify((() => {
         const editor = document.querySelector('[data-testid="rich-editor-host"] .ProseMirror');
-        const last = editor ? Array.from(editor.children).filter((child) => !child.matches('[data-rich-block-affordance]')).at(-1) : null;
+        const last = ${richContentBlocksExpression()}.at(-1) ?? null;
         const hit = document.elementFromPoint(${clickPoint.x}, ${clickPoint.y});
         return {
           activeElement: document.activeElement?.className || document.activeElement?.dataset?.testid || document.activeElement?.tagName || null,

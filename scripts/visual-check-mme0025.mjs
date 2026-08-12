@@ -1,9 +1,10 @@
 import { spawn } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
 
 const chromePath = requireChromeExecutable();
+const tokensCssPath = "packages/md-theme/src/tokens.css";
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
 const visualDir = "docs/internal/visual-checks/MME-0025";
 const port = 13500 + Math.floor(Math.random() * 500);
@@ -220,20 +221,34 @@ async function main() {
     await clickByTestId(cdp, "rich-mode-button");
     await waitFor(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getEditorMode() === "rich"`, "rich mode active");
 
+    const packaged = await packagedSchemeBackgrounds();
+
+    /*
+     * MME-0116: pin the scheme explicitly. This used to read whatever the demo
+     * happened to default to and call it "dark", so the dark half of the
+     * assertion depended on a demo preference rather than on the scheme pin the
+     * token contract is about.
+     */
+    await evaluate(cdp, `document.documentElement.dataset.mmeScheme = "dark"`);
+    await wait(250);
     const darkState = await readThemeState(cdp);
     if (darkState.iconCount < 12) {
       throw new Error(`Expected default toolbar icons to render, got ${darkState.iconCount}.`);
     }
-    if (darkState.bg !== "#0a0a0a") {
-      throw new Error(`Expected default dark token bg #0a0a0a, got ${darkState.bg}.`);
+    if (darkState.bg !== packaged.dark) {
+      throw new Error(
+        `Dark --mme-color-bg should resolve to the packaged --mme-neutral-1 (${packaged.dark}), got ${darkState.bg}.`
+      );
     }
     await screenshot(cdp, "theme-default-dark-toolbar.png");
 
     await evaluate(cdp, `document.documentElement.dataset.mmeScheme = "light"`);
     await wait(250);
     const lightState = await readThemeState(cdp);
-    if (lightState.bg !== "#ffffff") {
-      throw new Error(`Expected light token bg #ffffff, got ${lightState.bg}.`);
+    if (lightState.bg !== packaged.light) {
+      throw new Error(
+        `Light --mme-color-bg should resolve to the packaged --mme-neutral-1 (${packaged.light}), got ${lightState.bg}.`
+      );
     }
     if (lightState.bg === darkState.bg) {
       throw new Error("Light scheme should change token values from the dark scheme.");
@@ -281,6 +296,47 @@ async function main() {
     }
     await Promise.race([chromeExit, wait(2000)]);
   }
+}
+
+/**
+ * MME-0116 — read the expected background from the packaged tokens, not from a
+ * literal frozen in this file.
+ *
+ * This gate used to demand `#0a0a0a` dark and `#ffffff` light. MME-0102 rebuilt
+ * the neutrals as a ramp, so light became `#fbfcff` and the gate went red for
+ * being out of date rather than for anything being broken — while the dark
+ * literal survived only by luck and would rot at the next ramp change.
+ *
+ * Pinning the new literals would just reset that clock. What this gate is for is
+ * that the *packaged* token reaches the rendered surface: so the expectation is
+ * read from `packages/md-theme/src/tokens.css` at run time. A deliberate ramp
+ * change now updates one file and this follows; a demo that overrides the token,
+ * a stylesheet that fails to load, or a scheme pin that stops working still
+ * fails. The exact ramp values stay pinned deterministically, in
+ * `tests/theme-tokens.test.mjs`, where they belong.
+ */
+async function packagedSchemeBackgrounds() {
+  const css = await readFile(tokensCssPath, "utf8");
+  const backgrounds = {};
+  for (const scheme of ["light", "dark"]) {
+    const block = css.match(new RegExp(`:root\\[data-mme-scheme="${scheme}"\\]\\s*\\{([\\s\\S]*?)\\n\\}`));
+    if (!block) {
+      throw new Error(`${tokensCssPath} no longer declares a :root[data-mme-scheme="${scheme}"] block.`);
+    }
+    /* `--mme-color-bg` is declared as `var(--mme-neutral-1)`, so the ramp entry is the real value. */
+    const neutral = block[1].match(/--mme-neutral-1:\s*([^;]+);/);
+    if (!neutral) {
+      throw new Error(`${tokensCssPath}'s ${scheme} block no longer declares --mme-neutral-1.`);
+    }
+    backgrounds[scheme] = neutral[1].trim();
+  }
+  if (backgrounds.light === backgrounds.dark) {
+    throw new Error(
+      `${tokensCssPath} declares the same --mme-neutral-1 for both schemes (${backgrounds.light}); ` +
+        "this gate could then pass with the scheme switch broken."
+    );
+  }
+  return backgrounds;
 }
 
 async function readThemeState(cdp) {

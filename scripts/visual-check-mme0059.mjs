@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { assertFootnoteMembership } from "./visual-footnote-membership.mjs";
 
 const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
@@ -202,16 +203,26 @@ async function main() {
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.switchEditorMode("rich")`);
     await waitFor(
       cdp,
-      `(() => {
-        const editor = document.querySelector('[data-testid="rich-editor-host"] .ProseMirror');
-        return Boolean(
-          editor?.querySelector('[data-mme-footnote-definition="true"][data-mme-footnote-identifier="long"]') &&
-          editor.querySelectorAll('[data-mme-footnote-reference="true"]').length === 2 &&
-          editor.querySelectorAll('[data-mme-preserved-footnote="true"]').length >= 3
-        );
-      })()`,
-      "semantic footnotes and preserved fallbacks"
+      `Boolean(document.querySelector('[data-testid="rich-editor-host"] .ProseMirror [data-mme-footnote-definition="true"][data-mme-footnote-identifier="long"]'))`,
+      "the multiline definition MME-0059 shipped mounts semantically"
     );
+    /*
+     * MME-0116: the count beside it demanded at least 3 preserved fallbacks.
+     * MME-0060 and MME-0071 gave multi-paragraph and inline-HTML definitions
+     * semantic support, so fixture 023 now keeps exactly one fallback and the
+     * floor could never be met.
+     *
+     * Name what must be preserved instead of counting: the container definition
+     * is the one construct here the rich view still cannot represent. Naming the
+     * converted ones as `notPreserved` is what stops this passing again if the
+     * rich view ever gives up and falls back on everything.
+     */
+    await assertFootnoteMembership(evaluate, cdp, {
+      notPreserved: ["[^long]:", "[^multi]:", "[^unsafe]:"],
+      preserved: ["[^nested]: Nested definition stays source-only."],
+      references: 2,
+      semantic: ["long", "multi", "unsafe"]
+    });
     assert(await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getMarkdown() === ${JSON.stringify(source)}`), "Untouched rich mount must preserve footnote source bytes.");
     assert(
       await evaluate(

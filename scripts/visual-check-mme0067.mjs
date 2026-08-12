@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { assertFootnoteMembership } from "./visual-footnote-membership.mjs";
 
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
 const visualDir = "docs/internal/visual-checks/MME-0067";
@@ -182,21 +183,38 @@ async function main() {
         scriptElements: editor?.querySelectorAll('script').length ?? 0
       };
     })()`);
+    /*
+     * MME-0116: `definitions === 4`, `roles === 4`, `codeBlocks === 4` and
+     * `fallbacks >= 6` were document-wide totals; MME-0068 through MME-0071
+     * absorbed fixture 031's remaining definitions, so there are 7 definitions
+     * and 3 fallbacks. `codeBlocks` keeps a floor because this gate is about
+     * indented code specifically, and the per-definition language attributes
+     * below — empty for indented, `language-js` for the fenced one — are the
+     * distinction MME-0067 shipped.
+     */
     assert(
-      mounted.definitions === 4 &&
+      mounted.roles === mounted.definitions &&
       mounted.buttons === 2 &&
-      mounted.roles === 4 &&
-      mounted.codeBlocks === 4 &&
+      mounted.codeBlocks >= 4 &&
       mounted.topLanguage === "" &&
       mounted.orderedLanguage === "" &&
       mounted.taskLanguage === "" &&
       mounted.fencedLanguage === "language-js" &&
       mounted.orderedStart === "3" &&
-      mounted.fallbacks >= 6 &&
       mounted.scriptElements === 0 &&
       await evaluate(cdp, "window.__MME_INDENTED_CODE_RAN__ !== true"),
       `Indented-code mount incomplete: ${JSON.stringify(mounted)}`
     );
+    await assertFootnoteMembership(evaluate, cdp, {
+      notPreserved: ["[^indent-top]:", "[^indent-list]:", "[^indent-task]:", "[^fenced-existing]:"],
+      preserved: [
+        "[^quote-code]: Quote-contained code stays source-only.",
+        "[^mixed-containers]: Indented code plus nested list stays source-only.",
+        "[^nested-container]: Container definition stays source-only."
+      ],
+      references: 4,
+      semantic: ["indent-top", "indent-list", "indent-task", "fenced-existing", "table-child", "callout-child", "raw-child"]
+    });
     assert(await evaluate(cdp, `(() => {
       const html = document.querySelector('[data-testid="rich-editor-host"] .ProseMirror')?.innerHTML ?? '';
       return !html.includes('blockSources') && !html.includes('blockFingerprints') && !document.querySelector('[onclick="boom()"]');
@@ -241,8 +259,14 @@ async function main() {
       const fallback = host?.querySelector('[data-mme-preserved-footnote="true"]');
       const h = host?.getBoundingClientRect();
       const f = fallback?.getBoundingClientRect();
+      /*
+       * MME-0116: "details.length === 4" and "codeBlocks.length === 4" were the
+       * same document-wide totals as above, now 7 and more. The property is that
+       * nothing overflows the host at 390, which holds for whatever mounted;
+       * floors keep the check from passing on an empty editor.
+       */
       return Boolean(
-        h && f && details.length === 4 && codeBlocks.length === 4 &&
+        h && f && details.length >= 4 && codeBlocks.length >= 4 &&
         f.width > 0 && f.height > 0 && f.right <= h.right + 1 &&
         details.every((detail) => detail.getBoundingClientRect().right <= h.right + 1) &&
         codeBlocks.every((block) => block.getBoundingClientRect().right <= h.right + 1)

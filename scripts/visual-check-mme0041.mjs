@@ -222,17 +222,36 @@ async function main() {
     await screenshot(cdp, "footnote-read-backlinks.png");
 
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.switchEditorMode("rich")`);
+    /*
+     * MME-0116: this required `[^second]` to be a preserved fallback. MME-0056
+     * shipped native footnotes and MME-0071 made the unsafe-HTML definition
+     * semantic, so `[^second]` now mounts as a real `data-mme-footnote-definition`
+     * — the gate was demanding that a shipped feature had not shipped.
+     *
+     * Asserted by membership rather than by a total, so the next construct that
+     * becomes semantic does not rot this again: each definition is named with the
+     * treatment it must get, and the preservation half — the definitions the rich
+     * view still cannot represent must keep their bytes and say where to edit
+     * them — is exactly what MME-0041 exists for and is unchanged.
+     */
     await waitFor(
       cdp,
       `(() => {
-        const figures = Array.from(document.querySelectorAll('[data-mme-preserved-footnote="true"]'));
-        return figures.length >= 3 &&
-          figures.some((figure) => figure.textContent.includes("[^first]: First footnote definition")) &&
-          figures.some((figure) => figure.textContent.includes("[^second]: Second definition")) &&
-          figures.some((figure) => figure.textContent.includes("[^malformed] Missing colon")) &&
-          figures.every((figure) => figure.textContent.includes("Preserved Markdown footnote") && figure.textContent.includes("Edit in Source mode"));
+        const figures = [...document.querySelectorAll('[data-mme-preserved-footnote="true"]')];
+        const preserved = (needle) => figures.some((figure) => figure.textContent.includes(needle));
+        const semanticSecond = [...document.querySelectorAll('[data-mme-footnote-definition="true"]')].some(
+          (definition) => definition.getAttribute("aria-label") === "Footnote second"
+        );
+        return (
+          semanticSecond &&
+          preserved("[^first]: First footnote definition") &&
+          preserved("[^first]: Duplicate definition") &&
+          preserved("[^malformed] Missing colon") &&
+          !preserved("[^second]: Second definition") &&
+          figures.every((figure) => figure.textContent.includes("Preserved Markdown footnote") && figure.textContent.includes("Edit in Source mode"))
+        );
       })()`,
-      "rich preserved-footnote fallback"
+      "unsafe-HTML definition mounts semantically while continuation, duplicate and malformed definitions stay preserved"
     );
     await screenshot(cdp, "rich-preserved-footnote-fallback.png");
 

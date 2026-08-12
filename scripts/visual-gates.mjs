@@ -70,114 +70,26 @@ export const DEFAULT_GROUPS = ["demo", "docs"];
 export const OPT_IN_GROUPS = ["registry", "theia"];
 
 /**
- * The quarantine, added by the MME-0114 addendum (2026-08-02).
+ * The quarantine — emptied by MME-0116 on 2026-08-12.
  *
- * The first full-suite run found 40 failing gates, not the 7 the issue assumed.
- * Repairing them is `MME-0116` and `MME-0117`; leaving CI permanently red until
- * then would train everyone to ignore it, which would waste the harness.
+ * MME-0114's first full-suite run found 40 failing gates. Repairing them was
+ * split out as `MME-0116` (37 stale assertions) and `MME-0117` (a live
+ * coarse-pointer regression), and each failure was listed here by name with why
+ * it failed and who owned the repair, so a permanently red CI job could not
+ * train everyone to ignore it.
  *
- * So each failure is quarantined *by name*, with why it fails and who owns the
- * repair. The runner fails the build only on a gate expected to pass, and
- * reports a `known-failing` gate that starts passing as an anomaly — that
- * anomaly report is what stops this list becoming a graveyard.
+ * Every entry is now resolved. `MME-0117` and `MME-0119` shipped their product
+ * fixes; `MME-0116` repaired the remaining 37, including `MME-0080`'s gate,
+ * which had never passed since it was written. The list is deliberately kept as
+ * an empty object rather than deleted: the mechanism around it is what stops the
+ * next batch of red gates from going quiet, and
+ * `tests/visual-gate-integrity.test.mjs` still enforces that nothing enters it
+ * anonymously.
  *
- * Adding an entry here is a deliberate act, not a way to make a red gate quiet:
- * `tests/visual-gate-integrity.test.mjs` rejects any entry without a reason and
- * an owning issue, and the build log carries the full classified inventory.
+ * Adding an entry is how you record a known problem. It is not how you silence a
+ * red gate.
  */
-/** When every current entry was quarantined, so age is visible rather than implicit. */
-export const QUARANTINED_ON = "2026-08-02";
-
-export const KNOWN_FAILING = {
-  // Class A — reads a diagnostic through `.innerText` inside the collapsed
-  // "Technical diagnostics" disclosure, so it asserts against "".
-  "mme-0002": { owner: "MME-0116", reason: "Class A: reads `event-log` via innerText inside the collapsed debug-inspector." },
-  "mme-0004": {
-    owner: "MME-0116",
-    reason:
-      "Class A plus a stale assertion underneath: reads `roundtrip-status` inside the collapsed debug-inspector, and still demands the `pre-parser identity` diagnostic that MME-0005 deleted."
-  },
-  "mme-0007": { owner: "MME-0116", reason: "Class A: reads `roundtrip-diagnostics` via innerText inside the collapsed debug-inspector." },
-
-  /*
-   * MME-0114 repaired the save-truthfulness half of these two: both now assert
-   * the `persistence-target` / `save-state` pair on every poll (and pass), and
-   * both now open the diagnostics disclosure so they read real text instead of
-   * "". What remains is unrelated staleness, which MME-0116 owns. MME-0011, the
-   * third save-truthfulness gate, is fully green and not quarantined.
-   */
-  "mme-0008": {
-    owner: "MME-0116",
-    reason:
-      "Save-truthfulness pair repaired and passing; residual staleness only — it still expects the event log to contain `autosave` after a memory-only autosave, which the demo no longer logs."
-  },
-  "mme-0009": {
-    owner: "MME-0116",
-    reason:
-      "Save-truthfulness pair repaired and passing; residual staleness only — it still expects `blocked` as the last save action for an imported copy, but the demo now generates the download (`download/export generated; original target unchanged`)."
-  },
-
-  // Class B — asserts behaviour a later, named issue intentionally changed.
-  "mme-0012": { owner: "MME-0116", reason: "MME-0020 relabelled the imported-copy primary action `Export` to `Export copy`." },
-  "mme-0013": { owner: "MME-0116", reason: "MME-0027 namespaced built-in command ids (`heading1` became `mme:heading1`)." },
-  "mme-0013.5": {
-    owner: "MME-0116",
-    reason: "MME-0029 renders a contenteditable=false affordance widget inside every top-level block, so a heading's textContent is now `+::Reco`."
-  },
-  "mme-0014": { owner: "MME-0116", reason: "MME-0029 affordance widget prefixes every heading's textContent, so hover-by-heading-text no longer matches." },
-  "mme-0015": { owner: "MME-0116", reason: "MME-0044 gave HTML artifacts Source/Preview only; the rich button is absent rather than rendered-disabled." },
-  "mme-0017": {
-    owner: "MME-0116",
-    reason: "MME-0028.6 renamed the exposed BYOK field `keyInputValue` to `keyInputHasValue` so the raw key never enters page state; the old predicate is unsatisfiable."
-  },
-  "mme-0018": { owner: "MME-0116", reason: "MME-0029 disabled the legacy selection AI control and MME-0028.5 rerouted AI actions to the inline prompt." },
-  "mme-0019": { owner: "MME-0116", reason: "MME-0055 shipped native rich tables, so a well-formed GFM table is no longer a preserved fallback." },
-  "mme-0023": { owner: "MME-0116", reason: "MME-0028.5 rerouted AI actions to the inline prompt; the assistant panel stays hidden." },
-  "mme-0025": { owner: "MME-0116", reason: "MME-0102 rebuilt the tokens as a ramp: light `--mme-color-bg` is `#fbfcff`, not the hard-coded `#ffffff`." },
-  "mme-0027": { owner: "MME-0116", reason: "MME-0028.5 fills the inline prompt input; the legacy `ai-prompt-input` is only written at submit time." },
-  "mme-0040": { owner: "MME-0116", reason: "MME-0055 superseded the preserved-table fallback for well-formed tables." },
-  "mme-0041": { owner: "MME-0116", reason: "MME-0056 shipped native footnotes, so only the malformed definition still falls back." },
-  "mme-0042": { owner: "MME-0116", reason: "MME-0055 superseded the preserved-table fallback this gate anchors on." },
-  "mme-0045": { owner: "MME-0116", reason: "MME-0078 made the narrow topbar a horizontal scroller; controls are scrolled out, not clipped, and the gate never scrolls them in." },
-  "mme-0055": { owner: "MME-0116", reason: "MME-0080 added edge-whitespace encoding, so typing `Tab ` correctly serialises as `Tab&#32;`." },
-
-  /*
-   * The footnote family, one shared cause: each of MME-0062 through MME-0071
-   * shipped semantic support for one more construct, converting preserved
-   * fallbacks into semantic nodes in every *earlier* fixture too, while only the
-   * issue's own gate was written. Every gate hard-codes document-wide totals
-   * frozen at its authoring date. No preservation regression: byte identity
-   * holds and all 16 `tests/rich-footnote-*.test.mjs` suites pass.
-   */
-  "mme-0056": { owner: "MME-0116", reason: "Frozen fallback count: MME-0059/0060/0071 made three of fixture 022's preserved definitions semantic." },
-  "mme-0059": { owner: "MME-0116", reason: "Frozen fallback count: MME-0060/0071 made two of fixture 023's preserved definitions semantic." },
-  "mme-0060": { owner: "MME-0116", reason: "Frozen fallback count: MME-0061/0071 made two of fixture 024's preserved definitions semantic." },
-  "mme-0061": { owner: "MME-0116", reason: "Frozen fallback count: MME-0062/0063/0064/0065/0071 made five of fixture 025's preserved definitions semantic." },
-  "mme-0062": { owner: "MME-0116", reason: "Frozen fallback count: MME-0063/0064/0065/0071 made four of fixture 026's preserved definitions semantic." },
-  "mme-0063": { owner: "MME-0116", reason: "Frozen todo-button and fallback totals: later loose-list, quote and inline-HTML support added semantic task lists to fixture 027." },
-  "mme-0064": { owner: "MME-0116", reason: "Frozen definition and fallback totals: MME-0065 through MME-0071 made fixture 028's remaining definitions semantic." },
-  "mme-0065": { owner: "MME-0116", reason: "Frozen definition, role and fallback totals: MME-0071 made fixture 029's unsafe-style definition semantic." },
-  "mme-0066": { owner: "MME-0116", reason: "Frozen definition, role and fallback totals: MME-0067 through MME-0071 absorbed fixture 030's code definitions." },
-  "mme-0067": { owner: "MME-0116", reason: "Frozen definition, role, code-block and fallback totals: MME-0068 through MME-0071 absorbed fixture 031's definitions." },
-  "mme-0068": { owner: "MME-0116", reason: "Frozen definition, role and fallback totals: MME-0069 through MME-0071 absorbed fixture 032's definitions." },
-  "mme-0069": { owner: "MME-0116", reason: "Frozen callout count: MME-0071 made fixture 033's `[^unsafe-body]` callout semantic, so there are four callouts, not three." },
-  "mme-0070": { owner: "MME-0116", reason: "Frozen definition and fallback totals: MME-0071 made fixture 034's inline-html and paragraph-html definitions semantic." },
-
-  // Class D — the gate's own machinery is wrong.
-  "mme-0029": {
-    owner: "MME-0116",
-    reason: "Reads `opacity` in the same tick as the state change; `.rich-block-affordance` transitions over `--mme-motion-fast` (100ms). The passing MME-0087 gate settles first."
-  },
-  "mme-0071": {
-    owner: "MME-0116",
-    reason: "Over-broad payload probe: the blanket `[style]` term matches MME-0087's affordance widgets, which set inline top/left on every atom block."
-  },
-  "mme-0080": {
-    owner: "MME-0116",
-    reason:
-      "Has never passed. It scrolls `.ProseMirror`, which has no overflow — the real scroll box is `.rich-editor-host` — and its `tableScrollable` check (`scrollWidth >= clientWidth`) is true of every element."
-  }
-};
+export const KNOWN_FAILING = {};
 
 const gate = (id, file, artifacts, group = "demo") => {
   const quarantined = KNOWN_FAILING[id];
@@ -187,8 +99,16 @@ const gate = (id, file, artifacts, group = "demo") => {
     id,
     npmScript: `visual:${id}`,
     script: `scripts/visual-check-${file}.mjs`,
+    /*
+     * MME-0116: `since` used to fall back to a `QUARANTINED_ON` constant, which
+     * was right while one batch entered together on one date. With the list
+     * emptied, that constant would silently stamp 2026-08-02 on an entry made
+     * years later — and it would pass the integrity test's date-format check,
+     * defeating the rule that an entry outliving its owning issue must be
+     * visible. Every entry now dates itself or fails.
+     */
     ...(quarantined
-      ? { owner: quarantined.owner, reason: quarantined.reason, since: quarantined.since ?? QUARANTINED_ON, status: "known-failing" }
+      ? { owner: quarantined.owner, reason: quarantined.reason, since: quarantined.since, status: "known-failing" }
       : { status: "active" })
   };
 };

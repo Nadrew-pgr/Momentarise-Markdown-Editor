@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { assertFootnoteMembership } from "./visual-footnote-membership.mjs";
 
 const demoUrl = process.env.MME_DEMO_URL ?? "http://127.0.0.1:5174/";
 const visualDir = "docs/internal/visual-checks/MME-0061";
@@ -165,10 +166,21 @@ async function main() {
       const ordered = editor?.querySelector('[data-mme-footnote-definition="true"][data-mme-footnote-identifier="ordered"]');
       return Boolean(
         steps?.querySelector('[data-mme-footnote-body="true"] > ul') &&
-        ordered?.querySelector('[data-mme-footnote-body="true"] > ol[start="3"]') &&
-        editor.querySelectorAll('[data-mme-preserved-footnote="true"]').length >= 6
+        ordered?.querySelector('[data-mme-footnote-body="true"] > ol[start="3"]')
       );
-    })()`, "list definitions and complex fallbacks");
+    })()`, "the list definitions MME-0061 shipped keep their list structure and ordered start");
+    /*
+     * MME-0116: the `>= 6` fallback floor was frozen at MME-0061's authoring
+     * date; MME-0062 through MME-0071 converted five of fixture 025's fallbacks
+     * and one remains. The structural half above — a bullet body, and an ordered
+     * body that keeps `start="3"` — is what MME-0061 shipped and it stays.
+     */
+    await assertFootnoteMembership(evaluate, cdp, {
+      notPreserved: ["[^steps]:", "[^ordered]:", "[^task-list]:", "[^quoted]:"],
+      preserved: ["[^nested-container]: Container stays source-only."],
+      references: 2,
+      semantic: ["steps", "ordered", "nested-list", "task-list", "loose-item", "quoted", "unsafe-list"]
+    });
     assert(await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.getMarkdown() === ${JSON.stringify(source)}`), "Untouched Rich mount changed source bytes.");
     await screenshot(cdp, "footnote-list-rich-desktop.png");
 

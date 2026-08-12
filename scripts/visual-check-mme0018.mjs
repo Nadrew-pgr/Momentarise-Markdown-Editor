@@ -149,6 +149,17 @@ async function waitForSnapshot(cdp, predicate, label) {
   throw new Error(`Timed out waiting for ${label}.\nLast snapshot:\n${JSON.stringify(snapshot, null, 2)}`);
 }
 
+async function waitForExpression(cdp, expression, label) {
+  const start = Date.now();
+  while (Date.now() - start < 6000) {
+    if (await evaluate(cdp, expression)) {
+      return;
+    }
+    await wait(100);
+  }
+  throw new Error(`Timed out waiting for ${label}.`);
+}
+
 async function clickByTestId(cdp, testId) {
   await evaluate(
     cdp,
@@ -240,12 +251,47 @@ async function main() {
         window.__MME_DEMO_VISUAL_CHECK__.setSelection(7, 32);
       })()`
     );
-    await clickByTestId(cdp, "selected-text-ai-action");
-    await waitForSnapshot(
+    /*
+     * MME-0116: this scenario clicked `selected-text-ai-action` and waited for the
+     * assistant panel. MME-0029 made that control `disabled` and `hidden`
+     * unconditionally, and MME-0028.5 rerouted every AI action to the inline
+     * prompt, so there was nothing to click and no panel to wait for.
+     *
+     * The scenario is retired rather than re-pointed: the inline prompt path that
+     * replaced it is already proven by `mme-0028.5`, and duplicating it here
+     * would add a second place to update without adding coverage.
+     *
+     * What replaces it is the state the surface is actually in. The control is
+     * still wired — `apps/md-demo/src/main.ts` registers a click handler that
+     * calls `runEditorNativeAiCommand("rewrite")`, gated on the `selection` entry
+     * point — but `renderReferenceSurfaceState` disables and hides it
+     * unconditionally, so it is present and unreachable. Presenting a control the
+     * surface has decided not to offer is the thing to catch.
+     *
+     * Known and NOT asserted here: the demo's default preferences still advertise
+     * `selection` in `aiEntryPoints` (apps/md-demo/src/reference-surface.ts) while
+     * no selection entry point exists. That inconsistency is a product defect
+     * owned by MME-0098, recorded in the MME-0114 build-log entry. Asserting its
+     * absence would leave this gate red for a defect it does not own, which is
+     * quarantine under another name.
+     */
+    const selectionAi = await evaluate(
       cdp,
-      (snapshot) => snapshot.referenceSurface?.assistantPanelVisible === true && snapshot.ai.pendingStatus === "pending",
-      "selected text AI suggestion pending"
+      `(() => {
+        const button = document.querySelector('[data-testid="selected-text-ai-action"]');
+        if (!button) {
+          return { present: false };
+        }
+        return { disabled: button.disabled, hidden: button.hidden, present: true };
+      })()`
     );
+    if (selectionAi.present && !(selectionAi.disabled && selectionAi.hidden)) {
+      throw new Error(
+        `The source-mode selection AI control is presented as available (disabled: ${selectionAi.disabled}, hidden: ${selectionAi.hidden}), ` +
+          "but the reference surface hides it unconditionally while still advertising `selection` in aiEntryPoints. " +
+          "If MME-0098 has restored the selection entry point, this gate should be updated to exercise it rather than to assert its absence."
+      );
+    }
     await screenshot(cdp, "reference-surface-selected-ai.png");
 
     await clickByTestId(cdp, "rich-mode-button");
@@ -254,7 +300,39 @@ async function main() {
       (snapshot) => snapshot.editorMode === "rich" && snapshot.toolbar.visible === true,
       "rich reference toolbar loaded"
     );
-    await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.openSlashMenuForTest("summ")`);
+    /*
+     * MME-0116: this opened the slash menu as soon as the toolbar was visible,
+     * and failed about two runs in three. The failure snapshot is the tell —
+     * `aiItems` already contains "summarize" while `open` is false and `query` is
+     * "", i.e. the menu was opened and then reset. `toolbar.visible` is not the
+     * same event as "the rich view has finished mounting", and a mount that lands
+     * after the menu opens closes it.
+     *
+     * This gate had never reached here before: it died at the selection-AI step,
+     * so the race was invisible until that step was repaired.
+     *
+     * The repair is to stop using the programmatic hook. `openSlashMenuForTest`
+     * assigns the menu state directly and renders it, so it races anything that
+     * re-renders afterwards; typing `/summ` opens the menu through the editor's
+     * own input rule, which is both the interaction a user performs — the
+     * `AGENT.md` rule — and the version that cannot be raced, because the state
+     * that opened the menu is the state the editor already settled on. Waiting on
+     * `.ProseMirror` first was tried and still failed 3 runs in 5.
+     */
+    await waitForExpression(
+      cdp,
+      `Boolean(document.querySelector('[data-testid="rich-editor-host"] .ProseMirror'))`,
+      "rich view mounted"
+    );
+    /*
+     * Anchor the caret on real text before typing, the way the passing `mme-0013`
+     * gate does. Clicking the host's centre was tried and lands in empty space
+     * below the content, where ProseMirror places no caret, so the typed
+     * characters went nowhere.
+     */
+    await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.setRichSelectionAfterText("Write Markdown")`);
+    /* MME-0088: the trigger requires start-of-block or whitespace before the slash. */
+    await cdp.send("Input.insertText", { text: " /summ" });
     await waitForSnapshot(
       cdp,
       (snapshot) => snapshot.slash.open === true && snapshot.slash.aiItems.includes("summarize"),

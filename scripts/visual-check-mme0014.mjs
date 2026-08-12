@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { requireChromeExecutable } from "./chrome-helpers.mjs";
+import { richTextIndexExpression, richTextListExpression } from "./visual-rich-text.mjs";
 
 const chromePath = requireChromeExecutable();
 const demoUrl = process.env.MME_DEMO_URL ?? "http://localhost:5174/";
@@ -91,8 +92,14 @@ async function getSnapshot(cdp) {
       foldState: window.__MME_DEMO_VISUAL_CHECK__.getFoldState(),
       saveState: window.__MME_DEMO_VISUAL_CHECK__.getSaveState(),
       richText: window.__MME_DEMO_VISUAL_CHECK__.getRichText(),
-      hiddenText: Array.from(document.querySelectorAll(".rich-fold-hidden")).map((element) => element.textContent.trim()),
-      visibleText: Array.from(document.querySelectorAll(".ProseMirror > :not(.rich-fold-hidden)")).map((element) => element.textContent.trim()),
+      /*
+       * MME-0116: both lists are compared with Array.includes, which is exact
+       * equality. Since MME-0029 mounts a block-affordance decoration inside every
+       * top-level block, the raw textContent of each entry carries a "+::" prefix,
+       * so every comparison was false.
+       */
+      hiddenText: ${richTextListExpression(".rich-fold-hidden")},
+      visibleText: ${richTextListExpression(".ProseMirror > :not(.rich-fold-hidden)")},
       hasPersistentFoldStrip: Boolean(document.querySelector('[data-testid="folding-session-state"]')),
       toggleCommandVisible: Boolean(document.querySelector('[data-rich-command="toggleBlock"]'))
     }))()`
@@ -139,15 +146,26 @@ async function clickByTestId(cdp, testId) {
   });
 }
 
+/*
+ * MME-0116: this matched headings with `element.textContent.trim().startsWith(text)`.
+ * Since MME-0029 every top-level block carries a `contenteditable="false"`
+ * block-affordance decoration inside it, so a heading's `textContent` reads
+ * `+::Root` — the prefix defeats `startsWith` and no heading was ever found.
+ *
+ * The repair removes the decoration from a clone and then matches on equality,
+ * not on a looser prefix rule: a heading whose real text gained a prefix is a
+ * corruption, and a gate that shrugs at it is worse than no gate.
+ */
 async function hoverHeading(cdp, text) {
+  const headingSelector = ".ProseMirror h1, .ProseMirror h2, .ProseMirror h3, .ProseMirror h4, .ProseMirror h5, .ProseMirror h6";
   const box = await evaluate(
     cdp,
     `(() => {
-      const heading = Array.from(document.querySelectorAll(".ProseMirror h1, .ProseMirror h2, .ProseMirror h3, .ProseMirror h4, .ProseMirror h5, .ProseMirror h6")).find((element) => element.textContent.trim().startsWith(${JSON.stringify(text)}));
-      if (!heading) {
+      const index = ${richTextIndexExpression(headingSelector, text)};
+      if (index < 0) {
         return null;
       }
-      const rect = heading.getBoundingClientRect();
+      const rect = document.querySelectorAll(${JSON.stringify(headingSelector)})[index].getBoundingClientRect();
       return { x: rect.left + 8, y: rect.top + rect.height / 2 };
     })()`
   );

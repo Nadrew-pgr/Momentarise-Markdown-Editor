@@ -369,16 +369,36 @@ async function main() {
       "dirty imported copy"
     );
     await keyChord(cdp, "s");
+    /*
+     * MME-0116: this demanded the word `blocked` as the last save action. Pressing
+     * Save on an imported copy no longer dead-ends — the demo generates the
+     * download and records `download/export generated; original target unchanged`
+     * (apps/md-demo/src/main.ts, `downloadMarkdown`). The old wording described a
+     * refusal the product replaced with a useful action.
+     *
+     * The invariant MME-0009 exists to protect is untouched and is what this now
+     * asserts: producing a download must NOT claim the original target was
+     * written. So the document stays `dirty` against a `download-required`
+     * target, the visible label still says export is required, and the action
+     * line must state the original target is unchanged rather than reporting a
+     * save.
+     */
     const importedBlocked = await waitForSnapshot(
       cdp,
       (snapshot) =>
         snapshot.status === "dirty" &&
         snapshot.target === "download-required" &&
-        String(snapshot.lastAction).includes("blocked"),
-      "imported copy download required after save"
+        String(snapshot.lastAction).includes("original target unchanged"),
+      "imported copy exports without claiming the original target was written"
     );
     assertIncludes(importedBlocked.saveLabel, "dirty", "imported dirty save status");
     assertIncludes(importedBlocked.targetLabel, "download/export required", "imported dirty target label");
+    if (/\bsaved\b/i.test(String(importedBlocked.lastAction))) {
+      throw new Error(
+        `Imported-copy save action reads ${JSON.stringify(String(importedBlocked.lastAction))}. ` +
+          "Generating a download is not saving the original file, and the action line must not say it was."
+      );
+    }
     await screenshot(cdp, "imported-copy-download-required.png");
 
     cdp.close();
