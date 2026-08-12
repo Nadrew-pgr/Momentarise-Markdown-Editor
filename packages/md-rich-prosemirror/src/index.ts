@@ -4374,6 +4374,361 @@ export function replaceRichBlockSelectionWithSliceCommand(slice: Slice): RichEdi
   };
 }
 
+/*
+ * MME-0115 — the composition guard.
+ *
+ * Two things live here, and they are one mechanism because they share one fact:
+ * everything a composition does to the document is provisional until it drains.
+ *
+ *  1. **A cancelled composition over a block selection restores the blocks.**
+ *     Chromium starts the composition over the block selection's own DOM range,
+ *     which is why the COMMIT path needs no code at all — the browser's own
+ *     replacement is what ProseMirror reads back. Cancelling wipes that range
+ *     instead, and the selected blocks are gone. The restore cannot be timed to
+ *     an event: measured telemetry shows Chromium still flushing DOM removals
+ *     after `compositionend`, and attempt 1 lost three designs to that race. It
+ *     is idempotent instead — re-assert the snapshot on every deviation once
+ *     `view.composing` is false, which overrules late flushes rather than racing
+ *     them.
+ *  2. **No serialization baseline is adopted while a composition is in flight.**
+ *     A host re-anchors its Markdown baseline whenever the document changes
+ *     (`syncRichMarkdownToSource` in the demo, and in every host that copies it).
+ *     Adopting a mid-composition document makes the transient state the baseline,
+ *     and a byte-perfect restore then serializes against it: attempt 2 measured a
+ *     leading blank block the writer never typed. `shouldAdoptRichSerializationBaseline`
+ *     is that rule, and `finishRichComposition` is what makes deferral safe —
+ *     it releases exactly one adoption when the composition has drained, so a
+ *     host cannot be left holding pre-composition bytes and save them.
+ *
+ * `view.composing` alone is NOT the window, which is measured, not assumed:
+ * ProseMirror's own `compositionstart` handler dispatches a document change
+ * (`endComposition` -> `deleteSelection`) BEFORE it sets `input.composing`, so a
+ * host gating on `view.composing` would still adopt that one. The guard is armed
+ * by this plugin's own handler, which `runCustomHandler` runs first.
+ */
+const richCompositionReleaseMeta = "momentarise-rich-composition-release";
+/** One frame. Fast enough that the restore is invisible, slow enough to be cheap. */
+const richCompositionDrainIntervalMs = 16;
+/** Long enough for Chromium's post-`compositionend` flushes; bounded so nothing spins. */
+const richCompositionDrainWindowMs = 600;
+const richCompositionStableFrames = 3;
+/**
+ * How often the guard checks whether ProseMirror is still composing. Coarser
+ * than the drain: a composition can legitimately stay open for minutes, and
+ * nothing can be done about it until it closes.
+ */
+const richCompositionIdleIntervalMs = 100;
+
+interface RichCompositionSnapshot {
+  readonly anchorIndex: number;
+  readonly doc: ProseMirrorNode;
+  readonly headIndex: number;
+}
+
+interface RichCompositionGuard {
+  cancelled: boolean;
+  deadline: number;
+  ended: boolean;
+  inFlight: boolean;
+  snapshot: RichCompositionSnapshot | null;
+  stableFrames: number;
+  timer: ReturnType<typeof setTimeout> | null;
+}
+
+/** The slice of the editor view the composition guard drives. */
+interface RichCompositionDriveViewLike extends RichCompositionViewLike {
+  dispatch(transaction: Transaction): void;
+  readonly state: EditorState;
+}
+
+/**
+ * Per-view, not per-plugin: one plugin instance can be reconfigured into several
+ * views, and the guard has to be armed from a DOM handler, before any
+ * transaction exists to carry plugin state.
+ */
+const richCompositionGuards = new WeakMap<object, RichCompositionGuard>();
+
+/** What a host needs from its editor view to apply the baseline rule. */
+export interface RichCompositionViewLike {
+  /** ProseMirror's `EditorView.composing`. */
+  readonly composing: boolean;
+}
+
+export interface AdoptRichSerializationBaselineOptions {
+  /** Whether this transaction changed the document, as the host determined it. */
+  readonly documentChanged: boolean;
+  readonly transaction: Transaction;
+  readonly view: RichCompositionViewLike;
+}
+
+/**
+ * Should the host re-anchor its Markdown serialization baseline to the current
+ * document, for this transaction?
+ *
+ * Hosts that derive Markdown from the rich view keep a baseline — the source the
+ * targeted serializer replays untouched blocks from — and re-anchor it whenever
+ * the document changes. That is correct for edits and wrong for compositions:
+ * every document a composition passes through is provisional, and adopting one
+ * as the baseline outlives the composition that produced it.
+ *
+ * Call this in `dispatchTransaction` instead of testing "did the document
+ * change" alone. It answers `true` for ordinary edits, `false` for anything
+ * dispatched while a composition is in flight, and `true` once for the release
+ * transaction this package dispatches when the composition has drained — so a
+ * deferred baseline is always adopted, exactly once, on the settled document.
+ */
+export function shouldAdoptRichSerializationBaseline(
+  options: AdoptRichSerializationBaselineOptions
+): boolean {
+  if (options.transaction.getMeta(richCompositionReleaseMeta) === true) {
+    return true;
+  }
+  /*
+   * Both, deliberately. The guard covers the whole window including the part
+   * where ProseMirror has not set `composing` yet; `view.composing` covers a
+   * host that assembled its own plugin set without this one, so the rule still
+   * degrades to "not while ProseMirror says it is composing" rather than to
+   * nothing.
+   */
+  if (isRichCompositionInFlight(options.view)) {
+    return false;
+  }
+  return options.documentChanged;
+}
+
+/**
+ * Is a composition in flight at this view?
+ *
+ * For hosts with a "flush now" path — a mode switch, a find/replace, an AI
+ * request — that must read the derived Markdown outside `dispatchTransaction`.
+ * The answer is `true` from `compositionstart` until the composition has fully
+ * drained, which is wider than `view.composing` at both ends: ProseMirror
+ * dispatches a document change at `compositionstart` before it sets that flag,
+ * and the browser keeps flushing DOM work after `compositionend`. Reading the
+ * bytes from before the composition is the honest thing to do in that window —
+ * they are what the writer has committed to.
+ *
+ * `view.composing` is still consulted, so a host that assembled its own plugin
+ * set without this package's block-selection plugin gets the weaker rule rather
+ * than none.
+ */
+export function isRichCompositionInFlight(view: RichCompositionViewLike): boolean {
+  return view.composing || richCompositionGuards.get(view)?.inFlight === true;
+}
+
+function beginRichComposition(view: RichCompositionDriveViewLike): void {
+  let guard = richCompositionGuards.get(view);
+  if (!guard) {
+    guard = {
+      cancelled: false,
+      deadline: 0,
+      ended: false,
+      inFlight: false,
+      snapshot: null,
+      stableFrames: 0,
+      timer: null
+    };
+    richCompositionGuards.set(view, guard);
+  }
+  /*
+   * ProseMirror restarts compositions (`compositionstart` and
+   * `compositionupdate` share a handler, and `endComposition(view, true)` starts
+   * a new one). The first snapshot is the only one taken from a document the
+   * writer authored; a later one would snapshot the transient state.
+   */
+  if (guard.inFlight) {
+    return;
+  }
+  const info = richBlockSelection(view.state);
+  guard.cancelled = false;
+  guard.deadline = 0;
+  guard.ended = false;
+  guard.inFlight = true;
+  guard.snapshot = info
+    ? { anchorIndex: info.anchorIndex, doc: view.state.doc, headIndex: info.headIndex }
+    : null;
+  guard.stableFrames = 0;
+  scheduleRichCompositionDrain(view, guard, richCompositionIdleIntervalMs);
+}
+
+function endRichComposition(view: RichCompositionDriveViewLike, cancelled: boolean): void {
+  const guard = richCompositionGuards.get(view);
+  if (!guard?.inFlight) {
+    return;
+  }
+  guard.cancelled = cancelled;
+  guard.deadline = Date.now() + richCompositionDrainWindowMs;
+  guard.ended = true;
+  guard.stableFrames = 0;
+  scheduleRichCompositionDrain(view, guard, richCompositionDrainIntervalMs);
+}
+
+function scheduleRichCompositionDrain(
+  view: RichCompositionDriveViewLike,
+  guard: RichCompositionGuard,
+  delayMs: number
+): void {
+  if (guard.timer !== null) {
+    clearTimeout(guard.timer);
+  }
+  guard.timer = setTimeout(() => {
+    stepRichCompositionDrain(view, guard);
+  }, delayMs);
+}
+
+function stepRichCompositionDrain(view: RichCompositionDriveViewLike, guard: RichCompositionGuard): void {
+  guard.timer = null;
+  if (!guard.inFlight) {
+    return;
+  }
+  if (view.composing) {
+    /*
+     * Wait, however long it takes. Acting inside a live composition is attempt
+     * 1's failure mode: the restore lands and Chromium's remaining removals are
+     * then mapped onto it. Dispatching here is also unsafe in its own right —
+     * `prosemirror-view` aborts a live composition when a transaction arrives
+     * while `storedMarks` is set — so there is no such thing as a timeout that
+     * gives up on a slow composer. Someone pausing mid-word, hunting a
+     * candidate, or using switch access is composing, not idle; the only exits
+     * are `compositionend` and ProseMirror's own force-end, both of which clear
+     * this flag.
+     */
+    scheduleRichCompositionDrain(view, guard, richCompositionIdleIntervalMs);
+    return;
+  }
+  if (!guard.ended) {
+    /*
+     * ProseMirror force-ended the composition without a `compositionend` event —
+     * a click elsewhere does exactly this (`mousedown` -> `endComposition`).
+     * There is nothing to discriminate, so the guard releases the baseline and
+     * restores nothing: a force-ended composition keeps what it typed.
+     */
+    finishRichComposition(view, guard);
+    return;
+  }
+  if (guard.cancelled && guard.snapshot) {
+    /*
+     * A cancel defends the WHOLE window rather than stopping at the first few
+     * quiet frames. Chromium's post-`compositionend` flushes do not arrive on a
+     * schedule — one measured 80ms late, well past any "it has held still for
+     * three frames" test — and a flush that lands after the guard stands down
+     * destroys the blocks with nothing left to notice: no restore, and a live
+     * region that says "Block selection cleared", which is exactly what a
+     * deliberate Escape says. The window costs nothing: the document is already
+     * the writer's, so the host's baseline is correct throughout it.
+     */
+    if (!view.state.doc.eq(guard.snapshot.doc)) {
+      restoreRichCompositionSnapshot(view, guard.snapshot);
+    }
+    if (Date.now() < guard.deadline) {
+      scheduleRichCompositionDrain(view, guard, richCompositionDrainIntervalMs);
+      return;
+    }
+    finishRichComposition(view, guard);
+    return;
+  }
+  /*
+   * A committed composition has nothing to defend: a late flush after this point
+   * is real content the writer typed, and the host adopts it the ordinary way.
+   * Releasing as soon as the document holds still keeps the baseline current for
+   * every accented character rather than half a second behind it.
+   */
+  guard.stableFrames += 1;
+  if (guard.stableFrames >= richCompositionStableFrames || Date.now() >= guard.deadline) {
+    finishRichComposition(view, guard);
+    return;
+  }
+  scheduleRichCompositionDrain(view, guard, richCompositionDrainIntervalMs);
+}
+
+/**
+ * One transaction restores both the document and the block selection: the
+ * plugin's `apply` reads its own meta before it checks `docChanged`, so the
+ * selection survives the replacement that would otherwise clear it.
+ *
+ * It is an ordinary in-history transaction, which is the part that is easy to
+ * get wrong. `addToHistory: false` is the obvious choice for a gesture that
+ * changed nothing, and it is wrong: `prosemirror-history` then merely maps its
+ * stored inverse steps through the restore, so the composition's undo entry
+ * survives with nothing left to undo, and the writer's next Cmd+Z replays it
+ * onto the already-restored document — measured as a duplicated block. Left in
+ * history, the restore lands in the composition's own event (it always follows
+ * the transaction it undoes within `newGroupDelay`), and one undo steps back
+ * past the whole non-event.
+ */
+function restoreRichCompositionSnapshot(
+  view: RichCompositionDriveViewLike,
+  snapshot: RichCompositionSnapshot
+): void {
+  const transaction = view.state.tr.replaceWith(0, view.state.doc.content.size, snapshot.doc.content);
+  applyRichBlockSelectionToTransaction(transaction, snapshot.anchorIndex, snapshot.headIndex);
+  view.dispatch(transaction);
+}
+
+function finishRichComposition(view: RichCompositionDriveViewLike, guard: RichCompositionGuard): void {
+  if (guard.timer !== null) {
+    clearTimeout(guard.timer);
+    guard.timer = null;
+  }
+  const replaced = richCompositionReplacementCount(view, guard);
+  guard.cancelled = false;
+  guard.ended = false;
+  guard.inFlight = false;
+  guard.snapshot = null;
+  guard.stableFrames = 0;
+  // The release: one adoption, on the settled document. See
+  // `shouldAdoptRichSerializationBaseline`.
+  const transaction = view.state.tr.setMeta(richCompositionReleaseMeta, true).setMeta("addToHistory", false);
+  if (replaced !== null) {
+    /*
+     * Say what happened, once, at the end.
+     *
+     * A plain keystroke over a block selection announces "2 blocks replaced"
+     * (`replaceRichBlockSelectionWithTextCommand`). A composition doing the same
+     * thing announced "Block selection cleared", because the browser's own
+     * replacement clears the plugin state and nothing puts a notice back. That
+     * left the accented-character path — the whole reason this issue exists —
+     * telling a screen-reader user their selection was lost where the plain path
+     * tells them their text landed. Announcements during the composition are
+     * suppressed (see `paint`), so this is the one thing they hear.
+     */
+    transaction.setMeta(richBlockSelectionPluginKey, {
+      notice: { count: replaced, kind: "replaced" },
+      range: null
+    });
+  }
+  view.dispatch(transaction);
+}
+
+/**
+ * How many blocks a committed composition replaced, or `null` when it replaced
+ * nothing worth announcing — no block selection, a cancel (whose whole point is
+ * that nothing happened), or a document that came back unchanged anyway.
+ */
+function richCompositionReplacementCount(
+  view: RichCompositionDriveViewLike,
+  guard: RichCompositionGuard
+): number | null {
+  const { snapshot } = guard;
+  if (guard.cancelled || !snapshot || view.state.doc.eq(snapshot.doc)) {
+    return null;
+  }
+  return Math.abs(snapshot.headIndex - snapshot.anchorIndex) + 1;
+}
+
+/**
+ * The view is going away. Drop the guard without releasing anything: a
+ * `dispatch` into a destroyed view is an error, and there is no host left to
+ * hand a baseline to.
+ */
+function abandonRichComposition(view: object): void {
+  const guard = richCompositionGuards.get(view);
+  if (guard && guard.timer !== null) {
+    clearTimeout(guard.timer);
+  }
+  richCompositionGuards.delete(view);
+}
+
 export function createRichBlockSelectionPlugin(
   options: RichBlockSelectionPluginOptions = {}
 ): Plugin<RichBlockSelectionPluginState> {
@@ -4383,6 +4738,24 @@ export function createRichBlockSelectionPlugin(
     key: richBlockSelectionPluginKey,
     props: {
       handleDOMEvents: {
+        /*
+         * MME-0115. These three return false without exception: composition must
+         * keep reaching ProseMirror or IME breaks entirely. They arm and drain
+         * the guard, they never handle the event.
+         */
+        compositionend(view, event) {
+          endRichComposition(
+            view as unknown as RichCompositionDriveViewLike,
+            // Measured in Chrome: the composed text on commit, `""` on cancel.
+            // The *drain* has no event to mark it; the *outcome* does.
+            (event as CompositionEvent).data === ""
+          );
+          return false;
+        },
+        compositionstart(view) {
+          beginRichComposition(view as unknown as RichCompositionDriveViewLike);
+          return false;
+        },
         copy(view, event) {
           return writeRichBlockSelectionClipboard(view as unknown as RichBlockSelectionViewLike, event as ClipboardEvent, false);
         },
@@ -4481,8 +4854,11 @@ export function createRichBlockSelectionPlugin(
   });
 }
 
+
 /** The slice of the editor view the presentation needs. */
 interface RichBlockSelectionPaintViewLike {
+  /** ProseMirror's `EditorView.composing`; the live region defers to it. */
+  readonly composing: boolean;
   readonly dom: HTMLElement;
   /**
    * ProseMirror's mutation observer. Marking a block it manages is a DOM
@@ -4578,6 +4954,22 @@ function createRichBlockSelectionView(
       return;
     }
     /*
+     * MME-0115: say nothing while a composition is in flight.
+     *
+     * A composition passes through documents the writer has not committed to,
+     * and the block selection is cleared by each of them. Announcing those
+     * narrates states that may never have existed: cancelling a dead key over a
+     * selected block would say "Block selection cleared" and then re-announce
+     * the same selection a frame later, for a gesture whose entire meaning is
+     * that nothing happened. The state the composition SETTLES on is announced
+     * instead — the release transaction repaints — so a cancel that restores the
+     * same range announces nothing at all, and a commit announces its real
+     * outcome once.
+     */
+    if (isRichCompositionInFlight(editorView)) {
+      return;
+    }
+    /*
      * Keyed on the state, not on the rendered string.
      *
      * Two adjacent paragraphs with the same text would otherwise produce the
@@ -4610,6 +5002,9 @@ function createRichBlockSelectionView(
   return {
     destroy() {
       liveRegion?.remove();
+      // MME-0115: a composition in flight when the view goes away must not keep
+      // a timer alive holding a reference to a destroyed view.
+      abandonRichComposition(editorView);
     },
     update() {
       paint();

@@ -11846,3 +11846,186 @@ None.
   2. **Stale `dist/` after mutation rounds.** Gate scripts run against built output, so a suite run straight after mutation can report a failure that exists only in stale `dist/` — it already caused one false diagnosis this block. `AGENT.md` now requires a rebuild after any mutation round before any suite result is reported or acted on.
 - Open questions accepted as recorded, none blocking: the artifact staleness rule proves recency rather than meaning and is now explicitly unowned; the `selection` AI entry-point inconsistency stays with `MME-0098`; the `visual-gates` CI job has still never executed — it will first run on the next push that touches a gate.
 - Checks: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`. Push: pushed.
+
+## MME-0115 — Composition input over a block selection (Block C2e, issue 1 of 1)
+
+- Date: 2026-08-12. Block: C2e. Builder model: opus-5. Attempt 3.
+- Status: SHIPPED. A cancelled composition over a block selection restores the
+  blocks, the block selection, the bytes in the editor, and the bytes on disk;
+  the commit path is unchanged and now pinned. Proven with a real IME in Chrome
+  across three viewports, and regressible inside `npm test`.
+
+### What attempt 3 inherited, and the two premises it disproved
+
+Attempt 2 (`561ef65`) solved the restore and reverted for the serialization
+baseline. Both statements held: the design converged on the first iteration here,
+and the residual was exactly where the handoff said. Two of its premises did not
+survive measurement, and both changed the fix.
+
+**1. `view.composing` is not the window.** The layer decision named "a documented
+session-level rule that no serialization baseline is adopted while
+`view.composing` is true". Measured in `prosemirror-view` 1.41.8: the
+`compositionstart` handler runs `endComposition(view, !selection.empty)`, and
+when the DOM selection maps back to the same `NodeSelection` that branch calls
+`deleteSelection()` — destroying the block itself, and dispatching that change
+BEFORE it sets `input.composing`. A host gating on `view.composing` still adopts
+that document. The guard is therefore armed by this plugin's own
+`compositionstart` handler, which `runCustomHandler` runs before ProseMirror's,
+and the rule is "while a composition is in flight" — wider than `view.composing`
+at both ends. `view.composing` is still consulted, so a host that assembled its
+own plugin set without this one gets the weaker rule rather than none.
+(`tests/rich-composition-baseline.test.mjs`, case `no-dom-range`.)
+
+**2. `addToHistory: false` on the restore corrupts the next undo.** Attempt 2's
+design set it, reasonably — a cancelled composition is a non-event. Measured:
+`prosemirror-history` takes its `addMaps` branch for a no-history transaction, so
+the composition's undo event survives with its inverse steps mapped through the
+restore. One Cmd+Z then replays them onto an already-restored document:
+`"Alpha block.Alpha block.Bravo block.Charlie block.Delta block."` — a duplicated
+block from a gesture whose purpose was to change nothing. The restore is an
+ordinary in-history transaction instead, and lands in the composition's own event
+because it always follows the transaction it undoes within `newGroupDelay`.
+
+### The mechanism that shipped
+
+All of it in `packages/md-rich-prosemirror/src/index.ts` (+395 lines, and the
+diff is purely additive — MME-0103's plugin code is untouched), inside the plugin
+`createMomentariseRichPlugins` already gives every consumer.
+
+- `compositionstart` arms a per-view guard and, if a block selection is active,
+  snapshots `{ doc, anchorIndex, headIndex }`. Only the first start of a session
+  snapshots: ProseMirror restarts compositions, and a later snapshot would
+  capture the transient document.
+- `compositionend` discriminates on `data` — the composed text on commit, `""` on
+  cancel. Attempt 1's "there is no signal" was half right: the drain has no
+  event, the outcome does.
+- The drain polls at 100ms while ProseMirror is composing and at 16ms once it is
+  not. A **cancel defends the whole 600ms window**, re-asserting the snapshot on
+  every deviation; a commit releases as soon as the document holds still.
+- When the composition drains, the guard dispatches a doc-unchanged **release**
+  transaction. That is what makes deferral safe instead of a new defect.
+- Handlers always return `false`: composition must keep reaching ProseMirror or
+  IME breaks entirely.
+
+Two exports, both consumed by `apps/md-demo`:
+
+| Export | For | Call site |
+| --- | --- | --- |
+| `shouldAdoptRichSerializationBaseline({ documentChanged, transaction, view })` | the re-anchor inside `dispatchTransaction` | the rich `EditorView`'s `dispatchTransaction` |
+| `isRichCompositionInFlight(view)` | hosts reading derived Markdown outside a transaction | `flushRichMarkdownToSource`, which every mode-switch / find-replace / AI / asset-insert flush now goes through |
+
+The demo's seven remaining direct `syncRichMarkdownToSource` call sites are
+command paths that re-anchor on an edit they just applied through `updateState`.
+That document is the user's own edit, not a state a composition is passing
+through, so deferring them would strand a real change. Both shapes are pinned by
+assertion, so a new call site is a decision rather than an accident.
+
+### RED, twice, verbatim
+
+1. No watchdog, baseline rule stubbed to today's behaviour:
+   `single block: a cancelled composition must restore the selected blocks exactly. Got "Bravo block.Charlie block.Delta block."`
+2. Watchdog in place, baseline rule still stubbed — the defect that reverted
+   attempt 2, reproduced headlessly byte-for-byte against its browser record:
+   `after a cancelled composition the host must serialize the original bytes`,
+   actual `'\n\nAlpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n'`.
+
+### Mutation table (rebuilt before every run, per the AGENT.md rule)
+
+| # | Reversion | Killed by |
+| --- | --- | --- |
+| M1 | drop the `view.composing` gate in the drain | `a cancelled composition must restore the selected blocks exactly` (headless, after the replay was spread across real frames) |
+| M2 | restore once, no defended window | `late flush +20ms: a removal that lands after compositionend must be overruled` |
+| M3 | invert the `data === ""` discriminator | `a cancelled composition must restore the selected blocks exactly` |
+| M4 | `addToHistory: false` on the restore | `undo must step back past the whole non-event…` — got the duplicated block |
+| M5 | never dispatch the release | `the host must re-anchor once the composition has drained` |
+| M6 | in-flight window shrinks to `view.composing` | `no-dom-range: exactly one baseline adoption` |
+| M7 | in-flight window ignores `view.composing` | `contract: view.composing alone must be enough to refuse` |
+| M8 | re-snapshot on every `compositionstart` | `restart: must still restore the document the writer authored` |
+| M9 | never announce what a committed composition replaced | `commit/single block: a committed composition must announce its replacement` |
+| M10 | announce during the composition | `a cancelled composition must announce nothing`, heard `["Block selection cleared","Paragraph, block 1 of 4: Alpha block."]` |
+
+The browser gate was mutation-tested too: removing the `Input.imeSetComposition`
+call makes it fail on `mid-composition the selected block(s) must have been
+replaced by the composing text` — the positive control, not a byte assertion.
+
+**A mechanism was removed because no mutant could kill it.** The restore first
+carried the composition's history id (`setMeta("composition", …)`) plus the
+plugin-state plumbing to remember it. The Test Reviewer showed that dropping only
+that line changed nothing, and direct measurement confirmed why: the restore
+always follows the transaction it undoes within `newGroupDelay`, so history
+groups it by adjacency regardless. Shipping it would have meant a comment
+claiming a mechanism was load-bearing when nothing could demonstrate it. It was
+deleted, along with the `compositionId` field and the `apply` refactor it needed
+— which is why the package diff ends up purely additive.
+
+**A harness lesson worth the same weight.** The first mutation harness used
+`String.replace`, which takes the first occurrence: one mutant reverted into the
+wrong branch and another (empty replacement) reverted by inserting at position 0.
+Both produced suite results that meant nothing, and one build failure cascaded
+into six bogus "kills". The harness now snapshots a pristine copy, asserts the
+anchor occurs exactly once, and reverts by file copy. Every row above was
+re-measured with it.
+
+### Accessibility, which is where this issue's second defect lived
+
+The block layer is an announced surface, and the watchdog made it narrate states
+that never existed. Three findings, all from the mandatory Accessibility
+Reviewer, all fixed and pinned:
+
+- **BLOCKER.** The drain stood down after three quiet frames (~48ms) while its
+  own constant documented 600ms. A flush measured at +80ms then destroyed the
+  block with nothing left to catch it: no restore, and a live region saying
+  "Block selection cleared" — character-for-character what a deliberate Escape
+  says, so a screen-reader user could not tell a cancelled accent from a lost
+  paragraph. A cancel now defends the whole window; the late-flush case runs at
+  +20ms, +150ms and +400ms.
+- **MAJOR.** A composition committing over a block selection announced "Block
+  selection cleared" where a plain keystroke announces "2 blocks replaced" — the
+  accented-character path reporting a lost selection to exactly the writers this
+  issue exists for. The release transaction now carries the same notice.
+- **MAJOR.** The re-assertions made the region alternate cleared/selected once
+  per browser flush. Announcements are suppressed while a composition is in
+  flight; a cancel that restores the same range now says nothing at all.
+
+The 20s abandonment ceiling the first draft carried was **removed**, also on this
+review: it fired while `view.composing` was still true, which adopted a
+mid-composition baseline, dropped the snapshot so a later Escape destroyed the
+blocks unguarded, and could abort a live IME session outright when `storedMarks`
+was set. Treating a slow composer as idle is the WCAG 2.2.1 shape. The guard now
+waits for `compositionend` or ProseMirror's own force-end, however long that is.
+
+### Residuals, recorded rather than assumed
+
+- **The host consumes the one-shot notice.** Measured in the demo: after any
+  edit, `syncRichMarkdownToSource` → `refreshFindMatches` dispatches its own
+  transaction, which clears the block layer's one-shot notice in the same task.
+  A screen reader therefore hears "Block selection cleared" for a committed
+  composition **and for a plain keystroke** — the paths are identical, and the
+  loss predates this issue. That is why the browser gate asserts *parity with the
+  plain-keystroke control* rather than a literal string, and why the package-level
+  announcement is proven headlessly. Worth its own issue.
+- **A composition committed to empty text is treated as a cancel** (`data === ""`
+  cannot distinguish them). Blast radius is bounded: without a block selection
+  there is no snapshot and nothing can be restored. Recorded as a decision.
+- **A save forced inside the guard window writes pre-composition bytes** and
+  self-corrects at the release. That is the writer's committed content, never a
+  transient composition state — the class this issue closes.
+
+### Files changed
+
+- `packages/md-rich-prosemirror/src/index.ts` — the guard, the two exports, the
+  live-region suppression, the replacement notice.
+- `apps/md-demo/src/main.ts` — first consumer of both exports.
+- `tests/rich-composition-baseline.test.mjs` (new, 854 lines), registered as
+  `test:rich-composition-baseline` in `npm test`.
+- `scripts/visual-check-mme0115.mjs` (new, 533 lines), `scripts/visual-gates.mjs`,
+  `package.json` (`visual:mme-0115`), `docs/internal/visual-checks/MME-0115/README.md`.
+- `tests/fixtures/public-api-approved.json`, `docs/public/packages/md-rich-prosemirror.md`,
+  `llms-full.txt`, `docs/agent/*.json` (regenerated), `docs/internal/ISSUES.md`.
+
+### Visual impact
+
+Cancelling an accented character over a selected block puts the blocks back
+instead of deleting them, and the selection stays painted. Committing one
+replaces the selection exactly as an ordinary keystroke does. No other visible
+editing or general UI change.

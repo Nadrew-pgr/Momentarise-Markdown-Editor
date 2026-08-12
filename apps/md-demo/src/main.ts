@@ -95,7 +95,9 @@ import {
   serializeRichMarkdownState,
   selectRichFootnoteDefinition,
   selectRichTableCell,
+  isRichCompositionInFlight,
   setCurrentCodeBlockInfo,
+  shouldAdoptRichSerializationBaseline,
   sourceRangeForRichRange,
   toggleRichFold,
   toggleRichHeadingFold,
@@ -1217,9 +1219,7 @@ async function insertDemoAsset(input: AssetUploadInput, options: DemoAssetInsert
 
 function currentAssetInsertionRange(): { readonly from: number; readonly to: number } | null {
   if (isRichEditingMode()) {
-    if (richChanged) {
-      syncRichMarkdownToSource("rich edit");
-    }
+    flushRichMarkdownToSource("rich edit");
     const markdown = getMarkdown();
     if (richEditor) {
       const selection = richEditor.state.selection;
@@ -2033,9 +2033,7 @@ function replaceAllFindMatches(replacement: string): void {
   if (!findReplaceState.query || findReplaceState.matches.length === 0) {
     return;
   }
-  if (richChanged) {
-    syncRichMarkdownToSource("mode switch");
-  }
+  flushRichMarkdownToSource("mode switch");
   setFindReplaceState({ replacement });
   const result = session.replaceAll(findReplaceState.query, replacement, {
     caseSensitive: false,
@@ -3335,9 +3333,7 @@ function insertCustomMarkdownBlock(blockId: string, data: Readonly<Record<string
   if (isRichEditingMode() && insertCustomMarkdownBlockInRichEditor(blockId, serialized.content)) {
     return;
   }
-  if (richChanged) {
-    syncRichMarkdownToSource("mode switch");
-  }
+  flushRichMarkdownToSource("mode switch");
   const current = getMarkdown();
   const separator = current.endsWith("\n\n") ? "" : current.endsWith("\n") ? "\n" : "\n\n";
   const next = `${current}${separator}${serialized.content}`;
@@ -3434,9 +3430,7 @@ function switchEditorMode(mode: DemoEditorMode): void {
     editorMode = mode;
     logEvent(mode === "live-preview" ? "Switched to Live Preview mode." : "Switched to ProseMirror rich mode.");
   } else if (mode === "preview") {
-    if (richChanged) {
-      syncRichMarkdownToSource("mode switch");
-    }
+    flushRichMarkdownToSource("mode switch");
     if (activeDocument.kind === "markdown") {
       renderMarkdownReadView();
     } else {
@@ -3452,7 +3446,7 @@ function switchEditorMode(mode: DemoEditorMode): void {
     );
   } else {
     if (richChanged) {
-      syncRichMarkdownToSource("mode switch");
+      flushRichMarkdownToSource("mode switch");
     } else if (isRichEditingMode()) {
       replaceEditorDocument(richBaselineMarkdown);
     }
@@ -3844,9 +3838,7 @@ async function generateAiSuggestion(): Promise<void> {
     aiStatusElement.textContent = "AI writing is available for Markdown documents only in this demo.";
     return;
   }
-  if (richChanged) {
-    syncRichMarkdownToSource("mode switch");
-  }
+  flushRichMarkdownToSource("mode switch");
 
   const markdown = getMarkdown();
   const action = aiActionSelect.value as AiWritingAction;
@@ -4594,8 +4586,19 @@ function mountRichEditor(markdown: string): void {
         ...richState,
         editorState
       };
-      if (!editorState.doc.eq(documentBefore)) {
+      const documentChanged = !editorState.doc.eq(documentBefore);
+      if (documentChanged) {
         richChanged = true;
+      }
+      /*
+       * MME-0115: the package decides when a baseline may be adopted, because
+       * only it knows a composition is in flight. Every document an IME passes
+       * through is provisional; adopting one here made a cancelled accent
+       * restore its blocks and still save a blank block the writer never typed.
+       * The predicate answers true once more, on the settled document, when the
+       * composition has drained — so deferring cannot strand these bytes.
+       */
+      if (shouldAdoptRichSerializationBaseline({ documentChanged, transaction, view: richEditor })) {
         syncRichMarkdownToSource("rich edit");
       }
       // MME-0086: the block controls follow the caret. Any selection change makes
@@ -4690,6 +4693,28 @@ function createRichFindHighlightPlugin(): Plugin {
       }
     }
   });
+}
+
+/**
+ * Re-anchor the Markdown source before something reads it — a mode switch, a
+ * find/replace, an AI request, an asset insertion.
+ *
+ * MME-0115: these are "flush now" callers, and the one thing they must not do is
+ * flush a document a composition is still passing through. A click that reaches
+ * them ends the composition in ProseMirror, but the package's own cancel restore
+ * has not necessarily run yet, so `view.composing` is already false while the
+ * document on screen is still the transient one. Skipping here leaves the caller
+ * reading the bytes from before the composition — which is what the writer has
+ * actually committed to — and the package's release re-anchors a frame later.
+ *
+ * Every "flush now" caller goes through this. `tests/rich-composition-baseline.test.mjs`
+ * fails if a new unguarded call site appears.
+ */
+function flushRichMarkdownToSource(source: "rich edit" | "mode switch"): void {
+  if (!richChanged || (richEditor && isRichCompositionInFlight(richEditor))) {
+    return;
+  }
+  syncRichMarkdownToSource(source);
 }
 
 function syncRichMarkdownToSource(source: "rich edit" | "mode switch"): void {
@@ -6098,9 +6123,7 @@ async function submitInlineAiPrompt(event: SurfaceInlineAiPromptSubmitEvent): Pr
     logEvent(`AI prompt not sent: ${providerState.label}.`);
     return;
   }
-  if (richChanged) {
-    syncRichMarkdownToSource("mode switch");
-  }
+  flushRichMarkdownToSource("mode switch");
 
   const action = event.actionId ? referenceAiActionById(event.actionId) : null;
   let requestAction: AiWritingAction = "insert-block";

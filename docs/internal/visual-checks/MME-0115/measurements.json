@@ -1,0 +1,753 @@
+{
+  "consoleErrors": [],
+  "demoUrl": "http://127.0.0.1:5174/",
+  "evidence": {
+    "390": {
+      "rows": {
+        "plain-keystroke-control": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "x",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "x\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "cancel-single": {
+          "after": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 1,
+            "texts": [
+              "Alpha block.",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [],
+          "composing": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 0,
+            "texts": [
+              "´",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "cancel-multi": {
+          "after": {
+            "announcement": "2 blocks selected, 1 to 2 of 4",
+            "selected": 2,
+            "texts": [
+              "Alpha block.",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [],
+          "composing": {
+            "announcement": "2 blocks selected, 1 to 2 of 4",
+            "selected": 0,
+            "texts": [
+              "´",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "commit-single": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "é",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [
+            "Block selection cleared"
+          ],
+          "composing": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 0,
+            "texts": [
+              "´",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "é\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "é\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "commit-multi": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "é",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [
+            "Block selection cleared"
+          ],
+          "composing": {
+            "announcement": "2 blocks selected, 1 to 2 of 4",
+            "selected": 0,
+            "texts": [
+              "´",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "é\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "é\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "cancel-ime-session": {
+          "after": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 1,
+            "texts": [
+              "Alpha block.",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [],
+          "composing": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 0,
+            "texts": [
+              "に",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "commit-ime-session": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "日本",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [
+            "Block selection cleared"
+          ],
+          "composing": {
+            "announcement": "2 blocks selected, 1 to 2 of 4",
+            "selected": 0,
+            "texts": [
+              "に",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "日本\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "日本\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "commit-tilde": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "ñ",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [
+            "Block selection cleared"
+          ],
+          "composing": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 0,
+            "texts": [
+              "˜",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "ñ\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "ñ\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "commit-then-undo": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "Alpha block.",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [
+            "Block selection cleared"
+          ],
+          "composing": {
+            "announcement": "2 blocks selected, 1 to 2 of 4",
+            "selected": 0,
+            "texts": [
+              "´",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "cancel-then-undo": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "Alpha block.",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [
+            "Block selection cleared"
+          ],
+          "composing": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 0,
+            "texts": [
+              "´",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        }
+      }
+    },
+    "1280": {
+      "rows": {
+        "plain-keystroke-control": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "x",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "x\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "cancel-single": {
+          "after": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 1,
+            "texts": [
+              "Alpha block.",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [],
+          "composing": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 0,
+            "texts": [
+              "´",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "cancel-multi": {
+          "after": {
+            "announcement": "2 blocks selected, 1 to 2 of 4",
+            "selected": 2,
+            "texts": [
+              "Alpha block.",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [],
+          "composing": {
+            "announcement": "2 blocks selected, 1 to 2 of 4",
+            "selected": 0,
+            "texts": [
+              "´",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "commit-single": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "é",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [
+            "Block selection cleared"
+          ],
+          "composing": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 0,
+            "texts": [
+              "´",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "é\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "é\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "commit-multi": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "é",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [
+            "Block selection cleared"
+          ],
+          "composing": {
+            "announcement": "2 blocks selected, 1 to 2 of 4",
+            "selected": 0,
+            "texts": [
+              "´",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "é\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "é\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "cancel-ime-session": {
+          "after": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 1,
+            "texts": [
+              "Alpha block.",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [],
+          "composing": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 0,
+            "texts": [
+              "に",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "commit-ime-session": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "日本",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [
+            "Block selection cleared"
+          ],
+          "composing": {
+            "announcement": "2 blocks selected, 1 to 2 of 4",
+            "selected": 0,
+            "texts": [
+              "に",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "日本\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "日本\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "commit-tilde": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "ñ",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [
+            "Block selection cleared"
+          ],
+          "composing": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 0,
+            "texts": [
+              "˜",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "ñ\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "ñ\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "commit-then-undo": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "Alpha block.",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [
+            "Block selection cleared"
+          ],
+          "composing": {
+            "announcement": "2 blocks selected, 1 to 2 of 4",
+            "selected": 0,
+            "texts": [
+              "´",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "cancel-then-undo": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "Alpha block.",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [
+            "Block selection cleared"
+          ],
+          "composing": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 0,
+            "texts": [
+              "´",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        }
+      }
+    },
+    "1280-light": {
+      "rows": {
+        "plain-keystroke-control": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "x",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "x\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "cancel-single": {
+          "after": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 1,
+            "texts": [
+              "Alpha block.",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [],
+          "composing": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 0,
+            "texts": [
+              "´",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "cancel-multi": {
+          "after": {
+            "announcement": "2 blocks selected, 1 to 2 of 4",
+            "selected": 2,
+            "texts": [
+              "Alpha block.",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [],
+          "composing": {
+            "announcement": "2 blocks selected, 1 to 2 of 4",
+            "selected": 0,
+            "texts": [
+              "´",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "commit-single": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "é",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [
+            "Block selection cleared"
+          ],
+          "composing": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 0,
+            "texts": [
+              "´",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "é\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "é\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "commit-multi": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "é",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [
+            "Block selection cleared"
+          ],
+          "composing": {
+            "announcement": "2 blocks selected, 1 to 2 of 4",
+            "selected": 0,
+            "texts": [
+              "´",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "é\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "é\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "cancel-ime-session": {
+          "after": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 1,
+            "texts": [
+              "Alpha block.",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [],
+          "composing": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 0,
+            "texts": [
+              "に",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "commit-ime-session": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "日本",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [
+            "Block selection cleared"
+          ],
+          "composing": {
+            "announcement": "2 blocks selected, 1 to 2 of 4",
+            "selected": 0,
+            "texts": [
+              "に",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "日本\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "日本\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "commit-tilde": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "ñ",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [
+            "Block selection cleared"
+          ],
+          "composing": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 0,
+            "texts": [
+              "˜",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "ñ\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "ñ\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "commit-then-undo": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "Alpha block.",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [
+            "Block selection cleared"
+          ],
+          "composing": {
+            "announcement": "2 blocks selected, 1 to 2 of 4",
+            "selected": 0,
+            "texts": [
+              "´",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        },
+        "cancel-then-undo": {
+          "after": {
+            "announcement": "Block selection cleared",
+            "selected": 0,
+            "texts": [
+              "Alpha block.",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "announcements": [
+            "Block selection cleared"
+          ],
+          "composing": {
+            "announcement": "Paragraph, block 1 of 4: Alpha block.",
+            "selected": 0,
+            "texts": [
+              "´",
+              "Bravo block.",
+              "Charlie block.",
+              "Delta block."
+            ]
+          },
+          "disk": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+          "markdown": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n"
+        }
+      }
+    }
+  },
+  "screenshots": 3,
+  "source": "Alpha block.\n\nBravo block.\n\nCharlie block.\n\nDelta block.\n",
+  "status": "passed"
+}

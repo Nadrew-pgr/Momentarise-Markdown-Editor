@@ -126,7 +126,7 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | C2c | MME-0120 ✅, 0121 ✅, 0122 ✅ | Serializer escaping; mark runs; fence newline — shipped | opus-4.8 | done 2026-08-05; 0115 measured and reverted with handoff |
 | C2d | MME-0123 ✅, 0115 (attempt 2, reverted) | Mount fidelity (data loss); composition cancel path | opus-5 / fable-5 | done 2026-08-06; 0123 shipped, 0115 measured and reverted with a converging design |
 | C3 | MME-0116 ✅ | Visual gate assertion repair; artifact policy | opus-5 | done 2026-08-12; quarantine emptied, `npm run visual` exits 0 |
-| C2e | MME-0115 (attempt 3) | Composition cancel — land the attempt-2 design, package-side | opus-5 / fable-5 | cancel restores selection AND bytes, in demo and headless |
+| C2e | MME-0115 ✅ (attempt 3) | Composition cancel — the attempt-2 design plus the package-side baseline rule | opus-5 / fable-5 | done 2026-08-12; cancel restores selection AND bytes, proven with real CDP IME and headlessly |
 | Cd | MME-0118 | Docs correctness repair (may run parallel, own branch) | sonnet-5 | Andrew follows the vanilla quickstart and it works |
 | D | MME-0089, 0090, 0091, 0105, 0106 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
 | D2 | MME-0107, 0108 | Markdown-native differentiators | opus-5 / fable-5 | Andrew judges syntax reveal before it defaults |
@@ -1980,9 +1980,17 @@ Mounting a document into the rich view must not drop model content; today it sil
 
 Make typing with a composition event replace a block selection, the way an ordinary keystroke does.
 
-**Status: attempt 1 measured and reverted 2026-08-05 (record at `75179ea`);
-attempt 2 measured and reverted 2026-08-06. The defect below is CORRECTED from
-the original spec — read this version, not the 2026-08-01 one.**
+**Status: SHIPPED (attempt 3, Block C2e, 2026-08-12). Do not re-implement.**
+Attempt 1 measured and reverted 2026-08-05 (record at `75179ea`); attempt 2
+measured and reverted 2026-08-06 (record at `561ef65`); attempt 3 landed the
+attempt-2 design plus the package-side baseline rule the layer decision
+required. The defect text below is the CORRECTED one — read this version, not
+the 2026-08-01 one. Two premises of the handoff were disproved by measurement
+and are recorded in the build-log entry for 2026-08-12: `view.composing` is not
+the window a host must gate on (ProseMirror dispatches a document change at
+`compositionstart` before setting it), and `addToHistory: false` on the restore
+corrupts the following undo (the composition's inverse steps survive and replay
+onto the restored document).
 
 **Attempt 2 found a converging design and reverted for a located reason.** The
 cancel restore itself is solved: snapshot at `compositionstart`, discriminate

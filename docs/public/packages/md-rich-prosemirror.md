@@ -10,7 +10,7 @@ tags:
 packages:
   - "@momentarise/md-rich-prosemirror"
 llms: include
-updated: 2026-07-21
+updated: 2026-08-12
 ---
 
 # ProseMirror Rich View
@@ -29,6 +29,7 @@ updated: 2026-07-21
 - exact identifier rename across one definition and its references;
 - folding;
 - block affordance helpers;
+- composition-safe serialization baselines for IME and dead-key input;
 - source-to-rich and rich-to-source selection mapping for host commands.
 
 ## Boundary
@@ -50,6 +51,77 @@ Unique top-level GFM definitions with representable inline content mount as sema
 Hosts can use `selectRichFootnoteDefinition` to select an existing body by identifier, `replaceRichFootnoteDefinitionText` to replace it with single-line text, `insertRichFootnote` to insert one reference plus its matching definition in a single history action, and `renameRichFootnoteIdentifier` to rename one definition plus every matching semantic reference. Changed, inserted, and renamed definitions serialize through exact source mappings; unrelated Markdown and line endings remain untouched.
 
 Insertion allocates collision-safe identifiers, accepts an explicit unused identifier, and refuses non-collapsed or unsupported selections, non-representable bodies, and stale source mappings. Rename refuses collisions, duplicates, unsafe identifiers, partially mapped references, and stale source mappings without mutating the document. Editing one supported paragraph preserves untouched sibling paragraph source exactly. Nested-block, nested-container, duplicate, malformed, unsafe, inconsistently indented, or otherwise non-representable definitions stay in the visible source-only fallback.
+
+## Composition (IME And Dead Keys)
+
+A composition is provisional until it ends. Every document the editor passes
+through while an IME is active — each dead-key state, each candidate — is a state
+the writer has not committed to, and a cancelled composition means none of them
+happened.
+
+Two consequences, both handled by the default plugin set:
+
+- **A cancelled composition over a block selection restores the blocks.** The
+  browser starts the composition over the selection's own DOM range, so
+  cancelling it wipes that range. The block layer snapshots at
+  `compositionstart` and re-asserts the snapshot once the composition has
+  drained, inside the composition's own history event — so a following undo
+  steps back past the whole non-event rather than replaying it.
+- **No serialization baseline may be adopted while a composition is in flight.**
+
+The second one is the host's to apply, because only the host knows where its
+baseline lives. If your host re-derives Markdown from the rich view — anything
+shaped like "on every document change, serialize and re-anchor" — gate it:
+
+```ts
+import { shouldAdoptRichSerializationBaseline } from "@momentarise/md-rich-prosemirror";
+
+new EditorView(host, {
+  state,
+  dispatchTransaction(transaction) {
+    const before = view.state.doc;
+    const next = view.state.apply(transaction);
+    view.updateState(next);
+
+    const documentChanged = !next.doc.eq(before);
+    if (shouldAdoptRichSerializationBaseline({ documentChanged, transaction, view })) {
+      syncMarkdownFromRichView();
+    }
+  }
+});
+```
+
+The predicate answers `true` for ordinary edits, `false` for anything dispatched
+while a composition is in flight, and `true` once more when the composition has
+drained — the package dispatches a release transaction for exactly that purpose.
+So deferring cannot strand the composed text: the baseline is always adopted,
+exactly once, on the settled document.
+
+Hosts that also read the derived Markdown *outside* a transaction — a mode
+switch, a find/replace, an AI request — need the same rule where no transaction
+exists to consult. `isRichCompositionInFlight(view)` is that check:
+
+```ts
+import { isRichCompositionInFlight } from "@momentarise/md-rich-prosemirror";
+
+function flushMarkdownFromRichView() {
+  if (isRichCompositionInFlight(view)) {
+    return; // the release re-anchors a frame later
+  }
+  syncMarkdownFromRichView();
+}
+```
+
+Its window is wider than `view.composing` at both ends, which is the point:
+ProseMirror dispatches a document change at `compositionstart` before it sets
+that flag, and the browser keeps flushing DOM work after `compositionend`.
+Reading the bytes from before the composition during that window is the honest
+answer — they are what the writer has committed to.
+
+Adopting a mid-composition document instead is not a cosmetic bug. The
+restored document then serializes against a baseline that came from a state the
+writer never typed, and the file gains blocks nobody wrote — bytes diverging
+from a screen that looks correct.
 
 ## Related Docs
 
