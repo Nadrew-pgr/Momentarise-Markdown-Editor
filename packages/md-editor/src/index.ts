@@ -207,7 +207,14 @@ export const DEFAULT_EDITOR_BEHAVIOR_PREFERENCES = {
   "slash.groups": ["blocks", "lists", "insert", "ai"],
   "stats.enabled": false,
   "status.disclosure": "discreet",
-  "toolbar.mode": "sticky",
+  /*
+   * MME-0089, benchmark contract 4: Notion and BlockNote ship no always-visible
+   * formatting toolbar — formatting lives in the selection bubble and the slash
+   * menu. A persistent icon row is a Google-Docs-shaped product decision, so it
+   * is an explicit host opt-in (`toolbar.mode: "sticky" | "floating" | "inline"`)
+   * rather than what a consumer gets for configuring nothing.
+   */
+  "toolbar.mode": "hidden",
   "toolbar.style": "glass"
 } as const satisfies Readonly<Record<string, PreferenceValue>>;
 

@@ -30,11 +30,18 @@ updated: 2026-08-12
 - folding;
 - block affordance helpers;
 - composition-safe serialization baselines for IME and dead-key input;
-- source-to-rich and rich-to-source selection mapping for host commands.
+- source-to-rich and rich-to-source selection mapping for host commands;
+- selection-context rules for formatting affordances.
 
 ## Boundary
 
 Rich mode is a derived view. It must not make ProseMirror JSON the durable source.
+
+## Formatting Context
+
+`richSelectionSupportsFormatting(state)` answers whether a formatting affordance — a selection bubble, a shortcut, a host toolbar — may act on the current selection. It refuses an empty selection, any selection touching a code block, and any selection touching an opaque or unsupported block, whose bytes are preserved source rather than prose.
+
+Hosts should call it instead of re-deriving the rule, so every surface refuses the same contexts. `strikethrough` is a `RichCommandId` alongside `bold`, `italic`, `inlineCode`, and `link`; it toggles the `strike` mark and serializes as `~~text~~`.
 
 ## Table Editing
 

@@ -86,7 +86,12 @@ assert(
   "non-visible user write must produce rejection metadata."
 );
 assert(
-  resolved.preferences["toolbar.mode"].layerValues.framework === "sticky",
+  // MME-0089 rebaselined this from "sticky": benchmark contract 4 makes the
+  // persistent formatting toolbar a host opt-in, so the framework layer now
+  // carries "hidden". The assertion still proves what it always did — that the
+  // framework value survives beside the host/user layers rather than being
+  // overwritten by them — the resolved value here is "inline", from the user layer.
+  resolved.preferences["toolbar.mode"].layerValues.framework === "hidden",
   "framework defaults must be recorded separately."
 );
 

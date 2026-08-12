@@ -214,6 +214,19 @@ async function main() {
     await loadEvent;
     await waitFor(cdp, `Boolean(window.__MME_DEMO_VISUAL_CHECK__)`, "demo loaded");
 
+    /*
+     * MME-0089 turned the persistent formatting toolbar off by default
+     * (benchmark contract 4). This gate counts toolbar children, and
+     * `createToolbar` renders them whether or not the root is hidden — so
+     * without this opt-in the assertions below would have gone on passing
+     * against an invisible toolbar, and the screenshots would have quietly lost
+     * it. The opt-in itself is proven by `visual:mme-0089`.
+     */
+    await evaluate(
+      cdp,
+      `window.__MME_DEMO_VISUAL_CHECK__.setReferenceSurfacePreferencesForTest({ toolbarMode: "sticky" })`
+    );
+
     await evaluate(
       cdp,
       `window.__MME_DEMO_VISUAL_CHECK__.loadImportedCopyForTest("theme-contract.md", ${JSON.stringify(showcaseMarkdown)})`

@@ -293,6 +293,18 @@ async function main() {
     await cdp.send("Runtime.enable");
     await cdp.send("Page.navigate", { url: demoUrl });
     await waitFor(cdp, `Boolean(window.__MME_DEMO_VISUAL_CHECK__)`, "demo visual API");
+
+    /*
+     * MME-0089 turned the persistent formatting toolbar off by default
+     * (benchmark contract 4): formatting now lives in the selection bubble and
+     * the slash menu. This gate exercises the toolbar, so it opts in the way a
+     * Google-Docs-style host would; the opt-in itself is proven by
+     * `visual:mme-0089`.
+     */
+    await evaluate(
+      cdp,
+      `window.__MME_DEMO_VISUAL_CHECK__.setReferenceSurfacePreferencesForTest({ toolbarMode: "sticky" })`
+    );
     await evaluate(cdp, `window.__MME_DEMO_VISUAL_CHECK__.switchEditorMode("rich")`);
     await waitFor(cdp, `document.querySelector('[data-testid="rich-command-toolbar"]') && !document.querySelector('[data-testid="rich-command-toolbar"]').hidden`, "rich toolbar");
 

@@ -5,40 +5,40 @@
     "anchoring": {
       "390": {
         "attachedGap": 9,
-        "blockTop": 509,
-        "controlsCentre": 617,
-        "contentTop": 161,
+        "blockTop": 448,
+        "controlsCentre": 556,
+        "contentTop": 100,
         "distanceFromContentTop": 456,
         "placement": "below"
       },
       "1280": {
         "attachedGap": 9,
-        "blockTop": 358,
-        "controlsCentre": 433,
-        "contentTop": 96,
+        "blockTop": 310,
+        "controlsCentre": 385,
+        "contentTop": 48,
         "distanceFromContentTop": 337,
         "placement": "below"
       },
       "1280-caret": {
         "caret": {
           "x": 445,
-          "y": 373.0625,
+          "y": 325.0625,
           "width": 0,
           "height": 16,
-          "top": 373.0625,
+          "top": 325.0625,
           "right": 445,
-          "bottom": 389.0625,
+          "bottom": 341.0625,
           "left": 445
         },
         "caretInsideBlock": true,
         "controls": {
           "x": 577.9562377929688,
-          "y": 414.3800048828125,
+          "y": 366.3800048828125,
           "width": 387.71246337890625,
           "height": 37.239990234375,
-          "top": 414.3800048828125,
+          "top": 366.3800048828125,
           "right": 965.668701171875,
-          "bottom": 451.6199951171875,
+          "bottom": 403.6199951171875,
           "left": 577.9562377929688
         },
         "covered": false,
@@ -49,48 +49,48 @@
         "measured": true,
         "nextText": {
           "x": 262,
-          "y": 421.65625,
+          "y": 373.65625,
           "width": 689.578125,
           "height": 46.484375,
-          "top": 421.65625,
+          "top": 373.65625,
           "right": 951.578125,
-          "bottom": 468.140625,
+          "bottom": 420.140625,
           "left": 262
         }
       },
       "1280-scroll": {
-        "after": 294.09613037109375,
-        "before": 414.3800048828125,
-        "blockAfter": 238.0625,
-        "blockBefore": 358.0625,
+        "after": 246.2256317138672,
+        "before": 366.3800048828125,
+        "blockAfter": 190.0625,
+        "blockBefore": 310.0625,
         "hidden": false
       },
       "1280-tall-fence": {
         "blockHeight": 1327,
-        "caretDistanceFromViewportBottom": 54,
+        "caretDistanceFromViewportBottom": 76,
         "controlsOpen": true,
-        "viewportHeight": 804
+        "viewportHeight": 852
       },
       "390-caret": {
         "caret": {
           "x": 183,
-          "y": 524.3125,
+          "y": 463.3125,
           "width": 0,
           "height": 16,
-          "top": 524.3125,
+          "top": 463.3125,
           "right": 183,
-          "bottom": 540.3125,
+          "bottom": 479.3125,
           "left": 183
         },
         "caretInsideBlock": true,
         "controls": {
           "x": 15.660003662109375,
-          "y": 566.0400390625,
+          "y": 505.0400085449219,
           "width": 358.67999267578125,
-          "height": 101.91998291015625,
-          "top": 566.0400390625,
+          "height": 101.92001342773438,
+          "top": 505.0400085449219,
           "right": 374.3399963378906,
-          "bottom": 667.9600219726562,
+          "bottom": 606.9600219726562,
           "left": 15.660003662109375
         },
         "covered": false,
@@ -101,27 +101,27 @@
         "measured": true,
         "nextText": {
           "x": -40,
-          "y": 572.90625,
+          "y": 511.90625,
           "width": 416.046875,
           "height": 99.265625,
-          "top": 572.90625,
+          "top": 511.90625,
           "right": 376.046875,
-          "bottom": 672.171875,
+          "bottom": 611.171875,
           "left": -40
         }
       },
       "390-scroll": {
-        "after": 445.0475158691406,
-        "before": 566.0400390625,
-        "blockAfter": 389.3125,
-        "blockBefore": 509.3125,
+        "after": 384.2786865234375,
+        "before": 505.0400085449219,
+        "blockAfter": 328.3125,
+        "blockBefore": 448.3125,
         "hidden": false
       },
       "390-tall-fence": {
         "blockHeight": 1327,
         "caretDistanceFromViewportBottom": 54,
         "controlsOpen": false,
-        "viewportHeight": 683
+        "viewportHeight": 744
       }
     },
     "dismissal": {
@@ -146,7 +146,7 @@
         "whileSelecting": {
           "blockControls": false,
           "blockMenu": false,
-          "bubble": true,
+          "bubble": false,
           "slashMenu": false
         }
       },
@@ -171,7 +171,7 @@
         "whileSelecting": {
           "blockControls": false,
           "blockMenu": false,
-          "bubble": true,
+          "bubble": false,
           "slashMenu": false
         }
       },

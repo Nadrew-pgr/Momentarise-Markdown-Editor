@@ -12054,3 +12054,214 @@ editing or general UI change.
 - Open question resolved: the host-transaction announcement loss is promoted as `MME-0124` and scheduled into Block D, where the surface work already lives. It is pre-existing, affects the plain-keystroke path, and its acceptance requires a class fix plus a real assistive-technology observation path — asserting that a DOM node holds a string is explicitly insufficient.
 - Three residuals accepted as recorded: the demo's re-render consuming the one-shot notice (now MME-0124), a composition committed to empty text reading as a cancel (folded into MME-0124's scope decision), and a save forced inside the guard window writing pre-composition bytes and self-correcting.
 - Checks: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`. Push: pushed.
+
+## MME-0089 — Selection bubble toolbar expansion (Block D, issue 1 of 6)
+
+- Date: 2026-08-12. Block: D. Builder model: opus-5.
+- Status: SHIPPED. The persistent formatting toolbar is off by default and is an
+  explicit host opt-in; the selection bubble is the formatting surface, with
+  turn-into, bold, italic, strikethrough, inline code, link and AI, centred on
+  the selection, operable by keyboard, and byte-exact on every action.
+
+### What changed
+
+Benchmark contract 4 (`docs/internal/research/editor-ux-benchmark.md`): Notion and
+BlockNote ship no always-visible formatting toolbar. Three things had to move.
+
+1. **`toolbar.mode` now defaults to `hidden`** in `packages/md-editor`. A consumer
+   who configures nothing gets no persistent toolbar; `"sticky" | "floating" |
+   "inline"` remains the documented Google-Docs-style opt-in, and the gate proves
+   both directions live rather than only the default.
+2. **The bubble carries the actions writers reach for.** `strikethrough` became a
+   real `RichCommandId` — the `strike` mark, its `~~` input rule and its
+   serialization all shipped years of issues ago, but no command existed, so the
+   mark was reachable by typing and by nothing else. Link editing is a popover
+   that replaces the button row in place, so the bubble keeps the anchoring it
+   already earned. `richSelectionSupportsFormatting` is a new package export: the
+   "may I format here?" rule belongs to the package so the demo, the React
+   binding and any other host refuse the same contexts (code blocks, opaque
+   blocks, empty selections) instead of each re-deriving it.
+3. **Anchoring is centred, not left-aligned.** `anchoredOverlayPlacement` gained
+   `align: "center"`, and the host anchors on the union of the selection's start
+   and end rects. The old bubble lined its left edge up with `coordsAtPos(from)`,
+   so the longer the selection the further the affordance drifted from it.
+
+### RED, verbatim
+
+`node tests/rich-bubble-toolbar.test.mjs` — **17 failing checks**, every one the
+assertion's own message against a callable implementation (a `strikethrough` stub
+and a `richSelectionSupportsFormatting` stub returning a wrong value were added
+first, precisely so the RED would not be a `TypeError`). Three of them:
+
+```
+[the framework default for toolbar.mode is hidden] Contract 4: a consumer that configures nothing must get no persistent formatting toolbar
+  expected: "hidden"   actual: "sticky"
+[strikethrough wraps the selection in ~~] strikethrough bytes, with neighbours untouched
+  expected: "Intro paragraph.\n\nalpha ~~bravo~~ charlie\n\nOutro paragraph.\n"
+  actual:   "Intro paragraph.\n\nalpha bravo charlie\n\nOutro paragraph.\n"
+[anchoredOverlayPlacement centers an overlay on its anchor] a 300px overlay centered on a 100px anchor at x=400 starts at x=300
+  expected: 300   actual: 400
+```
+
+### Three defects the browser gate found that no unit test could
+
+Each was invisible to `element.click()` and only appeared under a real pointer or
+key event, which is why `AGENT.md` requires the real interaction.
+
+- **A real mouse click in the bubble stole focus and dropped the selection.**
+  `mousedown` blurred the editing surface, the browser collapsed the document
+  selection, ProseMirror synced the collapse into state, and the host re-rendered
+  — removing the button being pressed before `mouseup` arrived. Cancelling the
+  default on `mousedown` inside the bubble is what Notion and BlockNote do.
+- **Escape after `Cmd+K` collapsed the selection to position 0.** Closing the link
+  popover removed the focused input, focus fell to `<body>`, and ProseMirror's DOM
+  observer read the empty document selection. Focus is now handed back to the
+  editor *before* the input leaves the DOM.
+- **The bubble's 320px `max-width` clipped its last control out of its own box** at
+  every width (measured: `clientWidth` 318 against `scrollWidth` 325 at 1280, 338
+  at 375). Every rect-of-the-bubble check passed happily; the gate now measures
+  container overflow and each child.
+
+### Reviewer pass — three reviewers, all mandatory, all read-only
+
+UX Reviewer, Test Reviewer and Accessibility Reviewer, each spawned with the
+read-only instruction in its own prompt against a frozen tree. Between them they
+returned ~30 findings. **They were right that the first implementation was not
+done**, and the following were fixed before this commit:
+
+- **Keyboard activation was single-shot.** `replaceChildren` destroyed the focused
+  control on every render, focus fell to `<body>`, and the bubble hid itself — so
+  a keyboard user could apply one mark and then had to re-select the text and
+  re-traverse the tab order. The component now preserves focus and the roving stop
+  across renders, and the host keeps focus in the bubble when an action was
+  started from the keyboard (and in the document when it was started by pointer).
+- **The turn-into dropdown was not operable as a menu.** Focus never entered on
+  open, there was no Up/Down, and focus never returned to the trigger. Implemented
+  to the APG menu-button pattern; menu items are excluded from the toolbar's
+  horizontal roving walk.
+- **`aria-checked` on `role="menuitem"` is not a mapped state**, so the current
+  block type was announced to nobody and shown by colour alone. Now
+  `menuitemradio`.
+- **WCAG 2.5.3 Label in Name.** The turn-into control's accessible name was the
+  static "Turn into" while its visible caption showed the block type, so a
+  speech-input user saying what they could see activated nothing. The name now
+  leads with the visible caption.
+- **`type="url"` refused the destinations a Markdown writer types** — `./notes.md`,
+  `#section`, `example.com`. Constraint validation is off; the field is
+  `type="text"` with `inputMode="url"`.
+- **A repaint wiped the destination being typed.** The field was rebuilt from the
+  document's href on every scroll, resize and editor transaction; on a phone the
+  on-screen keyboard's `resize` wiped it at the moment it existed to be typed
+  into. The in-progress value and caret now survive, and a `blur` caused by the
+  bubble's own repaint no longer dismisses an open panel.
+- **Apply could delete an existing link and write nothing**, when the selection
+  started outside the link: `activeRichLinkHref` read only `nodeAt(from)`, so the
+  remove-first step was skipped and `toggleMark`'s `removeWhenPresent` path
+  stripped the mark. It now scans the whole range.
+- **A todo item reported itself as "Bullet list".** `todo_item` is never at depth
+  1, so the depth-1 read was structurally unable to see it and the Todo entry was
+  never checked. Replaced with an ancestry walk.
+- **The link field undercut the 44px floor** MME-0117 established; added to the
+  coarse-pointer list.
+- **Two tab stops in one `role="toolbar"`**, and the roving position reset on every
+  render.
+- **Distinct block-type icons.** `paragraph`, `heading1`, `heading2`, `heading3`
+  and `orderedList` glyphs were added to `md-theme`. The turn-into caption cannot
+  fit at 390px (measured: 372px of content against a 364px box), so the control is
+  icon-only there — which was unacceptable while paragraph and all three headings
+  shared one glyph. The slash menu's wider icon-mapping gap stays MME-0105's.
+- **Six acceptance criteria had assertions that could not fail**, and the gate has
+  been rebuilt around them: Source mode (never asserted), scroll repositioning
+  (the built-in demo document does not overflow, so the only assertion sat inside
+  an `if` that never ran — the gate now loads its own 50-line fixture and fails if
+  the host did not actually scroll), resize repositioning (no coverage at all),
+  Escape dismissing the bubble (only the sub-panel half was checked), the 44px
+  floor (the turn-into control was waived on both axes by a filter meant to waive
+  one), and the inventory checks (blind to `hidden`, so an invisible control
+  passed).
+- **Three more toolbar-dependent gates had been missed by the rebaseline** —
+  `mme-0025`, `mme-0028`, `mme-0030` count toolbar children, and `createToolbar`
+  renders children whether or not the root is hidden, so they were passing against
+  an invisible toolbar and their screenshots had quietly lost it.
+
+**Correction to one reviewer premise.** The UX Reviewer reported the gate red and
+its artifacts missing. Both were true of the directory at that moment and neither
+was true of the tree: the reviewers were spawned immediately after the mutation
+round, whose last mutant (M9, a deliberate failure) clears the artifact directory
+and exits before writing it. Re-running regenerated all 19 artifacts and the gate
+passes. The AGENT.md rule "rebuild after any mutation round before trusting a
+suite" needs a sibling: **regenerate gate artifacts after a mutation round before
+anyone reads them as evidence.**
+
+### Mutation proof
+
+16 mutants, 16 killed. The full reversion-to-failure table with verbatim output is
+in `docs/internal/visual-checks/MME-0089/README.md`. Two results worth naming:
+
+- **Two mutants survived the first round and were findings, not noise.** M10 showed
+  the component's focus restore was not observable, and M11 showed the
+  relative-link assertion was dispatching a `submit` event programmatically —
+  which skips constraint validation entirely, so `type="url"` could be restored
+  with the gate green. Both assertions were repaired to exercise the real path
+  (a real Enter press; focus asserted as well as value), and both mutants then
+  died. Repairing the assertion rather than the mutant is the point of the rule.
+- **One faulty mutant recorded rather than counted.** An M11 draft inserted a line
+  above the declaration it referenced, failed to compile, and "killed" the gate on
+  a TypeScript error. Re-authored and re-measured.
+- **One equivalent-mutant finding.** `input.type = "text"` and `form.noValidate`
+  are belt-and-braces; neither is independently observable, so M11 reverts both.
+
+### Files changed
+
+- `packages/md-editor/src/index.ts` — the `toolbar.mode` default.
+- `packages/md-surface/src/index.ts` — the bubble (turn-into control and menu,
+  link popover, separators, focus/roving preservation, menu keyboard pattern),
+  `align: "center"` in `anchoredOverlayPlacement`, six new strings.
+- `packages/md-rich-prosemirror/src/index.ts` — the `strikethrough` command and
+  `richSelectionSupportsFormatting`.
+- `packages/md-theme/src/index.ts` — six new icons (`strikethrough`, `paragraph`,
+  `heading1`, `heading2`, `heading3`, `orderedList`).
+- `packages/md-theme/src/styles.css` — all bubble styling, package-owned; the demo
+  stylesheet gained nothing.
+- `apps/md-demo/src/main.ts`, `apps/md-demo/src/reference-surface.ts` — the host
+  wiring, as the first consumer.
+- `tests/rich-bubble-toolbar.test.mjs` (new), `scripts/visual-check-mme0089.mjs`
+  (new), `scripts/visual-gates.mjs`, `package.json`,
+  `docs/internal/visual-checks/MME-0089/README.md` (new).
+- Rebaselined in the same commit, per the rule: 16 gate scripts (13 that use the
+  toolbar plus `mme-0025`/`mme-0028`/`mme-0030`), `tests/preferences-contracts.test.mjs`,
+  `tests/fixtures/public-api-approved.json`, `docs/public/packages/md-rich-prosemirror.md`,
+  `llms-full.txt` and `docs/agent/*.json` (regenerated), and
+  `docs/internal/visual-checks/MME-0086/measurements.json` — whose geometry moved
+  by a real 61px because the toolbar no longer occupies vertical space in rich
+  mode. That is a rebaseline, not the sub-pixel noise recorded at MME-0115.
+
+### Visual impact
+
+The persistent icon toolbar is gone from the demo header. Selecting text raises a
+bubble centred over the selection carrying the current block type, the four marks,
+link and AI. Choosing Link swaps the bubble for a URL field in place. Nothing else
+in the editing surface or the general UI changed; the top chrome, mode control and
+diagnostics chip are MME-0091's.
+
+### Deviations from PRD
+
+None.
+
+### Open questions
+
+- **The bubble is host-wired, not package-mounted.** `createSelectionBubbleToolbar`
+  has call sites only in `apps/md-demo` and the tests; nothing in `md-react` or the
+  adapters mounts it. Turning the toolbar off by default therefore leaves a
+  default `md-react` install with *less* formatting UI than before, not more. The
+  bubble being host-wired predates this issue, but this issue is what makes it
+  load-bearing for contract 4. Flagged for a human decision rather than silently
+  absorbed.
+- **No live region announces formatting.** Applying a mark, converting a block, or
+  creating a link is silent to a screen reader (WCAG 4.1.3, AA). Scoped out here
+  deliberately: the mechanism belongs next to MME-0124's announcement queue, which
+  is the last issue of this block.
+- **Block conversion out of a list item does not work at all** — no block command
+  can lift a list item out of its list, which is why the turn-into control is
+  disabled there. MME-0105 owns it; this gate pins the disabled state so that
+  issue must revisit the row.

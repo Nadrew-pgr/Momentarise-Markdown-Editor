@@ -1,0 +1,1060 @@
+{
+  "demoUrl": "http://127.0.0.1:5174/",
+  "evidence": {
+    "390": {
+      "toolbar": {
+        "byDefault": {
+          "hidden": true,
+          "height": 0,
+          "mode": "hidden",
+          "present": true
+        },
+        "optedIn": {
+          "height": 61,
+          "hidden": false
+        }
+      },
+      "centering": {
+        "clampedLeft": true,
+        "clampedRight": false,
+        "horizontalOffset": 62.859375
+      },
+      "anchored": {
+        "bubble": {
+          "x": 12,
+          "y": 250,
+          "width": 344,
+          "height": 54,
+          "top": 250,
+          "right": 356,
+          "bottom": 304,
+          "left": 12
+        },
+        "controls": [
+          "selection-bubble-turn-into",
+          "selection-bubble-bold",
+          "selection-bubble-italic",
+          "selection-bubble-strikethrough",
+          "selection-bubble-inline-code",
+          "selection-bubble-link",
+          "selected-text-ai-bubble-action"
+        ],
+        "gapAboveSelection": 7.171875,
+        "gapBelowSelection": -79.171875,
+        "horizontalOffset": 62.859375,
+        "occluded": [],
+        "overflowing": [],
+        "overflowScroll": {
+          "client": 342,
+          "scroll": 342
+        },
+        "placement": "above",
+        "selection": {
+          "x": 72,
+          "y": 311.171875,
+          "width": 98.28125,
+          "height": 18,
+          "top": 311.171875,
+          "right": 170.28125,
+          "bottom": 329.171875,
+          "left": 72
+        },
+        "sizes": [
+          {
+            "height": 44,
+            "testId": "selection-bubble-turn-into",
+            "width": 44
+          },
+          {
+            "height": 44,
+            "testId": "selection-bubble-bold",
+            "width": 44
+          },
+          {
+            "height": 44,
+            "testId": "selection-bubble-italic",
+            "width": 44
+          },
+          {
+            "height": 44,
+            "testId": "selection-bubble-strikethrough",
+            "width": 44
+          },
+          {
+            "height": 44,
+            "testId": "selection-bubble-inline-code",
+            "width": 44
+          },
+          {
+            "height": 44,
+            "testId": "selection-bubble-link",
+            "width": 44
+          },
+          {
+            "height": 44,
+            "testId": "selected-text-ai-bubble-action",
+            "width": 44
+          }
+        ],
+        "viewportHeight": 844,
+        "viewportWidth": 390,
+        "visible": true
+      },
+      "nearTop": {
+        "bubble": {
+          "x": 12,
+          "y": 206,
+          "width": 344,
+          "height": 54,
+          "top": 206,
+          "right": 356,
+          "bottom": 260,
+          "left": 12
+        },
+        "controls": [
+          "selection-bubble-turn-into",
+          "selection-bubble-bold",
+          "selection-bubble-italic",
+          "selection-bubble-strikethrough",
+          "selection-bubble-inline-code",
+          "selection-bubble-link",
+          "selected-text-ai-bubble-action"
+        ],
+        "gapAboveSelection": -135,
+        "gapBelowSelection": 8.5,
+        "horizontalOffset": -4.3828125,
+        "occluded": [],
+        "overflowing": [],
+        "overflowScroll": {
+          "client": 342,
+          "scroll": 342
+        },
+        "placement": "below",
+        "selection": {
+          "x": 48,
+          "y": 125,
+          "width": 280.765625,
+          "height": 72.5,
+          "top": 125,
+          "right": 328.765625,
+          "bottom": 197.5,
+          "left": 48
+        },
+        "sizes": [
+          {
+            "height": 44,
+            "testId": "selection-bubble-turn-into",
+            "width": 44
+          },
+          {
+            "height": 44,
+            "testId": "selection-bubble-bold",
+            "width": 44
+          },
+          {
+            "height": 44,
+            "testId": "selection-bubble-italic",
+            "width": 44
+          },
+          {
+            "height": 44,
+            "testId": "selection-bubble-strikethrough",
+            "width": 44
+          },
+          {
+            "height": 44,
+            "testId": "selection-bubble-inline-code",
+            "width": 44
+          },
+          {
+            "height": 44,
+            "testId": "selection-bubble-link",
+            "width": 44
+          },
+          {
+            "height": 44,
+            "testId": "selected-text-ai-bubble-action",
+            "width": 44
+          }
+        ],
+        "viewportHeight": 844,
+        "viewportWidth": 390,
+        "visible": true
+      },
+      "scroll": {
+        "after": {
+          "bubble": {
+            "x": 12,
+            "y": 189,
+            "width": 344,
+            "height": 54,
+            "top": 189,
+            "right": 356,
+            "bottom": 243,
+            "left": 12
+          },
+          "controls": [
+            "selection-bubble-turn-into",
+            "selection-bubble-bold",
+            "selection-bubble-italic",
+            "selection-bubble-strikethrough",
+            "selection-bubble-inline-code",
+            "selection-bubble-link",
+            "selected-text-ai-bubble-action"
+          ],
+          "gapAboveSelection": 8.171875,
+          "gapBelowSelection": -80.171875,
+          "horizontalOffset": 62.859375,
+          "occluded": [],
+          "overflowing": [],
+          "overflowScroll": {
+            "client": 342,
+            "scroll": 342
+          },
+          "placement": "above",
+          "selection": {
+            "x": 72,
+            "y": 251.171875,
+            "width": 98.28125,
+            "height": 18,
+            "top": 251.171875,
+            "right": 170.28125,
+            "bottom": 269.171875,
+            "left": 72
+          },
+          "sizes": [
+            {
+              "height": 44,
+              "testId": "selection-bubble-turn-into",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-bold",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-italic",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-strikethrough",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-inline-code",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-link",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selected-text-ai-bubble-action",
+              "width": 44
+            }
+          ],
+          "viewportHeight": 844,
+          "viewportWidth": 390,
+          "visible": true
+        },
+        "before": {
+          "bubble": {
+            "x": 12,
+            "y": 249,
+            "width": 344,
+            "height": 54,
+            "top": 249,
+            "right": 356,
+            "bottom": 303,
+            "left": 12
+          },
+          "controls": [
+            "selection-bubble-turn-into",
+            "selection-bubble-bold",
+            "selection-bubble-italic",
+            "selection-bubble-strikethrough",
+            "selection-bubble-inline-code",
+            "selection-bubble-link",
+            "selected-text-ai-bubble-action"
+          ],
+          "gapAboveSelection": 8.171875,
+          "gapBelowSelection": -80.171875,
+          "horizontalOffset": 62.859375,
+          "occluded": [],
+          "overflowing": [],
+          "overflowScroll": {
+            "client": 342,
+            "scroll": 342
+          },
+          "placement": "above",
+          "selection": {
+            "x": 72,
+            "y": 311.171875,
+            "width": 98.28125,
+            "height": 18,
+            "top": 311.171875,
+            "right": 170.28125,
+            "bottom": 329.171875,
+            "left": 72
+          },
+          "sizes": [
+            {
+              "height": 44,
+              "testId": "selection-bubble-turn-into",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-bold",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-italic",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-strikethrough",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-inline-code",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-link",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selected-text-ai-bubble-action",
+              "width": 44
+            }
+          ],
+          "viewportHeight": 844,
+          "viewportWidth": 390,
+          "visible": true
+        },
+        "scrolled": {
+          "after": 60,
+          "before": 0
+        },
+        "selectionMoved": 60
+      }
+    },
+    "768": {
+      "toolbar": {
+        "byDefault": {
+          "hidden": true,
+          "height": 0,
+          "mode": "hidden",
+          "present": true
+        },
+        "optedIn": {
+          "height": 48,
+          "hidden": false
+        }
+      },
+      "centering": {
+        "clampedLeft": true,
+        "clampedRight": false,
+        "horizontalOffset": 50.546875
+      },
+      "anchored": {
+        "bubble": {
+          "x": 12,
+          "y": 166,
+          "width": 331.375,
+          "height": 38,
+          "top": 166,
+          "right": 343.375,
+          "bottom": 204,
+          "left": 12
+        },
+        "controls": [
+          "selection-bubble-turn-into",
+          "selection-bubble-bold",
+          "selection-bubble-italic",
+          "selection-bubble-strikethrough",
+          "selection-bubble-inline-code",
+          "selection-bubble-link",
+          "selected-text-ai-bubble-action"
+        ],
+        "gapAboveSelection": 7.28125,
+        "gapBelowSelection": -63.28125,
+        "horizontalOffset": 50.546875,
+        "occluded": [],
+        "overflowing": [],
+        "overflowScroll": {
+          "client": 329,
+          "scroll": 329
+        },
+        "placement": "above",
+        "selection": {
+          "x": 78,
+          "y": 211.28125,
+          "width": 98.28125,
+          "height": 18,
+          "top": 211.28125,
+          "right": 176.28125,
+          "bottom": 229.28125,
+          "left": 78
+        },
+        "sizes": [
+          {
+            "height": 28,
+            "testId": "selection-bubble-turn-into",
+            "width": 103.375
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-bold",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-italic",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-strikethrough",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-inline-code",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-link",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selected-text-ai-bubble-action",
+            "width": 32
+          }
+        ],
+        "viewportHeight": 1024,
+        "viewportWidth": 768,
+        "visible": true
+      },
+      "nearTop": {
+        "bubble": {
+          "x": 65,
+          "y": 132,
+          "width": 335.21875,
+          "height": 38,
+          "top": 132,
+          "right": 400.21875,
+          "bottom": 170,
+          "left": 65
+        },
+        "controls": [
+          "selection-bubble-turn-into",
+          "selection-bubble-bold",
+          "selection-bubble-italic",
+          "selection-bubble-strikethrough",
+          "selection-bubble-inline-code",
+          "selection-bubble-link",
+          "selected-text-ai-bubble-action"
+        ],
+        "gapAboveSelection": -81,
+        "gapBelowSelection": 8,
+        "horizontalOffset": -0.1015625,
+        "occluded": [],
+        "overflowing": [],
+        "overflowScroll": {
+          "client": 333,
+          "scroll": 333
+        },
+        "placement": "below",
+        "selection": {
+          "x": 54,
+          "y": 89,
+          "width": 357.421875,
+          "height": 35,
+          "top": 89,
+          "right": 411.421875,
+          "bottom": 124,
+          "left": 54
+        },
+        "sizes": [
+          {
+            "height": 28,
+            "testId": "selection-bubble-turn-into",
+            "width": 107.21875
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-bold",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-italic",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-strikethrough",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-inline-code",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-link",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selected-text-ai-bubble-action",
+            "width": 32
+          }
+        ],
+        "viewportHeight": 1024,
+        "viewportWidth": 768,
+        "visible": true
+      },
+      "scroll": {
+        "after": {
+          "bubble": {
+            "x": 12,
+            "y": 105,
+            "width": 331.375,
+            "height": 38,
+            "top": 105,
+            "right": 343.375,
+            "bottom": 143,
+            "left": 12
+          },
+          "controls": [
+            "selection-bubble-turn-into",
+            "selection-bubble-bold",
+            "selection-bubble-italic",
+            "selection-bubble-strikethrough",
+            "selection-bubble-inline-code",
+            "selection-bubble-link",
+            "selected-text-ai-bubble-action"
+          ],
+          "gapAboveSelection": 8.28125,
+          "gapBelowSelection": -64.28125,
+          "horizontalOffset": 50.546875,
+          "occluded": [],
+          "overflowing": [],
+          "overflowScroll": {
+            "client": 329,
+            "scroll": 329
+          },
+          "placement": "above",
+          "selection": {
+            "x": 78,
+            "y": 151.28125,
+            "width": 98.28125,
+            "height": 18,
+            "top": 151.28125,
+            "right": 176.28125,
+            "bottom": 169.28125,
+            "left": 78
+          },
+          "sizes": [
+            {
+              "height": 28,
+              "testId": "selection-bubble-turn-into",
+              "width": 103.375
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-bold",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-italic",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-strikethrough",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-inline-code",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-link",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selected-text-ai-bubble-action",
+              "width": 32
+            }
+          ],
+          "viewportHeight": 1024,
+          "viewportWidth": 768,
+          "visible": true
+        },
+        "before": {
+          "bubble": {
+            "x": 12,
+            "y": 165,
+            "width": 331.375,
+            "height": 38,
+            "top": 165,
+            "right": 343.375,
+            "bottom": 203,
+            "left": 12
+          },
+          "controls": [
+            "selection-bubble-turn-into",
+            "selection-bubble-bold",
+            "selection-bubble-italic",
+            "selection-bubble-strikethrough",
+            "selection-bubble-inline-code",
+            "selection-bubble-link",
+            "selected-text-ai-bubble-action"
+          ],
+          "gapAboveSelection": 8.28125,
+          "gapBelowSelection": -64.28125,
+          "horizontalOffset": 50.546875,
+          "occluded": [],
+          "overflowing": [],
+          "overflowScroll": {
+            "client": 329,
+            "scroll": 329
+          },
+          "placement": "above",
+          "selection": {
+            "x": 78,
+            "y": 211.28125,
+            "width": 98.28125,
+            "height": 18,
+            "top": 211.28125,
+            "right": 176.28125,
+            "bottom": 229.28125,
+            "left": 78
+          },
+          "sizes": [
+            {
+              "height": 28,
+              "testId": "selection-bubble-turn-into",
+              "width": 103.375
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-bold",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-italic",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-strikethrough",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-inline-code",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-link",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selected-text-ai-bubble-action",
+              "width": 32
+            }
+          ],
+          "viewportHeight": 1024,
+          "viewportWidth": 768,
+          "visible": true
+        },
+        "scrolled": {
+          "after": 60,
+          "before": 0
+        },
+        "selectionMoved": 60
+      }
+    },
+    "1280": {
+      "toolbar": {
+        "byDefault": {
+          "hidden": true,
+          "height": 0,
+          "mode": "hidden",
+          "present": true
+        },
+        "optedIn": {
+          "height": 48,
+          "hidden": false
+        }
+      },
+      "centering": {
+        "clampedLeft": false,
+        "clampedRight": false,
+        "horizontalOffset": 3.546875
+      },
+      "anchored": {
+        "bubble": {
+          "x": 221,
+          "y": 190,
+          "width": 331.375,
+          "height": 38,
+          "top": 190,
+          "right": 552.375,
+          "bottom": 228,
+          "left": 221
+        },
+        "controls": [
+          "selection-bubble-turn-into",
+          "selection-bubble-bold",
+          "selection-bubble-italic",
+          "selection-bubble-strikethrough",
+          "selection-bubble-inline-code",
+          "selection-bubble-link",
+          "selected-text-ai-bubble-action"
+        ],
+        "gapAboveSelection": 7.28125,
+        "gapBelowSelection": -63.28125,
+        "horizontalOffset": 3.546875,
+        "occluded": [],
+        "overflowing": [],
+        "overflowScroll": {
+          "client": 329,
+          "scroll": 329
+        },
+        "placement": "above",
+        "selection": {
+          "x": 334,
+          "y": 235.28125,
+          "width": 98.28125,
+          "height": 18,
+          "top": 235.28125,
+          "right": 432.28125,
+          "bottom": 253.28125,
+          "left": 334
+        },
+        "sizes": [
+          {
+            "height": 28,
+            "testId": "selection-bubble-turn-into",
+            "width": 103.375
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-bold",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-italic",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-strikethrough",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-inline-code",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-link",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selected-text-ai-bubble-action",
+            "width": 32
+          }
+        ],
+        "viewportHeight": 900,
+        "viewportWidth": 1280,
+        "visible": true
+      },
+      "nearTop": {
+        "bubble": {
+          "x": 321,
+          "y": 67,
+          "width": 335.21875,
+          "height": 38,
+          "top": 67,
+          "right": 656.21875,
+          "bottom": 105,
+          "left": 321
+        },
+        "controls": [
+          "selection-bubble-turn-into",
+          "selection-bubble-bold",
+          "selection-bubble-italic",
+          "selection-bubble-strikethrough",
+          "selection-bubble-inline-code",
+          "selection-bubble-link",
+          "selected-text-ai-bubble-action"
+        ],
+        "gapAboveSelection": 8,
+        "gapBelowSelection": -81,
+        "horizontalOffset": -0.1015625,
+        "occluded": [],
+        "overflowing": [],
+        "overflowScroll": {
+          "client": 333,
+          "scroll": 333
+        },
+        "placement": "above",
+        "selection": {
+          "x": 310,
+          "y": 113,
+          "width": 357.421875,
+          "height": 35,
+          "top": 113,
+          "right": 667.421875,
+          "bottom": 148,
+          "left": 310
+        },
+        "sizes": [
+          {
+            "height": 28,
+            "testId": "selection-bubble-turn-into",
+            "width": 107.21875
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-bold",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-italic",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-strikethrough",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-inline-code",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selection-bubble-link",
+            "width": 32
+          },
+          {
+            "height": 28,
+            "testId": "selected-text-ai-bubble-action",
+            "width": 32
+          }
+        ],
+        "viewportHeight": 900,
+        "viewportWidth": 1280,
+        "visible": true
+      },
+      "scroll": {
+        "after": {
+          "bubble": {
+            "x": 217,
+            "y": 129,
+            "width": 331.375,
+            "height": 38,
+            "top": 129,
+            "right": 548.375,
+            "bottom": 167,
+            "left": 217
+          },
+          "controls": [
+            "selection-bubble-turn-into",
+            "selection-bubble-bold",
+            "selection-bubble-italic",
+            "selection-bubble-strikethrough",
+            "selection-bubble-inline-code",
+            "selection-bubble-link",
+            "selected-text-ai-bubble-action"
+          ],
+          "gapAboveSelection": 8.28125,
+          "gapBelowSelection": -64.28125,
+          "horizontalOffset": -0.453125,
+          "occluded": [],
+          "overflowing": [],
+          "overflowScroll": {
+            "client": 329,
+            "scroll": 329
+          },
+          "placement": "above",
+          "selection": {
+            "x": 334,
+            "y": 175.28125,
+            "width": 98.28125,
+            "height": 18,
+            "top": 175.28125,
+            "right": 432.28125,
+            "bottom": 193.28125,
+            "left": 334
+          },
+          "sizes": [
+            {
+              "height": 28,
+              "testId": "selection-bubble-turn-into",
+              "width": 103.375
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-bold",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-italic",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-strikethrough",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-inline-code",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-link",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selected-text-ai-bubble-action",
+              "width": 32
+            }
+          ],
+          "viewportHeight": 900,
+          "viewportWidth": 1280,
+          "visible": true
+        },
+        "before": {
+          "bubble": {
+            "x": 217,
+            "y": 189,
+            "width": 331.375,
+            "height": 38,
+            "top": 189,
+            "right": 548.375,
+            "bottom": 227,
+            "left": 217
+          },
+          "controls": [
+            "selection-bubble-turn-into",
+            "selection-bubble-bold",
+            "selection-bubble-italic",
+            "selection-bubble-strikethrough",
+            "selection-bubble-inline-code",
+            "selection-bubble-link",
+            "selected-text-ai-bubble-action"
+          ],
+          "gapAboveSelection": 8.28125,
+          "gapBelowSelection": -64.28125,
+          "horizontalOffset": -0.453125,
+          "occluded": [],
+          "overflowing": [],
+          "overflowScroll": {
+            "client": 329,
+            "scroll": 329
+          },
+          "placement": "above",
+          "selection": {
+            "x": 334,
+            "y": 235.28125,
+            "width": 98.28125,
+            "height": 18,
+            "top": 235.28125,
+            "right": 432.28125,
+            "bottom": 253.28125,
+            "left": 334
+          },
+          "sizes": [
+            {
+              "height": 28,
+              "testId": "selection-bubble-turn-into",
+              "width": 103.375
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-bold",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-italic",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-strikethrough",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-inline-code",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-link",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selected-text-ai-bubble-action",
+              "width": 32
+            }
+          ],
+          "viewportHeight": 900,
+          "viewportWidth": 1280,
+          "visible": true
+        },
+        "scrolled": {
+          "after": 60,
+          "before": 0
+        },
+        "selectionMoved": 60
+      }
+    }
+  },
+  "schemes": [
+    "dark",
+    "light"
+  ],
+  "status": "passed"
+}

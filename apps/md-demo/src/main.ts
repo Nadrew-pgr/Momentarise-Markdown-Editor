@@ -90,6 +90,7 @@ import {
   reorderRichTopLevelBlock,
   richRangeForSourceRange,
   richCommandRegistry,
+  richSelectionSupportsFormatting,
   richTopLevelBlockRanges,
   runRichMarkdownCommand,
   serializeRichMarkdownState,
@@ -125,6 +126,7 @@ import {
   type MmeTheme
 } from "@momentarise/md-theme";
 import {
+  anchoredOverlayPlacement,
   attachSurfaceOverlayDismissListeners,
   createAiAssistantPanel,
   createCommandPalette,
@@ -1546,7 +1548,34 @@ let richBlockControlsDismissReason: SurfaceOverlayDismissReason | null = null;
 
 function registerDemoOverlays(): void {
   overlayDismissController.register({
-    close: () => hideSelectionBubbleToolbar(),
+    /*
+     * MME-0089: Escape unwinds one layer at a time. The dismiss controller binds
+     * `keydown` in the capture phase, so it owns Escape before any component
+     * sees it — a bubble-local handler cannot make this decision. With a
+     * sub-panel open, closing it and keeping the bubble preserves the selection
+     * the writer was about to link; closing everything would discard it.
+     */
+    close: (reason) => {
+      const panelOpen = selectionBubbleLinkOpen || selectionBubbleTurnIntoOpen;
+      if (reason === "escape" && panelOpen) {
+        setSelectionBubblePanels({ linkOpen: false, turnIntoOpen: false });
+        richEditor?.focus();
+        return;
+      }
+      /*
+       * A `blur` while a sub-panel is open is our own repaint, not the writer
+       * leaving. Re-rendering the bubble removes the focused element, focus
+       * momentarily lands on `<body>`, and `focusout` fires with a null
+       * `relatedTarget` — indistinguishable from a real blur, and it tore the
+       * link field down mid-edit on every scroll and every viewport resize. A
+       * writer genuinely leaving arrives as `outside-pointer` or `escape`, both
+       * of which still dismiss.
+       */
+      if (reason === "blur" && panelOpen) {
+        return;
+      }
+      hideSelectionBubbleToolbar();
+    },
     contains: (node) => Boolean(node && selectionBubbleToolbar.contains(node)),
     id: "selection-bubble",
     isOpen: () => !selectionBubbleToolbar.hidden,
@@ -1683,9 +1712,41 @@ function mountReferenceSurfaceComponents(): void {
         void runEditorNativeAiCommand("rewrite");
       }
     },
+    onLinkCancel() {
+      richEditor?.focus();
+    },
+    onLinkRemove() {
+      runRichCommandFromBubble("link", { href: activeRichLinkHref() ?? "" });
+    },
+    onLinkSubmit(href) {
+      const trimmed = href.trim();
+      if (!trimmed) {
+        return;
+      }
+      /*
+       * Editing an existing link means replacing its destination, and
+       * `toggleMark` with different attributes only *adds* the new mark over the
+       * old one. Removing first makes the second call an unambiguous apply.
+       */
+      if (activeRichLinkHref()) {
+        runRichCommandFromBubble("link", { href: activeRichLinkHref() ?? "" });
+      }
+      runRichCommandFromBubble("link", { href: trimmed });
+    },
+    onLinkToggle(open) {
+      setSelectionBubblePanels({ linkOpen: open, turnIntoOpen: false });
+    },
     onRunToolbarItem(id) {
-      void dispatchToolbarItem(id);
-      renderSelectionBubbleToolbar();
+      withSelectionBubbleFocusKept(() => {
+        void dispatchToolbarItem(id);
+        renderSelectionBubbleToolbar();
+      });
+    },
+    onTurnInto(richCommandId) {
+      withSelectionBubbleFocusKept(() => runRichCommandFromBubble(richCommandId as RichCommandId));
+    },
+    onTurnIntoToggle(open) {
+      setSelectionBubblePanels({ linkOpen: false, turnIntoOpen: open });
     }
   });
   selectedTextAiBubbleAction = queryRequired<HTMLButtonElement>('[data-testid="selected-text-ai-bubble-action"]');
@@ -1895,14 +1956,204 @@ function surfaceToolbarState(): SurfaceToolbarState {
   };
 }
 
+/*
+ * MME-0089 — the bubble's two sub-panels.
+ *
+ * Held here rather than inside the component because both are *document*
+ * questions: the link popover must reopen on the destination the selection
+ * already carries, and both panels must close when the selection moves. A
+ * component that owned this state would keep a stale link field open over a
+ * different word.
+ */
+let selectionBubbleTurnIntoOpen = false;
+let selectionBubbleLinkOpen = false;
+
+function setSelectionBubblePanels(next: { readonly linkOpen: boolean; readonly turnIntoOpen: boolean }): void {
+  /*
+   * MME-0089, measured: closing the link popover while its input has focus used
+   * to drop the writer's selection. Re-rendering removes the input, focus falls
+   * to `<body>`, ProseMirror's DOM observer reads the now-empty document
+   * selection and collapses its state selection to 0 — after which the bubble
+   * correctly hides itself, because there is nothing selected any more.
+   *
+   * Handing focus back to the editor *before* the input leaves the DOM means
+   * focus never passes through `<body>`, so the observer never sees an empty
+   * selection. Invisible to `element.click()`; only a real key or pointer event
+   * moves focus at all, which is why this survived until the browser gate.
+   */
+  const closingFocusedPanel =
+    selectionBubbleLinkOpen &&
+    !next.linkOpen &&
+    selectionBubbleToolbar.contains(selectionBubbleToolbar.ownerDocument.activeElement);
+  if (closingFocusedPanel) {
+    richEditor?.focus();
+  }
+  selectionBubbleLinkOpen = next.linkOpen;
+  selectionBubbleTurnIntoOpen = next.turnIntoOpen;
+  renderSelectionBubbleToolbar();
+  if (next.linkOpen) {
+    selectionBubbleToolbar.querySelector<HTMLInputElement>('[data-testid="selection-bubble-link-input"]')?.focus();
+  }
+}
+
+function closeSelectionBubblePanels(): void {
+  selectionBubbleLinkOpen = false;
+  selectionBubbleTurnIntoOpen = false;
+}
+
+/**
+ * Run a bubble action without stealing the keyboard user's place.
+ *
+ * Every rich command ends in `richEditor.focus()`, which is right when the
+ * gesture came from the pointer — the writer wants to keep typing. It is wrong
+ * when the gesture came from the keyboard: focus was inside the bubble, and
+ * moving it into the document means the next Tab starts from the caret again, so
+ * applying two marks in a row costs a full traversal. The distinction is simply
+ * where focus was when the action started.
+ */
+function withSelectionBubbleFocusKept(run: () => void): void {
+  const active = selectionBubbleToolbar.ownerDocument.activeElement as HTMLElement | null;
+  const keptTestId =
+    active && selectionBubbleToolbar.contains(active) ? (active.dataset.testid ?? null) : null;
+  run();
+  if (!keptTestId || selectionBubbleToolbar.hidden) {
+    return;
+  }
+  selectionBubbleToolbar.querySelector<HTMLElement>(`[data-testid="${keptTestId}"]`)?.focus();
+}
+
+/**
+ * The destination the selection's `link` mark already carries, if any.
+ *
+ * Scans the whole range, not just its first node. Reading only `nodeAt(from)`
+ * missed a link that starts partway into the selection, and the caller used that
+ * answer to decide whether to remove the old mark first — so applying a new
+ * destination over such a selection hit ProseMirror's `removeWhenPresent` path
+ * and DELETED the existing link while writing nothing.
+ */
+function activeRichLinkHref(): string | null {
+  if (!richEditor) {
+    return null;
+  }
+  const linkMark = richEditor.state.schema.marks.link;
+  if (!linkMark) {
+    return null;
+  }
+  const { from, to, $from } = richEditor.state.selection;
+  if (from === to) {
+    const found = linkMark.isInSet($from.marks());
+    return typeof found?.attrs.href === "string" ? found.attrs.href : null;
+  }
+  let href: string | null = null;
+  richEditor.state.doc.nodesBetween(from, to, (node) => {
+    if (href !== null) {
+      return false;
+    }
+    const found = linkMark.isInSet(node.marks);
+    if (found && typeof found.attrs.href === "string") {
+      href = found.attrs.href;
+    }
+    return true;
+  });
+  return href;
+}
+
+/** The block command the current selection sits in, shown by the turn-into control. */
+function activeRichBlockCommand(): string | undefined {
+  if (!richEditor) {
+    return undefined;
+  }
+  /*
+   * Walk outward from the caret rather than reading depth 1. `todo_item` is only
+   * ever a child of a list (see the schema), so a depth-1 read reported every
+   * checklist as "Bullet list" and left the Todo entry permanently unchecked —
+   * the turn-into control lying about the block the writer is standing in.
+   */
+  const { $from } = richEditor.state.selection;
+  let node = $from.parent;
+  for (let depth = $from.depth; depth >= 1; depth -= 1) {
+    const candidate = $from.node(depth);
+    if (candidate.type.name === "todo_item") {
+      return "todo";
+    }
+    if (depth === 1) {
+      node = candidate;
+    }
+  }
+  switch (node.type.name) {
+    case "heading":
+      return `heading${node.attrs.level ?? 1}`;
+    case "bullet_list":
+      return "bulletList";
+    case "ordered_list":
+      return "orderedList";
+    case "todo_item":
+      return "todo";
+    case "blockquote":
+      return "blockquote";
+    case "code_block":
+      return "codeBlock";
+    case "paragraph":
+      return "paragraph";
+    default:
+      return undefined;
+  }
+}
+
+function runRichCommandFromBubble(commandId: RichCommandId, options: ApplyRichMarkdownCommandOptions = {}): void {
+  runRichCommand(commandId, options);
+  renderSelectionBubbleToolbar();
+}
+
 function surfaceSelectionBubbleState(): SurfaceSelectionBubbleState {
+  const visible = shouldShowSelectionBubbleToolbar();
+  const href = activeRichLinkHref();
+  const blockCommand = activeRichBlockCommand();
   return {
+    ...(blockCommand === undefined ? {} : { activeBlockCommand: blockCommand }),
     activeIds: activeRichCommandIds(),
     aiDisabled: !isSelectionAiVisible() || !hasAiEligibleSelection(),
     aiVisible: isSelectionAiVisible(),
     disabledIds: disabledRichSelectionToolbarIds(),
-    visible: shouldShowSelectionBubbleToolbar()
+    disabledReasons: {
+      "mme:turnInto": "Block conversion is not available for this block yet."
+    },
+    linkEditor: { href: href ?? "", open: visible && selectionBubbleLinkOpen },
+    turnIntoDisabledCommands: unavailableTurnIntoCommandIds(),
+    turnIntoOpen: visible && selectionBubbleTurnIntoOpen,
+    visible
   };
+}
+
+/**
+ * The block conversions the current selection cannot run.
+ *
+ * Asked of the package rather than guessed: `canRunRichMarkdownCommand` is the
+ * same predicate the command itself uses, so an entry is offered exactly when
+ * pressing it would change the document. Measured 2026-08-12: inside a list item
+ * every block conversion reports false, which is a real limitation of the block
+ * commands rather than of this dropdown — MME-0105 owns lifting a list item out
+ * of its list. Until then the control is honestly disabled there instead of
+ * silently doing nothing.
+ */
+const TURN_INTO_COMMAND_IDS: readonly RichCommandId[] = [
+  "paragraph",
+  "heading1",
+  "heading2",
+  "heading3",
+  "bulletList",
+  "orderedList",
+  "todo",
+  "blockquote",
+  "codeBlock"
+];
+
+function unavailableTurnIntoCommandIds(): readonly string[] {
+  const currentState = currentRichStateFromEditor();
+  if (!currentState) {
+    return [...TURN_INTO_COMMAND_IDS];
+  }
+  return TURN_INTO_COMMAND_IDS.filter((commandId) => !canRunRichMarkdownCommand(currentState, commandId));
 }
 
 function setSelectionBubbleSurfaceState(overrides: Partial<SurfaceSelectionBubbleState> = {}): SurfaceSelectionBubbleState {
@@ -2415,6 +2666,19 @@ document.addEventListener("keydown", (event) => {
     }
   }
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+    /*
+     * MME-0089: `Mod-k` is the link shortcut in every benchmark editor AND the
+     * command-palette hotkey in this one. The selection decides: with a
+     * formattable range the gesture means "link this", which is what Notion,
+     * BlockNote and Obsidian all do; with no range there is nothing to link, so
+     * it falls through to the palette. Neither binding is lost.
+     */
+    if (shouldShowSelectionBubbleToolbar()) {
+      event.preventDefault();
+      renderSelectionBubbleToolbar();
+      setSelectionBubblePanels({ linkOpen: true, turnIntoOpen: false });
+      return;
+    }
     if (!isAiEntryPointEnabled("command-palette")) {
       return;
     }
@@ -2433,11 +2697,14 @@ document.addEventListener("keydown", (event) => {
     richEditor?.focus();
     return;
   }
-  if (event.key === "Escape" && !selectionBubbleToolbar.hidden) {
-    event.preventDefault();
-    hideSelectionBubbleToolbar();
-    richEditor?.focus();
-  }
+  /*
+   * MME-0089: the bubble's Escape handling now lives entirely in its
+   * `overlayDismissController` registration, which binds the key in the capture
+   * phase and therefore already ran by the time this listener sees it. The
+   * duplicate branch that used to sit here re-closed the bubble immediately
+   * after the controller had deliberately kept it open to close only a
+   * sub-panel — two mechanisms for one key, with the wrong one winning.
+   */
 });
 
 window.addEventListener("beforeunload", (event) => {
@@ -4105,14 +4372,20 @@ function getBlockAffordanceState(): {
 function getSelectionBubbleState(): {
   readonly aiDisabled: boolean;
   readonly aiVisible: boolean;
+  readonly linkEditorOpen: boolean;
   readonly open: boolean;
   readonly selectedText: string;
+  readonly turnIntoOpen: boolean;
 } {
   const selection = richEditor?.state.selection;
   const aiButton = selectionBubbleToolbar.querySelector<HTMLButtonElement>('[data-testid="selected-text-ai-bubble-action"]');
   return {
     aiDisabled: aiButton?.disabled ?? true,
     aiVisible: Boolean(aiButton && !aiButton.hidden),
+    // MME-0089: the two sub-panels, so a browser gate can assert the layered
+    // Escape behaviour on state rather than on whether a node happens to exist.
+    linkEditorOpen: selectionBubbleLinkOpen,
+    turnIntoOpen: selectionBubbleTurnIntoOpen,
     open: !selectionBubbleToolbar.hidden,
     selectedText:
       richEditor && selection instanceof TextSelection && !selection.empty
@@ -4126,7 +4399,15 @@ function shouldShowSelectionBubbleToolbar(): boolean {
     return false;
   }
   const selection = richEditor.state.selection;
-  return selection instanceof TextSelection && !selection.empty;
+  if (!(selection instanceof TextSelection) || selection.empty) {
+    return false;
+  }
+  /*
+   * MME-0089: the "may I format here?" rule lives in the package, so the demo,
+   * the React binding and any other host refuse the same contexts — code blocks
+   * and opaque/raw blocks, whose bytes are content rather than prose.
+   */
+  return richSelectionSupportsFormatting({ ...richState, editorState: richEditor.state });
 }
 
 function activeRichCommandIds(): readonly string[] {
@@ -4143,10 +4424,13 @@ function activeRichCommandIds(): readonly string[] {
   if (richMarkActive("code")) {
     active.push("mme:inlineCode");
   }
+  if (richMarkActive("strike")) {
+    active.push("mme:strikethrough");
+  }
   return active;
 }
 
-function richMarkActive(markName: "code" | "em" | "strong"): boolean {
+function richMarkActive(markName: "code" | "em" | "strike" | "strong"): boolean {
   if (!richEditor) {
     return false;
   }
@@ -4209,7 +4493,7 @@ function unavailableTableReorderCommandIds(): readonly string[] {
 
 function disabledRichSelectionToolbarIds(): readonly string[] {
   if (!shouldShowSelectionBubbleToolbar()) {
-    return ["mme:bold", "mme:italic", "mme:inlineCode"];
+    return ["mme:bold", "mme:italic", "mme:strikethrough", "mme:inlineCode"];
   }
   return [];
 }
@@ -4272,50 +4556,125 @@ function renderEditorAiMenu(): void {
 }
 
 function renderSelectionBubbleToolbar(): void {
+  /*
+   * An open sub-panel keeps the bubble alive.
+   *
+   * Visibility is derived from the live selection, and while the link field has
+   * focus the editor does not — so any re-render that lands in the window
+   * between `replaceChildren` and the focus restore can read an empty selection
+   * and tear the panel down mid-edit, taking the typed destination with it. A
+   * `resize` does exactly that, which on a phone is the on-screen keyboard
+   * opening: the field vanished at the moment it existed to be typed into.
+   *
+   * The panel is dismissed by Escape, by Cancel, by submitting, or by a pointer
+   * outside the bubble — all explicit. It is not dismissed by a repaint.
+   */
   const nextState = setSelectionBubbleSurfaceState();
-  if (!nextState.visible) {
+  const panelOpen = selectionBubbleLinkOpen || selectionBubbleTurnIntoOpen;
+  if (!nextState.visible && !panelOpen) {
     hideSelectionBubbleToolbar();
     return;
+  }
+  if (!nextState.visible) {
+    setSelectionBubbleSurfaceState({ visible: true });
   }
   positionSelectionBubbleToolbar();
 }
 
 function hideSelectionBubbleToolbar(): void {
+  closeSelectionBubblePanels();
   setSelectionBubbleSurfaceState({ visible: false });
   selectionBubbleToolbar.style.removeProperty("--selection-bubble-left");
   selectionBubbleToolbar.style.removeProperty("--selection-bubble-top");
+  delete selectionBubbleToolbar.dataset.placement;
+}
+
+/**
+ * MME-0089 — the bubble is centered on the selection, not on its start.
+ *
+ * The previous version lined the bubble's left edge up with `coordsAtPos(from)`,
+ * so the affordance drifted further from the selection the longer the selection
+ * was: a whole sentence put the bubble over the first word with the last word
+ * two hundred pixels to the right. The anchor is now the union of the
+ * selection's start and end rects, and the placement comes from
+ * `anchoredOverlayPlacement` — the same package helper MME-0086 gave the block
+ * controls, which already knows how to flip below and clamp inside the region.
+ */
+function selectionRectForBubble(): SurfaceRect | null {
+  if (!richEditor) {
+    return null;
+  }
+  try {
+    const from = richEditor.coordsAtPos(richEditor.state.selection.from);
+    const to = richEditor.coordsAtPos(richEditor.state.selection.to);
+    const left = Math.min(from.left, to.left);
+    const right = Math.max(from.right, to.right);
+    const top = Math.min(from.top, to.top);
+    const bottom = Math.max(from.bottom, to.bottom);
+    return { height: Math.max(1, bottom - top), left, top, width: Math.max(1, right - left) };
+  } catch {
+    const editorRect = richEditorHost.getBoundingClientRect();
+    return { height: 20, left: editorRect.left + 24, top: editorRect.top + 24, width: 1 };
+  }
 }
 
 function positionSelectionBubbleToolbar(): void {
   if (!richEditor || selectionBubbleToolbar.hidden) {
     return;
   }
-  const regionRect = editorRegion.getBoundingClientRect();
-  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-  const visibleRegionWidth = Math.max(180, Math.min(regionRect.right, viewportWidth) - Math.max(regionRect.left, 0));
-  const toolbarWidth = Math.min(340, Math.max(180, visibleRegionWidth - 24));
-  const measuredToolbarWidth = Math.max(
-    160,
-    Math.min(toolbarWidth, selectionBubbleToolbar.getBoundingClientRect().width || selectionBubbleToolbar.offsetWidth || toolbarWidth)
-  );
-  let selectionRect: { readonly left: number; readonly top: number };
-  try {
-    selectionRect = richEditor.coordsAtPos(richEditor.state.selection.from);
-  } catch {
-    const editorRect = richEditorHost.getBoundingClientRect();
-    selectionRect = {
-      left: editorRect.left + 24,
-      top: editorRect.top + 24
-    };
+  const anchor = selectionRectForBubble();
+  if (!anchor) {
+    return;
   }
-  const left = Math.min(
-    Math.max(selectionRect.left - regionRect.left, 12),
-    Math.max(12, visibleRegionWidth - measuredToolbarWidth - 12)
-  );
-  const topAboveSelection = selectionRect.top - regionRect.top - selectionBubbleToolbar.offsetHeight - 8;
-  const top = topAboveSelection > 12 ? topAboveSelection : selectionRect.top - regionRect.top + 28;
-  selectionBubbleToolbar.style.setProperty("--selection-bubble-left", `${Math.round(left)}px`);
-  selectionBubbleToolbar.style.setProperty("--selection-bubble-top", `${Math.round(Math.max(12, top))}px`);
+  const containerRect = editorRegion.getBoundingClientRect();
+  const bubbleRect = selectionBubbleToolbar.getBoundingClientRect();
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+  const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
+  /*
+   * Clamp against what is actually on screen, not against the region box: the
+   * editor region is taller than the viewport on a phone, and clamping to it
+   * parks the bubble off-screen (the MME-0086 bounds-vs-container distinction).
+   */
+  const bounds: SurfaceRect = {
+    height: Math.max(1, Math.min(containerRect.bottom, viewportHeight) - Math.max(containerRect.top, 0)),
+    left: Math.max(containerRect.left, 0),
+    top: Math.max(containerRect.top, 0),
+    width: Math.max(1, Math.min(containerRect.right, viewportWidth) - Math.max(containerRect.left, 0))
+  };
+  const placement = anchoredOverlayPlacement({
+    align: "center",
+    anchor,
+    bounds,
+    container: containerRect,
+    gap: 8,
+    margin: 12,
+    overlay: {
+      height: bubbleRect.height || selectionBubbleToolbar.offsetHeight,
+      width: bubbleRect.width || selectionBubbleToolbar.offsetWidth
+    },
+    preferred: "above"
+  });
+  selectionBubbleToolbar.dataset.placement = placement.placement;
+  selectionBubbleToolbar.style.setProperty("--selection-bubble-left", `${Math.round(placement.left)}px`);
+  selectionBubbleToolbar.style.setProperty("--selection-bubble-top", `${Math.round(placement.top)}px`);
+  /*
+   * MME-0089: the turn-into dropdown gets its own side. The bubble prefers to
+   * sit above its selection, so a menu that always opened downward ran off the
+   * bottom of the screen for any selection in the lower half of the viewport —
+   * `anchoredOverlayPlacement` proved the bubble fits, never the bubble plus a
+   * nine-item menu. Measured against the real menu height when one is open.
+   */
+  const menu = selectionBubbleToolbar.querySelector<HTMLElement>('[data-testid="selection-bubble-turn-into-menu"]');
+  if (menu) {
+    const bubbleBottom = containerRect.top + placement.top + (bubbleRect.height || selectionBubbleToolbar.offsetHeight);
+    const menuHeight = menu.getBoundingClientRect().height || menu.offsetHeight;
+    const roomBelow = viewportHeight - bubbleBottom - 12;
+    const roomAbove = containerRect.top + placement.top - 12;
+    selectionBubbleToolbar.dataset.menuPlacement =
+      menuHeight > roomBelow && roomAbove > roomBelow ? "above" : "below";
+  } else {
+    delete selectionBubbleToolbar.dataset.menuPlacement;
+  }
 }
 
 function openRichBlockMenu(index: number): void {

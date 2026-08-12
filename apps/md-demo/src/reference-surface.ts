@@ -191,7 +191,11 @@ export const DEFAULT_REFERENCE_EDITOR_PREFERENCES: ReferenceEditorPreferences = 
   readableLineWidth: 708,
   slashEnabled: true,
   technicalStatusDisclosure: "discreet",
-  toolbarMode: "sticky",
+  // MME-0089: mirrors the framework default, which is now `hidden` (benchmark
+  // contract 4). Leaving "sticky" here documented a default that no longer
+  // exists and would resurrect the toolbar for anyone wiring host preferences
+  // from this constant.
+  toolbarMode: "hidden",
   toolbarStyle: "glass",
   visibleCommandGroups: ["blocks", "marks", "lists", "insert", "ai", "status"]
 };

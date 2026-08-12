@@ -203,9 +203,15 @@ export interface MmeStrings {
     readonly italic: string;
     readonly label: string;
     readonly link: string;
+    /** MME-0089: the selection bubble's link popover. */
+    readonly linkApply: string;
+    readonly linkCancel: string;
+    readonly linkPlaceholder: string;
+    readonly linkRemove: string;
     readonly more: string;
     readonly orderedList: string;
     readonly paragraph: string;
+    readonly strikethrough: string;
     readonly tableColumnAfter: string;
     readonly tableColumnBefore: string;
     readonly tableColumnDelete: string;
@@ -218,6 +224,8 @@ export interface MmeStrings {
     readonly tableRowUp: string;
     readonly todo: string;
     readonly toggleBlock: string;
+    /** MME-0089: the selection bubble's block-conversion dropdown. */
+    readonly turnInto: string;
   };
 }
 
@@ -272,18 +280,54 @@ export interface CreateToolbarOptions extends SurfaceComponentContext {
   readonly state: SurfaceToolbarState;
 }
 
+/**
+ * MME-0089 — the link popover's state.
+ *
+ * `href` is the destination the selection already carries, so re-opening the
+ * popover on an existing link edits it rather than starting blank; an empty
+ * string means "no link here yet", which is what hides the Remove action.
+ */
+export interface SurfaceSelectionBubbleLinkEditorState {
+  readonly href: string;
+  readonly open: boolean;
+}
+
 export interface SurfaceSelectionBubbleState {
   readonly activeIds?: readonly string[];
+  /** The block command the selection currently sits in, shown by the turn-into control. */
+  readonly activeBlockCommand?: string;
   readonly aiDisabled?: boolean;
   readonly aiVisible?: boolean;
   readonly disabledIds?: readonly string[];
   readonly disabledReasons?: Readonly<Record<string, string>>;
+  readonly linkEditor?: SurfaceSelectionBubbleLinkEditorState;
+  /**
+   * Rich command ids the current selection cannot be converted to.
+   *
+   * The host computes this with `canRunRichMarkdownCommand`, so the dropdown
+   * never offers a conversion that would do nothing. When every entry is
+   * unavailable the control itself is disabled: no inert control ships.
+   */
+  readonly turnIntoDisabledCommands?: readonly string[];
+  readonly turnIntoOpen?: boolean;
   readonly visible: boolean;
 }
 
 export interface CreateSelectionBubbleToolbarOptions extends SurfaceComponentContext {
   readonly onAiSelection: () => void | Promise<void>;
+  /** Asked to close the link popover without changing the document. */
+  readonly onLinkCancel?: () => void;
+  /** Asked to remove the link mark from the selection. */
+  readonly onLinkRemove?: () => void | Promise<void>;
+  /** The user submitted a destination; the host writes `[text](href)`. */
+  readonly onLinkSubmit: (href: string) => void | Promise<void>;
+  /** Asked to open or close the link popover. */
+  readonly onLinkToggle?: (open: boolean) => void;
   readonly onRunToolbarItem: (id: string) => void | Promise<void>;
+  /** A block conversion was chosen from the turn-into dropdown. */
+  readonly onTurnInto: (richCommandId: string) => void | Promise<void>;
+  /** Asked to open or close the turn-into dropdown. */
+  readonly onTurnIntoToggle?: (open: boolean) => void;
   readonly state: SurfaceSelectionBubbleState;
 }
 
@@ -726,15 +770,20 @@ export const defaultMmeStrings: MmeStrings = {
     footnote: "Footnote",
     heading1: "Heading 1",
     heading2: "Heading 2",
-    heading3: "H3",
+    heading3: "Heading 3",
     image: "Image",
     inlineCode: "Inline code",
     italic: "Italic",
     label: "Rich editing toolbar",
     link: "Link",
+    linkApply: "Apply link",
+    linkCancel: "Cancel link",
+    linkPlaceholder: "Paste or type a link",
+    linkRemove: "Remove link",
     more: "More commands",
     orderedList: "Numbered list",
     paragraph: "Paragraph",
+    strikethrough: "Strikethrough",
     tableColumnAfter: "Insert column after",
     tableColumnBefore: "Insert column before",
     tableColumnDelete: "Delete column",
@@ -746,7 +795,8 @@ export const defaultMmeStrings: MmeStrings = {
     tableRowDown: "Move row down",
     tableRowUp: "Move row up",
     todo: "Todo",
-    toggleBlock: "Toggle block"
+    toggleBlock: "Toggle block",
+    turnInto: "Turn into"
   }
 };
 
@@ -786,10 +836,48 @@ const toolbarMoreCommands: readonly ToolbarCommandDefinition[] = [
   { group: "marks", icon: "code", id: "mme:inlineCode", richCommand: "inlineCode", title: "inlineCode" }
 ] as const;
 
+/*
+ * MME-0089 — the bubble is now the formatting surface (benchmark contract 4),
+ * so it carries the marks a writer actually reaches for rather than three of
+ * them. Link and AI are rendered separately because both open a panel instead of
+ * toggling a mark.
+ */
 const selectionBubbleCommands: readonly ToolbarCommandDefinition[] = [
   { group: "marks", icon: "bold", id: "mme:bold", richCommand: "bold", testId: "selection-bubble-bold", title: "bold" },
   { group: "marks", icon: "italic", id: "mme:italic", richCommand: "italic", testId: "selection-bubble-italic", title: "italic" },
+  {
+    group: "marks",
+    icon: "strikethrough",
+    id: "mme:strikethrough",
+    richCommand: "strikethrough",
+    testId: "selection-bubble-strikethrough",
+    title: "strikethrough"
+  },
   { group: "marks", icon: "code", id: "mme:inlineCode", richCommand: "inlineCode", testId: "selection-bubble-inline-code", title: "inlineCode" }
+] as const;
+
+/**
+ * The turn-into dropdown's contents, in the benchmark's order.
+ *
+ * These are the block conversions Notion and BlockNote offer from a selection.
+ * Every id is an existing `RichCommandId`, so the host wires one callback rather
+ * than a switch — the dropdown adds no new command surface, only a way to reach
+ * commands the slash menu already runs.
+ */
+const selectionBubbleTurnIntoCommands: readonly {
+  readonly icon: IconName;
+  readonly richCommand: string;
+  readonly title: keyof MmeStrings["toolbar"];
+}[] = [
+  { icon: "paragraph", richCommand: "paragraph", title: "paragraph" },
+  { icon: "heading1", richCommand: "heading1", title: "heading1" },
+  { icon: "heading2", richCommand: "heading2", title: "heading2" },
+  { icon: "heading3", richCommand: "heading3", title: "heading3" },
+  { icon: "list", richCommand: "bulletList", title: "bulletList" },
+  { icon: "orderedList", richCommand: "orderedList", title: "orderedList" },
+  { icon: "todo", richCommand: "todo", title: "todo" },
+  { icon: "quote", richCommand: "blockquote", title: "blockquote" },
+  { icon: "code", richCommand: "codeBlock", title: "codeBlock" }
 ] as const;
 
 interface ToolbarCommandDefinition {
@@ -1217,24 +1305,135 @@ export function createSelectionBubbleToolbar(options: CreateSelectionBubbleToolb
   const ownsRoot = root !== options.host;
   const cleanups: ListenerCleanup[] = [];
   let state = options.state;
+  /**
+   * The single tab stop's identity, held across renders.
+   *
+   * `render()` rebuilds every child, and the host re-renders on every editor
+   * transaction. Recomputing the roving stop from scratch each time put it back
+   * on the first mark button after any document change, so someone who had
+   * arrowed to Link found Tab landing on Turn into. Keeping the id here is what
+   * makes `role="toolbar"`'s single-tab-stop promise true over time.
+   */
+  let rovingTestId: string | null = null;
   if (ownsRoot) {
     options.host.replaceChildren(root);
   }
 
+  const focusableControls = (): HTMLElement[] =>
+    [...root.querySelectorAll<HTMLElement>("button, input")].filter(
+      (node) => !(node as HTMLButtonElement).disabled && !node.hidden && !node.closest('[role="menu"]')
+    );
+
+  /**
+   * Re-apply the single tab stop, and restore focus the render just destroyed.
+   *
+   * `replaceChildren` deletes the element the user is standing on. On the
+   * pointer path that is invisible, because `onPointerDown` stops any bubble
+   * control from taking focus at all. On the keyboard path it is fatal: press
+   * Enter on Bold, and the mark applies once while focus falls to `<body>` — at
+   * which point the host's own DOM observer sees an empty document selection and
+   * the bubble hides itself. Every bubble action became single-shot, and the
+   * persistent toolbar that used to be the fallback is off by default now.
+   */
+  const restoreFocusAndRoving = (previouslyFocused: string | null): void => {
+    const controls = focusableControls();
+    if (controls.length === 0) {
+      return;
+    }
+    const rovingIndex = Math.max(
+      0,
+      controls.findIndex((node) => node.dataset.testid === rovingTestId)
+    );
+    setRovingTabIndex(controls, rovingIndex);
+    rovingTestId = controls[rovingIndex]?.dataset.testid ?? null;
+    if (!previouslyFocused) {
+      return;
+    }
+    const replacement =
+      root.querySelector<HTMLElement>(`[data-testid="${previouslyFocused}"]`) ?? controls[rovingIndex];
+    replacement?.focus();
+  };
+
   const render = (): void => {
+    const activeElement = root.ownerDocument.activeElement as HTMLElement | null;
+    const focusedTestId =
+      activeElement && root.contains(activeElement) ? (activeElement.dataset.testid ?? null) : null;
     root.className = "selection-bubble-toolbar";
     root.dataset.testid = "selection-bubble-toolbar";
     root.dataset.layoutDensity = options.preferences.layoutDensity ?? "comfortable";
     root.hidden = !state.visible;
-    root.setAttribute("aria-label", options.strings.toolbar.label);
+    root.setAttribute("aria-label", state.linkEditor?.open ? options.strings.toolbar.link : options.strings.toolbar.label);
     root.setAttribute("role", "toolbar");
-    root.replaceChildren(
-      ...selectionBubbleCommands
-        .filter((command) => toolbarCommandVisible(options.preferences, command.group))
-        .map((command, index) => selectionBubbleButton(options, state, command, index === 0)),
-      selectionBubbleAiButton(options, state)
-    );
+    /*
+     * MME-0089: the link popover REPLACES the button row rather than floating
+     * beside it. Notion does the same, and it is the only shape with no second
+     * anchoring problem: the bubble already sits within 8px of the selection, so
+     * an in-place swap inherits that placement instead of re-deriving it. The
+     * bubble carries `backdrop-filter`, which would make it the containing block
+     * for a `position: fixed` child — the MME-0119 defect, avoided by not
+     * needing a fixed child at all.
+     */
+    if (state.linkEditor?.open) {
+      /*
+       * The in-progress value survives the re-render. The host re-renders on
+       * scroll, on resize, and on every editor transaction; rebuilding the field
+       * from `state.linkEditor.href` — the destination already in the document —
+       * discarded whatever the writer had typed. On a phone the on-screen
+       * keyboard opening fires a `resize`, so the field was wiped at the exact
+       * moment it existed to be typed into.
+       */
+      const inFlight = root.querySelector<HTMLInputElement>('[data-testid="selection-bubble-link-input"]');
+      const draft = root.dataset.mode === "link" && inFlight ? inFlight.value : null;
+      const caret = inFlight?.selectionStart ?? null;
+      root.dataset.mode = "link";
+      root.replaceChildren(selectionBubbleLinkEditor(options, state, draft));
+      if (draft !== null && caret !== null) {
+        const restored = root.querySelector<HTMLInputElement>('[data-testid="selection-bubble-link-input"]');
+        restored?.setSelectionRange(caret, caret);
+      }
+      restoreFocusAndRoving(focusedTestId);
+      return;
+    }
+    const wasMenuOpen = root.dataset.menuOpen === "true";
+    root.dataset.mode = "commands";
+    root.dataset.menuOpen = String(Boolean(state.turnIntoOpen));
+    const markButtons = selectionBubbleCommands
+      .filter((command) => toolbarCommandVisible(options.preferences, command.group))
+      .map((command) => selectionBubbleButton(options, state, command));
+    const children: HTMLElement[] = [];
+    if (toolbarCommandVisible(options.preferences, "blocks")) {
+      children.push(selectionBubbleTurnIntoButton(options, state), bubbleSeparator(options));
+      if (state.turnIntoOpen) {
+        children.push(selectionBubbleTurnIntoMenu(options, state));
+      }
+    }
+    children.push(...markButtons);
+    if (markButtons.length > 0) {
+      children.push(bubbleSeparator(options));
+    }
+    if (toolbarCommandVisible(options.preferences, "insert")) {
+      children.push(selectionBubbleLinkButton(options, state));
+    }
+    children.push(selectionBubbleAiButton(options, state));
+    root.replaceChildren(...children);
+    restoreFocusAndRoving(focusedTestId);
+    /*
+     * WAI-ARIA menu-button pattern: opening a menu moves focus into it, closing
+     * it returns focus to the trigger. Without this the dropdown announced
+     * itself as a menu and then left a screen-reader user with focus nowhere —
+     * the role promising interaction the widget did not offer.
+     */
+    if (state.turnIntoOpen && !wasMenuOpen) {
+      const items = menuItems();
+      (items.find((item) => item.getAttribute("aria-checked") === "true") ?? items[0])?.focus();
+    } else if (!state.turnIntoOpen && wasMenuOpen) {
+      root.querySelector<HTMLElement>('[data-testid="selection-bubble-turn-into"]')?.focus();
+    }
   };
+
+  const menuItems = (): HTMLElement[] => [
+    ...root.querySelectorAll<HTMLElement>('[role="menu"] [data-turn-into-command]:not([disabled])')
+  ];
 
   const onClick = (event: Event): void => {
     const target = elementTarget(event);
@@ -1246,17 +1445,123 @@ export function createSelectionBubbleToolbar(options: CreateSelectionBubbleToolb
       void options.onAiSelection();
       return;
     }
+    const turnIntoEntry = target.closest<HTMLElement>("[data-turn-into-command]");
+    if (turnIntoEntry?.dataset.turnIntoCommand) {
+      void options.onTurnInto(turnIntoEntry.dataset.turnIntoCommand);
+      options.onTurnIntoToggle?.(false);
+      return;
+    }
+    if (target.closest<HTMLElement>('[data-testid="selection-bubble-turn-into"]')) {
+      options.onTurnIntoToggle?.(!state.turnIntoOpen);
+      return;
+    }
+    if (target.closest<HTMLElement>('[data-testid="selection-bubble-link-remove"]')) {
+      void options.onLinkRemove?.();
+      options.onLinkToggle?.(false);
+      return;
+    }
+    if (target.closest<HTMLElement>('[data-testid="selection-bubble-link-cancel"]')) {
+      options.onLinkCancel?.();
+      options.onLinkToggle?.(false);
+      return;
+    }
+    if (target.closest<HTMLElement>('[data-testid="selection-bubble-link"]')) {
+      options.onLinkToggle?.(!state.linkEditor?.open);
+      return;
+    }
     const command = target.closest<HTMLElement>("[data-toolbar-command-id]");
     if (command?.dataset.toolbarCommandId) {
       void options.onRunToolbarItem(command.dataset.toolbarCommandId);
     }
   };
 
+  /**
+   * MME-0089 — the bubble must never take focus from the editor.
+   *
+   * Found by this issue's browser gate, and invisible to `element.click()`: a
+   * real `mousedown` inside the bubble blurs the editing surface, the browser
+   * collapses the document selection, ProseMirror syncs that collapse into its
+   * state, and the host re-renders — removing the very button the user is
+   * pressing before `mouseup` arrives. The gesture then does nothing at all, and
+   * the selection the writer made is gone.
+   *
+   * Cancelling the default on `mousedown` is what Notion and BlockNote do: focus
+   * stays in the document, so every action still has a selection to act on. The
+   * URL field is the one exception — it has to be focusable to be typed into.
+   */
+  const onPointerDown = (event: MouseEvent): void => {
+    if (elementTarget(event)?.closest("input, textarea")) {
+      return;
+    }
+    event.preventDefault();
+  };
+
+  const onSubmit = (event: Event): void => {
+    const form = elementTarget(event)?.closest<HTMLFormElement>('[data-testid="selection-bubble-link-editor"]');
+    if (!form) {
+      return;
+    }
+    event.preventDefault();
+    const input = form.querySelector<HTMLInputElement>('[data-testid="selection-bubble-link-input"]');
+    void options.onLinkSubmit(input?.value ?? "");
+    options.onLinkToggle?.(false);
+  };
+
   const onKeyDown = (event: KeyboardEvent): void => {
+    /*
+     * Escape inside a sub-panel closes that panel, not the bubble. Without this
+     * the only way back from the link field is to dismiss the whole affordance,
+     * which also drops the selection the user was about to link.
+     */
+    if (event.key === "Escape" && (state.linkEditor?.open || state.turnIntoOpen)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (state.linkEditor?.open) {
+        options.onLinkCancel?.();
+        options.onLinkToggle?.(false);
+      } else {
+        options.onTurnIntoToggle?.(false);
+      }
+      return;
+    }
+    /*
+     * A vertical menu is walked with Up/Down, not with the toolbar's Left/Right.
+     * The menu's items are also excluded from the toolbar walk below: they are
+     * DOM children of the bubble, so an unfiltered `visibleButtons(root)` sent
+     * ArrowRight sideways through a vertical list and made `End` jump past the
+     * open menu to the AI button.
+     */
+    if (state.turnIntoOpen && elementTarget(event)?.closest('[role="menu"]')) {
+      const items = menuItems();
+      if (items.length === 0) {
+        return;
+      }
+      const active = root.ownerDocument.activeElement;
+      const current = Math.max(0, items.indexOf(active as HTMLElement));
+      let next: number | null = null;
+      if (event.key === "ArrowDown") {
+        next = (current + 1) % items.length;
+      } else if (event.key === "ArrowUp") {
+        next = (current - 1 + items.length) % items.length;
+      } else if (event.key === "Home") {
+        next = 0;
+      } else if (event.key === "End") {
+        next = items.length - 1;
+      }
+      if (next !== null) {
+        event.preventDefault();
+        items[next]?.focus();
+      }
+      return;
+    }
     if (event.key !== "ArrowRight" && event.key !== "ArrowLeft" && event.key !== "Home" && event.key !== "End") {
       return;
     }
-    const buttons = visibleButtons(root);
+    // Inside the URL field the arrow keys belong to the caret, not to roving focus.
+    if (elementTarget(event)?.closest("input, textarea")) {
+      return;
+    }
+    const buttons = focusableControls();
     if (buttons.length === 0) {
       return;
     }
@@ -1272,14 +1577,19 @@ export function createSelectionBubbleToolbar(options: CreateSelectionBubbleToolb
             ? (current + 1) % buttons.length
             : (current - 1 + buttons.length) % buttons.length;
     setRovingTabIndex(buttons, next);
+    rovingTestId = buttons[next]?.dataset.testid ?? rovingTestId;
     buttons[next]?.focus();
   };
 
   root.addEventListener("click", onClick);
   root.addEventListener("keydown", onKeyDown);
+  root.addEventListener("mousedown", onPointerDown);
+  root.addEventListener("submit", onSubmit);
   cleanups.push(options.session.on("destroy", () => destroy()));
   cleanups.push(() => root.removeEventListener("click", onClick));
   cleanups.push(() => root.removeEventListener("keydown", onKeyDown));
+  cleanups.push(() => root.removeEventListener("mousedown", onPointerDown));
+  cleanups.push(() => root.removeEventListener("submit", onSubmit));
   render();
 
   const destroy = (): void => {
@@ -1541,8 +1851,14 @@ export interface SurfaceRect {
 export type AnchoredOverlayPlacementKind = "above" | "below";
 
 export interface AnchoredOverlayPlacementOptions {
-  /** Which edge of the anchor the overlay lines up with horizontally. */
-  readonly align?: "end" | "start";
+  /**
+   * How the overlay lines up with the anchor horizontally. `start` and `end`
+   * line an edge up with the matching anchor edge; `center` (MME-0089) puts the
+   * overlay's midpoint over the anchor's, which is what Notion's and BlockNote's
+   * selection bubbles do and what "centered above the selection" means
+   * numerically.
+   */
+  readonly align?: "center" | "end" | "start";
   /** The element the overlay belongs to, in the same coordinate space as `container`. */
   readonly anchor: SurfaceRect;
   /**
@@ -1626,7 +1942,12 @@ export function anchoredOverlayPlacement(options: AnchoredOverlayPlacementOption
         boundsBottom - options.overlay.height - margin
       );
 
-  const unclampedLeft = options.align === "end" ? anchorLeft + options.anchor.width - options.overlay.width : anchorLeft;
+  const unclampedLeft =
+    options.align === "end"
+      ? anchorLeft + options.anchor.width - options.overlay.width
+      : options.align === "center"
+        ? anchorLeft + (options.anchor.width - options.overlay.width) / 2
+        : anchorLeft;
 
   return {
     fits,
@@ -2747,7 +3068,9 @@ function toolbarButton(options: CreateToolbarOptions, state: SurfaceToolbarState
   button.setAttribute("aria-label", label);
   button.setAttribute("aria-pressed", String(commandActive(state, command.id)));
   button.title = disabled ? state.disabledReasons?.[command.id] ?? label : label;
-  button.tabIndex = roving ? 0 : -1;
+  // The single tab stop is assigned by `restoreFocusAndRoving`, which survives
+  // re-renders; hardcoding it here produced two tab stops in one toolbar.
+  button.tabIndex = -1;
   if (command.icon) {
     button.innerHTML = toolbarIcon(options, command.icon);
   }
@@ -2795,8 +3118,7 @@ function hostToolbarButtons(options: CreateToolbarOptions, state: SurfaceToolbar
 function selectionBubbleButton(
   options: CreateSelectionBubbleToolbarOptions,
   state: SurfaceSelectionBubbleState,
-  command: ToolbarCommandDefinition,
-  roving: boolean
+  command: ToolbarCommandDefinition
 ): HTMLButtonElement {
   const button = createElement(options.host, "button", "toolbar-button");
   const label = options.strings.toolbar[command.title];
@@ -2812,11 +3134,203 @@ function selectionBubbleButton(
   button.setAttribute("aria-label", label);
   button.setAttribute("aria-pressed", String(commandActive(state, command.id)));
   button.title = disabled ? state.disabledReasons?.[command.id] ?? label : label;
-  button.tabIndex = roving ? 0 : -1;
+  // The single tab stop is assigned by `restoreFocusAndRoving`, which survives
+  // re-renders; hardcoding it here produced two tab stops in one toolbar.
+  button.tabIndex = -1;
   if (command.icon) {
     button.innerHTML = toolbarIcon(options, command.icon);
   }
   return button;
+}
+
+/**
+ * A visual and semantic group boundary inside the bubble.
+ *
+ * `role="separator"` rather than a styled `<span>`: the bubble is a `role=
+ * "toolbar"`, and a screen reader reading a run of eleven undifferentiated
+ * buttons is the accessibility equivalent of the wall of icons this issue is
+ * replacing.
+ */
+function bubbleSeparator(options: CreateSelectionBubbleToolbarOptions): HTMLElement {
+  const separator = createElement(options.host, "span", "selection-bubble-separator");
+  separator.setAttribute("role", "separator");
+  separator.setAttribute("aria-orientation", "vertical");
+  return separator;
+}
+
+function selectionBubbleTurnIntoButton(
+  options: CreateSelectionBubbleToolbarOptions,
+  state: SurfaceSelectionBubbleState
+): HTMLButtonElement {
+  const button = createElement(options.host, "button", "toolbar-button selection-bubble-turn-into");
+  const activeLabel = selectionBubbleTurnIntoCommands.find(
+    (entry) => entry.richCommand === state.activeBlockCommand
+  );
+  const label = options.strings.toolbar.turnInto;
+  const blockLabel = activeLabel ? options.strings.toolbar[activeLabel.title] : null;
+  const available = selectionBubbleTurnIntoCommands.filter(
+    (entry) => !(state.turnIntoDisabledCommands ?? []).includes(entry.richCommand)
+  );
+  const unavailable = available.length === 0;
+  /*
+   * WCAG 2.5.3 Label in Name: the accessible name must CONTAIN the visible
+   * caption, or a speech-input user saying "click Heading 2" — the words they
+   * can see — activates nothing. Visible text first, so the block type is also
+   * the first thing a screen reader says; without this the current block type
+   * was reported to assistive technology nowhere in the feature.
+   */
+  const accessibleName = blockLabel ? `${blockLabel} — ${label}` : label;
+  button.type = "button";
+  button.disabled = unavailable;
+  button.dataset.testid = "selection-bubble-turn-into";
+  button.dataset.toolbarGroup = "blocks";
+  button.setAttribute("aria-expanded", String(Boolean(state.turnIntoOpen)));
+  button.setAttribute("aria-haspopup", "menu");
+  button.setAttribute("aria-label", accessibleName);
+  // A disabled control that says nothing reads as broken rather than as honest.
+  button.title = unavailable ? (state.disabledReasons?.["mme:turnInto"] ?? accessibleName) : accessibleName;
+  button.tabIndex = -1;
+  /*
+   * The current block type is shown as text next to the chevron — Notion and
+   * BlockNote both do this, and it is the only part of the bubble that reports
+   * state rather than offering an action.
+   */
+  button.innerHTML = toolbarIcon(options, activeLabel?.icon ?? "heading");
+  const caption = createElement(options.host, "span", "selection-bubble-turn-into-label");
+  caption.textContent = activeLabel ? options.strings.toolbar[activeLabel.title] : label;
+  button.append(caption);
+  /*
+   * The icon carries the meaning at coarse-pointer widths, where the CSS hides
+   * the caption: seven controls at the 44px touch floor leave no room for an
+   * 80px label, and a label squeezed to "P.." is worse than none.
+   */
+  button.insertAdjacentHTML("beforeend", toolbarIcon(options, "chevron"));
+  return button;
+}
+
+function selectionBubbleTurnIntoMenu(
+  options: CreateSelectionBubbleToolbarOptions,
+  state: SurfaceSelectionBubbleState
+): HTMLElement {
+  const menu = createElement(options.host, "div", "selection-bubble-turn-into-menu");
+  menu.dataset.testid = "selection-bubble-turn-into-menu";
+  menu.setAttribute("role", "menu");
+  menu.setAttribute("aria-orientation", "vertical");
+  menu.setAttribute("aria-label", options.strings.toolbar.turnInto);
+  menu.append(
+    ...selectionBubbleTurnIntoCommands.map((entry) => {
+      const item = createElement(options.host, "button", "toolbar-menu-item");
+      const label = options.strings.toolbar[entry.title];
+      item.type = "button";
+      item.disabled = (state.turnIntoDisabledCommands ?? []).includes(entry.richCommand);
+      item.dataset.testid = `selection-bubble-turn-into-${entry.richCommand}`;
+      item.dataset.turnIntoCommand = entry.richCommand;
+      item.setAttribute("aria-label", label);
+      /*
+       * `aria-checked` is not a supported state on `menuitem`, so browsers never
+       * mapped it: a screen reader read nine undifferentiated entries with no
+       * indication which one the block already was, and the only surviving cue
+       * was a background colour. Block types are mutually exclusive, which makes
+       * `menuitemradio` the correct role.
+       */
+      item.setAttribute("role", "menuitemradio");
+      item.setAttribute("aria-checked", String(entry.richCommand === state.activeBlockCommand));
+      item.tabIndex = -1;
+      item.innerHTML = toolbarIcon(options, entry.icon);
+      const caption = createElement(options.host, "span", "toolbar-menu-item-label");
+      caption.textContent = label;
+      item.append(caption);
+      return item;
+    })
+  );
+  return menu;
+}
+
+function selectionBubbleLinkButton(
+  options: CreateSelectionBubbleToolbarOptions,
+  state: SurfaceSelectionBubbleState
+): HTMLButtonElement {
+  const button = createElement(options.host, "button", "toolbar-button selection-bubble-link");
+  const label = options.strings.toolbar.link;
+  button.type = "button";
+  button.dataset.testid = "selection-bubble-link";
+  button.dataset.toolbarGroup = "insert";
+  /*
+   * No `aria-expanded`: the popover replaces the button row, so this control is
+   * removed from the DOM the instant it expands and the attribute could never be
+   * observed as `true`. `aria-haspopup` alone tells the truth.
+   */
+  button.setAttribute("aria-haspopup", "true");
+  button.setAttribute("aria-label", label);
+  button.setAttribute("aria-pressed", String(Boolean(state.linkEditor?.href)));
+  button.title = label;
+  button.tabIndex = -1;
+  button.innerHTML = toolbarIcon(options, "link");
+  return button;
+}
+
+/**
+ * The link popover.
+ *
+ * A `<form>` rather than an input plus a click handler, so Enter submits and
+ * Escape is handled by the bubble's own key handler — both are keyboard
+ * expectations the issue names, and both come free from the element.
+ */
+function selectionBubbleLinkEditor(
+  options: CreateSelectionBubbleToolbarOptions,
+  state: SurfaceSelectionBubbleState,
+  draft: string | null = null
+): HTMLElement {
+  const form = createElement(options.host, "form", "selection-bubble-link-editor");
+  form.dataset.testid = "selection-bubble-link-editor";
+  form.setAttribute("aria-label", options.strings.toolbar.link);
+  /*
+   * `role="group"`, not `role="dialog"`. A dialog promises a focus trap and a
+   * modal contract this popover does not have and should not have — it lives
+   * inside a `role="toolbar"` and Tab must keep working. `noValidate` matters
+   * just as much: `type="url"` refused `./notes.md`, `#section`, and
+   * `example.com`, which are the destinations a Markdown writer actually types.
+   */
+  form.setAttribute("role", "group");
+  form.noValidate = true;
+
+  const input = createElement(options.host, "input", "selection-bubble-link-input");
+  input.dataset.testid = "selection-bubble-link-input";
+  input.type = "text";
+  input.inputMode = "url";
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  input.value = draft ?? state.linkEditor?.href ?? "";
+  input.placeholder = options.strings.toolbar.linkPlaceholder;
+  input.setAttribute("aria-label", options.strings.toolbar.linkPlaceholder);
+
+  const apply = createElement(options.host, "button", "toolbar-button selection-bubble-link-apply");
+  apply.type = "submit";
+  apply.dataset.testid = "selection-bubble-link-apply";
+  apply.setAttribute("aria-label", options.strings.toolbar.linkApply);
+  apply.title = options.strings.toolbar.linkApply;
+  apply.innerHTML = toolbarIcon(options, "check");
+
+  form.append(input, apply);
+
+  if (state.linkEditor?.href) {
+    const remove = createElement(options.host, "button", "toolbar-button selection-bubble-link-remove");
+    remove.type = "button";
+    remove.dataset.testid = "selection-bubble-link-remove";
+    remove.setAttribute("aria-label", options.strings.toolbar.linkRemove);
+    remove.title = options.strings.toolbar.linkRemove;
+    remove.innerHTML = toolbarIcon(options, "close");
+    form.append(remove);
+  } else {
+    const cancel = createElement(options.host, "button", "toolbar-button selection-bubble-link-cancel");
+    cancel.type = "button";
+    cancel.dataset.testid = "selection-bubble-link-cancel";
+    cancel.setAttribute("aria-label", options.strings.toolbar.linkCancel);
+    cancel.title = options.strings.toolbar.linkCancel;
+    cancel.innerHTML = toolbarIcon(options, "close");
+    form.append(cancel);
+  }
+  return form;
 }
 
 function selectionBubbleAiButton(options: CreateSelectionBubbleToolbarOptions, state: SurfaceSelectionBubbleState): HTMLButtonElement {
@@ -3437,7 +3951,7 @@ function visibleButtons(root: HTMLElement): HTMLButtonElement[] {
   return [...root.querySelectorAll<HTMLButtonElement>("button")].filter((button) => !button.hidden && !button.disabled);
 }
 
-function setRovingTabIndex(buttons: readonly HTMLButtonElement[], activeIndex: number): void {
+function setRovingTabIndex(buttons: readonly HTMLElement[], activeIndex: number): void {
   buttons.forEach((button, index) => {
     button.tabIndex = index === activeIndex ? 0 : -1;
   });

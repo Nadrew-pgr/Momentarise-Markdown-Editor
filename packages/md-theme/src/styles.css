@@ -103,7 +103,9 @@
   .rich-block-affordance-button,
   .rich-block-controls,
   .rich-command-toolbar,
+  .selection-bubble-link-editor,
   .selection-bubble-toolbar,
+  .selection-bubble-turn-into-menu,
   .slash-command-copy,
   .slash-command-icon,
   .slash-command-item,
@@ -1563,7 +1565,13 @@
   align-items: center;
   gap: var(--mme-space-2xs);
   min-height: var(--mme-bubble-height);
-  max-width: min(var(--mme-menu-width-md), calc(var(--mme-visual-viewport-width, 100vw) - var(--mme-space-3xl)));
+  /*
+   * MME-0089: the cap is the viewport, not a named menu width. A 320px cap fit
+   * four controls; with nine it clipped the AI entry out of the bubble's own box
+   * at every width (measured: clientWidth 318 against scrollWidth 325 at 1280,
+   * 338 at 375). The bubble sizes to its content and only the screen limits it.
+   */
+  max-width: calc(var(--mme-visual-viewport-width, 100vw) - var(--mme-space-3xl));
   padding: var(--mme-space-xs);
   border: 1px solid var(--mme-color-border);
   border-radius: var(--mme-radius-md);
@@ -1574,7 +1582,133 @@
 }
 
 .selection-bubble-toolbar .toolbar-button {
+  /* Nothing in the bubble may shrink below its own floor: the row is a flex
+   * container, so a default `flex-shrink: 1` squeezed the turn-into control from
+   * its content width down to the 44px touch minimum and clipped its caption. */
+  flex: 0 0 auto;
   min-width: var(--mme-space-4xl);
+}
+
+/*
+ * MME-0089 — the bubble became the formatting surface, so it needs the internal
+ * structure a nine-control row requires: group boundaries, a block-conversion
+ * dropdown, and a link field that takes the bubble's place instead of floating
+ * beside it.
+ *
+ * The dropdown is `position: absolute` against the bubble on purpose. The bubble
+ * carries `backdrop-filter`, which makes it the containing block for any fixed
+ * descendant — the MME-0119 defect. Absolute positioning against that same box
+ * is well-defined, and the bubble is already clamped inside the editor region by
+ * `anchoredOverlayPlacement`, so the menu inherits a placement that has already
+ * been proven to fit.
+ */
+
+.selection-bubble-separator {
+  flex: 0 0 auto;
+  inline-size: 1px;
+  block-size: var(--mme-space-xl);
+  margin-inline: var(--mme-space-2xs);
+  background: var(--mme-color-border);
+}
+
+.selection-bubble-turn-into {
+  gap: var(--mme-space-2xs);
+  inline-size: auto;
+  padding-inline: var(--mme-space-xs);
+  white-space: nowrap;
+}
+
+.selection-bubble-turn-into-label {
+  max-inline-size: var(--mme-space-8xl);
+  overflow: hidden;
+  color: var(--mme-color-text);
+  font-family: var(--mme-font-family-ui);
+  font-size: var(--mme-font-size-ui);
+  font-weight: var(--mme-font-weight-medium);
+  text-overflow: ellipsis;
+}
+
+.selection-bubble-turn-into[aria-expanded="true"] .toolbar-icon:last-child {
+  transform: rotate(90deg);
+}
+
+.selection-bubble-turn-into-menu {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: calc(100% + var(--mme-space-2xs));
+  inset-inline-start: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--mme-space-2xs);
+  inline-size: max-content;
+  min-inline-size: var(--mme-menu-width-sm);
+  max-inline-size: min(var(--mme-menu-width-md), calc(var(--mme-visual-viewport-width, 100vw) - var(--mme-space-3xl)));
+  max-block-size: calc(var(--mme-visual-viewport-height, 100dvh) - var(--mme-space-8xl));
+  padding: var(--mme-space-xs);
+  overflow-y: auto;
+  border: 1px solid var(--mme-color-border);
+  border-radius: var(--mme-radius-lg);
+  background: var(--mme-color-surface-raised);
+  box-shadow: var(--mme-elevation-3);
+  animation: mme-overlay-enter var(--mme-motion-fast) var(--mme-motion-ease);
+}
+
+/*
+ * The bubble sits above its selection by default, so a downward dropdown runs
+ * off the bottom for any selection in the lower half of the viewport. The host
+ * writes `data-menu-placement` from the same measurement that placed the bubble;
+ * `anchoredOverlayPlacement` proved the BUBBLE fits, never the bubble plus a
+ * nine-item menu.
+ */
+.selection-bubble-toolbar[data-menu-placement="above"] .selection-bubble-turn-into-menu {
+  inset-block-start: auto;
+  inset-block-end: calc(100% + var(--mme-space-2xs));
+}
+
+.selection-bubble-turn-into-menu .toolbar-menu-item {
+  justify-content: flex-start;
+  inline-size: 100%;
+}
+
+/* The block the selection is already in, so the menu reports state as well as
+ * offering actions — the same job the closed control's caption does. */
+.selection-bubble-turn-into-menu .toolbar-menu-item[aria-checked="true"] {
+  background: var(--mme-color-surface-active);
+  color: var(--mme-color-text);
+}
+
+.toolbar-menu-item-label {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selection-bubble-link-editor {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mme-space-2xs);
+  inline-size: 100%;
+}
+
+.selection-bubble-link-input {
+  flex: 1 1 auto;
+  min-inline-size: var(--mme-menu-width-sm);
+  min-block-size: max(24px, calc(var(--mme-control-height) * var(--mme-density)));
+  padding: 0 var(--mme-space-sm);
+  border: 1px solid var(--mme-color-border);
+  border-radius: var(--mme-radius-sm);
+  background: var(--mme-color-surface);
+  color: var(--mme-color-text);
+  font-family: var(--mme-font-family-ui);
+  font-size: var(--mme-font-size-ui);
+}
+
+.selection-bubble-link-input:focus-visible {
+  outline: 2px solid var(--mme-color-focus-ring);
+  outline-offset: 1px;
 }
 
 /* --- anchored block controls (MME-0086) ----------------------------------
@@ -2183,12 +2317,28 @@
   .code-block-controls input,
   .command-palette input,
   .find-query-input,
-  .find-replace-input {
+  .find-replace-input,
+  /* MME-0089: the one text field in the packaged stylesheet that was still
+   * undercutting the MME-0117 floor, on the surface most likely to be used on a
+   * phone. */
+  .selection-bubble-link-input {
     min-block-size: var(--mme-touch-target-size) !important; /* allow: accessibility floor a host must not silently undercut (MME-0117) */
   }
 
   .ProseMirror [data-todo-toggle] {
     min-inline-size: var(--mme-touch-target-size) !important; /* allow: accessibility floor a host must not silently undercut (MME-0117) */
+  }
+
+  /*
+   * MME-0089: seven controls at the 44px floor exactly fill a 390px viewport, so
+   * the caption cannot fit beside them — measured, not assumed (the bubble needed
+   * 372px against a 364px box with a 32px caption). The control stays readable
+   * because paragraph and each heading level now carry their own glyph rather
+   * than sharing one, which is what made an icon-only control unacceptable here
+   * in the first place.
+   */
+  .selection-bubble-turn-into-label {
+    display: none;
   }
 
   .rich-block-affordance {

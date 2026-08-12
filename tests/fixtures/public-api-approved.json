@@ -165,6 +165,7 @@
     "richInputRuleIds",
     "richPositionForSourceOffset",
     "richRangeForSourceRange",
+    "richSelectionSupportsFormatting",
     "richTableCellCoordinates",
     "richTextInputContext",
     "richTopLevelBlockRanges",

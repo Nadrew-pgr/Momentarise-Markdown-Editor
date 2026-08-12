@@ -206,6 +206,16 @@ async function main() {
     await setTouchViewport(page, 390, 844);
     await page.goto(demoUrl, { waitUntil: "networkidle0" });
     await page.waitForFunction(() => Boolean(window.__MME_DEMO_VISUAL_CHECK__?.setSurfaceViewportMeasurementForTest));
+    /*
+     * MME-0089 turned the persistent formatting toolbar off by default
+     * (benchmark contract 4): formatting now lives in the selection bubble and
+     * the slash menu. This gate exercises the toolbar, so it opts in the way a
+     * Google-Docs-style host would, and the opt-in itself is proven by
+     * `visual:mme-0089`.
+     */
+    await page.evaluate(() =>
+      window.__MME_DEMO_VISUAL_CHECK__.setReferenceSurfacePreferencesForTest({ toolbarMode: "sticky" })
+    );
     await page.evaluate((content) => {
       window.__MME_DEMO_VISUAL_CHECK__.loadWritableMarkdownFileForTest("mobile-viewport.md", content);
       window.__MME_DEMO_VISUAL_CHECK__.switchEditorMode("rich");

@@ -73,6 +73,7 @@ export type RichCommandId =
   | "link"
   | "orderedList"
   | "paragraph"
+  | "strikethrough"
   | "tableColumnAfter"
   | "tableColumnBefore"
   | "tableColumnDelete"
@@ -723,6 +724,17 @@ export const richCommandRegistry: readonly RichMarkdownCommand[] = [
     group: "inline",
     id: "inlineCode",
     label: "Inline code"
+  },
+  /*
+   * MME-0089. The `strike` mark, its `~~` input rule, and its `strikethrough`
+   * serialization all shipped earlier — only the command was missing, so the
+   * mark was reachable by typing but not by any toolbar, bubble, or slash entry.
+   */
+  {
+    aliases: ["strike", "strikethrough", "strikeout"],
+    group: "inline",
+    id: "strikethrough",
+    label: "Strikethrough"
   },
   {
     aliases: ["link", "url"],
@@ -2745,6 +2757,45 @@ export function applyRichMarkdownCommand(
   options: ApplyRichMarkdownCommandOptions = {}
 ): RichMarkdownState {
   return runRichMarkdownCommand(state, commandId, options).state;
+}
+
+/**
+ * MME-0089 — may the formatting bubble open over this selection?
+ *
+ * The answer belongs to the package, not to each host. The demo, the React
+ * binding, and any other consumer must all refuse the same two contexts, and
+ * asking each of them to re-derive the rule is how a surface ends up offering
+ * `**bold**` inside a fenced code block.
+ *
+ * Two refusals, for two different reasons:
+ *
+ * - **Code blocks.** The schema marks `code_block` as a `code` node whose text
+ *   is content, not prose; ProseMirror's own `toggleMark` would refuse, and a
+ *   bubble offering actions that cannot run is an inert control.
+ * - **Opaque / unsupported blocks.** These carry raw source bytes verbatim
+ *   (Gate 4.5). Applying an inline mark to them is the silent-corruption class
+ *   the preservation gates exist to prevent, so the affordance never appears.
+ *
+ * An empty selection is also refused: the bubble is a *selection* surface, and
+ * a caret with no range has nothing to format.
+ */
+export function richSelectionSupportsFormatting(state: RichMarkdownState): boolean {
+  const selection = state.editorState.selection;
+  if (selection.empty) {
+    return false;
+  }
+  let supported = true;
+  state.editorState.doc.nodesBetween(selection.from, selection.to, (node) => {
+    if (!supported) {
+      return false;
+    }
+    if (node.type.spec.code === true || node.type.name === "code_block" || node.type.name === "unsupported_block") {
+      supported = false;
+      return false;
+    }
+    return true;
+  });
+  return supported;
 }
 
 export function runRichMarkdownCommand(
@@ -6293,6 +6344,8 @@ function executeRichMarkdownCommand(
       return toggleMark(schema.marks.em!)(state, dispatch);
     case "inlineCode":
       return toggleMark(schema.marks.code!)(state, dispatch);
+    case "strikethrough":
+      return toggleMark(schema.marks.strike!)(state, dispatch);
     case "link":
       return toggleMark(schema.marks.link!, {
         href: options.href ?? "https://example.invalid",

@@ -186,6 +186,7 @@ export const VISUAL_GATES = [
   demoGate("mme-0086", "mme0086", "MME-0086"),
   demoGate("mme-0087", "mme0087", "MME-0087"),
   demoGate("mme-0088", "mme0088", "MME-0088"),
+  demoGate("mme-0089", "mme0089", "MME-0089"),
   /*
    * MME-0100 was a before/after extraction proof. The "before" run is a
    * historical artifact that cannot be reproduced without reverting the

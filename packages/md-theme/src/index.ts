@@ -153,7 +153,20 @@ export interface MmeTheme {
 export type IconName =
   | "bold"
   | "italic"
+  | "strikethrough"
   | "code"
+  /*
+   * MME-0089: block-type glyphs. `heading` alone was used for paragraph and all
+   * three heading levels, and `list` for both bullet and numbered lists, so the
+   * selection bubble's turn-into control — whose whole job is to report which
+   * block the caret is in — showed the same icon for the four most common block
+   * types, and showed nothing else at coarse-pointer widths.
+   */
+  | "paragraph"
+  | "heading1"
+  | "heading2"
+  | "heading3"
+  | "orderedList"
   | "list"
   | "todo"
   | "quote"
@@ -707,11 +720,20 @@ const FILL_ICON_BASE = `xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" w
 const DEFAULT_ICON_SVG: Readonly<Record<IconName, string>> = {
   bold: `<svg ${ICON_BASE}><path d="M5 3h3.4a2.2 2.2 0 0 1 0 4.4H5z"/><path d="M5 7.4h4a2.55 2.55 0 0 1 0 5.1H5z"/></svg>`,
   italic: `<svg ${ICON_BASE}><path d="M8.8 3h3"/><path d="M4.2 13h3"/><path d="M10.2 3 5.8 13"/></svg>`,
+  // MME-0089: the strike bar plus the two stubs of the crossed word, so the mark
+  // reads at 16px without depending on a glyph.
+  strikethrough: `<svg ${ICON_BASE}><path d="M2.6 8h10.8"/><path d="M11.4 4.6C10.7 3.6 9.5 3 8 3 6.2 3 4.9 3.9 4.9 5.3c0 .9.5 1.6 1.5 2.1"/><path d="M4.9 11.2c.7 1.1 1.9 1.8 3.4 1.8 1.9 0 3.2-.9 3.2-2.3 0-.9-.4-1.6-1.2-2.1"/></svg>`,
   code: `<svg ${ICON_BASE}><path d="m6 5-3 3 3 3"/><path d="m10 5 3 3-3 3"/></svg>`,
   list: `<svg ${ICON_BASE}><path d="M6 4h7"/><path d="M6 8h7"/><path d="M6 12h7"/><path d="M3.2 4h.1"/><path d="M3.2 8h.1"/><path d="M3.2 12h.1"/></svg>`,
   todo: `<svg ${ICON_BASE}><rect x="2.8" y="3" width="10.4" height="10" rx="2"/><path d="m5.2 8.2 1.8 1.8 3.8-4"/></svg>`,
   quote: `<svg ${FILL_ICON_BASE}><path d="M6.2 4.2C4.1 5 3 6.7 3 9.3V12h4.2V7.8H5.1c.1-1 .7-1.8 1.8-2.4z"/><path d="M12.6 4.2C10.5 5 9.4 6.7 9.4 9.3V12h4.2V7.8h-2.1c.1-1 .7-1.8 1.8-2.4z"/></svg>`,
   heading: `<svg ${ICON_BASE}><path d="M3 3v10"/><path d="M11 3v10"/><path d="M3 8h8"/><path d="M13 6v7"/></svg>`,
+  // The H-bar plus a level numeral, so the four block glyphs differ at 16px.
+  paragraph: `<svg ${ICON_BASE}><path d="M8.5 3h4"/><path d="M8.5 3v10"/><path d="M11 3v10"/><path d="M8.5 3a2.6 2.6 0 0 0 0 5.2"/><path d="M3.2 13h3"/></svg>`,
+  heading1: `<svg ${ICON_BASE}><path d="M2.5 3.5v8"/><path d="M8 3.5v8"/><path d="M2.5 7.5h5.5"/><path d="M10.6 7.4 12.4 6v6"/></svg>`,
+  heading2: `<svg ${ICON_BASE}><path d="M2.5 3.5v8"/><path d="M8 3.5v8"/><path d="M2.5 7.5h5.5"/><path d="M10.6 7a1.6 1.6 0 1 1 2.6 1.3L10.6 12h3"/></svg>`,
+  heading3: `<svg ${ICON_BASE}><path d="M2.5 3.5v8"/><path d="M8 3.5v8"/><path d="M2.5 7.5h5.5"/><path d="M10.7 6.2a1.5 1.5 0 1 1 1.4 2.3 1.6 1.6 0 1 1-1.4 2.4"/></svg>`,
+  orderedList: `<svg ${ICON_BASE}><path d="M6.5 4h7"/><path d="M6.5 8h7"/><path d="M6.5 12h7"/><path d="M2.4 3.6 3.4 3v3.1"/><path d="M2.3 8.1a.9.9 0 1 1 1.5.7L2.3 10.4h1.7"/></svg>`,
   link: `<svg ${ICON_BASE}><path d="M6.9 10.5 5.8 11.6a2.5 2.5 0 0 1-3.5-3.5l1.8-1.8a2.5 2.5 0 0 1 3.4-.1"/><path d="M9.1 5.5 10.2 4.4a2.5 2.5 0 1 1 3.5 3.5l-1.8 1.8a2.5 2.5 0 0 1-3.4.1"/><path d="M6 10 10 6"/></svg>`,
   image: `<svg ${ICON_BASE}><rect x="2.5" y="3" width="11" height="10" rx="1.8"/><path d="m4.5 11 2.5-2.5 2 2 1.5-1.5 1.5 2"/><circle cx="5.8" cy="5.8" r=".7"/></svg>`,
   divider: `<svg ${ICON_BASE}><path d="M2.5 8h11"/></svg>`,

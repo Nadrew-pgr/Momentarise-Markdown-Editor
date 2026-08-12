@@ -204,6 +204,18 @@ async function main() {
     await loadEvent;
     await waitFor(cdp, `Boolean(window.__MME_DEMO_VISUAL_CHECK__?.loadWritableMarkdownFileForTest)`, "demo hooks");
 
+    /*
+     * MME-0089 turned the persistent formatting toolbar off by default
+     * (benchmark contract 4): formatting now lives in the selection bubble and
+     * the slash menu. This gate exercises the toolbar, so it opts in the way a
+     * Google-Docs-style host would; the opt-in itself is proven by
+     * `visual:mme-0089`.
+     */
+    await evaluate(
+      cdp,
+      `window.__MME_DEMO_VISUAL_CHECK__.setReferenceSurfacePreferencesForTest({ toolbarMode: "sticky" })`
+    );
+
     await evaluate(
       cdp,
       `window.__MME_DEMO_VISUAL_CHECK__.loadWritableMarkdownFileForTest("table-reorder-operations.md", ${JSON.stringify(source)})`

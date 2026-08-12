@@ -195,6 +195,16 @@ async function main() {
       await page.evaluate(() => localStorage.clear());
       await page.reload({ waitUntil: "networkidle0" });
       await page.waitForFunction(() => Boolean(window.__MME_DEMO_VISUAL_CHECK__?.loadWritableMarkdownFileForTest));
+      /*
+       * MME-0089 turned the persistent formatting toolbar off by default
+       * (benchmark contract 4): formatting now lives in the selection bubble and
+       * the slash menu. This gate exercises the toolbar, so it opts in the way a
+       * Google-Docs-style host would, and the opt-in itself is proven by
+       * `visual:mme-0089`.
+       */
+      await page.evaluate(() =>
+        window.__MME_DEMO_VISUAL_CHECK__.setReferenceSurfacePreferencesForTest({ toolbarMode: "sticky" })
+      );
       await page.evaluate((scheme) => {
         document.documentElement.dataset.mmeScheme = scheme;
       }, viewport.scheme);
