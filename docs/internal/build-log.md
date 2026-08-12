@@ -11829,3 +11829,8 @@ None.
 - The `visual-gates` CI job has still never executed, so its Chrome and AppArmor
   assumptions remain reasoned rather than proven. The new
   `visual-gate-screenshots` upload step inherits that.
+
+### Commits
+
+- `26ef0f9` — artifact policy and the dedicated PNG purge.
+- `1636e1d` — the 37 gate repairs, the emptied quarantine, and this entry.
