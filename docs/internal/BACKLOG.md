@@ -550,6 +550,19 @@ Tags: `baseline/hygiene`, `ui`, `mobile`
 
 The 390px screenshot from `visual:mme-0104b` shows todo checkboxes overlapping their own labels. The MME-0104b diff contains no CSS, so it is pre-existing — but `[] ` now makes todos one keystroke away, so it is much easier to reach. Promotion candidate for Block D (fits MME-0089/0091 surface work); fix lands in the packaged stylesheet per the styling ownership rule.
 
+
+### Brand mark for MME (decision open, 2026-08-12)
+
+Tags: `public-release`, `research`, `brand`
+
+Andrew proposed `¡!¡!¡` as the MME (and possibly Momentarise) mark. Reviewer verdict: **not in that form** — full evaluation and three alternative directions are recorded in the vault at `03 Casquettes/Création de contenu/branding/LOGO-MME.md`, written in the same register as the locked SaaSise `LOGO.md`.
+
+Short reasons, worst first: it cannot be spoken, searched, or cited, which contradicts the project's own AEO rules and its "be citable by agents" strategy; a run of exclamation marks reads as an error or a broken-encoding artifact, the worst possible association for a product promising byte integrity; its alt text is unusable for screen readers, weeks after two issues spent on assistive-technology announcements; it says nothing about documents, Markdown, or ownership; and `¡` (U+00A1) renders inconsistently and collapses into indistinct ticks at favicon size.
+
+The instinct — a typographic mark drawn from the product's own syntax — is right and is kept. Recommended direction: the two states of one line (raw syntax becoming rendered text), because it states the product thesis in one image: rich editing is a view, Markdown is the source.
+
+No repository asset, favicon, README, or docs-site element was changed. When Andrew picks a direction, the mark becomes an issue covering: the 64×64 construction spec, SVG source, favicon set, docs-site header, README, npm package `icon`, and the OG/social image — one issue, because a half-applied brand is worse than none.
+
 ## Public Framework Follow-Ups
 
 Tags: `public-release`, `dx`, `ax`, `research`
