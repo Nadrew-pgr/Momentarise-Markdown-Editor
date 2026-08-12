@@ -128,7 +128,7 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | C3 | MME-0116 ✅ | Visual gate assertion repair; artifact policy | opus-5 | done 2026-08-12; quarantine emptied, `npm run visual` exits 0 |
 | C2e | MME-0115 ✅ (attempt 3) | Composition cancel — the attempt-2 design plus the package-side baseline rule | opus-5 / fable-5 | done 2026-08-12; cancel restores selection AND bytes, proven with real CDP IME and headlessly |
 | Cd | MME-0118 | Docs correctness repair (may run parallel, own branch) | sonnet-5 | Andrew follows the vanilla quickstart and it works |
-| D | MME-0089, 0090, 0091, 0105, 0106, 0124 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
+| D | MME-0089 ✅, 0125, 0090, 0091, 0105, 0106, 0124 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
 | D2 | MME-0107, 0108 | Markdown-native differentiators | opus-5 / fable-5 | Andrew judges syntax reveal before it defaults |
 | D3 | MME-0109 | Full-surface UX audit | opus-4.8 | Andrew reviews and appends |
 | E | MME-0098 | AI writing surface (BlockNote tier) | opus-5 / fable-5 | Andrew tries the AI flow |
@@ -544,6 +544,8 @@ Slash menu stops appearing in wrong contexts; no other visible change.
 
 ## MME-0089 — Selection bubble toolbar expansion
 
+**Status: SHIPPED (commit `8f4156c`). Do not re-implement.**
+
 ### Goal
 
 Bring the selection bubble to Notion/BlockNote parity: correct anchoring plus the actions writers actually reach for.
@@ -590,6 +592,51 @@ Selection shows a full formatting bubble comparable to Notion.
 ### Blocked by
 
 - MME-0086, MME-0087.
+
+## MME-0125 — Mount the selection bubble in the React binding
+
+### Goal
+
+Close the regression MME-0089 created for React consumers: turning the persistent toolbar off by default, while the bubble is mounted only by the demo, leaves a default `@momentarise/md-react` install with **no formatting UI at all**.
+
+### Defect (verified 2026-08-13)
+
+`createSelectionBubbleToolbar` has no call site in any package source — only in `apps/md-demo` and the tests. This predates MME-0089, but MME-0089 is what makes it load-bearing: before, a React consumer got the persistent toolbar; now they get nothing. This is a direct violation of the `AGENT.md` reachability rule ("a feature that exists but cannot be reached is not implemented"), and it shipped because the rule was checked against the demo rather than against the default configuration a consumer installs.
+
+### Acceptance criteria
+
+- A default `@momentarise/md-react` mount raises the selection bubble on selection, with the full MME-0089 action set, no host wiring required — the same way MME-0101 made rich mode reachable.
+- The bubble is opt-out for hosts that want their own formatting surface, through the existing surface settings contract; opting out leaves no inert affordance.
+- Mounting follows MME-0101's pattern: no bundle cost for consumers who never select text if that is achievable without complexity, and SSR-safe (no DOM access at module load).
+- StrictMode-safe on React 18 and 19: no leaked bubble, no listener retained across a double mount — extend both lifecycle suites with a selection-bubble leg.
+- The example app proves it: select text in `examples/next-app`, the bubble appears and applies a mark, with byte-exact source after.
+- A reachability test asserts that every surface the default configuration is supposed to provide has a call site outside the demo — so this class cannot recur silently for the next component.
+- Mutation-proved; a mutant removing the mount must fail.
+
+### Test-first plan
+
+- RED: a React-binding test asserting the bubble mounts and applies a mark under a default configuration; fails today because nothing mounts it.
+- GREEN: wire it in `md-react` beside the mode-aware mounting from MME-0101.
+
+### Implementation notes
+
+Read first: `packages/md-react/src/index.ts` (MME-0101's dynamic mounting and StrictMode guards), `packages/md-surface/src/index.ts` (`createSelectionBubbleToolbar` and `richSelectionSupportsFormatting`), `apps/md-demo/src/main.ts` for the reference wiring this replaces as the only consumer.
+
+### Visual impact
+
+React and Next.js hosts gain the formatting bubble they lost; the demo is unchanged.
+
+### Out of scope
+
+- Bubble content changes (MME-0089 shipped them), the live-region announcement (MME-0124), turn-into out of list items (MME-0105).
+
+### Execution model
+
+- Sequential; fresh context rebuild; Architecture Reviewer and Test Reviewer mandatory, read-only, frozen tree; builder model opus-4.8; human review: no.
+
+### Blocked by
+
+- None. MME-0089 shipped the component.
 
 ## MME-0090 — Frontmatter properties panel in Rich mode
 

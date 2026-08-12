@@ -12278,3 +12278,17 @@ None.
   `apps/docs-site/next-env.d.ts`, which a Next dev server rewrote during the
   visual run.
 - Commit: `8f4156c`. Push: pushed to `origin/main`.
+
+## Block D, MME-0089 review (human-side, Andrew's reviewer) — 2026-08-13
+
+- Scope: `8f4156c` (implementation), `be625fd` (results). Verified: present, tree clean, synced.
+- Verdict: MME-0089 accepted. Contract 4 is now true in the product — a consumer who configures nothing gets no persistent formatting toolbar, and the gate proves both directions live rather than only the default.
+- Notable: `strikethrough` was a mark with no command — the mark, its `~~` input rule and its serialization had all shipped long ago, but no toolbar, bubble or slash entry could reach it. That is the reachability rule's exact defect class, found and closed here. `richSelectionSupportsFormatting` became a package export rather than host logic, so every host refuses the same contexts instead of re-deriving the rule.
+- Three defects that only a real browser could find: a real mouse click in the bubble stole focus and silently dropped the selection; `Escape` after `Cmd+K` collapsed the selection to position 0; the 320px cap clipped the last control out of the bubble's own box at every width.
+- The three mandatory reviewers were right that the first implementation was not done, and the list they returned is the strongest argument yet for the mandatory-reviewer rule: keyboard activation was single-shot and lost the selection, the turn-into menu was not operable as a menu, `type="url"` refused `./notes.md` and `#section`, a repaint wiped the destination being typed, Apply could delete an existing link and write nothing, todos reported as "Bullet list", and **six acceptance criteria had assertions that could not fail**. All fixed before commit; 16 mutants, 16 killed, with one faulty mutant and one equivalent pair recorded rather than counted.
+- One reviewer premise was correctly disproved rather than accepted: the UX reviewer read the artifact directory in the state a mutation run had left it (the last mutant clears artifacts and exits before writing). Regenerating produced all 19 artifacts. Recorded because the failure mode — a reviewer reading post-mutation debris — will recur, and the rebuild-after-mutation rule now covers artifacts as well as `dist/`.
+- Decisions on the three items raised for the human:
+  1. **Bubble reachability — promoted as `MME-0125`, scheduled first in the remainder of Block D.** Verified independently: `createSelectionBubbleToolbar` has no call site in any package source. Turning the toolbar off by default therefore left a default `@momentarise/md-react` install with no formatting UI at all — a live regression for React consumers, and a reachability-rule violation that passed because reachability was checked against the demo rather than against the default configuration a consumer installs. Its acceptance adds a test asserting that class cannot recur silently.
+  2. **Formatting announcements — confirmed as `MME-0124`'s scope**, the last issue of this block, beside the announcement queue. Scoping it out of MME-0089 was correct.
+  3. **Turn-into out of a list item — stays with `MME-0105`**, with MME-0089's gate pinning the disabled state so that issue must revisit the row. Correct handling.
+- Checks: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`. Push: pushed.
