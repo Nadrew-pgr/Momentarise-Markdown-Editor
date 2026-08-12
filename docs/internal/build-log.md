@@ -12023,6 +12023,18 @@ waits for `compositionend` or ProseMirror's own force-end, however long that is.
 - `tests/fixtures/public-api-approved.json`, `docs/public/packages/md-rich-prosemirror.md`,
   `llms-full.txt`, `docs/agent/*.json` (regenerated), `docs/internal/ISSUES.md`.
 
+### Suites, commit, push
+
+- `npm test`: exit 0 on the committed tree.
+- `npm run visual`: **79/79 passed, 0 known-failing, 0 anomalies, 0 unexpected
+  failures, 5 not selected** (the opt-in `registry` and `theia` groups). Run in
+  full because this issue adds public exports, per the rebaseline rule.
+- One unrelated file moved during that run and was restored rather than
+  committed: `docs/internal/visual-checks/MME-0086/measurements.json`, whose
+  scroll figures differ by fractions of a pixel between runs (294.096 →
+  294.238). Its gate passed; the change is measurement noise, not behaviour.
+- Commit: `7fd28e7`. Push: pushed to `origin/main`.
+
 ### Visual impact
 
 Cancelling an accented character over a selected block puts the blocks back

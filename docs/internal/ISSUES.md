@@ -1980,7 +1980,8 @@ Mounting a document into the rich view must not drop model content; today it sil
 
 Make typing with a composition event replace a block selection, the way an ordinary keystroke does.
 
-**Status: SHIPPED (attempt 3, Block C2e, 2026-08-12). Do not re-implement.**
+**Status: SHIPPED (attempt 3, Block C2e, 2026-08-12, commit `7fd28e7`). Do not
+re-implement.**
 Attempt 1 measured and reverted 2026-08-05 (record at `75179ea`); attempt 2
 measured and reverted 2026-08-06 (record at `561ef65`); attempt 3 landed the
 attempt-2 design plus the package-side baseline rule the layer decision
