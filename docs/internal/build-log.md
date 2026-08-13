@@ -12292,3 +12292,143 @@ None.
   2. **Formatting announcements — confirmed as `MME-0124`'s scope**, the last issue of this block, beside the announcement queue. Scoping it out of MME-0089 was correct.
   3. **Turn-into out of a list item — stays with `MME-0105`**, with MME-0089's gate pinning the disabled state so that issue must revisit the row. Correct handling.
 - Checks: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`. Push: pushed.
+
+## MME-0125 — attempt 1 measured and reverted, with handoff (Block D)
+
+- Date: 2026-08-13. Block: D. Builder model: opus-5.
+- Status: **REVERTED from `main`, preserved on branch `mme-0125-attempt-1`
+  (`0227983`).** Not shipped. The regression MME-0125 targets is real and still
+  open; this attempt did not close it well enough to ship, and in one respect
+  made the default React configuration worse.
+
+### Why it was reverted rather than committed
+
+The mandatory Architecture and Test reviewers (both read-only, frozen tree) each
+found the attempt incomplete. The decisive finding is that **the attempt
+introduced a defect worse than the one it fixes**, in the default configuration,
+and every gate written for it reported green throughout:
+
+`packages/md-theme/src/styles.css:964-978` places `[data-mme-react-source]` and
+`[data-mme-react-rich]` in the same grid area and hides whichever is `:empty`.
+The attempt appended a permanent `bubbleHost` to the rich host and set
+`position: relative` on it, so the rich host was never `:empty`, never hidden,
+and — being positioned — painted over the source editor. A default React consumer
+in source mode got a stray border plus a transparent div swallowing every click
+meant for CodeMirror. It was fixed on the branch before reverting; what matters is
+that **no gate could see it**, because every React test is JSDOM and JSDOM has no
+layout.
+
+### The blocker that stops the issue as scoped
+
+Three of the reviewers' findings — the `:empty` overlay above, the bubble's
+coordinate space, and the turn-into menu running off-screen — are layout defects
+that only a real browser catches. **There is no browser gate for the React
+binding, and one cannot be added as configured**: `examples/next-app` and
+`tests/fixtures/react19-strictmode` both install `@momentarise/md-react` from the
+registry at `0.1.0-alpha.3`, and MME-0102 deliberately removed the workspace
+overlays that MME-0100/0101 had used, precisely so those gates catch
+workspace-versus-registry drift.
+
+Closing MME-0125 honestly therefore needs a decision that is architectural rather
+than a build choice, and it is Andrew's:
+
+1. **Add a workspace-backed React host app** (e.g. `apps/react-demo`) with its own
+   `visual:mme-0125` gate. Costs a new app; gives the React binding the browser
+   coverage it has never had, permanently.
+2. **Restore a temporary workspace overlay** in `examples/next-app` for the
+   duration, and drop it at the next alpha republish. Cheaper; re-weakens a gate
+   that exists to catch drift, which is why MME-0102 removed it.
+3. **Publish the alpha first**, then verify against the registry. Correct order in
+   principle, but publishing is human-gated and would ship an unverified binding.
+
+Recommendation: option 1. The binding is a published package with three surfaces
+and no rendering proof of any kind; MME-0125 is the second regression in it found
+by reading rather than by a gate.
+
+### The coordinate-space defect, for whoever picks this up
+
+`richHost` is simultaneously the scroll container (`overflow: auto`), the bubble's
+containing block, and the `container` passed to `anchoredOverlayPlacement`. The
+helper returns offsets relative to the container's *viewport* rect, but
+`position: absolute` inside a scroller resolves against the *content* origin — the
+two differ by exactly `scrollTop`. Scroll a document 1000px and select text and
+the bubble is placed 1000px above the visible area, then clipped.
+
+This is the MME-0119 defect class, and MME-0119's own rule forbids the obvious
+patch: do not compensate with a scroll offset. The fix is structural — the bubble
+needs a positioned, non-scrolling ancestor, which means a wrapper element in the
+shell plus a rule in the packaged stylesheet. The demo is immune only because
+`.editor-region` is `position: relative` with no overflow and the scroller is a
+child.
+
+### What the attempt got right, and should be kept
+
+- The binding mounts `createSelectionBubbleToolbar` for a default consumer.
+- `visibleCommandGroups` was `[]`, and every surface command is gated on it, so
+  mounting the bubble without changing it would have rendered an empty shell that
+  satisfies "the component is mounted" and gives the writer nothing. Found while
+  reading, pinned by a mutant.
+- `rich-view.ts` gains `getEditorView` / `getRichState` / `applyRichState` /
+  `onStateChange`, and `markdownReactBindingPackage.surfaces` is a runtime
+  capability contract — better than the file-grep capability probe it replaced.
+- `surfacePreferences.selectionBubble` opt-out and the `onRichViewReady`
+  lifecycle callback.
+
+### Reviewer findings to carry forward
+
+**Architecture Reviewer** — confirmed correct: SSR safety and MME-0101's
+"no ProseMirror until rich mode" property both survive the change (`import type`
+at the top level, ProseMirror reachable only through `void import("./rich-view.js")`);
+the in-flight-import lifecycle is correct. Open: the coordinate space (above); no
+`bounds` clamp (fixed on the branch); no turn-into menu placement; no dismissal
+controller, so Escape and outside clicks do nothing in a React host; no reposition
+on scroll or resize; `dist/rich-view.js` is a de-facto public export with no drift
+gate, because `tests/public-api-report.test.mjs` only reads `dist/index.js`;
+`ReactRichViewHandle` types a public option but was not exported (fixed on the
+branch); the ProseMirror query helpers are duplicated between the demo and the
+binding and belong in `md-rich-prosemirror` beside `richSelectionSupportsFormatting`.
+
+One reviewer claim was checked and is **wrong**: the copy did not drop the demo's
+`todo_item` case — `packages/md-react/src/rich-view.ts:204-213` on the branch
+carries the same ancestry walk. Recorded so the next attempt does not "fix" a
+non-defect.
+
+**Test Reviewer** — ran its own 11-mutant matrix and got **8 survivors to 3
+kills**, against the 6-for-6 the builder's coarser round reported. The survivors
+are the refined form of each mutant, and each names a real untested property:
+opt-out mounting a hidden-but-present bubble; `destroy()` never called while the
+DOM is still cleared; the context rule re-derived locally; turn-into and link
+never reaching the document; final unmount tearing down nothing; positioning
+gutted; and the second visit to rich mode getting no bubble at all. Also: the
+generic reachability assertion greps for `factory(` in package sources, so it
+matches a comment, matches a call inside dead code, is repo-wide rather than
+per-consumer, and is a hand-maintained list of 3 of 14 factories — it would not
+have caught the next demo-only component.
+
+**Both reviewers independently reached the same conclusion**: nothing in the
+current gate set would have caught the layout defects, and the issue cannot be
+called done without a browser proof.
+
+### Verified, so the next attempt does not re-derive it
+
+- `@momentarise/md-react`'s `exports` map declares only `"."`, so
+  `import("@momentarise/md-react/package.json")` throws
+  `ERR_PACKAGE_PATH_NOT_EXPORTED`. The React 19 fixture's capability probe was
+  built on that import and could never have run, before or after a republish.
+- `test:react19-strictmode-lifecycle` is **not** in the `npm test` chain; CI runs
+  it weekly only. Any criterion resting on it has no per-push evidence.
+- Both registry fixtures pin `0.1.0-alpha.3` exactly, so "activates on the next
+  republish" is false without a version bump in the fixture too.
+
+### Suites
+
+`npm run build`, `npm run test:react-selection-bubble`,
+`test:react-binding-mode`, `test:react-strictmode-lifecycle`, `test:contracts`,
+`test:architecture`, `test:public-api`, `test:docs`, `test:llms-sync`,
+`test:agent-artifacts` all green on the branch. They are recorded as evidence of
+what the attempt did prove, not as grounds for shipping it: the reviewers' point
+is precisely that these gates stayed green through defects a browser would show.
+
+### Commit and push
+
+- Branch `mme-0125-attempt-1`, commit `0227983`. `main` is clean and unchanged.
