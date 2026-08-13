@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 // Isolated fixture (own node_modules, installed by tests/react19-strictmode-lifecycle.test.mjs):
 // proves the currently PUBLISHED @momentarise/md-react alpha survives React 19's StrictMode
@@ -106,9 +107,119 @@ act(() => { liveSession.setMode("rich"); });
 await waitForMode(() => Boolean(container.querySelector(".ProseMirror")), "rich view to mount (React 19)");
 assert.ok(container.querySelector(".ProseMirror") !== null, "rich view must mount on mode switch after a React 19 StrictMode remount.");
 assert.ok(container.querySelector("[data-mme-react-source] .cm-editor") === null, "source view must unmount when rich mounts (React 19).");
+/*
+ * MME-0125 — the selection-bubble leg.
+ *
+ * This fixture installs from the REGISTRY, so it can only assert what the
+ * published artifact carries. It reads the binding's own capability contract
+ * rather than grepping `dist/index.js` for a factory name: a grep is defeated by
+ * minification and cannot tell a mount from a mention in a comment. (Attempt 1
+ * probed `import("@momentarise/md-react/package.json")`, which throws
+ * ERR_PACKAGE_PATH_NOT_EXPORTED because `exports` declares only "." — so that
+ * leg could never have run, before or after any republish.)
+ *
+ * Self-EXPIRING, not self-skipping, and pinned to a NAMED version rather than to
+ * the moving workspace version. Comparing against the workspace was wrong twice:
+ * it was false on arrival, because this fixture pins the same version the
+ * workspace carries, so the comparison returned 0 and the leg asserted
+ * immediately; and it would have gone silent the moment an unrelated changeset
+ * bumped the workspace, because the condition that expires the skip is
+ * controlled by the very file a human must edit to trigger it. A named minimum
+ * expires deterministically: the day this fixture's pin reaches it, a missing
+ * surface is a failure.
+ */
+const MME_0125_MIN_VERSION = "0.1.0-alpha.4";
+const installedVersion = JSON.parse(
+  readFileSync(new URL("./node_modules/@momentarise/md-react/package.json", import.meta.url), "utf8")
+).version;
+const bubbleShipped = (mdReactNoDom.markdownReactBindingPackage?.surfaces ?? []).includes("selectionBubble");
+
+if (bubbleShipped) {
+  await waitForMode(
+    () => Boolean(container.querySelector('[data-testid="selection-bubble-toolbar"]')),
+    "the selection bubble to mount alongside the rich view (React 19)"
+  );
+  assert.equal(
+    container.querySelectorAll('[data-testid="selection-bubble-toolbar"]').length,
+    1,
+    "a React 19 StrictMode double mount must leave exactly one selection bubble."
+  );
+} else {
+  assert.ok(
+    compareReleases(installedVersion, MME_0125_MIN_VERSION) < 0,
+    `installed @momentarise/md-react ${installedVersion} is at or past ${MME_0125_MIN_VERSION}, the first version ` +
+      "that carries MME-0125, but does not declare the selectionBubble surface. That is a regression, not an old publish."
+  );
+  console.log(
+    `react19-strictmode fixture: selection-bubble leg skipped — installed ${installedVersion} predates ` +
+      `${MME_0125_MIN_VERSION}. Bumping this fixture's pin to that version activates the leg.`
+  );
+}
+
 act(() => { liveSession.setMode("source"); });
 await waitForMode(() => Boolean(container.querySelector("[data-mme-react-source] .cm-editor")), "source view to remount (React 19)");
 assert.ok(container.querySelector(".ProseMirror") === null, "rich view must unmount when switching back to source under React 19 (no leak).");
+if (bubbleShipped) {
+  assert.equal(
+    container.querySelector('[data-testid="selection-bubble-toolbar"]'),
+    null,
+    "the selection bubble must unmount with the rich view under React 19 (no leak)."
+  );
+}
+
+/**
+ * Semver ordering, with prerelease identifiers compared the way semver defines.
+ *
+ * A whole-string `<` on the tag sorts `alpha.10` before `alpha.9`, which would
+ * silently invert this leg's expiry the first time the alpha counter passes 9.
+ * Numeric identifiers compare numerically, and numeric always precedes
+ * alphanumeric.
+ */
+function compareReleases(left, right) {
+  const core = (value) => value.split("-")[0].split(".").map(Number);
+  const [leftCore, rightCore] = [core(left), core(right)];
+  for (let index = 0; index < 3; index += 1) {
+    const a = leftCore[index] ?? 0;
+    const b = rightCore[index] ?? 0;
+    if (a !== b) {
+      return a < b ? -1 : 1;
+    }
+  }
+  const tag = (value) => (value.includes("-") ? value.slice(value.indexOf("-") + 1).split(".") : null);
+  const [leftTag, rightTag] = [tag(left), tag(right)];
+  if (leftTag === null && rightTag === null) {
+    return 0;
+  }
+  // A release outranks any prerelease of the same core version.
+  if (leftTag === null) {
+    return 1;
+  }
+  if (rightTag === null) {
+    return -1;
+  }
+  for (let index = 0; index < Math.max(leftTag.length, rightTag.length); index += 1) {
+    const a = leftTag[index];
+    const b = rightTag[index];
+    if (a === undefined) {
+      return -1;
+    }
+    if (b === undefined) {
+      return 1;
+    }
+    const aNumeric = /^\d+$/.test(a);
+    const bNumeric = /^\d+$/.test(b);
+    if (aNumeric && bNumeric) {
+      if (Number(a) !== Number(b)) {
+        return Number(a) < Number(b) ? -1 : 1;
+      }
+    } else if (aNumeric !== bNumeric) {
+      return aNumeric ? -1 : 1;
+    } else if (a !== b) {
+      return a < b ? -1 : 1;
+    }
+  }
+  return 0;
+}
 assert.equal(liveSession.getContent(), "# Strict React 19\n\nEdited after remount.\n", "content must survive the rich round trip (React 19).");
 
 let destroyCalls = 0;

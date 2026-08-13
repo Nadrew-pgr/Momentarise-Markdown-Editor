@@ -245,6 +245,24 @@ function mountReactEditor(
   const statusHost = doc.createElement("div");
   const sourceHost = doc.createElement("div");
   const richHost = doc.createElement("div");
+  /*
+   * MME-0125 — the bubble's containing block, and why it is a separate element.
+   *
+   * `richHost` is the scroller (`overflow: auto`, from the packaged stylesheet).
+   * A `position: absolute` child of a scroller resolves against that scroller's
+   * CONTENT origin, while `anchoredOverlayPlacement` returns offsets relative to
+   * the container's VIEWPORT rect — the two differ by exactly `scrollTop`.
+   * Measured in `apps/react-demo` before this frame existed: at `scrollTop: 900`
+   * the computed offset was a correct-looking `105px` and the bubble's real
+   * `top` was `-746`, i.e. 851px above the viewport and clipped away.
+   *
+   * MME-0119 forbids the tempting patch (compensating with the scroll offset), so
+   * the fix is structural: a positioned ancestor that does NOT scroll. The demo
+   * has had this shape all along — `.editor-region` is `position: relative` with
+   * no overflow and the scroller is its child — which is why the demo was immune
+   * and the binding was not.
+   */
+  const richFrame = doc.createElement("div");
   const bubbleHost = doc.createElement("div");
   const icons = options.icons ?? defaultIconSet;
   const strings = options.strings ?? defaultMmeStrings;
@@ -269,9 +287,20 @@ function mountReactEditor(
   statusHost.dataset.mmeReactStatus = "";
   sourceHost.dataset.mmeReactSource = "";
   richHost.dataset.mmeReactRich = "";
+  richFrame.dataset.mmeReactRichFrame = "";
   bubbleHost.dataset.mmeReactBubble = "";
   applyMmeThemeToElement(root, options.theme, options.scheme);
-  root.append(modeHost, statusHost, sourceHost, richHost);
+  /*
+   * The rich frame is attached at mount and detached at unmount, never left in
+   * place. The packaged stylesheet puts the source and rich surfaces in the same
+   * grid area and hides whichever is `:empty`; attempt 1 left a permanent bubble
+   * host inside the rich host, so it was never empty, never hidden, and — being
+   * positioned — painted over the source editor, swallowing every click meant
+   * for CodeMirror. Detaching the whole frame removes that class of trap rather
+   * than relying on `:empty` staying true.
+   */
+  richFrame.append(richHost);
+  root.append(modeHost, statusHost, sourceHost);
   element.replaceChildren(root);
 
   // --- Editing surfaces: source and rich are mounted/unmounted per mode, never both at once. ---
@@ -320,10 +349,14 @@ function mountReactEditor(
       options.onRichViewReady?.(null);
     }
     richHost.replaceChildren();
+    richFrame.remove();
   };
   const mountRichView = (): void => {
     if (richView || destroyed) {
       return;
+    }
+    if (!richFrame.isConnected) {
+      root.append(richFrame);
     }
     const token = ++richMountToken;
     // Dynamic import: consumers who never enter rich mode never load prosemirror-view. The rich
@@ -407,7 +440,7 @@ function mountReactEditor(
     if (!anchor) {
       return;
     }
-    const container = richHost.getBoundingClientRect();
+    const container = richFrame.getBoundingClientRect();
     const overlay = selectionBubble.root.getBoundingClientRect();
     /*
      * Clamp to what is on screen, not to the host box. `anchoredOverlayPlacement`
@@ -416,9 +449,9 @@ function mountReactEditor(
      * MME-0086 bounds-vs-container distinction; omitting it here would have
      * reproduced that defect in the binding while the demo was immune.
      */
-    const view = richHost.ownerDocument.defaultView;
-    const viewportWidth = richHost.ownerDocument.documentElement.clientWidth || view?.innerWidth || container.width;
-    const viewportHeight = richHost.ownerDocument.documentElement.clientHeight || view?.innerHeight || container.height;
+    const view = richFrame.ownerDocument.defaultView;
+    const viewportWidth = richFrame.ownerDocument.documentElement.clientWidth || view?.innerWidth || container.width;
+    const viewportHeight = richFrame.ownerDocument.documentElement.clientHeight || view?.innerHeight || container.height;
     const bounds = {
       height: Math.max(1, Math.min(container.bottom, viewportHeight) - Math.max(container.top, 0)),
       left: Math.max(container.left, 0),
@@ -441,6 +474,27 @@ function mountReactEditor(
     selectionBubble.root.dataset.placement = placement.placement;
     selectionBubble.root.style.setProperty("--selection-bubble-left", `${Math.round(placement.left)}px`);
     selectionBubble.root.style.setProperty("--selection-bubble-top", `${Math.round(placement.top)}px`);
+    /*
+     * The turn-into dropdown needs its own side. The bubble prefers to sit above
+     * its selection, so a menu that always opened downward ran off the bottom for
+     * any selection in the lower half of the screen — measured at 390x844: a
+     * nine-item menu 422px tall opening at y=747, i.e. 325px past the fold.
+     * `anchoredOverlayPlacement` proved the BUBBLE fits, never the bubble plus a
+     * menu, so the menu is measured separately against the room it actually has.
+     */
+    const menu = selectionBubble.root.querySelector<HTMLElement>(
+      '[data-testid="selection-bubble-turn-into-menu"]'
+    );
+    if (!menu) {
+      delete selectionBubble.root.dataset.menuPlacement;
+      return;
+    }
+    const bubbleRect = selectionBubble.root.getBoundingClientRect();
+    const menuHeight = menu.getBoundingClientRect().height || menu.offsetHeight;
+    const roomBelow = viewportHeight - bubbleRect.bottom - 12;
+    const roomAbove = bubbleRect.top - 12;
+    selectionBubble.root.dataset.menuPlacement =
+      menuHeight > roomBelow && roomAbove > roomBelow ? "above" : "below";
   };
 
   const renderBubble = (): void => {
@@ -483,8 +537,7 @@ function mountReactEditor(
      * exists to fix, and invisible to every JSDOM test because JSDOM has no
      * layout.
      */
-    richHost.style.position = "relative";
-    richHost.append(bubbleHost);
+    richFrame.append(bubbleHost);
     selectionBubble = createSelectionBubbleToolbar({
       host: bubbleHost,
       icons,
@@ -544,7 +597,6 @@ function mountReactEditor(
     turnIntoOpen = false;
     bubbleHost.replaceChildren();
     bubbleHost.remove();
-    richHost.style.removeProperty("position");
   };
 
   const applyMode = (): void => {

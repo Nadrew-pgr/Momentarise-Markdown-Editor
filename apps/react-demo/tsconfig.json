@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "outDir": "dist-types",
+    "rootDir": "src",
+    "tsBuildInfoFile": "dist-types/tsconfig.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "references": [
+    { "path": "../../packages/md-editor" },
+    { "path": "../../packages/md-react" },
+    { "path": "../../packages/md-rich-prosemirror" },
+    { "path": "../../packages/md-save" },
+    { "path": "../../packages/md-theme" }
+  ]
+}

@@ -38,6 +38,15 @@ export const VISUAL_SERVERS = {
     startupTimeoutMs: 180000,
     url: "http://127.0.0.1:5178/"
   },
+  reactDemo: {
+    args: ["run", "dev", "-w", "@momentarise/react-demo", "--", "--host", "127.0.0.1", "--port", "5175"],
+    command: "npm",
+    description:
+      "The workspace-backed React host (apps/react-demo), Vite dev server. Exists so @momentarise/md-react has a rendering proof; examples/next-app stays a pure registry install.",
+    env: "MME_REACT_DEMO_URL",
+    readyPath: "/",
+    url: "http://127.0.0.1:5175/"
+  },
   registry: {
     args: ["run", "dev", "--", "--hostname", "127.0.0.1", "--port", "5179"],
     command: "npm",
@@ -64,7 +73,7 @@ export const VISUAL_SERVERS = {
  * Groups the runner can select. `default` is what a laptop and CI both run:
  * everything that only needs `npm ci` plus a browser.
  */
-export const DEFAULT_GROUPS = ["demo", "docs"];
+export const DEFAULT_GROUPS = ["demo", "docs", "reactDemo"];
 
 /** Groups that need a setup step beyond `npm ci`, so they are opt-in. */
 export const OPT_IN_GROUPS = ["registry", "theia"];
@@ -187,6 +196,7 @@ export const VISUAL_GATES = [
   demoGate("mme-0087", "mme0087", "MME-0087"),
   demoGate("mme-0088", "mme0088", "MME-0088"),
   demoGate("mme-0089", "mme0089", "MME-0089"),
+  gate("mme-0125", "mme0125", "MME-0125", "reactDemo"),
   /*
    * MME-0100 was a before/after extraction proof. The "before" run is a
    * historical artifact that cannot be reproduced without reverting the

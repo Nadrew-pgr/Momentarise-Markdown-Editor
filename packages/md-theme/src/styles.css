@@ -962,19 +962,52 @@
 }
 
 .mme-react-editor-shell [data-mme-react-source],
-.mme-react-editor-shell [data-mme-react-rich] {
+.mme-react-editor-shell [data-mme-react-rich-frame] {
   grid-row: 2;
   grid-column: 1 / -1;
   align-self: stretch;
   min-height: 0;
   height: 100%;
-  overflow: auto;
   border-top: 1px solid var(--mme-color-border-subtle);
 }
 
-/* Only one editing surface is mounted at a time; the idle host must not claim space. */
+.mme-react-editor-shell [data-mme-react-source] {
+  overflow: auto;
+}
+
+/*
+ * MME-0125: the rich frame is the bubble's containing block — positioned, and
+ * deliberately NOT a scroller. Its child does the scrolling. A `position:
+ * absolute` overlay inside a scroller resolves against the content origin, so
+ * anchoring it to the scroller put the bubble `scrollTop` pixels off the screen
+ * (measured: `top: -746` at `scrollTop: 900`). MME-0119 forbids compensating
+ * with the scroll offset; the containing block has to be right instead.
+ */
+.mme-react-editor-shell [data-mme-react-rich-frame] {
+  position: relative;
+  overflow: visible;
+}
+
+.mme-react-editor-shell [data-mme-react-rich-frame] [data-mme-react-rich] {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+}
+
+/*
+ * Only one editing surface is mounted at a time; the idle host must not claim
+ * space.
+ *
+ * MME-0125 moved the grid placement from the rich host to the rich frame, which
+ * means this rule no longer defends the element that occupies the grid area. The
+ * frame is `position: relative`, so a frame left attached over an empty host
+ * reproduces attempt 1 exactly: a positioned box in a shared grid area,
+ * swallowing every click meant for the source editor. The binding detaches the
+ * frame imperatively; this is the structural backstop for when it does not.
+ */
 .mme-react-editor-shell [data-mme-react-source]:empty,
-.mme-react-editor-shell [data-mme-react-rich]:empty {
+.mme-react-editor-shell [data-mme-react-rich]:empty,
+.mme-react-editor-shell [data-mme-react-rich-frame]:not(:has([data-mme-react-rich]:not(:empty))) {
   display: none;
 }
 

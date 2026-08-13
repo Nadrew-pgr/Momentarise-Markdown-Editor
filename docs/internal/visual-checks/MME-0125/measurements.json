@@ -1,0 +1,508 @@
+{
+  "evidence": {
+    "390": {
+      "sourceMode": {
+        "frameConnected": false,
+        "hitClass": "cm-line",
+        "hitInsideSource": true,
+        "richConnected": false,
+        "richHeight": 0,
+        "sourceMounted": true
+      },
+      "centering": {
+        "clampedLeft": true,
+        "clampedRight": false,
+        "horizontalOffset": 44.6953125
+      },
+      "anchoring": {
+        "afterScroll": {
+          "bubble": {
+            "x": 12,
+            "y": 714,
+            "width": 298,
+            "height": 54,
+            "top": 714,
+            "right": 310,
+            "bottom": 768,
+            "left": 12
+          },
+          "controls": [
+            {
+              "height": 44,
+              "testId": "selection-bubble-turn-into",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-bold",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-italic",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-strikethrough",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-inline-code",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-link",
+              "width": 44
+            }
+          ],
+          "frameScrolls": "visible",
+          "gapAboveSelection": 6.953125,
+          "horizontalOffset": 44.6953125,
+          "occluded": [],
+          "overflowScroll": {
+            "client": 296,
+            "scroll": 296
+          },
+          "present": true,
+          "richScrollTop": 900,
+          "selection": {
+            "x": 48,
+            "y": 774.953125,
+            "width": 136.609375,
+            "height": 18,
+            "top": 774.953125,
+            "right": 184.609375,
+            "bottom": 792.953125,
+            "left": 48
+          },
+          "viewportHeight": 844,
+          "viewportWidth": 390,
+          "visible": true
+        },
+        "scrolled": {
+          "after": 900,
+          "before": 0
+        },
+        "unscrolled": {
+          "bubble": {
+            "x": 12,
+            "y": 227,
+            "width": 298,
+            "height": 54,
+            "top": 227,
+            "right": 310,
+            "bottom": 281,
+            "left": 12
+          },
+          "controls": [
+            {
+              "height": 44,
+              "testId": "selection-bubble-turn-into",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-bold",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-italic",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-strikethrough",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-inline-code",
+              "width": 44
+            },
+            {
+              "height": 44,
+              "testId": "selection-bubble-link",
+              "width": 44
+            }
+          ],
+          "frameScrolls": "visible",
+          "gapAboveSelection": 5.5625,
+          "horizontalOffset": 39.859375,
+          "occluded": [],
+          "overflowScroll": {
+            "client": 296,
+            "scroll": 296
+          },
+          "present": true,
+          "richScrollTop": 0,
+          "selection": {
+            "x": 72,
+            "y": 286.5625,
+            "width": 98.28125,
+            "height": 18,
+            "top": 286.5625,
+            "right": 170.28125,
+            "bottom": 304.5625,
+            "left": 72
+          },
+          "viewportHeight": 844,
+          "viewportWidth": 390,
+          "visible": true
+        }
+      },
+      "menu": {
+        "bottom": 712,
+        "height": 422,
+        "itemCount": 9,
+        "left": 13,
+        "present": true,
+        "right": 263,
+        "top": 290,
+        "viewportHeight": 844,
+        "viewportWidth": 390
+      }
+    },
+    "768": {
+      "sourceMode": {
+        "frameConnected": false,
+        "hitClass": "cm-line",
+        "hitInsideSource": true,
+        "richConnected": false,
+        "richHeight": 0,
+        "sourceMounted": true
+      },
+      "centering": {
+        "clampedLeft": true,
+        "clampedRight": false,
+        "horizontalOffset": 65.6015625
+      },
+      "anchoring": {
+        "afterScroll": {
+          "bubble": {
+            "x": 12,
+            "y": 152,
+            "width": 303.8125,
+            "height": 42,
+            "top": 152,
+            "right": 315.8125,
+            "bottom": 194,
+            "left": 12
+          },
+          "controls": [
+            {
+              "height": 28,
+              "testId": "selection-bubble-turn-into",
+              "width": 109.8125
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-bold",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-italic",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-strikethrough",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-inline-code",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-link",
+              "width": 32
+            }
+          ],
+          "frameScrolls": "visible",
+          "gapAboveSelection": 6.5625,
+          "horizontalOffset": 65.6015625,
+          "occluded": [],
+          "overflowScroll": {
+            "client": 302,
+            "scroll": 302
+          },
+          "present": true,
+          "richScrollTop": 878,
+          "selection": {
+            "x": 30,
+            "y": 200.5625,
+            "width": 136.609375,
+            "height": 18,
+            "top": 200.5625,
+            "right": 166.609375,
+            "bottom": 218.5625,
+            "left": 30
+          },
+          "viewportHeight": 1024,
+          "viewportWidth": 768,
+          "visible": true
+        },
+        "scrolled": {
+          "after": 878,
+          "before": 0
+        },
+        "unscrolled": {
+          "bubble": {
+            "x": 12,
+            "y": 164,
+            "width": 297.375,
+            "height": 42,
+            "top": 164,
+            "right": 309.375,
+            "bottom": 206,
+            "left": 12
+          },
+          "controls": [
+            {
+              "height": 28,
+              "testId": "selection-bubble-turn-into",
+              "width": 103.375
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-bold",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-italic",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-strikethrough",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-inline-code",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-link",
+              "width": 32
+            }
+          ],
+          "frameScrolls": "visible",
+          "gapAboveSelection": 6.28125,
+          "horizontalOffset": 57.546875,
+          "occluded": [],
+          "overflowScroll": {
+            "client": 295,
+            "scroll": 295
+          },
+          "present": true,
+          "richScrollTop": 0,
+          "selection": {
+            "x": 54,
+            "y": 212.28125,
+            "width": 98.28125,
+            "height": 18,
+            "top": 212.28125,
+            "right": 152.28125,
+            "bottom": 230.28125,
+            "left": 54
+          },
+          "viewportHeight": 1024,
+          "viewportWidth": 768,
+          "visible": true
+        }
+      },
+      "menu": {
+        "bottom": 473,
+        "height": 278,
+        "itemCount": 9,
+        "left": 13,
+        "present": true,
+        "right": 263,
+        "top": 195,
+        "viewportHeight": 1024,
+        "viewportWidth": 768
+      }
+    },
+    "1280": {
+      "sourceMode": {
+        "frameConnected": false,
+        "hitClass": "cm-line",
+        "hitInsideSource": true,
+        "richConnected": false,
+        "richHeight": 0,
+        "sourceMounted": true
+      },
+      "centering": {
+        "clampedLeft": false,
+        "clampedRight": false,
+        "horizontalOffset": -0.3984375
+      },
+      "anchoring": {
+        "afterScroll": {
+          "bubble": {
+            "x": 202,
+            "y": 154,
+            "width": 303.8125,
+            "height": 42,
+            "top": 154,
+            "right": 505.8125,
+            "bottom": 196,
+            "left": 202
+          },
+          "controls": [
+            {
+              "height": 28,
+              "testId": "selection-bubble-turn-into",
+              "width": 109.8125
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-bold",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-italic",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-strikethrough",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-inline-code",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-link",
+              "width": 32
+            }
+          ],
+          "frameScrolls": "visible",
+          "gapAboveSelection": 6.5625,
+          "horizontalOffset": -0.3984375,
+          "occluded": [],
+          "overflowScroll": {
+            "client": 302,
+            "scroll": 302
+          },
+          "present": true,
+          "richScrollTop": 900,
+          "selection": {
+            "x": 286,
+            "y": 202.5625,
+            "width": 136.609375,
+            "height": 18,
+            "top": 202.5625,
+            "right": 422.609375,
+            "bottom": 220.5625,
+            "left": 286
+          },
+          "viewportHeight": 900,
+          "viewportWidth": 1280,
+          "visible": true
+        },
+        "scrolled": {
+          "after": 900,
+          "before": 0
+        },
+        "unscrolled": {
+          "bubble": {
+            "x": 213,
+            "y": 188,
+            "width": 297.375,
+            "height": 42,
+            "top": 188,
+            "right": 510.375,
+            "bottom": 230,
+            "left": 213
+          },
+          "controls": [
+            {
+              "height": 28,
+              "testId": "selection-bubble-turn-into",
+              "width": 103.375
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-bold",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-italic",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-strikethrough",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-inline-code",
+              "width": 32
+            },
+            {
+              "height": 28,
+              "testId": "selection-bubble-link",
+              "width": 32
+            }
+          ],
+          "frameScrolls": "visible",
+          "gapAboveSelection": 6.28125,
+          "horizontalOffset": 2.546875,
+          "occluded": [],
+          "overflowScroll": {
+            "client": 295,
+            "scroll": 295
+          },
+          "present": true,
+          "richScrollTop": 0,
+          "selection": {
+            "x": 310,
+            "y": 236.28125,
+            "width": 98.28125,
+            "height": 18,
+            "top": 236.28125,
+            "right": 408.28125,
+            "bottom": 254.28125,
+            "left": 310
+          },
+          "viewportHeight": 900,
+          "viewportWidth": 1280,
+          "visible": true
+        }
+      },
+      "menu": {
+        "bottom": 475,
+        "height": 278,
+        "itemCount": 9,
+        "left": 203,
+        "present": true,
+        "right": 453,
+        "top": 197,
+        "viewportHeight": 900,
+        "viewportWidth": 1280
+      }
+    }
+  },
+  "hostUrl": "http://127.0.0.1:5175/",
+  "schemes": [
+    "dark",
+    "light"
+  ],
+  "status": "passed"
+}

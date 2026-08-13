@@ -12448,3 +12448,160 @@ is precisely that these gates stayed green through defects a browser would show.
 
 - The docs-rationale interview (started 2026-08-04) is complete: `docs/internal/research/docs-rationale-2026-08-04.md` is FINAL, decisions D1–D23 all ratified by Andrew. Closing ratifications: CodeMirror 6 + ProseMirror definitive for V0/V1 (D22); Payload docs hosting Option A — Payload edits through MME, Markdown stays the canonical exportable source (D23). Rich-view virtualization was discussed, sized honestly (multi-week, high regression risk), and deliberately parked in `BACKLOG.md` §Performance And Scale, sequenced after docs repair and the Payload path.
 - **Commit-scope correction, recorded rather than rewritten.** Commit `f1ba8fb` ("docs: close docs-rationale interview") was intended to carry only `docs/internal/research/docs-rationale-2026-08-04.md` and `docs/internal/BACKLOG.md`. It also swept in five files the MME-0125 session had left staged in the index: `docs/public/packages/md-react.md`, `packages/md-react/src/index.ts` (staged part), `packages/md-react/src/rich-view.ts`, `tests/react-selection-bubble.test.mjs` (staged part), `tests/react-strictmode-lifecycle.test.mjs`. An attempted split into two labeled commits was blocked by the permission classifier (force-push required after the remote had the mixed commit), so per the append-only correction precedent (MME-0102 entry), the mixed commit stands and is documented here instead. **For the MME-0125 conversation:** your staged snapshots are committed in `f1ba8fb` under a docs-labeled message; your unstaged follow-up edits to `packages/md-react/src/index.ts` and `tests/react-selection-bubble.test.mjs`, plus untracked `apps/react-demo/`, `docs/internal/visual-checks/MME-0125/`, and `scripts/visual-check-mme0125.mjs`, remain in the working tree untouched.
+
+## MME-0125 — Mount the selection bubble in the React binding (attempt 2, Block D)
+
+- Date: 2026-08-13. Block: D. Builder model: opus-5. Attempt 2.
+- Status: SHIPPED. A default `@momentarise/md-react` mount raises the selection
+  bubble with the full MME-0089 action set, and the React binding has a rendering
+  proof for the first time.
+
+### What attempt 1 lacked, and what closed it
+
+Attempt 1 was reverted because it made the default React configuration *worse*
+than the regression it targeted, and because no gate could see it: every React
+test is jsdom, and jsdom has no layout. The blocker was resolved by Andrew's
+reviewer as **option 1** — a workspace-backed React host.
+
+`apps/react-demo` is that host. It is minimal by construction: it mounts
+`useMarkdownEditor` from the workspace packages and publishes a small test
+surface, and everything in it exists because `scripts/visual-check-mme0125.mjs`
+needs it. `examples/next-app` stays a pure registry install, because its job is
+catching workspace-versus-registry drift.
+
+The gate earned its keep immediately. It **reproduced the coordinate-space defect
+before the fix** — at `scrollTop: 900` the computed offset was a plausible `105px`
+while the bubble's real `top` was `-746`, 851px above the viewport — and it
+**caught the turn-into menu running off the bottom at 390 during development**,
+which had been predicted by reading but never measured.
+
+### The structural fix
+
+`richHost` was simultaneously the scroller, the bubble's containing block, and the
+rect passed to `anchoredOverlayPlacement`. A `position: absolute` child of a
+scroller resolves against the content origin while the helper returns
+viewport-relative offsets; the two differ by exactly `scrollTop`. MME-0119 forbids
+compensating with the scroll offset, so a new `[data-mme-react-rich-frame]` wraps
+the host: positioned, not scrolling, attached and detached with the rich view.
+Grid placement moved to the frame in the packaged stylesheet.
+
+Detaching the whole frame — rather than leaving a permanent bubble host inside it
+— is also what removes attempt 1's defect class, and a `:has()` backstop keeps the
+CSS defending the invariant the imperative code maintains.
+
+### Reviewer pass
+
+Architecture Reviewer and Test Reviewer, both mandatory, both read-only in their
+own prompts against a frozen tree. **Both found real defects, and one of them was
+red in the tree at the time.**
+
+Architecture, all fixed: `llms-full.txt` and `docs/agent/*` were stale against the
+edited public doc, so two `npm test` gates were red; `apps/react-demo` was outside
+every type-check and build graph (`build:react-demo` existed but was not in the
+chain); React 18/19 resolution was undeclared, so a resolution flip would have
+produced "Invalid hook call" in the one app whose purpose is proving the binding;
+and the `:empty` structural defence no longer covered the element that occupies
+the grid area. It also verified, and I did not have to change: SSR safety and
+MME-0101's "no ProseMirror until rich mode" both survive, the in-flight-import
+lifecycle is correct, no consumer depends on `[data-mme-react-rich]` being the
+grid child, and adding `reactDemo` to `DEFAULT_GROUPS` is startable in CI.
+
+Test, all fixed: the React 19 leg **asserted a condition false on arrival** —
+the fixture pins the same version the workspace carries, so the comparison
+returned 0 and the leg failed immediately; `compareReleases` ordered `alpha.10`
+before `alpha.9`; the reachability guard was **circular** — dropping a surface
+from both the contract and the code stayed green, which is the actual shape of
+MME-0125, so the guard *would not have caught the defect it was written for*; and
+the opaque-block check could not fail, because `Selection.near(doc.resolve(1))`
+lands inside the heading while the `unsupported_block` sits at position 5.
+
+### Mutation proof
+
+**16 mutants, 16 killed**, under the rule this issue adds to `AGENT.md`: the
+smallest change that would still ship, never a deleted call. The full table with
+verbatim output is in `docs/internal/visual-checks/MME-0125/README.md`.
+
+Six mutants survived a first pass and each was a genuine hole rather than a
+nuisance — nothing asserted that a link popover survives a repaint, that each mark
+control reports *its own* mark, that the turn-into caption names the right block,
+or that the bubble is centred at all (`horizontalOffset` was measured into
+`measurements.json` and read by no assertion). Six assertions were added and all
+six mutants then died. The Test Reviewer's independent 39-mutant matrix found five
+of them; I found one.
+
+Two pairs are recorded as **equivalent** rather than counted, because the
+structure makes them inert, and one mutant (`bounds` → `container`) is recorded as
+**unproven**: this host's frame is never taller than the viewport, so the clamp is
+correct defensive code with no reachable failure here.
+
+### A self-inflicted defect worth recording
+
+While rewriting the reachability check I replaced a span between two anchors and
+silently deleted three assertions I had added earlier in the same session. It was
+caught only because the next mutation round reported survivors that had died
+minutes before. This is the overlapping-replacement defect already recorded
+against the block table on 2026-08-12, in a new place: **a slice-and-replace
+across a range is not a safe edit, and a mutation round that suddenly reports
+resurrected survivors is evidence of a lost assertion, not of a flaky gate.**
+
+### Criteria decisions, recorded rather than implied
+
+- **`test:react19-strictmode-lifecycle` stays weekly-only.** It performs a real
+  registry `npm install` in an isolated fixture; putting that in every `npm test`
+  makes the suite network-dependent and slow. React 18 StrictMode is covered
+  per-push by `tests/react-selection-bubble.test.mjs`; React 19 StrictMode is
+  covered per-push in a *browser* by `visual:mme-0125`, which runs
+  `apps/react-demo` under `<StrictMode>` on React 19.2.8.
+- **The React 19 registry leg is self-expiring, pinned to a named version.**
+  Comparing against the moving workspace version was wrong twice: false on
+  arrival, and silent the moment an unrelated changeset bumped the workspace. It
+  now expires against `0.1.0-alpha.4`, so bumping the fixture pin activates it.
+- **"The example app proves it" is deferred, not met.** `examples/next-app` pins a
+  registry version that predates this change, and the blocker resolution moved the
+  development proof to `apps/react-demo` without striking this criterion. The
+  registry leg activates on the same version bump.
+- **"No bundle cost for consumers who never select text" is not met as written.**
+  `createSelectionBubbleToolbar` is a static import; only the ProseMirror half is
+  deferred. `md-surface` was already a static dependency, so the marginal cost is
+  small, but nothing measures it and the criterion's "if achievable" escape is
+  being used deliberately rather than silently.
+- **"No listener retained across a double mount" has no direct proof.** Nothing
+  counts listeners. The StrictMode check asserts exactly one bubble after a double
+  mount and none after unmount, which is the observable consequence, not the
+  mechanism.
+
+### Open questions for the human
+
+Two findings are scope decisions rather than defects in this slice, and both are
+recorded in the gate's README rather than silently absorbed:
+
+1. **The binding registers no dismissal controller.** In a React host, Escape and
+   an outside click do nothing; the bubble is dismissed only by changing the
+   selection. The demo registers `createSurfaceOverlayDismissController`. This is
+   now shipping on by default in a published package and wants its own issue.
+2. **The turn-into command list exists in three copies** (`md-surface` render
+   metadata, the demo, and the binding), and `richSurfaceSupport` re-implements
+   four query helpers the demo already has. Both reviewers put these in
+   `md-rich-prosemirror` beside `richSelectionSupportsFormatting`. Adding a tenth
+   conversion today silently leaves two hosts computing nine.
+
+### Files changed
+
+- New: `apps/react-demo/` (package, `index.html`, `tsconfig`, `vite.config.ts`,
+  `src/main.tsx`, `src/styles.css`, README, LICENSE),
+  `scripts/visual-check-mme0125.mjs`,
+  `docs/internal/visual-checks/MME-0125/README.md`.
+- `packages/md-react/src/index.ts` — the rich frame, the bubble mount, the
+  `surfaces` contract, `surfacePreferences.selectionBubble`, `onRichViewReady`,
+  menu placement, viewport-clamped bounds, `visibleCommandGroups` (was `[]`).
+- `packages/md-react/src/rich-view.ts` — `getEditorView`/`getRichState`/
+  `applyRichState`/`onStateChange` and `richSurfaceSupport`.
+- `packages/md-theme/src/styles.css` — grid placement on the frame, the frame's
+  containing-block rules, the `:has()` backstop.
+- `tests/react-selection-bubble.test.mjs` (new, 19 checks),
+  `tests/fixtures/react19-strictmode/run.mjs`,
+  `tests/react-strictmode-lifecycle.test.mjs`.
+- `AGENT.md` — the refined mutant rule, which the 2026-08-13 review said lived
+  there and did not. `README.md`, `docs/public/packages/md-react.md`,
+  `llms.txt`/`llms-full.txt`/`docs/agent/*` regenerated.
+- `.claude/launch.json`, `scripts/visual-gates.mjs`, `package.json`.

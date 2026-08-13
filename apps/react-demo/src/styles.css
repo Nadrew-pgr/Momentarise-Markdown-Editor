@@ -1,0 +1,27 @@
+/*
+ * MME-0125 — the React host's only stylesheet.
+ *
+ * It imports the packaged theme exactly as a consumer would, and adds nothing
+ * that could mask a defect in it. Any rule this file needed in order to make the
+ * binding look right would be a rule the binding is missing.
+ */
+@import "@momentarise/md-theme/tokens.css";
+@import "@momentarise/md-theme/styles.css";
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--mme-color-bg);
+  color: var(--mme-color-text);
+  font-family: var(--mme-font-family-ui);
+}
+
+.react-host-shell {
+  display: block;
+  height: 100%;
+}

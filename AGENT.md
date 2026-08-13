@@ -234,6 +234,10 @@ For every new or modified test, before claiming it green:
 
 Record the reversion-to-failure table in the issue's build-log entry or its visual-checks README. An assertion that cannot be made to fail is not a test; delete it or fix it.
 
+A mutant must be the **smallest change that would still ship**: a wrong argument, a stale variable, an inverted guard, an off-by-one, one flipped CSS property. Deleting a call or emptying a function is not a mutant — it tests only that the code runs at all, and it passes a round while the refined form of the same defect survives untouched. This rule was added at MME-0125 after a builder's round reported 6 of 6 killed and a reviewer's refined matrix got 8 survivors against 3 kills on the same code.
+
+A mutant that survives is a finding, not a nuisance: repair the assertion so it exercises the property, then re-measure. A mutant that cannot be killed because the structure makes it equivalent is a legitimate recorded outcome — say so, and replace it with one that targets the same defect through the mechanism that actually prevents it.
+
 Assertions must also exercise the real path: use the interaction the user performs (pointer or key event) rather than the programmatic API that bypasses the code under test, and assert on the specific element the issue introduced rather than on whatever the query happened to return.
 
 ### Reachability

@@ -200,6 +200,7 @@ Public source structure can help agents retrieve and verify MME facts. It does n
 ```text
 packages/              Framework packages
 apps/md-demo/          Reference editor demo
+apps/react-demo/       Workspace-backed React host, used to prove the React binding renders
 apps/docs-site/        Next.js public site and docs shell
 docs/public/           Canonical publishable Markdown
 docs/agent/            Generated public agent artifacts
