@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 // Isolated fixture (own node_modules, installed by tests/react19-strictmode-lifecycle.test.mjs):
 // proves the currently PUBLISHED @momentarise/md-react alpha survives React 19's StrictMode
@@ -106,9 +107,48 @@ act(() => { liveSession.setMode("rich"); });
 await waitForMode(() => Boolean(container.querySelector(".ProseMirror")), "rich view to mount (React 19)");
 assert.ok(container.querySelector(".ProseMirror") !== null, "rich view must mount on mode switch after a React 19 StrictMode remount.");
 assert.ok(container.querySelector("[data-mme-react-source] .cm-editor") === null, "source view must unmount when rich mounts (React 19).");
+/*
+ * MME-0125 — the selection-bubble leg, version-aware on purpose.
+ *
+ * This fixture installs `@momentarise/md-react` from the REGISTRY, so it can only
+ * assert what the published artifact contains. The bubble ships in the alpha
+ * after 0.1.0-alpha.3, and the leg activates itself the moment a bubble-bearing
+ * version is installed — no quarantine entry to go quiet, and no assertion that
+ * silently passes because the feature is absent.
+ */
+const bubbleShipped = Boolean(
+  (await import("@momentarise/md-react/package.json", { with: { type: "json" } }).catch(() => null)) &&
+    readFileSync(new URL("./node_modules/@momentarise/md-react/dist/index.js", import.meta.url), "utf8").includes(
+      "createSelectionBubbleToolbar"
+    )
+);
+if (bubbleShipped) {
+  await waitForMode(
+    () => Boolean(container.querySelector('[data-testid="selection-bubble-toolbar"]')),
+    "the selection bubble to mount alongside the rich view (React 19)"
+  );
+  assert.equal(
+    container.querySelectorAll('[data-testid="selection-bubble-toolbar"]').length,
+    1,
+    "a React 19 StrictMode double mount must leave exactly one selection bubble."
+  );
+} else {
+  console.log(
+    "react19-strictmode fixture: selection-bubble leg skipped — the installed registry " +
+      `@momentarise/md-react predates MME-0125. It activates on the next alpha republish.`
+  );
+}
+
 act(() => { liveSession.setMode("source"); });
 await waitForMode(() => Boolean(container.querySelector("[data-mme-react-source] .cm-editor")), "source view to remount (React 19)");
 assert.ok(container.querySelector(".ProseMirror") === null, "rich view must unmount when switching back to source under React 19 (no leak).");
+if (bubbleShipped) {
+  assert.equal(
+    container.querySelector('[data-testid="selection-bubble-toolbar"]'),
+    null,
+    "the selection bubble must unmount with the rich view under React 19 (no leak)."
+  );
+}
 assert.equal(liveSession.getContent(), "# Strict React 19\n\nEdited after remount.\n", "content must survive the rich round trip (React 19).");
 
 let destroyCalls = 0;

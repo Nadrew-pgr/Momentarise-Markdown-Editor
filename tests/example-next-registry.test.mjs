@@ -36,6 +36,35 @@ try {
     "the registry md-react must ship dist/rich-view.js (the rich-mode surface)."
   );
 
+  /*
+   * MME-0125 — the selection-bubble leg, version-aware.
+   *
+   * This example is a pure registry install (MME-0102 dropped the workspace
+   * overlays MME-0100/0101 had needed, precisely so this test catches
+   * workspace-vs-registry drift). The bubble ships in the alpha after
+   * 0.1.0-alpha.3, so asserting it unconditionally today would fail on a
+   * published artifact that is not wrong, merely older.
+   *
+   * Instead the assertion activates itself: once a bubble-bearing version is
+   * installed, the binding must also carry the command groups that make the
+   * bubble non-empty. A republish that shipped one without the other — the exact
+   * half-finished state MME-0125 closes — fails here.
+   */
+  const publishedReactBinding = await readTextFile(join(modules, "md-react/dist/index.js"));
+  const registryHasBubble = publishedReactBinding.includes("createSelectionBubbleToolbar");
+  if (registryHasBubble) {
+    assert(
+      /visibleCommandGroups:\s*\[\s*"blocks"/.test(publishedReactBinding),
+      "the registry md-react mounts the selection bubble but publishes empty command groups, " +
+        "so a consumer gets an empty bubble (MME-0125)."
+    );
+  } else {
+    console.log(
+      "example-next-registry: selection-bubble leg skipped — the installed registry " +
+        "@momentarise/md-react predates MME-0125. It activates on the next alpha republish."
+    );
+  }
+
   // The published stylesheet must carry the MME-0102 system, not the pre-redesign values.
   const publishedTokens = JSON.parse(
     await readTextFile(join(modules, "md-theme/src/tokens.json"))

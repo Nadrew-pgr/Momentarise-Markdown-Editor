@@ -188,4 +188,16 @@ function assertField(condition, message) {
   });
 }
 
+/*
+ * MME-0125 — where the selection-bubble lifecycle leg lives.
+ *
+ * The React 18 bubble legs (exactly one bubble after a StrictMode double mount,
+ * none after final unmount, none after leaving rich mode) are in
+ * `tests/react-selection-bubble.test.mjs`, which owns the surface and already
+ * runs a StrictMode host. Duplicating them here would mean two places to keep in
+ * step for one property; the React 19 leg is in
+ * `tests/fixtures/react19-strictmode/run.mjs`, where it is version-aware because
+ * that fixture installs from the registry.
+ */
+
 console.log("react-strictmode-lifecycle: all assertions passed.");
