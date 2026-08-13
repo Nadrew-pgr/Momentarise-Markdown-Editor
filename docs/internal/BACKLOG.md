@@ -671,6 +671,7 @@ Tags: `baseline/hygiene`, `performance`, `public-release`
 - Add large-document benchmarks, including 10k-line documents.
 - Prove incremental parse/serialize behavior where expected.
 - Debounce expensive status checks without making save truth stale.
+- Rich-view virtualization for very large documents (discussed with Andrew, 2026-08-04). Honest sizing: both complicated and long — rendering only the visible portion of an editable ProseMirror surface while keeping selection, find, folding, scroll position, and cursor behavior correct is among the hardest editor-engineering problems; expect a multi-week dedicated effort with high regression risk. Deliberately sequenced after docs repair and the Payload host path: near-term real documents (docs pages, blog posts, SEO pages) are hundreds of lines and are already guarded by the CI budgets; the 10k-line case becomes load-bearing with the Obsidian-class vault app. Promote as its own issue when that use case arrives — do not fold it into another slice.
 
 ## Promotion Candidates
 

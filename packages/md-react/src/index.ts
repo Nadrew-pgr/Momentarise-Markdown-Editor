@@ -11,16 +11,19 @@ import {
   type MomentariseSourcePreferences,
   type MomentariseSourceView
 } from "@momentarise/md-source-codemirror";
-import type { ReactRichViewHandle } from "./rich-view.js";
+import type { ReactRichViewHandle, RichSurfaceSupport } from "./rich-view.js";
 import {
+  anchoredOverlayPlacement,
   applyMmeThemeToElement,
   createDocumentStatus,
   createModeControl,
+  createSelectionBubbleToolbar,
   createSurfaceDocumentState,
   defaultMmeStrings,
   type MmeStrings,
   type SurfaceDocumentState,
-  type SurfacePreferences
+  type SurfacePreferences,
+  type SurfaceSelectionBubbleState
 } from "@momentarise/md-surface";
 import {
   defaultIconSet,
@@ -37,18 +40,61 @@ import {
   type ReactElement
 } from "react";
 
+/** Surfaces a default `useMarkdownEditor` / `MarkdownEditor` mount provides. */
+export type MarkdownEditorReactSurface =
+  | "documentStatus"
+  | "modeControl"
+  | "richView"
+  | "selectionBubble"
+  | "sourceView";
+
+export type { ReactRichViewHandle } from "./rich-view.js";
+
 export interface MarkdownEditorReactBindingContract {
   readonly binding: "react";
   readonly packageName: "@momentarise/md-react";
+  /**
+   * MME-0125: what a default mount actually gives you.
+   *
+   * Published as runtime data rather than left implicit, because the two
+   * registry-installed fixtures that verify this binding could otherwise only
+   * detect the selection bubble by grepping `dist/index.js` for a factory name —
+   * which any minifier or bundler defeats, and which cannot distinguish a mount
+   * from a mention in a comment.
+   */
+  readonly surfaces: readonly MarkdownEditorReactSurface[];
   readonly thinBinding: true;
+}
+
+/**
+ * Surfaces this binding mounts on the host's behalf.
+ *
+ * MME-0125: the formatting bubble is on by default, because MME-0089 made it the
+ * only formatting surface — with the persistent toolbar off, a binding that
+ * mounted neither gave a consumer nothing at all. A host building its own
+ * formatting UI turns it off here rather than being left to discover that it has
+ * to build one.
+ */
+export interface MarkdownEditorReactSurfacePreferences {
+  /** Default `true`. `false` mounts no bubble at all, rather than a disabled one. */
+  readonly selectionBubble?: boolean;
 }
 
 export interface MarkdownEditorReactOptions extends MarkdownEditorSessionOptions {
   readonly document?: Partial<SurfaceDocumentState>;
   readonly icons?: IconSet;
+  /**
+   * Called when the rich view mounts and again with `null` when it unmounts.
+   *
+   * The handle exposes the live ProseMirror view, so a host can run commands,
+   * read the selection, or compose its own surfaces on top of this binding —
+   * none of which was possible before, because the view was closure-private.
+   */
+  readonly onRichViewReady?: (handle: ReactRichViewHandle | null) => void;
   readonly scheme?: MmeScheme;
   readonly sourcePreferences?: MomentariseSourcePreferences;
   readonly strings?: MmeStrings;
+  readonly surfacePreferences?: MarkdownEditorReactSurfacePreferences;
   readonly theme?: MmeTheme;
 }
 
@@ -76,6 +122,7 @@ interface ReactEditorMount {
 export const markdownReactBindingPackage: MarkdownEditorReactBindingContract = {
   binding: "react",
   packageName: "@momentarise/md-react",
+  surfaces: ["documentStatus", "modeControl", "richView", "selectionBubble", "sourceView"],
   thinBinding: true
 };
 
@@ -198,13 +245,22 @@ function mountReactEditor(
   const statusHost = doc.createElement("div");
   const sourceHost = doc.createElement("div");
   const richHost = doc.createElement("div");
+  const bubbleHost = doc.createElement("div");
   const icons = options.icons ?? defaultIconSet;
   const strings = options.strings ?? defaultMmeStrings;
+  /*
+   * MME-0125: `visibleCommandGroups` was `[]`, and every surface command is gated
+   * on it — so mounting the bubble without this change would have rendered an
+   * empty shell that satisfies "the component is mounted" and gives the writer
+   * nothing. `ai` is deliberately absent: this binding ships no AI entry point,
+   * and offering one would be an inert control.
+   */
   const preferences: SurfacePreferences = {
     aiEntryPoints: [],
     toolbarMode: "hidden",
-    visibleCommandGroups: []
+    visibleCommandGroups: ["blocks", "marks", "lists", "insert"]
   };
+  const selectionBubbleEnabled = options.surfacePreferences?.selectionBubble !== false;
   let destroyed = false;
   let syncingFromSession = false;
 
@@ -213,6 +269,7 @@ function mountReactEditor(
   statusHost.dataset.mmeReactStatus = "";
   sourceHost.dataset.mmeReactSource = "";
   richHost.dataset.mmeReactRich = "";
+  bubbleHost.dataset.mmeReactBubble = "";
   applyMmeThemeToElement(root, options.theme, options.scheme);
   root.append(modeHost, statusHost, sourceHost, richHost);
   element.replaceChildren(root);
@@ -220,6 +277,9 @@ function mountReactEditor(
   // --- Editing surfaces: source and rich are mounted/unmounted per mode, never both at once. ---
   let sourceView: MomentariseSourceView | null = null;
   let richView: ReactRichViewHandle | null = null;
+  let richSupport: RichSurfaceSupport | null = null;
+  let linkEditorOpen = false;
+  let turnIntoOpen = false;
   // Guards the async rich import: only the newest request may mount, and only if still in rich mode.
   let richMountToken = 0;
 
@@ -248,8 +308,17 @@ function mountReactEditor(
     sourceHost.replaceChildren();
   };
   const unmountRichView = (): void => {
+    const hadRichView = richView !== null;
+    unmountSelectionBubble();
     richView?.destroy();
     richView = null;
+    richSupport = null;
+    // Only report a teardown that happened: `applyMode()` runs this in source
+    // mode at startup, and `destroy()` runs it again, so an unguarded call
+    // handed hosts spurious `null`s before any handle had been delivered.
+    if (hadRichView) {
+      options.onRichViewReady?.(null);
+    }
     richHost.replaceChildren();
   };
   const mountRichView = (): void => {
@@ -260,12 +329,13 @@ function mountReactEditor(
     // Dynamic import: consumers who never enter rich mode never load prosemirror-view. The rich
     // module only touches the DOM here (client-side), keeping the top-level binding SSR-safe.
     void import("./rich-view.js")
-      .then(({ createReactRichView }) => {
+      .then(({ createReactRichView, richSurfaceSupport }) => {
         // The mode may have changed, or the session may have been destroyed (StrictMode remount),
         // while the import was in flight — discard a stale mount.
         if (destroyed || token !== richMountToken || session.getMode() !== "rich") {
           return;
         }
+        richSupport = richSurfaceSupport;
         richView = createReactRichView({
           host: richHost,
           doc: session.getContent(),
@@ -273,8 +343,16 @@ function mountReactEditor(
             if (!syncingFromSession) {
               session.setContent(markdown, "rich-view");
             }
+          },
+          onStateChange() {
+            renderBubble();
           }
         });
+        // The bubble mounts only once a rich view exists, so it can never be an
+        // affordance with nothing behind it.
+        mountSelectionBubble();
+        renderBubble();
+        options.onRichViewReady?.(richView);
       })
       .catch((error: unknown) => {
         // Rich mode needs the optional peers (@momentarise/md-rich-prosemirror + prosemirror-view).
@@ -293,6 +371,180 @@ function mountReactEditor(
           session.setMode("source");
         }
       });
+  };
+
+  /* ---- MME-0125: the formatting surface -------------------------------- *
+   *
+   * Everything ProseMirror-shaped stays inside the dynamically imported rich
+   * module or behind the handle it returns, so this file keeps the SSR safety
+   * and the "no bundle cost until rich mode" property MME-0101 established.
+   */
+  let selectionBubble: ReturnType<typeof createSelectionBubbleToolbar> | null = null;
+
+  const bubbleState = (): SurfaceSelectionBubbleState => {
+    if (!richView || !richSupport) {
+      return { visible: false };
+    }
+    const state = richView.getRichState();
+    const visible = richSupport.richSelectionSupportsFormatting(state);
+    const blockCommand = richSupport.activeBlockCommand(state);
+    return {
+      ...(blockCommand === undefined ? {} : { activeBlockCommand: blockCommand }),
+      activeIds: richSupport.activeMarkIds(state),
+      aiVisible: false,
+      linkEditor: { href: richSupport.activeLinkHref(state) ?? "", open: visible && linkEditorOpen },
+      turnIntoDisabledCommands: richSupport.unavailableTurnIntoCommands(state),
+      turnIntoOpen: visible && turnIntoOpen,
+      visible
+    };
+  };
+
+  const positionBubble = (): void => {
+    if (!selectionBubble || !richView || selectionBubble.root.hidden) {
+      return;
+    }
+    const anchor = richSupport?.selectionRect(richView.getEditorView());
+    if (!anchor) {
+      return;
+    }
+    const container = richHost.getBoundingClientRect();
+    const overlay = selectionBubble.root.getBoundingClientRect();
+    /*
+     * Clamp to what is on screen, not to the host box. `anchoredOverlayPlacement`
+     * defaults `bounds` to `container`, and the rich host is routinely taller
+     * than the viewport — clamping to it parks the bubble off-screen. This is the
+     * MME-0086 bounds-vs-container distinction; omitting it here would have
+     * reproduced that defect in the binding while the demo was immune.
+     */
+    const view = richHost.ownerDocument.defaultView;
+    const viewportWidth = richHost.ownerDocument.documentElement.clientWidth || view?.innerWidth || container.width;
+    const viewportHeight = richHost.ownerDocument.documentElement.clientHeight || view?.innerHeight || container.height;
+    const bounds = {
+      height: Math.max(1, Math.min(container.bottom, viewportHeight) - Math.max(container.top, 0)),
+      left: Math.max(container.left, 0),
+      top: Math.max(container.top, 0),
+      width: Math.max(1, Math.min(container.right, viewportWidth) - Math.max(container.left, 0))
+    };
+    const placement = anchoredOverlayPlacement({
+      align: "center",
+      anchor,
+      bounds,
+      container,
+      gap: 8,
+      margin: 12,
+      overlay: {
+        height: overlay.height || selectionBubble.root.offsetHeight,
+        width: overlay.width || selectionBubble.root.offsetWidth
+      },
+      preferred: "above"
+    });
+    selectionBubble.root.dataset.placement = placement.placement;
+    selectionBubble.root.style.setProperty("--selection-bubble-left", `${Math.round(placement.left)}px`);
+    selectionBubble.root.style.setProperty("--selection-bubble-top", `${Math.round(placement.top)}px`);
+  };
+
+  const renderBubble = (): void => {
+    if (!selectionBubble) {
+      return;
+    }
+    const next = bubbleState();
+    if (!next.visible) {
+      linkEditorOpen = false;
+      turnIntoOpen = false;
+    }
+    selectionBubble.setState(next);
+    positionBubble();
+  };
+
+  const runBubbleCommand = (commandId: string, commandOptions: Record<string, string> = {}): void => {
+    if (!richView || !richSupport) {
+      return;
+    }
+    const result = richSupport.runCommand(richView.getRichState(), commandId, commandOptions);
+    if (result) {
+      richView.applyRichState(result);
+    }
+    renderBubble();
+  };
+
+  const mountSelectionBubble = (): void => {
+    if (selectionBubble || !selectionBubbleEnabled || destroyed) {
+      return;
+    }
+    /*
+     * The host is attached at mount time, never at construction.
+     *
+     * The packaged stylesheet puts the source and rich hosts in the SAME grid
+     * area and hides whichever is `:empty` — so a bubble host appended once and
+     * left there means the rich host is never empty, never hidden, and (being
+     * positioned) paints over the source editor. A default consumer in source
+     * mode got a stray border and a transparent div swallowing every click meant
+     * for CodeMirror: a worse defect than the missing formatting UI this issue
+     * exists to fix, and invisible to every JSDOM test because JSDOM has no
+     * layout.
+     */
+    richHost.style.position = "relative";
+    richHost.append(bubbleHost);
+    selectionBubble = createSelectionBubbleToolbar({
+      host: bubbleHost,
+      icons,
+      preferences,
+      session,
+      state: { visible: false },
+      strings,
+      onAiSelection() {
+        // This binding ships no AI entry point; the button is hidden by `aiVisible: false`.
+      },
+      onLinkCancel() {
+        richView?.focus();
+      },
+      onLinkRemove() {
+        const href = richSupport?.activeLinkHref(richView?.getRichState() ?? null);
+        if (href) {
+          runBubbleCommand("link", { href });
+        }
+      },
+      onLinkSubmit(href) {
+        const trimmed = href.trim();
+        if (!trimmed) {
+          return;
+        }
+        const existing = richSupport?.activeLinkHref(richView?.getRichState() ?? null);
+        if (existing) {
+          runBubbleCommand("link", { href: existing });
+        }
+        runBubbleCommand("link", { href: trimmed });
+      },
+      onLinkToggle(open) {
+        linkEditorOpen = open;
+        turnIntoOpen = false;
+        renderBubble();
+        if (open) {
+          bubbleHost.querySelector<HTMLInputElement>('[data-testid="selection-bubble-link-input"]')?.focus();
+        }
+      },
+      onRunToolbarItem(id) {
+        runBubbleCommand(id.replace(/^mme:/, ""));
+      },
+      onTurnInto(richCommandId) {
+        runBubbleCommand(richCommandId);
+      },
+      onTurnIntoToggle(open) {
+        turnIntoOpen = open;
+        linkEditorOpen = false;
+        renderBubble();
+      }
+    });
+  };
+
+  const unmountSelectionBubble = (): void => {
+    selectionBubble?.destroy();
+    selectionBubble = null;
+    linkEditorOpen = false;
+    turnIntoOpen = false;
+    bubbleHost.replaceChildren();
+    bubbleHost.remove();
+    richHost.style.removeProperty("position");
   };
 
   const applyMode = (): void => {

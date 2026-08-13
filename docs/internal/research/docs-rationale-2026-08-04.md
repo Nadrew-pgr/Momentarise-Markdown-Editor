@@ -1,6 +1,6 @@
 # Docs rationale — Andrew interview, 2026-08-04
 
-**Status: LIVING DOCUMENT — interview in progress (series 1 and 2 answered, series 3 pending).**
+**Status: FINAL — interview complete, 2026-08-04. All decisions ratified (D1–D23); no open blockers.**
 Do not treat unanswered sections as final. This file is the deliverable of the docs-rationale interview conversation and the input record for `MME-0118` (docs correctness repair) and `MME-0095` (docs IA and voice rewrite). Nothing in `docs/public/` was modified in that conversation.
 
 Method: every public docs page stating WHAT or HOW without WHY was turned into a question. Andrew answered in his own words; his answers are recorded verbatim below (French/Franglais preserved — they are the source, not a transcription). Where Andrew could not justify a decision, that is recorded as a finding, not papered over.
@@ -27,13 +27,19 @@ Method: every public docs page stating WHAT or HOW without WHY was turned into a
 | D14 | **ESM-only: originally accidental, now ratified as deliberate** | Andrew prefers the modern format; maintaining dual builds solo is real cost. "None is planned" may stand now that it is a decision | `compatibility-promise.md` keeps the line; tone can soften from hostile to explanatory |
 | D15 | **Link-paste-over-selection** | Pasting a URL over selected text wraps it as a Markdown link (Claude Code composer behavior) | Added to `BACKLOG.md` §"Link Insertion On Paste Over A Selection" (2026-08-03) |
 | D16 | **Lightweight files (.txt/.json/.csv/.yaml/.toml) and SVG: real product intent, currently buried** | Non-devs (and Andrew) need beautiful reading of adjacent files without an IDE/Excel; SVG because agents produce SVG assets. This is a sellable "one editor for the whole working folder" story, today hidden mid-page in `import-export.md` | `import-export.md` restructure in MME-0095 |
+| D17 | **Performance: baseline expectation, never a marketing axis** | Andrew assumes performance should simply be there ("la performance est native non ?"). The guardrails-not-marketing framing of `performance.md` was agent-authored but is truthful and stays; residual risks (virtualization needed for very large docs) stay documented | `performance.md` framing confirmed; no perf marketing claims until measured |
+| D18 | **CLI is agent-first; developers second** | "l'agent c'est ce qui est le plus utilisé, et pour les non dev surtout" — the CLI is primarily how agents manipulate MME documents, often on behalf of non-devs; devs will find it once docs are fixed | `md-cli.md` and `agentic-experience.md` open agent-first |
+| D19 | **Public roadmap shows the real trajectory** | "on montre, pour mme, c'est plus propre pour moi aussi" — docs-site-on-MME → Payload path → SEO/AEO pages → back-office, ahead of mobile/VS Code | `roadmap.md` reorder in MME-0095 |
+| D20 | **AX stays one page — no adoption/runtime split** | Andrew sees the two uses (setup of MME in an app; agents writing .md files) but does not want a structural split | `agentic-experience.md` keeps one page; may clarify the two uses in passing, no doctrine |
+| D21 | **Localization: FR reference dictionary ships; public Localization page; docs stay EN-only (recorded)** | All three ratified. EN-only docs is a deliberate, *recorded* decision, not an omission — note it visibly (FAQ or Contributing) | New backlog items (§6); `MmeStrings` gets a public page |
+| D22 | **CodeMirror 6 + ProseMirror are the definitive V0/V1 engines** | Recommendation accepted ("ok pour proseMirror"): CodeMirror 6 is Obsidian's source engine; ProseMirror powers the Notion-class editors and BlockNote/Tiptap. "First spike" language retired | `roadmap.md` + PRD framing; docs may state the rationale (same engines as the benchmarks) |
+| D23 | **Payload docs hosting: Option A — Payload edits, Markdown stays the original** | "option A": the back-office edits real `.md` content through MME; the file remains the canonical, exportable source (repo or committable store). The public promise "canonical content remains plain Markdown" stays true, and the docs site becomes the product's own best demo | Governs the future Payload host issue; `index.md`/`faq.md` promises stay as written |
 
-## 2. Decisions still open (Andrew asked for recommendations / series 3)
+## 2. Decisions still open
 
-- **O1 — CodeMirror/ProseMirror**: Andrew has no personal rationale ("je ne suis pas très aware de ce que sont ces trucs et les alternatives") and asked for a recommendation. Claude's recommendation (pending Andrew's ratification): keep both — CodeMirror 6 is what Obsidian uses for source editing; ProseMirror is the engine under the Notion-class editors and under BlockNote/Tiptap. Declare ProseMirror no longer a "spike" (MME-0101 shipped it) and fix `roadmap.md` accordingly (already an MME-0118 criterion).
-- **O2 — Localization**: `MmeStrings` contract + `defaultMmeStrings` (English) exist in `md-surface`; hosts inject translations; free/open, not a paid feature. But it is essentially undocumented publicly (two passing mentions) and no French dictionary ships. Andrew has a FR/EN ICP. Series 3 question: which languages ship as reference dictionaries, who owns them, do docs stay EN-only.
-- **O3 — Docs in Payload CMS**: Andrew's declared first use case (Q12) is "the docs themselves, managed in Payload." Today the docs site is Next.js 16 + React 19 consuming MME packages, canonical content is plain `.md` in the repo, and no Payload integration exists anywhere ("No Payload CMS adapter ships today" is a public claim). Tension to resolve in series 3: the public promise "canonical content remains plain Markdown in the repo" vs "docs managed in Payload".
-- **O4 — Performance budgets, CLI audience, roadmap order, AX two-angle split**: series 3.
+None. O1 (CodeMirror/ProseMirror) resolved as D22; O3 (Payload master copy) resolved as D23.
+
+One product-sequencing item was raised and answered but is not a docs decision: Andrew asked whether rich-view virtualization should be built now ("la performance doit être mise en place directement non ? … c'est compliqué ? ou long ? ou les deux ?"). Claude's answer, recorded in `BACKLOG.md` §Performance And Scale: both complicated and long (multi-week, high regression risk, among the hardest editor problems); deliberately sequenced after docs repair and the Payload path because near-term real documents are hundreds of lines and CI budgets already guard regressions; promote to a dedicated issue when the vault-app use case arrives.
 
 ## 3. Answers verbatim
 
@@ -135,7 +141,53 @@ Follow-up (série 2): « Ben ouais faut corriger ce truc de vanilla !! c'est sur
 
 > Question : the localization is not managed by the framework ? for exemple if i have a french and english icp for my product (as the mme founder and a dev that want to use mme or as a non technical using mme as his blog manager ou editor) ? it is as the i18n ? or another paid feature ?
 
-### Série 3 — pending
+### Série 3 (2026-08-04)
+
+**Q18 follow-up — lequel est meilleur, ESM ou CommonJS ?**
+
+> mais pour q18, c'est lequel est meilleur, tu n'as jamais été clair là dessus
+
+(Answer given: ESM, without ambiguity — see D14 and §7.)
+
+**Q21 — budgets de performance : garde-fous ou argument de vente ?**
+
+> Ben la performance est native non?
+
+**Q22 — le CLI : pour qui ?**
+
+> Ben les deux, genre l'agent c'est ce qui est le plus utilisé, et pour les non dev surtout. pour les devs jsp trop, ils se retrouveront quand la doc sera corrigé lol.
+
+**Q23 — le roadmap public montre-t-il la vraie trajectoire ?**
+
+> on montre, pour mme, c'est plus propre pour moi aussi.
+
+**Q24 — docs dans Payload vs Markdown canonique dans le repo ?**
+
+> je n'ai pas trop compris la question.
+
+(Re-asked in simpler terms; pending — see O3.)
+
+**Q25 — scinder l'AX en deux angles ?**
+
+> non quand je dis travailler avec les docs, c'est d'un côté c'est le setup de mme dans une app, et l'autre c'est il écrit des fichiers md mais jsp si c'est nécessaire de distinguer.
+
+**Q26 — localisation : dictionnaire FR, page publique, docs EN-only ?**
+
+> 1 oui, 2. oui, 3 yes, mais noter qq part.
+
+(Item "27." in Andrew's message was empty — assumed stray numbering.)
+
+### Clôture (2026-08-04)
+
+**O1/O3 — ratifications finales:**
+
+> option A, et ok pour proseMirror.
+
+**Performance follow-up:**
+
+> non mais la performance doit être mis en place directement non? au lieu d'attendre... c'est compliqué? ou long ? ou les deux ?
+
+(Answer: both — see §2 and `BACKLOG.md` §Performance And Scale.)
 
 ---
 
@@ -151,6 +203,7 @@ These are the places where the docs assert doctrine that no human decided. MME-0
 6. **ESM-only "none is planned"** — accidental, since ratified (D14).
 7. **CodeMirror/ProseMirror choice** — no owner rationale; recommendation pending ratification (O1).
 8. **Vault positioning rule "MME n'est pas une entité publique"** — superseded by D9; the vault file is now the outdated document, not the repo.
+9. **Performance-budget framing** — agent-authored prudence; Andrew's own model is simpler ("la performance est native non ?" — he assumes it should just be there). The framing survives because it is truthful, not because he wrote it (D17). Important correction recorded for future issues: performance is NOT automatic — very large documents need virtualization work the docs already admit to; the honest page protects him from claims he did not know he was making.
 
 ## 5. Per-page rewrite proposals (Andrew's voice — drafts for MME-0095)
 
@@ -198,7 +251,19 @@ House style: `concepts/theming.md`. Short declarative sentences, one stated valu
 - One honest paragraph (D11): who builds this, how (AI-assisted, gated), what help is most valuable (production-hardening review from experienced devs). Not repeated anywhere else.
 
 ### `roadmap.md`
-- Fix stale claims (ProseMirror "first spike", llms.txt "near-term" — already MME-0118 criteria). Pending series 3: reorder around the ratified use case (docs-site-on-MME, then Payload path).
+- Fix stale claims (ProseMirror "first spike", llms.txt "near-term" — already MME-0118 criteria).
+- Reorder to show the real trajectory (D19): docs-site published on MME → Payload host path → SEO/AEO pages managed by the framework → then mobile/VS Code/desktop adapters. "CMS and publishing integrations" moves from last to first among future work.
+- Add the "preserved today, rendered/edited next" line for wikilinks, Mermaid, LaTeX (per D3 follow-up): preservation shipped, rendering/editing planned — states the trajectory honestly instead of hiding the gap.
+
+### `concepts/performance.md`
+- Framing confirmed (D17): guardrails, not marketing claims. Keep Residual Risks. Only repair needed: stop pointing at the internal `performance-budgets.json` path (already an MME-0118 criterion).
+
+### `packages/md-cli.md` and `concepts/agentic-experience.md`
+- Open agent-first (D18): the CLI is primarily how coding agents inspect, validate, format, and safely write MME documents — often on behalf of non-developers; the developer usage follows. Fix the unrunnable `node packages/md-cli/dist/index.js` invocations to the shipped `mme` binary / `npx` (already an MME-0118 criterion).
+- `agentic-experience.md` stays one page (D20); it may name the two uses (integrating MME into an app; working inside MME documents) in one sentence each, without a structural split.
+
+### NEW page: `concepts/localization.md` (or a section in an existing Guides page)
+- Documents `MmeStrings` (D21): what it covers, how a host injects a translation, the shipped dictionaries (EN default + FR reference once it ships). One honest line: site docs are English-only for now, deliberately — recorded so it reads as a decision, not neglect.
 
 ## 6. Consolidated change list (Andrew asked for this document explicitly)
 
@@ -213,8 +278,10 @@ New backlog candidates (to add to `docs/internal/BACKLOG.md` when Andrew confirm
 
 5. **Hybrid command-ID typing** (`dx`): built-in command IDs become a typed union/const map exported by `md-editor`/`md-surface`; host/agent IDs stay open strings with the `host:` convention. Non-breaking. (D6)
 6. **Save-state simplification pass** (`research`): revisit the six-target taxonomy; keep the truth rule, reduce accidental complexity. (D4)
-7. **Reference localization dictionaries** (`dx`, `i18n`): document `MmeStrings` publicly; ship at least a French reference dictionary (Andrew's FR/EN ICP). Pending series 3. (O2)
-8. **Payload CMS docs-host decision** (`research`, blocked on Andrew): reconcile "canonical docs are plain `.md` in the repo" with "docs managed in Payload"; likely shape: Payload stores/round-trips real Markdown through MME contracts — which is the product's own pitch. Pending series 3. (O3)
+7. **Reference localization dictionaries** (`dx`, `i18n`): document `MmeStrings` publicly (new Localization page); ship a French reference dictionary in `md-surface`. Ratified (D21).
+8. **Payload CMS docs-host issue** (`research`): decided per D23 (Option A) — Payload is an editing surface over real `.md` content; Markdown stays canonical and exportable. The future Payload host issue inherits this as a hard constraint.
+8b. **Docs EN-only decision recorded visibly** (`docs`): one line in FAQ or CONTRIBUTING stating docs are English-only for now, deliberately (D21 — "yes, mais noter qq part").
+8c. **Roadmap trajectory reorder** (`docs`): per D19, fold into MME-0095's roadmap touch-up.
 
 Already done during the interview:
 
@@ -228,4 +295,5 @@ Outside this repo:
 
 - 2026-08-04 — Series 1 (Q1–Q10 + 2 annex items) asked and answered.
 - 2026-08-04 — Series 2 (Q11–Q20 + localization annex) asked and answered; this document created at Andrew's request ("construis-le dès maintenant").
-- Series 3 pending: performance budgets, CLI audience, roadmap order, Payload/docs tension, AX two-angle split, localization languages, CM/PM ratification.
+- 2026-08-04 — Series 3 (Q21–Q26 + Q18 follow-up) answered. ESM verdict given clearly: **ESM is the better format, full stop** — CommonJS exists only for backward compatibility with legacy consumers MME does not have.
+- 2026-08-04 — Closure: O1 ratified (D22, "ok pour proseMirror"), O3 ratified (D23, "option A"). Performance follow-up answered and parked in `BACKLOG.md`. **Interview complete; document final.**
