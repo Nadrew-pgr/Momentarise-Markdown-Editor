@@ -12432,3 +12432,14 @@ is precisely that these gates stayed green through defects a browser would show.
 ### Commit and push
 
 - Branch `mme-0125-attempt-1`, commit `0227983`. `main` is clean and unchanged.
+
+## Block D, MME-0125 attempt 1 review (human-side, Andrew's reviewer) — 2026-08-13
+
+- Scope: `ff75328` (revert + handoff); work preserved on branch `mme-0125-attempt-1` (`0227983`). `main` clean and pushed.
+- Verdict: the revert was correct. The attempt made the default React configuration **worse** than the regression it targeted — appending a permanent bubble host meant the rich host was never `:empty`, so in source mode a default React consumer got a transparent div swallowing every click meant for CodeMirror. Shipping that would have traded a missing affordance for a broken one.
+- The finding that matters beyond this issue: **no gate could see it, and the suite reported "all checks passed" straight through**, because every React test is jsdom and jsdom has no layout. Independently confirmed: no visual gate mounts `@momentarise/md-react` from the workspace; the only two gates touching React consume the published registry build. The primary documented path (interview decision D8) has never had a rendering proof.
+- Blocker resolved — **option 1: `apps/react-demo`**, a workspace-backed React host with its own registered visual gate. Rejected alternatives, with reasons recorded in the issue: restoring a workspace overlay in `examples/next-app` would trade the permanent drift gate MME-0102 deliberately created for a one-issue convenience; publishing first to verify after would ship an unverified binding through a human-gated step. Two apps, two jobs: `apps/react-demo` is the development proof, `examples/next-app` stays the adoption proof.
+- Attempt 2's acceptance gained five criteria from the attempt's own measurements: the three browser-only defects it could not see, the empty `visibleCommandGroups` (every surface command is gated on it, so mounting the bubble without fixing it renders an empty shell that satisfies "mounted" and gives the writer nothing), the React 19 fixture's capability probe that could never have run (`exports` declares only `"."`, so `import(".../package.json")` throws), and `test:react19-strictmode-lifecycle` being absent from the `npm test` chain.
+- Self-reported finding promoted to a rule: the builder's mutation round reported 6/6 while the Test Reviewer's refined matrix got 8 survivors against 3 kills on the same code — its mutants removed calls entirely rather than breaking them subtly. `AGENT.md` now requires the smallest change that would still ship (a wrong argument, a stale variable, an inverted guard) rather than deletion, which tests only that the code runs at all.
+- One reviewer claim recorded as wrong and protected from being "fixed" in attempt 2: the copy did not drop the demo's `todo_item` case.
+- Checks: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`. Push: pushed.

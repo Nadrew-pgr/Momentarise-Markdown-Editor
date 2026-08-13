@@ -613,6 +613,28 @@ Close the regression MME-0089 created for React consumers: turning the persisten
 - A reachability test asserts that every surface the default configuration is supposed to provide has a call site outside the demo — so this class cannot recur silently for the next component.
 - Mutation-proved; a mutant removing the mount must fail.
 
+
+**Blocker resolved 2026-08-13 (Andrew's reviewer). Attempt 1 was reverted correctly; attempt 2 starts with a browser gate, and that gate is option 1: a workspace-backed React host.**
+
+Verified: no visual gate mounts `@momentarise/md-react` from the workspace — the only two gates that touch React consume the published registry build. The React binding is the **primary documented path** (interview decision D8) and it has never had a rendering proof. That is a structural gap, and attempt 1 proved its cost: a permanent bubble host made the rich host never `:empty`, so a default React consumer in source mode got a transparent div swallowing every click meant for CodeMirror — and every React test is jsdom, which has no layout, so the suite reported "all checks passed" straight through it.
+
+Create `apps/react-demo`: a minimal workspace-backed React host mounting `MarkdownEditor` from the workspace packages, with its own registered visual gate. Two apps, two jobs, and conflating them is what created this trap:
+
+- `apps/react-demo` — development proof. Workspace packages, real browser, catches layout defects before they ship.
+- `examples/next-app` — adoption proof. Registry install, no overlay. Its whole purpose is catching workspace-versus-registry drift, which MME-0102 deliberately made possible; restoring an overlay there (option 2) would trade a permanent gate for a one-issue convenience, and publishing first to verify after (option 3) would ship an unverified binding.
+
+The new host is minimal by construction — it exists to be measured, not to be a second demo. Andrew's `apps/md-demo` remains the reference bench, and the public demo remains `MME-0110`'s `/demo` page.
+
+### Attempt 2 additional acceptance criteria
+
+- `apps/react-demo` exists, mounts the binding from workspace packages, is registered in `.claude/launch.json` and `scripts/visual-gates.mjs`, and its gate measures at 1280 / 768 / 390 in both schemes.
+- The gate proves, in a real browser, the three defects attempt 1 could not see: no overlay covering the source view in source mode, the bubble anchored in the correct coordinate space, and the turn-into menu staying inside the viewport.
+- `visibleCommandGroups` is not empty in the default configuration — attempt 1 found it was `[]`, and every surface command is gated on it, so mounting the bubble without changing that renders an empty shell that satisfies "the component is mounted" and gives the writer nothing.
+- The React 19 fixture's capability probe is repaired: `@momentarise/md-react`'s `exports` declares only `"."`, so `import(".../package.json")` throws `ERR_PACKAGE_PATH_NOT_EXPORTED` and that leg could never have run, before or after any republish.
+- `test:react19-strictmode-lifecycle` joins the `npm test` chain, or the reason it stays weekly-only is recorded.
+- Salvage from branch `mme-0125-attempt-1` (`0227983`) rather than rebuilding: the runtime `surfaces` capability contract, the `onRichViewReady` escape hatch, and the opt-out are sound.
+- One reviewer claim is recorded as **wrong** and must not be "fixed": the copy did not drop the demo's `todo_item` case.
+
 ### Test-first plan
 
 - RED: a React-binding test asserting the bubble mounts and applies a mark under a default configuration; fails today because nothing mounts it.
