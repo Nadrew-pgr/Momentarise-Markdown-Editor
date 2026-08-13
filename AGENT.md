@@ -214,6 +214,12 @@ A slice is not complete if it only looks implemented. It is complete only when i
 
 Do not satisfy an issue with a toy implementation that passes superficial checks but violates the framework goal. If the issue cannot be tested honestly, stop and ask for clarification.
 
+### A resurrected survivor means a lost assertion, not a flaky gate
+
+If a mutation round reports a survivor that a previous round killed, the assertion that killed it is gone. Look for a lost edit before suspecting flakiness: this has now happened twice, both times from a slice-and-replace across a line range that silently deleted neighbouring work — once in the block table, once inside a test file during the same session that added the assertions.
+
+Never edit by replacing a line range or a computed slice. Anchor every edit on unique surrounding text, and after any multi-edit pass re-read the region and confirm every intended change is present and nothing adjacent disappeared.
+
 ### Rebuild after mutation testing, before trusting any suite
 
 Gate scripts run against built `dist/`, not source. A mutation round leaves `dist/` in whatever state the last mutant produced, so a suite run straight after mutation can report a failure that exists only in stale build output — this has already cost one false diagnosis. Run the package build after any mutation round and before any suite run whose result you intend to report or act on.

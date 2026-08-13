@@ -128,7 +128,7 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | C3 | MME-0116 ✅ | Visual gate assertion repair; artifact policy | opus-5 | done 2026-08-12; quarantine emptied, `npm run visual` exits 0 |
 | C2e | MME-0115 ✅ (attempt 3) | Composition cancel — the attempt-2 design plus the package-side baseline rule | opus-5 / fable-5 | done 2026-08-12; cancel restores selection AND bytes, proven with real CDP IME and headlessly |
 | Cd | MME-0118 | Docs correctness repair (may run parallel, own branch) | sonnet-5 | Andrew follows the vanilla quickstart and it works |
-| D | MME-0089 ✅, 0125, 0090, 0091, 0105, 0106, 0124 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
+| D | MME-0089 ✅, 0125 ✅, 0090, 0091, 0105, 0106, 0124, 0126 | Interaction surfaces — the editor feels right | opus-4.8 | Andrew visual review of C+D |
 | D2 | MME-0107, 0108 | Markdown-native differentiators | opus-5 / fable-5 | Andrew judges syntax reveal before it defaults |
 | D3 | MME-0109 | Full-surface UX audit | opus-4.8 | Andrew reviews and appends |
 | E | MME-0098 | AI writing surface (BlockNote tier) | opus-5 / fable-5 | Andrew tries the AI flow |
@@ -595,6 +595,8 @@ Selection shows a full formatting bubble comparable to Notion.
 
 ## MME-0125 — Mount the selection bubble in the React binding
 
+**Status: SHIPPED (commit `d8eaf3e`, attempt 2). Do not re-implement.**
+
 ### Goal
 
 Close the regression MME-0089 created for React consumers: turning the persistent toolbar off by default, while the bubble is mounted only by the demo, leaves a default `@momentarise/md-react` install with **no formatting UI at all**.
@@ -659,6 +661,50 @@ React and Next.js hosts gain the formatting bubble they lost; the demo is unchan
 ### Blocked by
 
 - None. MME-0089 shipped the component.
+
+## MME-0126 — Overlay dismissal and command-source duplication in the React binding
+
+### Goal
+
+Close the two gaps MME-0125 attempt 2 shipped around: a bubble that a React host cannot dismiss, and command definitions living in three copies.
+
+### Defects (measured 2026-08-14, provenance: MME-0125 attempt 2 final report; verified independently — `SurfaceOverlayDismiss` has zero references in `packages/md-react/src/index.ts`)
+
+- **No dismissal path in the binding.** `Escape` and outside clicks do nothing in a React host; the bubble goes away only when the selection changes. The demo registers `createSurfaceOverlayDismissController`; the binding does not. Because MME-0125 turned the bubble on by default in a published package, this now ships to every React consumer — the same reachability pattern as MME-0125 itself, one layer along.
+- **The turn-into list exists in three copies**, and `richSurfaceSupport` re-implements four query helpers the demo already has. Both MME-0125 reviewers placed them in `md-rich-prosemirror`. Adding a tenth conversion today silently leaves two hosts computing nine.
+
+### Acceptance criteria
+
+- A default React mount dismisses the bubble on `Escape`, on outside pointer-down, on mode switch, and on editor blur — the same contract MME-0086 established, reached through the package rather than re-registered by each host.
+- Dismissal is StrictMode-safe on React 18 and 19: no listener retained across a double mount, no controller leaked on unmount. Both lifecycle suites gain a dismissal leg.
+- The turn-into conversion list and the four query helpers have exactly one definition, in `md-rich-prosemirror`; the demo and the binding consume it. A test asserts a single source — adding a conversion in one place must make it appear in every host, and a mutant adding one to a copy must fail.
+- `apps/react-demo`'s gate proves dismissal in a real browser at 1280 and 390: `Escape`, an outside click, and a mode switch each remove the bubble, and focus returns somewhere sane rather than to `<body>`.
+- Mutation-proved under the current rule: the smallest change that would still ship (a wrong event name, an un-removed listener, a stale controller reference), never a deleted registration.
+
+### Test-first plan
+
+- RED: a binding test asserting the bubble dismisses on each path; fails today because nothing registers a controller. A single-source test that fails while three copies exist.
+- GREEN: register the controller in the binding beside the bubble mount; hoist the conversion list and helpers.
+
+### Implementation notes
+
+Read first: `packages/md-react/src/index.ts` (the MME-0125 mount), `packages/md-surface/src/index.ts` (`createSurfaceOverlayDismissController`, `attachSurfaceOverlayDismissListeners` from MME-0086), `apps/md-demo/src/main.ts` for the reference registration this replaces as the only consumer, and the three conversion-list copies the MME-0125 reviewers located.
+
+### Visual impact
+
+The bubble closes when a React user presses `Escape` or clicks away, as it already does in the demo.
+
+### Out of scope
+
+- Bubble contents (MME-0089), formatting announcements (MME-0124), turn-into out of list items (MME-0105).
+
+### Execution model
+
+- Sequential; fresh context rebuild; Architecture Reviewer and Test Reviewer mandatory, read-only, frozen tree; builder model opus-4.8; human review: no.
+
+### Blocked by
+
+- None. MME-0125 (shipped) mounted the bubble; MME-0086 (shipped) built the dismissal contract.
 
 ## MME-0090 — Frontmatter properties panel in Rich mode
 
