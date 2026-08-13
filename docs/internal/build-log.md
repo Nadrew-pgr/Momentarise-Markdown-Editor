@@ -12605,3 +12605,22 @@ recorded in the gate's README rather than silently absorbed:
   there and did not. `README.md`, `docs/public/packages/md-react.md`,
   `llms.txt`/`llms-full.txt`/`docs/agent/*` regenerated.
 - `.claude/launch.json`, `scripts/visual-gates.mjs`, `package.json`.
+
+### Suites, commit, push
+
+- `npm test`: exit 0 on the committed tree. Two failures were fixed on the way:
+  stale generated artifacts (found by review), and the release-engineering gate
+  correctly refusing a new workspace package with no declared release status and
+  no README — both are gates working as intended on a new app.
+- `npm run visual`: **81/81 passed, 0 known-failing, 0 anomalies, 0 unexpected
+  failures, 5 not selected** (the opt-in `registry` and `theia` groups). The new
+  `reactDemo` group is in `DEFAULT_GROUPS`, so `visual:mme-0125` runs on every
+  laptop and CI invocation.
+- `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
+- Two files were restored rather than committed, neither this issue's:
+  `apps/docs-site/next-env.d.ts` (rewritten by a Next dev server) and
+  `docs/internal/visual-checks/MME-0086/measurements.json` (sub-pixel scroll
+  noise, 246.2256 → 246.0182 — the MME-0115 class, not the real 61px rebaseline
+  MME-0089 carried). A concurrent session also had `docs/internal/BACKLOG.md` and
+  a research document open; both were left untouched and unstaged.
+- Commit: `d8eaf3e`. Push: pushed to `origin/main`.
