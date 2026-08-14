@@ -1,9 +1,17 @@
 import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView as CodeMirrorEditorView } from "@codemirror/view";
 import {
+  addFrontmatterProperty,
+  createFrontmatterBlock,
   createMarkdownAstFormatter,
+  readFrontmatterBlock,
+  removeFrontmatterProperty,
+  renameFrontmatterProperty,
   roundTripMarkdown,
+  setFrontmatterPropertyType,
+  setFrontmatterPropertyValue,
   type FixtureRoundTripResult,
+  type FrontmatterEditResult,
   type FrontmatterRecord,
   type ParseResult
 } from "@momentarise/md-format";
@@ -85,6 +93,7 @@ import {
   getRichHeadingFoldItems,
   insertParagraphAfterCurrentBlock,
   reconfigureRichPlugins,
+  rebaseRichMarkdownSource,
   renameRichFootnoteIdentifier,
   matchRichSlashTrigger,
   reorderRichTopLevelBlock,
@@ -134,6 +143,7 @@ import {
   createFindReplaceSurface,
   createInlineAiPrompt,
   createModeControl,
+  createPropertiesPanel,
   createRichBlockControls,
   createSelectionBubbleToolbar,
   createSlashMenu,
@@ -141,6 +151,7 @@ import {
   createSurfaceViewportController,
   createToolbar,
   defaultMmeStrings,
+  surfacePropertyRowsFromFrontmatter,
   type SurfaceAiAction,
   type SurfaceAiAssistantState,
   type SurfaceAssetUploadState,
@@ -150,6 +161,7 @@ import {
   type SurfaceInlineAiPromptState,
   type SurfaceInlineAiPromptSubmitEvent,
   type SurfaceOverlayDismissReason,
+  type SurfacePropertiesState,
   type SurfaceRect,
   type SurfaceRichBlockControlsState,
   type SurfaceSelectionBubbleState,
@@ -284,6 +296,13 @@ app.innerHTML = `
         <div class="live-preview-banner" data-testid="live-preview-banner" hidden>
           Live Preview · rendered while editing · Markdown source syncs instantly
         </div>
+        <!--
+          MME-0090: the Properties panel is part of the editing surface, above
+          the document title, exactly where Obsidian puts it. It is a sibling of
+          the rich host rather than a child, because the rich host is the
+          ProseMirror content element and frontmatter is not in that document.
+        -->
+        <div data-testid="properties-surface-host" hidden></div>
         <div class="rich-editor-host" data-testid="rich-editor-host" hidden></div>
         <!--
           MME-0086: the block-controls host sits AFTER the editing surfaces so that
@@ -461,6 +480,7 @@ const referenceEditorShell = queryRequired<HTMLElement>('[data-testid="reference
 const editorHost = queryRequired<HTMLDivElement>("[data-editor-host]");
 const editorRegion = queryRequired<HTMLDivElement>(".editor-region");
 const richEditorHost = queryRequired<HTMLDivElement>('[data-testid="rich-editor-host"]');
+const propertiesSurfaceHost = queryRequired<HTMLDivElement>('[data-testid="properties-surface-host"]');
 const livePreviewBanner = queryRequired<HTMLDivElement>('[data-testid="live-preview-banner"]');
 const markdownReadHost = queryRequired<HTMLDivElement>('[data-testid="markdown-read-host"]');
 const markdownReadBanner = queryRequired<HTMLDivElement>('[data-testid="markdown-read-banner"]');
@@ -611,6 +631,21 @@ let modeControlSurface: ReturnType<typeof createModeControl> | null = null;
 let dismissedSlashTriggerFrom: number | null = null;
 
 let richBlockControlsSurface: ReturnType<typeof createRichBlockControls> | null = null;
+/*
+ * MME-0090: declared with the other surface handles, not beside its own render
+ * function. `renderEditorMode()` runs during module initialization and reaches
+ * `renderPropertiesSurface()`, so a declaration further down the file is still
+ * in its temporal dead zone at that point — which is exactly what the first
+ * browser load reported, while every jsdom assertion stayed green.
+ */
+let propertiesSurface: ReturnType<typeof createPropertiesPanel> | null = null;
+/*
+ * Module state, for the same reason as `propertiesSurface` above: the panel's
+ * render runs during module initialization, so anything it reads must already be
+ * initialized. This is the second temporal-dead-zone defect in this slice, and
+ * both were invisible to jsdom and instant in a browser.
+ */
+let propertiesRefusal: { readonly index: number; readonly message: string } | null = null;
 let selectionBubbleSurface: ReturnType<typeof createSelectionBubbleToolbar> | null = null;
 let slashMenuSurface: ReturnType<typeof createSlashMenu> | null = null;
 let detachOverlayDismissListeners: (() => void) | null = null;
@@ -858,6 +893,22 @@ function registerReferenceExtensions(editorSession: MarkdownEditorSession): void
       });
       return {
         handled: true
+      };
+    }
+  });
+  /*
+   * MME-0090: the only way to create a frontmatter block from the block insert
+   * menu. It is deliberately an explicit action — nothing writes a YAML block
+   * into a document the writer did not ask to have one.
+   */
+  editorSession.extensions.registerSlashItem({
+    aliases: ["properties", "frontmatter", "yaml", "metadata"],
+    group: "insert",
+    id: "host:add-properties",
+    labelKey: "extensions.hostAddProperties",
+    run() {
+      return {
+        handled: createFrontmatterBlockFromHost()
       };
     }
   });
@@ -1653,6 +1704,16 @@ function mountReferenceSurfaceComponents(): void {
   richBlockControlsSurface?.destroy();
   inlineAiPromptSurface?.destroy();
   editorAiSurface?.destroy();
+  /*
+   * MME-0090: opening a document destroys and recreates the session, and every
+   * surface with it. The Properties panel tears itself down on the session's
+   * `destroy` event, so the handle has to be cleared here too — otherwise the
+   * next render calls `setState` on a component whose root is already detached,
+   * and the panel silently never comes back. Measured in a real browser: the
+   * host was visible with zero children after loading a second file.
+   */
+  propertiesSurface?.destroy();
+  propertiesSurface = null;
 
   richBlockControlsSurface = createRichBlockControls({
     host: richBlockControlsHost,
@@ -1881,6 +1942,7 @@ function mountReferenceSurfaceComponents(): void {
   });
   editorAiAssistantPanel = editorAiSurface.root as HTMLDivElement;
   editorAiStatusElement = queryRequired<HTMLElement>('[data-testid="editor-ai-status"]');
+  renderPropertiesSurface();
 }
 
 function surfacePreferences(): {
@@ -3775,6 +3837,7 @@ function renderEditorMode(): void {
     renderHtmlPreview();
   }
   renderRichFoldingUi();
+  renderPropertiesSurface();
   renderReferenceSurfaceState();
 }
 
@@ -4569,6 +4632,21 @@ function renderSelectionBubbleToolbar(): void {
    * The panel is dismissed by Escape, by Cancel, by submitting, or by a pointer
    * outside the bubble — all explicit. It is not dismissed by a repaint.
    */
+  /*
+   * The slash menu and the selection bubble are mutually exclusive: one is a
+   * block-insertion affordance, the other acts on an inline selection, and a
+   * writer cannot be doing both. This is a predicate rather than a one-shot
+   * hide because the bubble is derived from the live selection and re-renders
+   * on every repaint — hiding it once let the next render bring it straight
+   * back. Measured at 390 once MME-0090's Properties panel shifted the note
+   * down: the bubble landed *underneath* the slash menu and the MME-0045 mobile
+   * gate caught it as pointer-unreachable. The overlap was always possible; the
+   * panel only moved the geometry far enough to expose it.
+   */
+  if (slashCommandState.open) {
+    hideSelectionBubbleToolbar();
+    return;
+  }
   const nextState = setSelectionBubbleSurfaceState();
   const panelOpen = selectionBubbleLinkOpen || selectionBubbleTurnIntoOpen;
   if (!nextState.visible && !panelOpen) {
@@ -4827,7 +4905,10 @@ function sourcePreferencesFromReferenceSurface(): MomentariseSourcePreferences {
 function richPreferencesFromReferenceSurface(): MomentariseRichPreferences {
   return {
     keymapDelegateToHost: referenceSurfacePreferences.keymapDelegateToHost,
-    keymapProfile: referenceSurfacePreferences.keymapProfile
+    keymapProfile: referenceSurfacePreferences.keymapProfile,
+    // MME-0090: `---` typed at the very start of the document creates the
+    // Properties block. Only the host can, because the block is not in the doc.
+    onFrontmatterBlockRequested: () => createFrontmatterBlockFromHost()
   };
 }
 
@@ -4980,6 +5061,7 @@ function mountRichEditor(markdown: string): void {
   renderRichFoldingUi(false);
   positionDetachedFoldToggles();
   renderSelectionBubbleToolbar();
+  renderPropertiesSurface();
   refreshFindMatches();
 }
 
@@ -5777,6 +5859,9 @@ function closedSlashCommandState(): SlashCommandState {
 }
 
 function renderSlashMenu(): void {
+  if (slashCommandState.open && !selectionBubbleToolbar.hidden) {
+    hideSelectionBubbleToolbar();
+  }
   slashMenuSurface?.setState(surfaceSlashState());
   positionSlashMenu();
 }
@@ -6849,12 +6934,213 @@ function setPropertiesDisplayMode(mode: PropertiesDisplayMode): void {
     logEvent(`Properties panel switched to ${mode} mode.`);
     return;
   }
+  renderPropertiesSurface();
   renderPropertiesPanel(
     markdownAstFormatter.parse(getMarkdown(), {
       dialect: "momentarise-enhanced"
     })
   );
   logEvent(`Properties panel switched to ${mode} mode.`);
+}
+
+/* ---------------------------------------------------------------------------
+ * MME-0090 — the frontmatter Properties panel.
+ *
+ * The demo is the reference host, so it owns the document and the panel owns
+ * nothing: every interaction comes back here as an intent, is turned into a
+ * positional splice by `@momentarise/md-format`, and is applied to the source of
+ * truth. The panel is then re-rendered from the new bytes, which is also what
+ * makes a refusal visible — a complex value simply never changes.
+ * ------------------------------------------------------------------------- */
+
+function propertiesPanelVisible(): boolean {
+  return activeDocument.kind === "markdown" && isRichEditingMode();
+}
+
+function propertiesSurfaceState(): SurfacePropertiesState {
+  const model = propertiesPanelVisible() ? readFrontmatterBlock(getMarkdown()) : null;
+  return {
+    display: propertiesDisplayMode,
+    present: Boolean(model),
+    properties: surfacePropertyRowsFromFrontmatter(model),
+    refusal: propertiesRefusal,
+    source: model?.raw ?? ""
+  };
+}
+
+function renderPropertiesSurface(): void {
+  propertiesSurfaceHost.hidden = !propertiesPanelVisible();
+  /*
+   * The panel lives INSIDE the rich host, above the ProseMirror element.
+   *
+   * The rich host is the scroller (MME-0119/0125), so a panel that is a sibling
+   * of it is pinned chrome: measured at 390 with the ten-property fixture, the
+   * last rows sat at y=1552 in an 844px viewport with nothing able to scroll
+   * them into view, and `elementFromPoint` returned nothing at all for the
+   * "Edit in Source" control. Inside the scroller the panel scrolls with the
+   * note, which is also how Obsidian's own Properties block behaves.
+   *
+   * `mountRichEditor` clears the host, so the host element is re-attached here
+   * rather than left in the static markup.
+   */
+  if (richEditorHost.firstChild !== propertiesSurfaceHost) {
+    richEditorHost.prepend(propertiesSurfaceHost);
+  }
+  if (!propertiesSurface) {
+    propertiesSurface = createPropertiesPanel({
+      host: propertiesSurfaceHost,
+      icons: defaultIconSet,
+      onAddProperty() {
+        addPropertyFromPanel();
+      },
+      onChangeDisplay(display) {
+        setPropertiesDisplayMode(display);
+      },
+      onChangeType({ index, propertyType }) {
+        applyFrontmatterEdit(
+          setFrontmatterPropertyType(getMarkdown(), index, propertyType),
+          `Changed property type to ${propertyType}.`,
+          index
+        );
+      },
+      onChangeValue({ index, value }) {
+        applyFrontmatterEdit(
+          setFrontmatterPropertyValue(getMarkdown(), index, value),
+          "Edited a document property.",
+          index
+        );
+      },
+      onEditInSource({ index }) {
+        const model = readFrontmatterBlock(getMarkdown());
+        const entry = model?.entries[index];
+        switchEditorMode("source");
+        if (entry) {
+          editor.dispatch({
+            scrollIntoView: true,
+            selection: { anchor: entry.keyRange.from, head: entry.entryRange.to - 1 }
+          });
+          editor.focus();
+          logEvent(`Opened "${entry.key}" in source mode; its value is outside the editable subset.`);
+        }
+      },
+      onRemoveProperty({ index }) {
+        applyFrontmatterEdit(
+          removeFrontmatterProperty(getMarkdown(), index),
+          "Deleted a document property.",
+          index
+        );
+      },
+      onRenameProperty({ index, key }) {
+        applyFrontmatterEdit(
+          renameFrontmatterProperty(getMarkdown(), index, key),
+          `Renamed a property to "${key}".`,
+          index
+        );
+      },
+      preferences: surfacePreferences(),
+      session,
+      state: propertiesSurfaceState(),
+      strings: defaultMmeStrings
+    });
+    return;
+  }
+  propertiesSurface.setState(propertiesSurfaceState());
+}
+
+function addPropertyFromPanel(): void {
+  const model = readFrontmatterBlock(getMarkdown());
+  if (!model) {
+    return;
+  }
+  const existing = new Set(model.entries.map((entry) => entry.key));
+  let candidate = "property";
+  let suffix = 1;
+  while (existing.has(candidate)) {
+    suffix += 1;
+    // Hyphenated, not spaced: the writer renames this immediately, and
+    // `property 2` is an odd default to hand them.
+    candidate = `property-${suffix}`;
+  }
+  const added = applyFrontmatterEdit(
+    addFrontmatterProperty(getMarkdown(), { key: candidate, value: "" }),
+    `Added the property "${candidate}".`
+  );
+  if (!added) {
+    return;
+  }
+  /*
+   * Focus the new property's name so it can be typed over straight away — and so
+   * focus stays inside the panel, which is what keeps the panel-scoped `⌘;`
+   * shortcut usable a second time instead of dying at `<body>`.
+   */
+  propertiesSurface?.focusProperty(readFrontmatterBlock(getMarkdown())!.entries.length - 1, "property-key");
+}
+
+/**
+ * The `---` input rule and the block insert menu both land here. Creating the
+ * block is always an explicit action: nothing in this demo writes a frontmatter
+ * block into a document on its own.
+ */
+function createFrontmatterBlockFromHost(): boolean {
+  if (activeDocument.kind !== "markdown") {
+    return false;
+  }
+  /*
+   * A document that already has a block declines QUIETLY. This path is reached
+   * by typing `---`, and a writer doing that in a note with frontmatter meant a
+   * horizontal rule — which is what they then get. Routing the refusal through
+   * `applyFrontmatterEdit` popped an error notice at them for an action that
+   * succeeded, just not the way the panel would have done it.
+   */
+  if (readFrontmatterBlock(getMarkdown())) {
+    return false;
+  }
+  return applyFrontmatterEdit(createFrontmatterBlock(getMarkdown()), "Created a properties block.");
+}
+
+function applyFrontmatterEdit(
+  result: FrontmatterEditResult,
+  description: string,
+  propertyIndex: number | null = null
+): boolean {
+  if (result.refusal) {
+    /*
+     * The refusal is attached to the row that caused it, not only to the page
+     * notice: at 390 the rows sit a thousand pixels below the notice strip, so a
+     * writer who typed a duplicate key saw the field silently revert with the
+     * explanation painted off screen.
+     */
+    propertiesRefusal = propertyIndex === null ? null : { index: propertyIndex, message: result.refusal.message };
+    setEditorNotice(result.refusal.message);
+    logEvent(`Property edit refused: ${result.refusal.message}`);
+    renderPropertiesSurface();
+    return false;
+  }
+  propertiesRefusal = null;
+  if (!result.splice) {
+    return false;
+  }
+  clearEditorNotice();
+  const markdown = result.content;
+  /*
+   * The rich document does not contain the frontmatter, but the targeted
+   * serializer reads byte offsets out of the state's source. Rebasing keeps the
+   * ProseMirror document and its undo history while moving those offsets, which
+   * a remount would throw away and a stale state would corrupt.
+   */
+  if (isRichEditingMode()) {
+    richState = rebaseRichMarkdownSource(richState, result.splice);
+  }
+  richBaselineMarkdown = markdown;
+  replaceEditorDocument(markdown);
+  session.setContent(markdown, "host");
+  refreshFindMatches();
+  persistRestorableDocument();
+  renderSaveState();
+  updateRoundTripStatus();
+  renderPropertiesSurface();
+  logEvent(description);
+  return true;
 }
 
 function renderPropertiesPanel(parseResult: ParseResult): void {

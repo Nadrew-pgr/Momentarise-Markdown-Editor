@@ -168,6 +168,16 @@ export type IconName =
   | "heading3"
   | "orderedList"
   | "list"
+  /*
+   * MME-0090: the frontmatter Properties panel puts a clickable type icon on
+   * every row, so the six benchmark value types each need a glyph that reads at
+   * 16px. `list` covers the list type; these five cover the rest.
+   */
+  | "propertyText"
+  | "propertyNumber"
+  | "propertyCheckbox"
+  | "propertyDate"
+  | "propertyDatetime"
   | "todo"
   | "quote"
   | "heading"
@@ -725,6 +735,13 @@ const DEFAULT_ICON_SVG: Readonly<Record<IconName, string>> = {
   strikethrough: `<svg ${ICON_BASE}><path d="M2.6 8h10.8"/><path d="M11.4 4.6C10.7 3.6 9.5 3 8 3 6.2 3 4.9 3.9 4.9 5.3c0 .9.5 1.6 1.5 2.1"/><path d="M4.9 11.2c.7 1.1 1.9 1.8 3.4 1.8 1.9 0 3.2-.9 3.2-2.3 0-.9-.4-1.6-1.2-2.1"/></svg>`,
   code: `<svg ${ICON_BASE}><path d="m6 5-3 3 3 3"/><path d="m10 5 3 3-3 3"/></svg>`,
   list: `<svg ${ICON_BASE}><path d="M6 4h7"/><path d="M6 8h7"/><path d="M6 12h7"/><path d="M3.2 4h.1"/><path d="M3.2 8h.1"/><path d="M3.2 12h.1"/></svg>`,
+  // MME-0090: property type glyphs. Each one has to be distinguishable from the
+  // other five at 16px, because it is the only thing naming the row's type.
+  propertyText: `<svg ${ICON_BASE}><path d="M3 4.5V3.5h10v1"/><path d="M8 3.5v9"/><path d="M6 12.5h4"/></svg>`,
+  propertyNumber: `<svg ${ICON_BASE}><path d="M6.2 3 4.8 13"/><path d="M11.2 3 9.8 13"/><path d="M3.2 6.2h10"/><path d="M2.8 9.8h10"/></svg>`,
+  propertyCheckbox: `<svg ${ICON_BASE}><rect x="2.8" y="2.8" width="10.4" height="10.4" rx="2.4"/><path d="m5.4 8.1 1.9 1.9 3.5-3.9"/></svg>`,
+  propertyDate: `<svg ${ICON_BASE}><rect x="2.5" y="3.4" width="11" height="10.1" rx="1.8"/><path d="M2.5 6.6h11"/><path d="M5.6 2.2v2.3"/><path d="M10.4 2.2v2.3"/></svg>`,
+  propertyDatetime: `<svg ${ICON_BASE}><path d="M13.5 8.2V5.2a1.8 1.8 0 0 0-1.8-1.8H4.3a1.8 1.8 0 0 0-1.8 1.8v6.3a1.8 1.8 0 0 0 1.8 1.8h3.4"/><path d="M2.5 6.6h11"/><circle cx="11.4" cy="11.4" r="3.1"/><path d="M11.4 9.9v1.6l1.1.7"/></svg>`,
   todo: `<svg ${ICON_BASE}><rect x="2.8" y="3" width="10.4" height="10" rx="2"/><path d="m5.2 8.2 1.8 1.8 3.8-4"/></svg>`,
   quote: `<svg ${FILL_ICON_BASE}><path d="M6.2 4.2C4.1 5 3 6.7 3 9.3V12h4.2V7.8H5.1c.1-1 .7-1.8 1.8-2.4z"/><path d="M12.6 4.2C10.5 5 9.4 6.7 9.4 9.3V12h4.2V7.8h-2.1c.1-1 .7-1.8 1.8-2.4z"/></svg>`,
   heading: `<svg ${ICON_BASE}><path d="M3 3v10"/><path d="M11 3v10"/><path d="M3 8h8"/><path d="M13 6v7"/></svg>`,

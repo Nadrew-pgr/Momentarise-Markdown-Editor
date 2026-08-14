@@ -137,12 +137,29 @@ const PARITY_ROWS = [
     requires: ["blockquote"],
     typed: "> Quote"
   },
+  /*
+   * REBASELINED BY MME-0090.
+   *
+   * `---` typed in the document's FIRST block no longer produces a thematic
+   * break: it creates the frontmatter Properties block, which is the fourth
+   * interaction in Obsidian's Properties contract and an explicit MME-0090
+   * acceptance criterion ("typing `---` at the start of the file creating the
+   * block. Match this interaction set."). Every row here types into an empty
+   * document, so this row types into the first block by construction.
+   *
+   * The thematic-break rule itself is unchanged and still covered: the
+   * `thematic-break-asterisks` row below types `***` in the same position and
+   * still serializes to the canonical `---\n`, so a leading horizontal rule
+   * remains reachable and the `hr` node is still asserted. In any block other
+   * than the first, `---` behaves exactly as it always did — proven in
+   * `tests/rich-frontmatter-properties.test.mjs` ("`---` in a later block is a
+   * horizontal rule, and must not ask").
+   */
   {
-    benchmark: "same as benchmark",
-    id: "thematic-break",
-    markdown: "---\n",
-    note: "`---` alone on a line.",
-    requires: ["hr"],
+    benchmark: "intentionally different",
+    id: "frontmatter-block",
+    markdown: "---\ntitle: \n---\n\n\n",
+    note: "`---` in the document's first block creates the Properties block (MME-0090).",
     typed: "---"
   },
   {

@@ -87,10 +87,10 @@
       "typed": "> Quote"
     },
     {
-      "benchmark": "same as benchmark",
-      "id": "thematic-break",
-      "markdown": "---\n",
-      "note": "`---` alone on a line.",
+      "benchmark": "intentionally different",
+      "id": "frontmatter-block",
+      "markdown": "---\ntitle: \n---\n\n\n",
+      "note": "`---` in the document's first block creates the Properties block (MME-0090).",
       "typed": "---"
     },
     {

@@ -13,6 +13,9 @@
       "path": "../md-editor"
     },
     {
+      "path": "../md-format"
+    },
+    {
       "path": "../md-save"
     },
     {

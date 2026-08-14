@@ -269,6 +269,16 @@ export interface MomentariseRichPreferences {
   readonly inputRules?: RichInputRulesPreference;
   readonly keymapDelegateToHost?: boolean;
   readonly keymapProfile?: "default" | "delegate" | "minimal";
+  /*
+   * MME-0090: Obsidian creates the Properties block when `---` is typed at the
+   * very start of a note, and the benchmark contract is the interaction set, not
+   * just the panel. The rule ships in the default set, but the frontmatter block
+   * lives outside the ProseMirror document, so only the host can create it —
+   * this callback is that sink. It returns true when the block was created; a
+   * host without a frontmatter surface leaves it unset and `---` still becomes a
+   * horizontal rule, as it always did.
+   */
+  readonly onFrontmatterBlockRequested?: () => boolean;
 }
 
 /**
@@ -822,6 +832,92 @@ export function createRichMarkdownState(
     schema,
     source
   };
+}
+
+export interface RichSourceSplice {
+  readonly from: number;
+  readonly replacement: string;
+  readonly to: number;
+}
+
+/**
+ * MME-0090 — adopt a byte splice made *outside* the ProseMirror document.
+ *
+ * Frontmatter is not mapped into the rich document: the state keeps the block
+ * aside, and the targeted serializer slices every inter-block gap out of
+ * `state.source` using offsets recorded in `state.parseResult`. Change the
+ * block's length behind that state's back and every one of those offsets is
+ * stale by exactly the delta — so the next body edit serializes gaps from the
+ * wrong byte positions. That is silent Markdown corruption arriving through the
+ * Properties panel, which is why this exists rather than a remount: the
+ * ProseMirror document, its selection, and its undo history are all preserved.
+ *
+ * The splice must lie inside the leading frontmatter block (or be an insertion
+ * at offset 0, which is how the block is created). A splice reaching into the
+ * body is a programming error and throws: those bytes belong to the document,
+ * and applying them here would put the two representations out of sync.
+ */
+export function rebaseRichMarkdownSource(state: RichMarkdownState, splice: RichSourceSplice): RichMarkdownState {
+  if (splice.from < 0 || splice.to < splice.from || splice.to > state.source.length) {
+    throw new RangeError(`rebaseRichMarkdownSource received an out-of-range splice ${splice.from}..${splice.to}.`);
+  }
+  const boundary = leadingFrontmatterEndOffset(state.source);
+  if (splice.to > boundary) {
+    throw new RangeError(
+      `rebaseRichMarkdownSource accepts frontmatter splices only (block ends at ${boundary}, splice ends at ${splice.to}); the ProseMirror document owns the body bytes.`
+    );
+  }
+  const nextSource = `${state.source.slice(0, splice.from)}${splice.replacement}${state.source.slice(splice.to)}`;
+  const parseResult = createMarkdownAstFormatter().parse(nextSource, {
+    dialect: state.parseResult.document.dialect
+  });
+  const frontmatterSource = extractLeadingFrontmatterSource(nextSource);
+  /*
+   * The footnote insertion baseline is a snapshot of the same bytes taken
+   * earlier; it only stays a valid baseline if it receives the same splice.
+   * Leaving it stale would reintroduce the old block on the next footnote
+   * insertion. It is only spliced when it really does carry the replaced bytes.
+   */
+  const baseline = state.footnoteInsertionBaseSource;
+  const nextBaseline =
+    baseline !== undefined && baseline.slice(splice.from, splice.to) === state.source.slice(splice.from, splice.to)
+      ? `${baseline.slice(0, splice.from)}${splice.replacement}${baseline.slice(splice.to)}`
+      : baseline;
+  return {
+    diagnostics: state.diagnostics,
+    editorState: state.editorState,
+    ...(nextBaseline !== undefined ? { footnoteInsertionBaseSource: nextBaseline } : {}),
+    ...(frontmatterSource ? { frontmatterSource } : {}),
+    parseResult,
+    schema: state.schema,
+    source: nextSource
+  };
+}
+
+/** End offset of the leading `---` block, terminator included; 0 when there is none. */
+function leadingFrontmatterEndOffset(source: string): number {
+  const opening = /^---[ \t]*\r?\n/.exec(source);
+  if (!opening) {
+    return 0;
+  }
+  let cursor = opening[0].length;
+  while (cursor < source.length) {
+    const newlineIndex = source.indexOf("\n", cursor);
+    const lineEnd = newlineIndex === -1 ? source.length : newlineIndex + 1;
+    const text = source.slice(cursor, newlineIndex === -1 ? source.length : newlineIndex).replace(/\r$/, "");
+    /*
+     * `---` only. `...` is a YAML document-end marker that remark-frontmatter
+     * does NOT accept as a closing fence, so those bytes are inside the
+     * ProseMirror document. Accepting it here let a splice through the guard
+     * whose entire purpose is to refuse body splices — measured: the edit landed
+     * in `state.source` and the next serialization silently reverted it.
+     */
+    if (/^---[ \t]*$/.test(text)) {
+      return lineEnd;
+    }
+    cursor = lineEnd;
+  }
+  return 0;
 }
 
 export function reconfigureRichPlugins(
@@ -2713,7 +2809,8 @@ function normalizeRichPreferences(preferences: MomentariseRichPreferences = {}):
       extend: preferences.inputRules?.extend ?? []
     },
     keymapDelegateToHost: preferences.keymapDelegateToHost ?? false,
-    keymapProfile: preferences.keymapProfile ?? "default"
+    keymapProfile: preferences.keymapProfile ?? "default",
+    onFrontmatterBlockRequested: preferences.onFrontmatterBlockRequested ?? null
   };
 }
 
@@ -6420,6 +6517,7 @@ interface NormalizedRichPreferences {
   };
   readonly keymapDelegateToHost: boolean;
   readonly keymapProfile: "default" | "delegate" | "minimal";
+  readonly onFrontmatterBlockRequested: (() => boolean) | null;
 }
 
 /** Ids of the built-in Markdown-as-you-type rules, in evaluation order. */
@@ -6435,6 +6533,7 @@ export const richInputRuleIds = [
   "bulletList",
   "orderedList",
   "blockquote",
+  "frontmatterBlock",
   "horizontalRule",
   "codeFence"
 ] as const;
@@ -6852,7 +6951,7 @@ function isPastedLinkUrl(value: string): boolean {
 }
 
 function createRichInputRulesPlugin(preferences: NormalizedRichPreferences): Plugin {
-  const rules = resolveRichInputRules(preferences.inputRules);
+  const rules = resolveRichInputRules(preferences);
   return new Plugin<RichInputRulesPluginState | null>({
     appendTransaction(transactions, _oldState, state) {
       if (transactions.some((transaction) => transaction.getMeta(richInputRulesPluginKey))) {
@@ -7653,7 +7752,7 @@ function mergeAdjacentListItems(
  * character before the match is `*`. Removing the boundary check fails nine
  * cases; reordering these two fails none.
  */
-function defaultRichInputRules(): readonly RichInputRuleDefinition[] {
+function defaultRichInputRules(preferences: NormalizedRichPreferences): readonly RichInputRuleDefinition[] {
   return [
     {
       id: "listTodo",
@@ -7755,6 +7854,29 @@ function defaultRichInputRules(): readonly RichInputRuleDefinition[] {
       run: ({ match, state }) =>
         applyBlockInputRule(state, { kind: "blockquote", prefixLength: match[0].length })
     },
+    /*
+     * Ordered before `horizontalRule` deliberately: on the document's first
+     * block `---` means "start the Properties block", and everywhere else it
+     * still means a horizontal rule. The rule falls through when the host has no
+     * frontmatter sink, or when the sink refuses (a block already exists).
+     */
+    {
+      id: "frontmatterBlock",
+      match: /^---$/u,
+      requiresParagraph: true,
+      run: ({ match, state }) => {
+        if (!preferences.onFrontmatterBlockRequested) {
+          return null;
+        }
+        const caret = state.selection.from;
+        const blockStart = state.doc.resolve(caret).start();
+        // Only the document's very first top-level block, which starts at 1.
+        if (blockStart !== 1 || !preferences.onFrontmatterBlockRequested()) {
+          return null;
+        }
+        return state.tr.delete(caret - match[0].length, caret).setMeta(richInputRulesPluginKey, true);
+      }
+    },
     {
       id: "horizontalRule",
       match: /^(?:---|\*\*\*|___)$/u,
@@ -7776,11 +7898,21 @@ function defaultRichInputRules(): readonly RichInputRuleDefinition[] {
   ];
 }
 
-function resolveRichInputRules(
-  preference: NormalizedRichPreferences["inputRules"]
-): readonly RichInputRuleDefinition[] {
+function resolveRichInputRules(preferences: NormalizedRichPreferences): readonly RichInputRuleDefinition[] {
+  const preference = preferences.inputRules;
   const disabled = new Set(preference.disable);
-  return [...preference.extend, ...defaultRichInputRules()].filter((rule) => !disabled.has(rule.id));
+  /*
+   * MME-0090: `frontmatterBlock` is only in the rule set when its sink is. An
+   * enabled rule that can never fire is an inert affordance — the writer types
+   * `---` at the start of the note, expects a Properties block, gets nothing,
+   * and has no way to know why. Gating on the sink means the rule activates by
+   * itself the moment a host provides one, without anyone remembering to
+   * re-enable it.
+   */
+  if (!preferences.onFrontmatterBlockRequested) {
+    disabled.add("frontmatterBlock");
+  }
+  return [...preference.extend, ...defaultRichInputRules(preferences)].filter((rule) => !disabled.has(rule.id));
 }
 
 /**

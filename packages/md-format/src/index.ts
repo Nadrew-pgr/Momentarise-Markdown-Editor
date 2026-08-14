@@ -1992,3 +1992,1030 @@ export type {
   SerializeResult,
   SourceRange
 } from "@momentarise/md-core";
+
+/* ===========================================================================
+ * MME-0090 — positional YAML frontmatter model.
+ *
+ * Lives in this file rather than its own module because the docs site resolves
+ * `@momentarise/md-format` straight to `src/index.ts` through the workspace
+ * `paths` mapping, and Turbopack does not apply TypeScript's `.js` -> `.ts`
+ * import rewriting: a `./frontmatter.js` specifier failed the docs-site build
+ * with "Module not found" while `tsc` and every other consumer were happy.
+ *
+ * This exists so the Properties panel can edit frontmatter *without a YAML round
+ * trip*. Parsing the block with a YAML library and re-dumping it is the obvious
+ * implementation and it is forbidden here: it silently reorders keys, drops
+ * comments, expands anchors, renormalises every quote, and rewrites bytes the
+ * user never touched. AGENT.md calls that "full-document normalization presented
+ * as preservation", and it is the single most expensive defect class this
+ * project has.
+ *
+ * So every operation below is a *splice*: a byte range taken from the block's
+ * own text plus a replacement string. Bytes outside that range are never seen,
+ * let alone rewritten. A value the scanner does not fully understand — a nested
+ * map, a block scalar, an anchor, an alias, a tag, a value carrying a trailing
+ * comment — is not edited at all. It is reported as read-only with a reason, and
+ * the panel points the writer at Source mode.
+ *
+ * The scanner deliberately understands a *subset* of YAML. Everything outside
+ * that subset must fall into the read-only bucket rather than be guessed at,
+ * because a wrong guess here writes to the user's file.
+ * ======================================================================== */
+
+export type FrontmatterPropertyType = "checkbox" | "date" | "datetime" | "list" | "number" | "text";
+
+export type FrontmatterPropertyValue = string | number | boolean | readonly string[] | null;
+
+export type FrontmatterReadOnlyReason =
+  | "anchor-or-tag"
+  | "block-scalar"
+  | "inline-comment"
+  | "nested-map"
+  | "unsupported-value";
+
+export type FrontmatterRefusalCode =
+  | "complex-value"
+  | "duplicate-key"
+  | "frontmatter-exists"
+  | "invalid-key"
+  | "no-frontmatter"
+  | "unknown-property";
+
+export interface TextSpan {
+  readonly from: number;
+  readonly to: number;
+}
+
+export interface FrontmatterPropertyEntry {
+  /** False when the value must be edited in Source mode instead. */
+  readonly editable: boolean;
+  /** The whole property, first line through the last line's terminator. Removal splices this. */
+  readonly entryRange: TextSpan;
+  readonly index: number;
+  readonly key: string;
+  readonly keyRange: TextSpan;
+  /** Everything after the colon, exactly as authored. */
+  readonly rawValue: string;
+  readonly reason: FrontmatterReadOnlyReason | null;
+  readonly type: FrontmatterPropertyType;
+  readonly value: FrontmatterPropertyValue;
+  /** From just after the colon to the end of the property's last line. Value edits splice this. */
+  readonly valueRange: TextSpan;
+}
+
+export interface FrontmatterBlockModel {
+  readonly blockRange: TextSpan;
+  readonly entries: readonly FrontmatterPropertyEntry[];
+  readonly lineEnding: string;
+  readonly listIndent: string;
+  /**
+   * True when the block contains a line the scanner refused to interpret. The
+   * whole block is then read-only: a partial understanding of a YAML block is
+   * exactly how an edit lands on the wrong bytes.
+   */
+  readonly partial: boolean;
+  readonly raw: string;
+}
+
+export interface FrontmatterRefusal {
+  readonly code: FrontmatterRefusalCode;
+  readonly message: string;
+}
+
+export interface FrontmatterSplice extends TextSpan {
+  readonly replacement: string;
+}
+
+export interface FrontmatterEditResult {
+  /** The source with the splice applied, or the original source when refused. */
+  readonly content: string;
+  readonly refusal: FrontmatterRefusal | null;
+  readonly splice: FrontmatterSplice | null;
+}
+
+export interface AddFrontmatterPropertyOptions {
+  readonly key: string;
+  readonly type?: FrontmatterPropertyType;
+  readonly value?: FrontmatterPropertyValue;
+}
+
+interface SourceLine {
+  readonly end: number;
+  readonly next: number;
+  readonly start: number;
+  readonly terminator: string;
+  readonly text: string;
+}
+
+const DEFAULT_LIST_INDENT = "  ";
+
+const NUMBER_PATTERN = /^[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?$/;
+const BOOLEAN_PATTERN = /^(?:true|false)$/;
+/*
+ * YAML 1.1 reads all of these back as booleans or null. They are not classified
+ * as the `checkbox` type — that stays `true`/`false`, which is what this project
+ * writes — but a TEXT value equal to one of them must be quoted, or the property
+ * silently stops being text. `NaN`/`Infinity` share the shape via the number path.
+ */
+const YAML_RESERVED_SCALAR_PATTERN = /^(?:~|null|Null|NULL|yes|Yes|YES|no|No|NO|on|On|ON|off|Off|OFF|y|Y|n|N|true|True|TRUE|false|False|FALSE|\.nan|\.NaN|\.NAN|\.inf|\.Inf|\.INF|[-+]\.inf|[-+]\.Inf|[-+]\.INF|NaN|Infinity|-Infinity)$/;
+const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const DATETIME_PATTERN = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/;
+// The first character class excludes `-` so that a top-level YAML *sequence*
+// (`- a: 1`) is not read as a mapping entry keyed `- a`; renaming that "key"
+// destroyed the sequence and left a block that no longer parses.
+const PLAIN_KEY_PATTERN = /^([^-:#\s][^:]*?)[ \t]*:(.*)$/;
+const QUOTED_KEY_PATTERN = /^(["'])((?:\\.|(?!\1).)*)\1[ \t]*:(.*)$/;
+const OPENING_DELIMITER_PATTERN = /^---[ \t]*$/;
+/*
+ * `---` only. `...` is a YAML document-end marker, but remark-frontmatter does
+ * NOT accept it as a closing fence — so a document like "---\ntitle: x\n...\n"
+ * has NO frontmatter as far as the parser is concerned, and those bytes belong
+ * to the rich view's own doc, not to this block. Accepting `...` here made the
+ * panel render over body content and let a splice through the rebase guard whose
+ * whole job is to refuse body splices; the next rich serialization then silently
+ * reverted the writer's edit. Measured by the MME-0090 architecture reviewer.
+ */
+const CLOSING_DELIMITER_PATTERN = /^---[ \t]*$/;
+const LIST_ITEM_PATTERN = /^([ \t]+)-[ \t]+(.*)$/;
+const COMMENT_OR_BLANK_PATTERN = /^[ \t]*(?:#.*)?$/;
+
+/* -------------------------------------------------------------- line scanning */
+
+function splitLines(source: string, from: number, to: number): readonly SourceLine[] {
+  const lines: SourceLine[] = [];
+  let cursor = from;
+  while (cursor < to) {
+    const newlineIndex = source.indexOf("\n", cursor);
+    const hasNewline = newlineIndex !== -1 && newlineIndex < to;
+    const next = hasNewline ? newlineIndex + 1 : to;
+    const end = hasNewline && source[newlineIndex - 1] === "\r" ? newlineIndex - 1 : hasNewline ? newlineIndex : to;
+    lines.push({
+      end,
+      next,
+      start: cursor,
+      terminator: source.slice(end, next),
+      text: source.slice(cursor, end)
+    });
+    cursor = next;
+  }
+  return lines;
+}
+
+function documentLineEnding(source: string): string {
+  return source.includes("\r\n") ? "\r\n" : "\n";
+}
+
+/* ------------------------------------------------------------ value analysis */
+
+function isCalendarDate(year: string, month: string, day: string): boolean {
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  return (
+    date.getUTCFullYear() === Number(year) &&
+    date.getUTCMonth() === Number(month) - 1 &&
+    date.getUTCDate() === Number(day)
+  );
+}
+
+function isClockTime(hour: string, minute: string, second: string | undefined): boolean {
+  return Number(hour) < 24 && Number(minute) < 60 && (second === undefined || Number(second) < 60);
+}
+
+/**
+ * The type a raw YAML scalar would parse back as. Used both to label a property
+ * and — critically — to decide whether a *text* value needs quoting: writing
+ * `42` into a text property without quotes silently changes its type.
+ */
+export function frontmatterPropertyTypeOfRawValue(raw: string): FrontmatterPropertyType {
+  const trimmed = raw.trim();
+  if (trimmed === "") {
+    return "text";
+  }
+  if (trimmed.startsWith('"') || trimmed.startsWith("'")) {
+    return "text";
+  }
+  if (trimmed.startsWith("[")) {
+    return "list";
+  }
+  if (NUMBER_PATTERN.test(trimmed)) {
+    return "number";
+  }
+  if (BOOLEAN_PATTERN.test(trimmed)) {
+    return "checkbox";
+  }
+  const dateMatch = DATE_PATTERN.exec(trimmed);
+  if (dateMatch && isCalendarDate(dateMatch[1]!, dateMatch[2]!, dateMatch[3]!)) {
+    return "date";
+  }
+  const dateTimeMatch = DATETIME_PATTERN.exec(trimmed);
+  if (
+    dateTimeMatch &&
+    isCalendarDate(dateTimeMatch[1]!, dateTimeMatch[2]!, dateTimeMatch[3]!) &&
+    isClockTime(dateTimeMatch[4]!, dateTimeMatch[5]!, dateTimeMatch[6])
+  ) {
+    /*
+     * Only the shape `<input type="datetime-local">` can actually render.
+     * A zone offset (`Z`, `+02:00`) or a space separator blanks that input
+     * silently, so the writer sees an empty field for a value that exists and
+     * committing it drops the offset. Those stay `text`, where they round-trip
+     * verbatim.
+     */
+    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(trimmed) ? "datetime" : "text";
+  }
+  return "text";
+}
+
+function unquoteScalar(trimmed: string): string {
+  if (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2) {
+    return trimmed.slice(1, -1).replace(/\\(["\\])/g, "$1");
+  }
+  if (trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length >= 2) {
+    return trimmed.slice(1, -1).replace(/''/g, "'");
+  }
+  return trimmed;
+}
+
+/*
+ * A start/end character test is not enough: `title: "a" # "b"` starts and ends
+ * with a quote while the quoted scalar is only `"a"`. Treating it as quoted
+ * suppressed the trailing-comment check, displayed the wrong value, and let an
+ * edit destroy the comment. The closing quote is found by scanning, and only
+ * whitespace or a comment may follow it.
+ */
+function quoteCharacterOf(trimmed: string): '"' | "'" | null {
+  const opener = trimmed[0];
+  if (opener !== '"' && opener !== "'") {
+    return null;
+  }
+  const closingIndex = closingQuoteIndex(trimmed, opener);
+  if (closingIndex === -1) {
+    return null;
+  }
+  return /^[ \t]*(?:#.*)?$/.test(trimmed.slice(closingIndex + 1)) ? opener : null;
+}
+
+/** Index of the quote that closes the scalar opened at position 0, or -1. */
+function closingQuoteIndex(trimmed: string, opener: '"' | "'"): number {
+  for (let index = 1; index < trimmed.length; index += 1) {
+    const character = trimmed[index];
+    if (opener === '"' && character === "\\") {
+      index += 1;
+      continue;
+    }
+    if (character !== opener) {
+      continue;
+    }
+    if (opener === "'" && trimmed[index + 1] === "'") {
+      index += 1;
+      continue;
+    }
+    return index;
+  }
+  return -1;
+}
+
+/** A quote that opens on the line but never closes on it is beyond this scanner. */
+function hasUnterminatedQuote(trimmed: string): boolean {
+  const opener = trimmed[0];
+  if (opener !== '"' && opener !== "'") {
+    return false;
+  }
+  return quoteCharacterOf(trimmed) === null;
+}
+
+function splitFlowSequence(trimmed: string): readonly string[] | null {
+  if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) {
+    return null;
+  }
+  const inner = trimmed.slice(1, -1).trim();
+  if (inner === "") {
+    return [];
+  }
+  const items: string[] = [];
+  let current = "";
+  let quote: string | null = null;
+  for (const character of inner) {
+    if (quote) {
+      if (character === quote) {
+        quote = null;
+      }
+      current += character;
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+      current += character;
+      continue;
+    }
+    if (character === "," ) {
+      items.push(current.trim());
+      current = "";
+      continue;
+    }
+    if (character === "[" || character === "]" || character === "{" || character === "}") {
+      // A nested collection: not a flat list of scalars.
+      return null;
+    }
+    current += character;
+  }
+  if (quote) {
+    return null;
+  }
+  items.push(current.trim());
+  return items.map((item) => unquoteScalar(item));
+}
+
+/**
+ * `title: Draft # not published` — the comment is authored bytes inside the
+ * value range, so rewriting the value would delete it. Read-only instead.
+ */
+function hasTrailingComment(trimmed: string): boolean {
+  const opener = trimmed[0];
+  if (opener === '"' || opener === "'") {
+    const closingIndex = closingQuoteIndex(trimmed, opener);
+    return closingIndex !== -1 && /(?:^|[ \t])#/.test(trimmed.slice(closingIndex + 1));
+  }
+  return /(?:^|[ \t])#/.test(trimmed);
+}
+
+/* --------------------------------------------------------------- the scanner */
+
+interface ScannedEntry {
+  readonly editable: boolean;
+  readonly entryEnd: number;
+  readonly entryStart: number;
+  readonly key: string;
+  readonly keyRange: TextSpan;
+  readonly listIndent: string | null;
+  readonly rawValue: string;
+  readonly reason: FrontmatterReadOnlyReason | null;
+  readonly type: FrontmatterPropertyType;
+  readonly value: FrontmatterPropertyValue;
+  readonly valueRange: TextSpan;
+}
+
+function scanEntry(
+  lines: readonly SourceLine[],
+  startIndex: number
+): { readonly consumed: number; readonly entry: ScannedEntry } | null {
+  const line = lines[startIndex]!;
+  const quotedKey = QUOTED_KEY_PATTERN.exec(line.text);
+  const plainKey = quotedKey ? null : PLAIN_KEY_PATTERN.exec(line.text);
+  if (!quotedKey && !plainKey) {
+    return null;
+  }
+  const key = quotedKey ? quotedKey[2]! : plainKey![1]!;
+  const rawValue = quotedKey ? quotedKey[3]! : plainKey![2]!;
+  const keyOffsetInLine = quotedKey ? line.text.indexOf(key, 1) : line.text.indexOf(key);
+  const keyRange = { from: line.start + keyOffsetInLine, to: line.start + keyOffsetInLine + key.length };
+  const valueStart = line.end - rawValue.length;
+  const trimmed = rawValue.trim();
+
+  const complex = (
+    reason: FrontmatterReadOnlyReason,
+    consumed: number,
+    lastLine: SourceLine
+  ): { readonly consumed: number; readonly entry: ScannedEntry } => ({
+    consumed,
+    entry: {
+      editable: false,
+      entryEnd: lastLine.next,
+      entryStart: line.start,
+      key,
+      keyRange,
+      listIndent: null,
+      rawValue,
+      reason,
+      type: "text",
+      value: null,
+      valueRange: { from: valueStart, to: lastLine.end }
+    }
+  });
+
+  /* A value that continues onto indented lines below the key. */
+  let lastFollowerIndex = startIndex;
+  const followers: SourceLine[] = [];
+  for (let index = startIndex + 1; index < lines.length; index += 1) {
+    const candidate = lines[index]!;
+    if (candidate.text === "" || !/^[ \t]/.test(candidate.text)) {
+      break;
+    }
+    followers.push(candidate);
+    lastFollowerIndex = index;
+  }
+  const lastLine = lines[lastFollowerIndex]!;
+  const consumed = lastFollowerIndex - startIndex + 1;
+
+  if (trimmed.startsWith("|") || trimmed.startsWith(">")) {
+    return complex("block-scalar", consumed, lastLine);
+  }
+  if (trimmed.startsWith("&") || trimmed.startsWith("*") || trimmed.startsWith("!")) {
+    return complex("anchor-or-tag", consumed, lastLine);
+  }
+  if (trimmed.startsWith("{")) {
+    return complex("nested-map", consumed, lastLine);
+  }
+
+  if (trimmed === "") {
+    if (followers.length === 0) {
+      return {
+        consumed: 1,
+        entry: {
+          editable: true,
+          entryEnd: line.next,
+          entryStart: line.start,
+          key,
+          keyRange,
+          listIndent: null,
+          rawValue,
+          reason: null,
+          type: "text",
+          value: "",
+          valueRange: { from: valueStart, to: line.end }
+        }
+      };
+    }
+    const items: string[] = [];
+    let indent: string | null = null;
+    for (const follower of followers) {
+      const itemMatch = LIST_ITEM_PATTERN.exec(follower.text);
+      if (!itemMatch) {
+        return complex(/:/.test(follower.text) ? "nested-map" : "unsupported-value", consumed, lastLine);
+      }
+      if (indent === null) {
+        indent = itemMatch[1]!;
+      } else if (itemMatch[1] !== indent) {
+        return complex("nested-map", consumed, lastLine);
+      }
+      const itemText = itemMatch[2]!.trim();
+      if (itemText === "" || itemText.endsWith(":") || hasUnterminatedQuote(itemText)) {
+        return complex("nested-map", consumed, lastLine);
+      }
+      if (/^[-&*!|>[{]/.test(itemText) || (!quoteCharacterOf(itemText) && /:[ \t]/.test(itemText))) {
+        return complex("nested-map", consumed, lastLine);
+      }
+      if (hasTrailingComment(itemText)) {
+        return complex("inline-comment", consumed, lastLine);
+      }
+      items.push(unquoteScalar(itemText));
+    }
+    return {
+      consumed,
+      entry: {
+        editable: true,
+        entryEnd: lastLine.next,
+        entryStart: line.start,
+        key,
+        keyRange,
+        listIndent: indent,
+        rawValue,
+        reason: null,
+        type: "list",
+        value: items,
+        valueRange: { from: valueStart, to: lastLine.end }
+      }
+    };
+  }
+
+  // A scalar with indented lines beneath it is a multi-line plain scalar: the
+  // scanner does not fold those, so it does not edit them either.
+  if (followers.length > 0) {
+    return complex("unsupported-value", consumed, lastLine);
+  }
+
+  if (hasUnterminatedQuote(trimmed)) {
+    return complex("unsupported-value", 1, line);
+  }
+  if (hasTrailingComment(trimmed)) {
+    return complex("inline-comment", 1, line);
+  }
+
+  if (trimmed.startsWith("[")) {
+    const items = splitFlowSequence(trimmed);
+    if (!items) {
+      return complex("unsupported-value", 1, line);
+    }
+    return {
+      consumed: 1,
+      entry: {
+        editable: true,
+        entryEnd: line.next,
+        entryStart: line.start,
+        key,
+        keyRange,
+        listIndent: null,
+        rawValue,
+        reason: null,
+        type: "list",
+        value: items,
+        valueRange: { from: valueStart, to: line.end }
+      }
+    };
+  }
+
+  const type = frontmatterPropertyTypeOfRawValue(trimmed);
+  const text = unquoteScalar(trimmed);
+  const value: FrontmatterPropertyValue =
+    type === "number" ? Number(trimmed) : type === "checkbox" ? trimmed === "true" : text;
+  return {
+    consumed: 1,
+    entry: {
+      editable: true,
+      entryEnd: line.next,
+      entryStart: line.start,
+      key,
+      keyRange,
+      listIndent: null,
+      rawValue,
+      reason: null,
+      type,
+      value,
+      valueRange: { from: valueStart, to: line.end }
+    }
+  };
+}
+
+export function readFrontmatterBlock(source: string): FrontmatterBlockModel | null {
+  if (!source.startsWith("---")) {
+    return null;
+  }
+  const allLines = splitLines(source, 0, source.length);
+  const openingLine = allLines[0];
+  if (!openingLine || !OPENING_DELIMITER_PATTERN.test(openingLine.text) || openingLine.terminator === "") {
+    return null;
+  }
+  let closingIndex = -1;
+  for (let index = 1; index < allLines.length; index += 1) {
+    if (CLOSING_DELIMITER_PATTERN.test(allLines[index]!.text)) {
+      closingIndex = index;
+      break;
+    }
+  }
+  if (closingIndex === -1) {
+    return null;
+  }
+  const closingLine = allLines[closingIndex]!;
+  const interior = allLines.slice(1, closingIndex);
+  const lineEnding = openingLine.terminator;
+
+  const entries: FrontmatterPropertyEntry[] = [];
+  let listIndent: string | null = null;
+  let partial = false;
+  for (let index = 0; index < interior.length; ) {
+    const line = interior[index]!;
+    if (COMMENT_OR_BLANK_PATTERN.test(line.text)) {
+      index += 1;
+      continue;
+    }
+    const scanned = scanEntry(interior, index);
+    if (!scanned) {
+      partial = true;
+      break;
+    }
+    const { consumed, entry } = scanned;
+    if (listIndent === null && entry.listIndent !== null) {
+      listIndent = entry.listIndent;
+    }
+    entries.push({
+      editable: entry.editable,
+      entryRange: { from: entry.entryStart, to: entry.entryEnd },
+      index: entries.length,
+      key: entry.key,
+      keyRange: entry.keyRange,
+      rawValue: entry.rawValue,
+      reason: entry.reason,
+      type: entry.type,
+      value: entry.value,
+      valueRange: entry.valueRange
+    });
+    index += consumed;
+  }
+
+  return {
+    blockRange: { from: 0, to: closingLine.next },
+    /*
+     * A block the scanner could not read end to end is read-only in full. Half
+     * an understanding of a YAML block is how a splice lands on the wrong bytes.
+     */
+    entries: partial ? [] : entries,
+    lineEnding,
+    listIndent: listIndent ?? DEFAULT_LIST_INDENT,
+    partial,
+    raw: source.slice(0, closingLine.next)
+  };
+}
+
+/* ---------------------------------------------------------------- rendering */
+
+function escapeDoubleQuoted(text: string): string {
+  /*
+   * `\n` and `\r` are escaped, not emitted literally: a real newline inside a
+   * double-quoted scalar adds a LINE to the block, which shifts every offset
+   * below it and folds back to a space on read. These are exported functions, so
+   * a consumer reaches this long before the panel's single-line inputs could.
+   */
+  return text
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, "\\n")
+    .replace(/\r/g, "\\r");
+}
+
+function needsQuoting(text: string): boolean {
+  if (text === "") {
+    return false;
+  }
+  if (text !== text.trim()) {
+    return true;
+  }
+  if (/[\r\n]/.test(text)) {
+    return true;
+  }
+  if (/:(?:[ \t]|$)/.test(text) || /(?:^|[ \t])#/.test(text)) {
+    return true;
+  }
+  if (/^[-?:,[\]{}#&*!|>'"%@`]/.test(text)) {
+    return true;
+  }
+  if (YAML_RESERVED_SCALAR_PATTERN.test(text)) {
+    return true;
+  }
+  // Anything that would parse back as another type has to be quoted, or the
+  // property silently changes type on the next read.
+  return frontmatterPropertyTypeOfRawValue(text) !== "text";
+}
+
+function renderScalar(value: string, type: FrontmatterPropertyType, preferredQuote: '"' | "'" | null): string {
+  if (type === "number" || type === "checkbox") {
+    return value;
+  }
+  if ((type === "date" || type === "datetime") && frontmatterPropertyTypeOfRawValue(value) === type) {
+    return value;
+  }
+  if (preferredQuote === "'") {
+    return `'${value.replace(/'/g, "''")}'`;
+  }
+  if (preferredQuote === '"' || needsQuoting(value)) {
+    return `"${escapeDoubleQuoted(value)}"`;
+  }
+  return value;
+}
+
+interface RenderValueOptions {
+  /** True when the value this replaces was authored as `[a, b]`. */
+  readonly flowSequence?: boolean;
+  readonly lineEnding: string;
+  readonly listIndent: string;
+  readonly preferredQuote: '"' | "'" | null;
+}
+
+/** Renders everything that follows the colon, leading space included. */
+function renderValue(
+  value: FrontmatterPropertyValue,
+  type: FrontmatterPropertyType,
+  options: RenderValueOptions
+): string {
+  if (type === "list") {
+    const items = Array.isArray(value) ? (value as readonly string[]) : value === null || value === "" ? [] : [String(value)];
+    if (items.length === 0) {
+      return " []";
+    }
+    /*
+     * A document that writes its lists as `[a, b]` keeps writing them that way:
+     * the acceptance criterion is the document's own conventions, and silently
+     * converting every flow sequence to block style on the first edit breaks it.
+     */
+    if (options.flowSequence) {
+      return ` [${items.map((item) => renderScalar(String(item), "text", null)).join(", ")}]`;
+    }
+    return items
+      .map((item) => `${options.lineEnding}${options.listIndent}- ${renderScalar(String(item), "text", null)}`)
+      .join("");
+  }
+  if (value === null) {
+    return " ";
+  }
+  if (typeof value === "boolean") {
+    return ` ${value ? "true" : "false"}`;
+  }
+  if (typeof value === "number") {
+    return ` ${String(value)}`;
+  }
+  const text = String(value);
+  if (text === "") {
+    return " ";
+  }
+  return ` ${renderScalar(text, type, options.preferredQuote)}`;
+}
+
+function coerceValue(
+  value: FrontmatterPropertyValue,
+  type: FrontmatterPropertyType
+): FrontmatterPropertyValue {
+  if (type === "list") {
+    if (Array.isArray(value)) {
+      return value;
+    }
+    const text = value === null ? "" : String(value);
+    return text === "" ? [] : [text];
+  }
+  const text = Array.isArray(value)
+    ? (value as readonly string[]).join(", ")
+    : value === null
+      ? ""
+      : String(value);
+  switch (type) {
+    case "checkbox":
+      return typeof value === "boolean" ? value : /^(?:true|yes|1)$/i.test(text.trim());
+    case "number": {
+      const parsed = Number(text.trim());
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    case "date": {
+      const detected = frontmatterPropertyTypeOfRawValue(text.trim());
+      if (detected === "date") {
+        return text.trim();
+      }
+      if (detected === "datetime") {
+        return text.trim().slice(0, 10);
+      }
+      return "";
+    }
+    case "datetime": {
+      const detected = frontmatterPropertyTypeOfRawValue(text.trim());
+      if (detected === "datetime") {
+        return text.trim();
+      }
+      if (detected === "date") {
+        return `${text.trim()}T00:00:00`;
+      }
+      return "";
+    }
+    default:
+      return text;
+  }
+}
+
+/* ------------------------------------------------------------- edit helpers */
+
+function refuse(source: string, code: FrontmatterRefusalCode, message: string): FrontmatterEditResult {
+  return { content: source, refusal: { code, message }, splice: null };
+}
+
+function applySplice(source: string, splice: FrontmatterSplice): FrontmatterEditResult {
+  return {
+    content: `${source.slice(0, splice.from)}${splice.replacement}${source.slice(splice.to)}`,
+    refusal: null,
+    splice
+  };
+}
+
+interface ResolvedProperty {
+  readonly entry: FrontmatterPropertyEntry;
+  readonly model: FrontmatterBlockModel;
+}
+
+function resolveProperty(
+  source: string,
+  index: number
+): ResolvedProperty | FrontmatterEditResult {
+  const model = readFrontmatterBlock(source);
+  if (!model) {
+    return refuse(source, "no-frontmatter", "This document has no YAML frontmatter block.");
+  }
+  const entry = model.entries[index];
+  if (!entry) {
+    return refuse(source, "unknown-property", `No frontmatter property at index ${index}.`);
+  }
+  return { entry, model };
+}
+
+function isEditResult(value: ResolvedProperty | FrontmatterEditResult): value is FrontmatterEditResult {
+  return "refusal" in value;
+}
+
+function refuseComplex(source: string, entry: FrontmatterPropertyEntry): FrontmatterEditResult {
+  return refuse(
+    source,
+    "complex-value",
+    `The value of "${entry.key}" (${entry.reason ?? "unsupported-value"}) cannot be edited safely here. Edit it in Source mode.`
+  );
+}
+
+/*
+ * Keys are spliced into the block as authored, so a key carrying a YAML
+ * indicator changes what the block means — or destroys it. `a #b` starts a
+ * comment that swallows the colon, and the whole frontmatter block stops
+ * parsing, taking every other property with it. Measured by the MME-0090
+ * architecture reviewer.
+ */
+const UNSAFE_KEY_START = /^[?:,[\]{}#&*!|>'"%@`]/;
+
+function validateKey(
+  source: string,
+  model: FrontmatterBlockModel,
+  key: string,
+  selfIndex: number | null
+): FrontmatterEditResult | null {
+  const trimmed = key.trim();
+  if (
+    trimmed === "" ||
+    /[:\r\n]/.test(trimmed) ||
+    /(?:^|[ \t])#/.test(trimmed) ||
+    trimmed.startsWith("-") ||
+    UNSAFE_KEY_START.test(trimmed)
+  ) {
+    return refuse(source, "invalid-key", `"${key}" is not a usable property name.`);
+  }
+  const clash = model.entries.some((entry) => entry.key === trimmed && entry.index !== selfIndex);
+  if (clash) {
+    return refuse(source, "duplicate-key", `A property named "${trimmed}" already exists.`);
+  }
+  return null;
+}
+
+/* ------------------------------------------------------------------- edits */
+
+export function setFrontmatterPropertyValue(
+  source: string,
+  index: number,
+  value: FrontmatterPropertyValue
+): FrontmatterEditResult {
+  const resolved = resolveProperty(source, index);
+  if (isEditResult(resolved)) {
+    return resolved;
+  }
+  const { entry, model } = resolved;
+  if (!entry.editable) {
+    return refuseComplex(source, entry);
+  }
+  const type = typeForIncomingValue(value, entry.type);
+  return applySplice(source, {
+    from: entry.valueRange.from,
+    replacement: renderValue(value, type, {
+      flowSequence: entry.type === "list" && entry.rawValue.trim().startsWith("["),
+      lineEnding: model.lineEnding,
+      listIndent: entry.type === "list" ? listIndentOfEntry(source, entry, model) : model.listIndent,
+      preferredQuote: quoteCharacterOf(entry.rawValue.trim())
+    }),
+    to: entry.valueRange.to
+  });
+}
+
+/**
+ * The JS type of the incoming value decides the YAML shape, except that a string
+ * keeps a date/datetime/text property's own type — the panel's date input hands
+ * back a string, and re-labelling it `text` would quote it.
+ */
+function typeForIncomingValue(
+  value: FrontmatterPropertyValue,
+  entryType: FrontmatterPropertyType
+): FrontmatterPropertyType {
+  if (Array.isArray(value)) {
+    return "list";
+  }
+  if (typeof value === "boolean") {
+    return "checkbox";
+  }
+  if (typeof value === "number") {
+    return "number";
+  }
+  return entryType === "date" || entryType === "datetime" || entryType === "list" ? entryType : "text";
+}
+
+/** A list keeps the indentation its own items were written with. */
+function listIndentOfEntry(
+  source: string,
+  entry: FrontmatterPropertyEntry,
+  model: FrontmatterBlockModel
+): string {
+  const match = LIST_ITEM_PATTERN.exec(
+    source.slice(entry.valueRange.from, entry.valueRange.to).split(/\r?\n/).find((line) => LIST_ITEM_PATTERN.test(line)) ?? ""
+  );
+  return match?.[1] ?? model.listIndent;
+}
+
+export function setFrontmatterPropertyType(
+  source: string,
+  index: number,
+  type: FrontmatterPropertyType
+): FrontmatterEditResult {
+  const resolved = resolveProperty(source, index);
+  if (isEditResult(resolved)) {
+    return resolved;
+  }
+  const { entry, model } = resolved;
+  if (!entry.editable) {
+    return refuseComplex(source, entry);
+  }
+  return applySplice(source, {
+    from: entry.valueRange.from,
+    replacement: renderValue(coerceValue(entry.value, type), type, {
+      lineEnding: model.lineEnding,
+      listIndent: model.listIndent,
+      /*
+       * A type change still keeps the block's authoring conventions: a
+       * single-quoted value stays single-quoted. Quoting that the *new* type
+       * requires is added on top — `3` becoming text gains quotes because
+       * `needsQuoting` demands them, not because the style was discarded.
+       */
+      preferredQuote: quoteCharacterOf(entry.rawValue.trim())
+    }),
+    to: entry.valueRange.to
+  });
+}
+
+export function renameFrontmatterProperty(source: string, index: number, key: string): FrontmatterEditResult {
+  const resolved = resolveProperty(source, index);
+  if (isEditResult(resolved)) {
+    return resolved;
+  }
+  const { entry, model } = resolved;
+  const invalid = validateKey(source, model, key, entry.index);
+  if (invalid) {
+    return invalid;
+  }
+  return applySplice(source, {
+    from: entry.keyRange.from,
+    replacement: key.trim(),
+    to: entry.keyRange.to
+  });
+}
+
+export function addFrontmatterProperty(
+  source: string,
+  options: AddFrontmatterPropertyOptions
+): FrontmatterEditResult {
+  const model = readFrontmatterBlock(source);
+  if (!model) {
+    return refuse(source, "no-frontmatter", "This document has no YAML frontmatter block.");
+  }
+  /*
+   * A partial block exposes no entries, so the duplicate check has nothing to
+   * compare against and would happily write a second `title:`. A block the
+   * scanner could not read end to end is read-only in full, additions included.
+   */
+  if (model.partial) {
+    return refuse(source, "complex-value", "This frontmatter block contains syntax that cannot be edited here.");
+  }
+  const invalid = validateKey(source, model, options.key, null);
+  if (invalid) {
+    return invalid;
+  }
+  const type = options.type ?? typeForIncomingValue(options.value ?? "", "text");
+  const value = options.value === undefined ? (type === "list" ? [] : "") : options.value;
+  const rendered = renderValue(coerceValue(value, type), type, {
+    lineEnding: model.lineEnding,
+    listIndent: model.listIndent,
+    preferredQuote: null
+  });
+  /*
+   * The insertion point is the start of the closing delimiter's line, so the
+   * new property lands after every existing one and the closing `---` is never
+   * part of the splice.
+   */
+  const closingLineStart = closingDelimiterLineStart(source, model);
+  return applySplice(source, {
+    from: closingLineStart,
+    replacement: `${options.key.trim()}:${rendered}${model.lineEnding}`,
+    to: closingLineStart
+  });
+}
+
+function closingDelimiterLineStart(source: string, model: FrontmatterBlockModel): number {
+  const blockText = source.slice(model.blockRange.from, model.blockRange.to);
+  const lines = splitLines(source, model.blockRange.from, model.blockRange.to);
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    if (CLOSING_DELIMITER_PATTERN.test(lines[index]!.text)) {
+      return lines[index]!.start;
+    }
+  }
+  // Unreachable while `readFrontmatterBlock` requires a closing delimiter, but
+  // returning the block end keeps the splice inside the block if that changes.
+  return model.blockRange.from + blockText.length;
+}
+
+export function removeFrontmatterProperty(source: string, index: number): FrontmatterEditResult {
+  const resolved = resolveProperty(source, index);
+  if (isEditResult(resolved)) {
+    return resolved;
+  }
+  const { entry } = resolved;
+  return applySplice(source, {
+    from: entry.entryRange.from,
+    replacement: "",
+    to: entry.entryRange.to
+  });
+}
+
+export function createFrontmatterBlock(source: string): FrontmatterEditResult {
+  if (readFrontmatterBlock(source)) {
+    return refuse(source, "frontmatter-exists", "This document already has a frontmatter block.");
+  }
+  const lineEnding = documentLineEnding(source);
+  const gap = source.length > 0 && !source.startsWith(lineEnding) ? lineEnding : "";
+  return applySplice(source, {
+    from: 0,
+    replacement: `---${lineEnding}title: ${lineEnding}---${lineEnding}${gap}`,
+    to: 0
+  });
+}

@@ -12636,3 +12636,226 @@ recorded in the gate's README rather than silently absorbed:
 - Both open questions promoted together as `MME-0126`, scheduled in Block D: the binding has no dismissal path (verified independently — `SurfaceOverlayDismiss` has zero references in `packages/md-react/src/index.ts`, so `Escape` and outside clicks do nothing for every React consumer, the same reachability pattern as MME-0125 one layer along), and the turn-into list exists in three copies with four query helpers re-implemented, so adding a tenth conversion would silently leave two hosts computing nine.
 - Stopping before MME-0090 accepted as correct: it is the block's preservation-critical issue and this session had already absorbed three issues, two reviewer rounds and a revert.
 - Checks: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`. Push: pushed.
+
+## Block D, MME-0090 — Frontmatter properties panel in Rich mode — 2026-08-14
+
+### What changed
+
+YAML frontmatter is now an Obsidian-grade Properties panel above the document
+title in Rich and Live Preview: a row per property, six value types behind a
+clickable type icon, chips for lists, three display states, `Cmd/Ctrl+;` to add,
+`Cmd/Ctrl+Backspace` to delete the focused property, and `---` at the start of
+the file to create the block. Complex values are read-only with a route into
+Source mode. The panel is presentational — it never parses or writes YAML; the
+host owns the document and applies the splice.
+
+Layers:
+
+- **`@momentarise/md-format`** — a positional YAML model: `readFrontmatterBlock`
+  plus `setFrontmatterPropertyValue` / `setFrontmatterPropertyType` /
+  `renameFrontmatterProperty` / `addFrontmatterProperty` /
+  `removeFrontmatterProperty` / `createFrontmatterBlock`, each returning a byte
+  **splice**, never a re-dump. Nested maps, block scalars, anchors/aliases/tags,
+  values carrying a trailing comment, and any block the scanner cannot read end
+  to end are read-only with a stated reason.
+- **`@momentarise/md-rich-prosemirror`** — `rebaseRichMarkdownSource`, which
+  adopts a frontmatter splice while keeping the ProseMirror document, its
+  selection and its undo history; and a built-in `frontmatterBlock` input rule.
+- **`@momentarise/md-surface`** — `createPropertiesPanel`,
+  `surfacePropertyRowsFromFrontmatter`, `SURFACE_PROPERTY_TYPES`, a `properties`
+  string block, and `surfaceContract.surfaces`.
+- **`@momentarise/md-theme`** — five type icons and all panel CSS, packaged.
+- **`apps/md-demo`** — the reference host, plus a `host:add-properties` slash item.
+
+### Visual impact
+
+Frontmatter is now visible and partly editable inside the editing surface, above
+the title, in Rich and Live Preview. Documents without frontmatter show no panel.
+No other surface changed.
+
+### The engine is a splice engine, and that is the whole point
+
+Parsing the block with a YAML library and re-dumping it is the obvious
+implementation and it is forbidden: it reorders keys, drops comments, expands
+anchors and renormalises quotes — "full-document normalization presented as
+preservation". Every operation is a byte range plus a replacement, and the
+scanner understands a deliberate *subset* of YAML with everything outside it
+falling into the read-only bucket rather than being guessed at.
+
+### Mutation proof
+
+**18 mutants, 18 killed** against the engine, under the refined rule (the
+smallest change that would still ship, never a deleted call). Six survived the
+first round and every one was a real hole, not a nuisance: nothing asserted the
+read-only entries' ranges, a datetime→date conversion truncated by one character
+undetected, a list read its indentation from the block instead of from itself,
+the created-block gap was unobserved, a self-rename read as a duplicate, and the
+quote convention on a type change was accidental rather than decided. Six
+assertions were added and all six then died. The reversion-to-failure table is in
+`docs/internal/visual-checks/MME-0090/README.md`.
+
+### Four defects the browser found that jsdom did not
+
+1. A temporal-dead-zone throw on first paint (`let propertiesSurface` declared
+   beside its own render function, which `renderEditorMode()` reaches during
+   module evaluation). **This recurred a second time in the same slice** with
+   `propertiesRefusal`, added later in the session — same class, same file, found
+   the same way. Both are now with the other surface handles.
+2. The panel never returned after opening a file: the session is destroyed and
+   recreated per document, the panel tears itself down on `destroy`, and the
+   stale handle meant the next render called `setState` on a detached root.
+3. The panel was **unreachable** at 390: as a sibling of the scroller it was
+   pinned chrome, and with the ten-property fixture the last rows sat at y=1552
+   in an 844px viewport with `elementFromPoint` returning nothing. It now lives
+   inside the scroller, above the ProseMirror element.
+4. Seventeen controls under the 44px touch floor at 390, including a 16px
+   checkbox.
+
+### Reviewer pass — three reviewers, all mandatory, read-only, tree frozen
+
+**Architecture and Test independently found the same blocking defect**, with
+reproductions: `...` was accepted as a closing fence. remark-frontmatter does not
+accept it, so those bytes belong to the rich view's document — the panel rendered
+rows over body content, the rebase guard whose entire job is to refuse body
+splices let the splice through, and the next serialization silently reverted the
+writer's edit. Fixed in both scanners and pinned.
+
+Architecture, also fixed: keys were spliced raw with no quoting or validation, so
+renaming to `a #b` started a comment that swallowed the colon and made the whole
+block unparseable, taking every other property with it; `quoteCharacterOf` was a
+start/end character test, so `title: "a" # "b"` read as quoted, displayed the
+wrong value and let an edit destroy the comment; a top-level YAML sequence was
+read as mapping entries keyed `- a`; `addFrontmatterProperty` worked on a partial
+block with duplicate detection disabled; text values equal to `~`/`null`/`yes`/
+`no`/`on`/`off`/`NaN` were written unquoted and read back as other types; a
+newline in a value was emitted literally, adding a line to the block; a flow
+sequence was silently rewritten to block style; and datetimes carrying a zone
+offset were typed `datetime` although `datetime-local` cannot render them.
+
+Test, all fixed: the rebase's stated contract (selection and undo history
+preserved) was asserted with `doc.eq`, which survives a rebuilt EditorState —
+now asserted by identity; `footnoteInsertionBaseSource` splicing had zero
+coverage and every mutant survived; and a batch of panel assertions where a
+shipping mutant survived — `aria-pressed` always true, `aria-expanded` opening
+every row, a checkbox hardcoded checked, a raw value trimmed with `trimStart`,
+an unmarked `aria-checked`, one icon for every type, unconsumed shortcut events,
+a number field committing `0` when cleared, an un-reset chip input, and caret
+restoration measured on a `date` input that throws in `setSelectionRange` and
+landed in an empty catch.
+
+UX, all fixed: `role="menuitem"` with `aria-checked` (the exact defect MME-0089
+fixed 1,000 lines below in the same file — now `menuitemradio`); a menu that
+announced itself as a menu with no keyboard behaviour (now opens with focus
+inside, Arrow/Home/End, and returns focus to its trigger); the hover gate keyed
+to viewport width rather than pointer capability, so "Add property" was invisible
+on any touch device wider than 720px; `Cmd+;` working exactly once because focus
+fell to `<body>` and the new property was not focused; the delete button
+auto-placing onto a third grid row at 390 (~150px per property, title pushed to
+y=1877 — this was auto-placement overflow, **not** the accessibility contract my
+first README draft claimed); a 44px solid-blue checkbox; read-only reasons
+reachable only as tooltips; raw values clipped with no indicator; multi-line
+values centred against their key; a refusal routed to a notice strip a thousand
+pixels off-screen; a header sandwiching its own label; a hardcoded `⌘` on
+Windows; identical accessible names on every key field; focus lost when the last
+property is deleted; and a generated key containing a space.
+
+### Suites
+
+- `npm test`: exit 0. Four gates caught real gaps on the way and each was
+  resolved deliberately rather than waived — the public-API checkpoint, the
+  MME-0120 corpus baseline (the new fixture round-trips byte-identically through
+  the model serializer, recorded as its baseline), the packaged `[hidden]` guard,
+  and Gate 1's host-API scan matching prose in a comment.
+- `npm run visual:mme-0090`: passes at 1280 and 390, dark and light.
+
+### Recorded rather than fixed
+
+- **Reachability: the panel is demo-reachable only.** A default React-binding
+  consumer gets no Properties panel. Andrew's decision, with two amendments that
+  are now implemented: the `frontmatterBlock` input rule is **gated on its sink**
+  so it is absent rather than enabled-and-inert for such a host, and activates by
+  itself when a binding provides one; and `surfaceContract.surfaces` now lists
+  every package-owned surface, with MME-0126's acceptance extended so a contract
+  entry with no binding mount fails a test that reads the binding's real code.
+  `propertiesPanel` is red on arrival there. This is the third time this shape
+  has shipped (MME-0101, MME-0125, MME-0090); a build-log note did not catch the
+  second or third, which is why it is now a gate.
+- **A known occlusion owned by MME-0091**: the demo's floating
+  `TECHNICAL DIAGNOSTICS` chip paints over a panel delete control at 390. The
+  gate names that one painter explicitly, so anything else still fails.
+- **The `source` display state is read-only.** In Obsidian it is editable in
+  place; here "Edit in Source" routes to Source mode instead.
+- Headless Chrome does not render `<input type="date">` as a segmented picker, so
+  the browser date leg asserts isolation rather than pinning a typed string to an
+  ISO result; the value mapping is pinned in the unit suite.
+
+### Files changed
+
+- `packages/md-format/src/index.ts` — the frontmatter model and splice engine.
+  Inlined rather than its own module: the docs site resolves the package to
+  `src/index.ts` and Turbopack does not apply TypeScript's `.js`→`.ts` rewriting,
+  so a `./frontmatter.js` specifier broke that build.
+- `packages/md-rich-prosemirror/src/index.ts` — `rebaseRichMarkdownSource`, the
+  `frontmatterBlock` rule, `onFrontmatterBlockRequested`, sink gating.
+- `packages/md-surface/src/index.ts` — the panel, the strings, the contract; plus
+  `package.json`/`tsconfig.json` for the md-format type dependency.
+- `packages/md-theme/src/index.ts` (five icons), `src/styles.css` (all panel CSS,
+  the `[hidden]` guard, the 720 and coarse-pointer blocks).
+- `apps/md-demo/src/main.ts` — host wiring and the slash item.
+- `fixtures/041-frontmatter-properties/`, `tests/rich-frontmatter-properties.test.mjs`,
+  `scripts/visual-check-mme0090.mjs`, `scripts/visual-gates.mjs`, `package.json`,
+  `tests/fixtures/public-api-approved.json`,
+  `tests/fixtures/model-serializer-corpus-baseline.json`,
+  `docs/internal/visual-checks/MME-0090/`, `docs/internal/ISSUES.md` (MME-0126).
+
+### `npm run visual` was red, and two of the three failures were mine
+
+The first full visual run after the commit reported **79/82, three unexpected
+failures**. Recorded because the issue was already committed at that point and
+the temptation to treat a red suite as flake is exactly what the gate exists
+against.
+
+- **MME-0045 — mine, and proven so rather than assumed.** Reverting only
+  `apps/md-demo/src/main.ts` and `packages/md-theme/src/styles.css` to `HEAD~1`
+  made it pass; restoring them made it fail again; reverting either one alone
+  cleared it, so the cause was the pair — the panel mounting plus the panel's
+  styling, i.e. the space it occupies. At 390 the Properties panel added 292px
+  above the note, which pushed the selection down until the selection bubble
+  landed *underneath* the slash menu: `elementFromPoint` at the bubble's centre
+  returned `slash-command-item-mme:orderedList`. The overlap was always possible;
+  the panel only moved the geometry far enough to expose it.
+
+  Fixed as an interaction, not as pixels: the slash menu and the selection bubble
+  are mutually exclusive — one inserts a block, the other acts on an inline
+  selection — so bubble visibility now excludes an open slash menu. It had to be
+  a *predicate* in `renderSelectionBubbleToolbar`, not a one-shot hide in
+  `renderSlashMenu`: the bubble is derived from the live selection and the first
+  attempt was undone by the next repaint (measured — the bubble came back at
+  `top: 444` instead of `top: 512`). The 390 rows also became single-line
+  (292px → 224px), which is the same density problem the UX reviewer raised
+  independently.
+
+- **MME-0104a — mine, and a deliberate contract change.** `---` typed in the
+  document's first block now creates the Properties block instead of a thematic
+  break. That is an explicit MME-0090 acceptance criterion, so the parity row was
+  rebaselined in this commit under the "Rebaseline contract changes in the same
+  commit" rule, with the reason written into the row. The horizontal-rule input
+  rule is unchanged and still covered: the `thematic-break-asterisks` row types
+  `***` in the same position and still serializes to the canonical `---\n`, and
+  `---` in any later block is asserted unchanged in the unit suite.
+
+- **MME-0125 — not mine.** It timed out at 15s waiting for
+  `window.__MME_REACT_HOST__` while the `react-demo` dev server was still cold
+  after the workspace rebuild invalidated its Vite dep cache. It passes
+  standalone and passed in the re-run. Recorded rather than silently dismissed,
+  because "it passes when I run it alone" is how a real failure gets waved
+  through.
+
+Also fixed from the Test Reviewer's note: typing `---` in a note that already has
+frontmatter used to pop an error notice at the writer and *then* produce the
+horizontal rule they wanted. `createFrontmatterBlockFromHost` now declines
+quietly, because on that path a refusal is the normal outcome, not an error.
+
+**Final state: `npm test` exit 0; `npm run visual` 82/82, 0 known-failing,
+0 anomalies, 0 unexpected failures, 5 not selected (the opt-in `registry` and
+`theia` groups).**

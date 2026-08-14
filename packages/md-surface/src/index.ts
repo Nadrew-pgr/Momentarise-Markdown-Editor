@@ -5,6 +5,12 @@ import type {
   ToolbarItemDefinition
 } from "@momentarise/md-editor";
 import { editorModesForDocumentKind } from "@momentarise/md-editor";
+import type {
+  FrontmatterBlockModel,
+  FrontmatterPropertyType,
+  FrontmatterPropertyValue,
+  FrontmatterReadOnlyReason
+} from "@momentarise/md-format";
 import type { SaveState } from "@momentarise/md-save";
 import {
   resolveThemeToCssVariables,
@@ -14,9 +20,29 @@ import {
   type MmeTheme
 } from "@momentarise/md-theme";
 
+export interface SurfaceContractEntry {
+  /** The exported factory a host calls to mount this surface. */
+  readonly factory: string;
+  readonly id: string;
+}
+
 export interface SurfaceContract {
   readonly packageName: "@momentarise/md-surface";
   readonly contract: "framework-free-dom-surface";
+  /**
+   * Every package-owned surface a host is expected to be able to mount.
+   *
+   * This list exists because the same defect has now shipped three times: rich
+   * mode (MME-0101), the selection bubble (MME-0125) and the Properties panel
+   * (MME-0090) were each built against `apps/md-demo` while the React binding —
+   * the primary documented integration path — was left without them, so a
+   * default consumer got an invisible feature. A build-log note did not catch
+   * the second or the third. MME-0126 turns this list into a gate: a surface
+   * named here that a default React-binding mount does not reach is a failure,
+   * not a follow-up. (The binding's package name is deliberately not written
+   * out: this file is scanned for host-framework references.)
+   */
+  readonly surfaces: readonly SurfaceContractEntry[];
 }
 
 export interface SurfaceComponent {
@@ -154,6 +180,24 @@ export interface MmeStrings {
     readonly rich: string;
     readonly source: string;
     readonly toggleRich: string;
+  };
+  /** MME-0090: the frontmatter Properties panel. */
+  readonly properties: {
+    readonly add: string;
+    readonly addItem: string;
+    readonly displayHidden: string;
+    readonly displaySource: string;
+    readonly displayVisible: string;
+    readonly editInSource: string;
+    readonly hiddenNote: string;
+    readonly keyLabel: string;
+    readonly label: string;
+    readonly reasons: Readonly<Record<FrontmatterReadOnlyReason, string>>;
+    readonly remove: string;
+    readonly removeItem: string;
+    readonly typeLabel: string;
+    readonly types: Readonly<Record<FrontmatterPropertyType, string>>;
+    readonly valueLabel: string;
   };
   readonly slash: {
     readonly aiSection: string;
@@ -479,7 +523,15 @@ export interface CreateDiagnosticsSurfaceOptions extends SurfaceComponentContext
 
 export const surfaceContract: SurfaceContract = {
   contract: "framework-free-dom-surface",
-  packageName: "@momentarise/md-surface"
+  packageName: "@momentarise/md-surface",
+  surfaces: [
+    { factory: "createDocumentStatus", id: "documentStatus" },
+    { factory: "createModeControl", id: "modeControl" },
+    { factory: "createPropertiesPanel", id: "propertiesPanel" },
+    { factory: "createSelectionBubbleToolbar", id: "selectionBubble" },
+    { factory: "createSlashMenu", id: "slashMenu" },
+    { factory: "createToolbar", id: "toolbar" }
+  ]
 };
 
 export function applyMmeThemeToElement(
@@ -686,6 +738,7 @@ export const defaultMmeStrings: MmeStrings = {
     roundTrip: "Round-trip"
   },
   extensions: {
+    "extensions.hostAddProperties": "Add properties",
     "extensions.hostCalloutCard": "Host callout card",
     "extensions.hostInsertImageAsset": "Insert image asset",
     "extensions.hostTranslateSelection": "Host translate",
@@ -721,6 +774,36 @@ export const defaultMmeStrings: MmeStrings = {
     rich: "Rich",
     source: "Source",
     toggleRich: "Toggle Rich Mode"
+  },
+  properties: {
+    add: "Add property",
+    addItem: "Add item",
+    displayHidden: "Hide properties",
+    displaySource: "Show as YAML source",
+    displayVisible: "Show properties",
+    editInSource: "Edit in Source",
+    hiddenNote: "Properties are hidden. The YAML block is unchanged.",
+    keyLabel: "Property name",
+    label: "Properties",
+    reasons: {
+      "anchor-or-tag": "This value uses a YAML anchor, alias, or tag.",
+      "block-scalar": "This value is a multi-line block scalar.",
+      "inline-comment": "This value carries a trailing comment.",
+      "nested-map": "This value is a nested structure.",
+      "unsupported-value": "This value is outside the editable subset."
+    },
+    remove: "Delete property",
+    removeItem: "Remove item",
+    typeLabel: "Property type",
+    types: {
+      checkbox: "Checkbox",
+      date: "Date",
+      datetime: "Date & time",
+      list: "List",
+      number: "Number",
+      text: "Text"
+    },
+    valueLabel: "Property value"
   },
   slash: {
     aiSection: "AI writing",
@@ -2482,6 +2565,598 @@ export function createDocumentStatus(options: CreateDocumentStatusOptions): Surf
     setState(nextState: Pick<CreateDocumentStatusOptions, "document" | "saveState">) {
       documentState = nextState.document;
       saveState = nextState.saveState;
+      render();
+    },
+    update: render
+  };
+}
+
+/* ---------------------------------------------------------------------------
+ * MME-0090 — the frontmatter Properties panel.
+ *
+ * The panel is presentational on purpose. It never parses or writes YAML: it
+ * renders rows the host derived from `@momentarise/md-format` and reports
+ * intents back ("property 3 should become 2026-09-01"). The host owns the
+ * document, applies the positional splice, and hands back a new state. That is
+ * what keeps the byte-preservation guarantee in one place instead of being
+ * re-implemented per surface.
+ * ------------------------------------------------------------------------- */
+
+export type SurfacePropertiesDisplay = "hidden" | "source" | "visible";
+
+export interface SurfacePropertyRow {
+  readonly editable: boolean;
+  readonly index: number;
+  readonly key: string;
+  readonly rawValue: string;
+  readonly reason: FrontmatterReadOnlyReason | null;
+  readonly type: FrontmatterPropertyType;
+  readonly value: FrontmatterPropertyValue;
+}
+
+/**
+ * A refusal the host wants shown ON the row that caused it. Refusals routed to a
+ * page-level notice are invisible in a scrolled panel — measured at 390, where
+ * the rows sit a thousand pixels below the notice strip.
+ */
+export interface SurfacePropertyRefusal {
+  readonly index: number;
+  readonly message: string;
+}
+
+export interface SurfacePropertiesState {
+  readonly display: SurfacePropertiesDisplay;
+  readonly present: boolean;
+  readonly properties: readonly SurfacePropertyRow[];
+  readonly refusal?: SurfacePropertyRefusal | null;
+  readonly source: string;
+}
+
+export interface CreatePropertiesPanelOptions extends SurfaceComponentContext {
+  onAddProperty(): void;
+  onChangeDisplay(display: SurfacePropertiesDisplay): void;
+  onChangeType(event: { readonly index: number; readonly propertyType: FrontmatterPropertyType }): void;
+  onChangeValue(event: { readonly index: number; readonly value: FrontmatterPropertyValue }): void;
+  onEditInSource(event: { readonly index: number }): void;
+  onRemoveProperty(event: { readonly index: number }): void;
+  onRenameProperty(event: { readonly index: number; readonly key: string }): void;
+  readonly state: SurfacePropertiesState;
+}
+
+/**
+ * The six benchmark types, in the order Obsidian's own type menu lists them.
+ * One definition, consumed by the menu and by the icon lookup.
+ */
+export const SURFACE_PROPERTY_TYPES: readonly FrontmatterPropertyType[] = [
+  "text",
+  "list",
+  "number",
+  "checkbox",
+  "date",
+  "datetime"
+];
+
+const PROPERTY_TYPE_ICONS: Readonly<Record<FrontmatterPropertyType, IconName>> = {
+  checkbox: "propertyCheckbox",
+  date: "propertyDate",
+  datetime: "propertyDatetime",
+  list: "list",
+  number: "propertyNumber",
+  text: "propertyText"
+};
+
+const PROPERTY_TYPE_INPUTS: Readonly<Record<Exclude<FrontmatterPropertyType, "list">, string>> = {
+  checkbox: "checkbox",
+  date: "date",
+  datetime: "datetime-local",
+  number: "number",
+  text: "text"
+};
+
+/**
+ * Maps the md-format model into rows. `blockRange.from` is always 0, so the raw
+ * value can be sliced straight out of `model.raw` — the panel shows the bytes
+ * the writer authored, which is the whole point for read-only values.
+ */
+export function surfacePropertyRowsFromFrontmatter(
+  model: FrontmatterBlockModel | null
+): readonly SurfacePropertyRow[] {
+  if (!model) {
+    return [];
+  }
+  return model.entries.map((entry) => ({
+    editable: entry.editable,
+    index: entry.index,
+    key: entry.key,
+    rawValue: model.raw.slice(entry.valueRange.from, entry.valueRange.to).replace(/^ /, ""),
+    reason: entry.reason,
+    type: entry.type,
+    value: entry.value
+  }));
+}
+
+interface PropertyFocusDescriptor {
+  readonly index: number;
+  readonly selectionStart: number | null;
+  readonly testId: string;
+}
+
+export function createPropertiesPanel(options: CreatePropertiesPanelOptions): SurfaceComponent & {
+  focusProperty(index: number, field?: "property-key" | "property-value"): void;
+  readonly root: HTMLElement;
+  setState(state: SurfacePropertiesState): void;
+} {
+  const root = createElement(options.host, "section", "mme-properties-panel");
+  const cleanups: ListenerCleanup[] = [];
+  const strings = options.strings.properties;
+  let state = options.state;
+  let openTypeMenuIndex: number | null = null;
+  let pendingTriggerFocusIndex: number | null = null;
+  /** Set by the host through `setState` when an edit was refused. */
+  let refusal: SurfacePropertyRefusal | null = options.state.refusal ?? null;
+  root.dataset.testid = "properties-surface";
+  root.setAttribute("aria-label", strings.label);
+  options.host.replaceChildren(root);
+
+  const listValue = (row: SurfacePropertyRow): readonly string[] =>
+    Array.isArray(row.value) ? (row.value as readonly string[]) : [];
+
+  const typeMenuItems = (): readonly HTMLElement[] => [
+    ...root.querySelectorAll<HTMLElement>('[data-testid="property-type-option"]')
+  ];
+
+  const focusTypeMenuItem = (index: number): void => {
+    const items = typeMenuItems();
+    if (items.length === 0) {
+      return;
+    }
+    items[Math.min(Math.max(index, 0), items.length - 1)]?.focus();
+  };
+
+  const restoreTriggerFocus = (): void => {
+    if (pendingTriggerFocusIndex === null) {
+      return;
+    }
+    const trigger = root.querySelector<HTMLElement>(
+      `[data-property-index="${pendingTriggerFocusIndex}"] [data-testid="property-type-button"]`
+    );
+    pendingTriggerFocusIndex = null;
+    trigger?.focus();
+  };
+
+  const closeTypeMenu = ({ restoreTriggerFocus: restore }: { readonly restoreTriggerFocus: boolean }): void => {
+    if (openTypeMenuIndex === null) {
+      return;
+    }
+    if (restore) {
+      pendingTriggerFocusIndex = openTypeMenuIndex;
+    }
+    openTypeMenuIndex = null;
+    render();
+    restoreTriggerFocus();
+  };
+
+  const displayControl = (
+    container: HTMLElement,
+    display: SurfacePropertiesDisplay,
+    label: string,
+    testId: string
+  ): void => {
+    const button = createElement(options.host, "button", "mme-properties-display-button");
+    button.type = "button";
+    button.dataset.testid = testId;
+    button.textContent = label;
+    button.setAttribute("aria-pressed", String(state.display === display));
+    button.addEventListener("click", () => options.onChangeDisplay(display));
+    container.append(button);
+  };
+
+  const renderTypeControl = (row: SurfacePropertyRow, rowElement: HTMLElement): void => {
+    const button = createElement(options.host, "button", "mme-property-type-button");
+    button.type = "button";
+    button.dataset.testid = "property-type-button";
+    button.dataset.propertyType = row.type;
+    button.disabled = !row.editable;
+    button.setAttribute("aria-haspopup", "menu");
+    button.setAttribute("aria-expanded", String(openTypeMenuIndex === row.index));
+    /*
+     * A read-only row has no type as far as this panel is concerned: the value
+     * is outside the editable subset, so labelling it "Text" would claim
+     * something the engine never determined. It gets the raw-source glyph and
+     * the reason it cannot be edited here.
+     */
+    button.title = row.editable
+      ? `${strings.typeLabel}: ${strings.types[row.type]}`
+      : (row.reason ? strings.reasons[row.reason] : strings.typeLabel);
+    button.setAttribute("aria-label", button.title);
+    button.innerHTML = options.icons.render(row.editable ? PROPERTY_TYPE_ICONS[row.type] : "code");
+    button.addEventListener("click", () => {
+      const opening = openTypeMenuIndex !== row.index;
+      openTypeMenuIndex = opening ? row.index : null;
+      render();
+      // A menu that announces itself as a menu has to behave like one: opening it
+      // moves focus into it, so a keyboard user is not left on the trigger with
+      // no way in but Tab.
+      if (opening) {
+        focusTypeMenuItem(0);
+      } else {
+        pendingTriggerFocusIndex = row.index;
+        restoreTriggerFocus();
+      }
+    });
+    rowElement.append(button);
+    if (openTypeMenuIndex !== row.index) {
+      return;
+    }
+    const menu = createElement(options.host, "div", "mme-property-type-menu");
+    menu.dataset.testid = "property-type-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", strings.typeLabel);
+    for (const propertyType of SURFACE_PROPERTY_TYPES) {
+      const option = createElement(options.host, "button", "mme-property-type-option");
+      option.type = "button";
+      option.dataset.testid = "property-type-option";
+      option.dataset.propertyType = propertyType;
+      /*
+       * `menuitemradio`, not `menuitem`: `aria-checked` is not a supported state
+       * on `menuitem`, so no browser maps it and a screen-reader user hears six
+       * undifferentiated types with no indication which one the property already
+       * is. Value types are mutually exclusive. This is the same defect, and the
+       * same fix, as the selection bubble's turn-into menu in this file.
+       */
+      option.setAttribute("role", "menuitemradio");
+      option.setAttribute("aria-checked", String(propertyType === row.type));
+      option.tabIndex = -1;
+      const glyph = createElement(options.host, "span", "mme-property-type-glyph");
+      glyph.innerHTML = options.icons.render(PROPERTY_TYPE_ICONS[propertyType]);
+      const label = createElement(options.host, "span");
+      label.textContent = strings.types[propertyType];
+      option.append(glyph, label);
+      option.addEventListener("click", () => {
+        closeTypeMenu({ restoreTriggerFocus: true });
+        options.onChangeType({ index: row.index, propertyType });
+      });
+      menu.append(option);
+    }
+    rowElement.append(menu);
+  };
+
+  const renderScalarInput = (row: SurfacePropertyRow, rowElement: HTMLElement): void => {
+    const input = createElement(options.host, "input", "mme-property-value");
+    const inputType = PROPERTY_TYPE_INPUTS[row.type as Exclude<FrontmatterPropertyType, "list">];
+    input.dataset.testid = "property-value";
+    input.type = inputType;
+    input.setAttribute("aria-label", `${row.key} — ${strings.valueLabel}`);
+    if (row.type === "checkbox") {
+      input.checked = row.value === true;
+    } else {
+      input.value = row.value === null ? "" : String(row.value);
+    }
+    /*
+     * `change`, never `input`: the host turns every committed value into a
+     * document splice, and committing per keystroke would rewrite the file
+     * (and the undo stack) once per character.
+     */
+    input.addEventListener("change", () => {
+      if (row.type === "checkbox") {
+        options.onChangeValue({ index: row.index, value: input.checked });
+        return;
+      }
+      if (row.type === "number") {
+        options.onChangeValue({ index: row.index, value: input.value === "" ? "" : Number(input.value) });
+        return;
+      }
+      options.onChangeValue({ index: row.index, value: input.value });
+    });
+    rowElement.append(input);
+  };
+
+  const renderChips = (row: SurfacePropertyRow, rowElement: HTMLElement): void => {
+    const items = listValue(row);
+    const chips = createElement(options.host, "div", "mme-property-chips");
+    chips.dataset.testid = "property-chips";
+    items.forEach((item, itemIndex) => {
+      const chip = createElement(options.host, "span", "mme-property-chip");
+      chip.dataset.testid = "property-chip";
+      chip.dataset.chipValue = item;
+      const text = createElement(options.host, "span");
+      text.textContent = item;
+      const remove = createElement(options.host, "button", "mme-property-chip-remove");
+      remove.type = "button";
+      remove.dataset.testid = "property-chip-remove";
+      remove.title = strings.removeItem;
+      remove.setAttribute("aria-label", `${strings.removeItem}: ${item}`);
+      remove.innerHTML = options.icons.render("close");
+      remove.addEventListener("click", () => {
+        options.onChangeValue({
+          index: row.index,
+          value: items.filter((_, candidate) => candidate !== itemIndex)
+        });
+      });
+      chip.append(text, remove);
+      chips.append(chip);
+    });
+    const chipInput = createElement(options.host, "input", "mme-property-chip-input");
+    chipInput.dataset.testid = "property-chip-input";
+    chipInput.type = "text";
+    chipInput.placeholder = strings.addItem;
+    chipInput.setAttribute("aria-label", `${row.key} — ${strings.addItem}`);
+    chipInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") {
+        return;
+      }
+      event.preventDefault();
+      const candidate = chipInput.value.trim();
+      if (candidate === "") {
+        return;
+      }
+      options.onChangeValue({ index: row.index, value: [...items, candidate] });
+      chipInput.value = "";
+    });
+    chips.append(chipInput);
+    rowElement.append(chips);
+  };
+
+  const renderReadOnlyValue = (row: SurfacePropertyRow, rowElement: HTMLElement): void => {
+    const raw = createElement(options.host, "code", "mme-property-raw-value");
+    raw.dataset.testid = "property-raw-value";
+    raw.textContent = row.rawValue;
+    raw.title = row.reason ? strings.reasons[row.reason] : "";
+    const escape = createElement(options.host, "button", "mme-property-edit-in-source");
+    escape.type = "button";
+    escape.dataset.testid = "property-edit-in-source";
+    escape.textContent = strings.editInSource;
+    escape.setAttribute("aria-label", `${strings.editInSource}: ${row.key}`);
+    escape.addEventListener("click", () => options.onEditInSource({ index: row.index }));
+    rowElement.append(raw, escape);
+  };
+
+  const renderRow = (row: SurfacePropertyRow, list: HTMLElement): void => {
+    const rowElement = createElement(options.host, "div", "mme-property-row");
+    rowElement.dataset.testid = "property-row";
+    rowElement.dataset.propertyIndex = String(row.index);
+    rowElement.dataset.propertyType = row.type;
+    rowElement.dataset.propertyEditable = String(row.editable);
+    if (row.reason) {
+      rowElement.dataset.propertyReason = row.reason;
+    }
+    rowElement.setAttribute("role", "listitem");
+    renderTypeControl(row, rowElement);
+
+    const keyInput = createElement(options.host, "input", "mme-property-key");
+    keyInput.dataset.testid = "property-key";
+    keyInput.type = "text";
+    keyInput.value = row.key;
+    keyInput.setAttribute("aria-label", `${row.key} — ${strings.keyLabel}`);
+    const rowRefusal = refusal?.index === row.index ? refusal : null;
+    if (rowRefusal) {
+      keyInput.setAttribute("aria-invalid", "true");
+    }
+    keyInput.addEventListener("change", () => {
+      options.onRenameProperty({ index: row.index, key: keyInput.value });
+    });
+    rowElement.append(keyInput);
+
+    if (!row.editable) {
+      renderReadOnlyValue(row, rowElement);
+    } else if (row.type === "list") {
+      renderChips(row, rowElement);
+    } else {
+      renderScalarInput(row, rowElement);
+    }
+
+    const remove = createElement(options.host, "button", "mme-property-remove");
+    remove.type = "button";
+    remove.dataset.testid = "property-remove";
+    remove.title = strings.remove;
+    remove.setAttribute("aria-label", `${strings.remove}: ${row.key}`);
+    remove.innerHTML = options.icons.render("close");
+    remove.addEventListener("click", () => options.onRemoveProperty({ index: row.index }));
+    rowElement.append(remove);
+
+    /*
+     * The reason a value is read-only, and any refusal the host reported, are
+     * rendered rather than left in a `title` tooltip: a tooltip does not exist on
+     * touch at all, and a refusal routed to the page-level notice strip is off
+     * screen whenever the panel is scrolled.
+     */
+    const caption = rowRefusal?.message ?? (row.editable ? null : row.reason ? strings.reasons[row.reason] : null);
+    if (caption) {
+      const note = createElement(options.host, "p", "mme-property-reason");
+      note.dataset.testid = rowRefusal ? "property-refusal" : "property-reason";
+      note.textContent = caption;
+      if (rowRefusal) {
+        note.setAttribute("role", "alert");
+      }
+      rowElement.append(note);
+    }
+    list.append(rowElement);
+  };
+
+  const captureFocus = (): PropertyFocusDescriptor | null => {
+    const active = root.ownerDocument.activeElement as HTMLElement | null;
+    if (!active || !root.contains(active) || !active.dataset.testid) {
+      return null;
+    }
+    const owner = active.closest("[data-property-index]") as HTMLElement | null;
+    if (!owner?.dataset.propertyIndex) {
+      return null;
+    }
+    const field = active as HTMLElement & { selectionStart?: number | null };
+    return {
+      index: Number(owner.dataset.propertyIndex),
+      selectionStart: typeof field.selectionStart === "number" ? field.selectionStart : null,
+      testId: active.dataset.testid
+    };
+  };
+
+  const restoreFocus = (descriptor: PropertyFocusDescriptor | null): void => {
+    if (!descriptor) {
+      return;
+    }
+    /*
+     * Falling back matters most on delete: after removing the LAST property the
+     * descriptor's index no longer exists, and returning here dropped focus to
+     * `<body>` — which also kills the panel-scoped `⌘;` shortcut until the writer
+     * clicks back in. Try the same field on the previous row, then the add
+     * control, before giving up.
+     */
+    const candidates = [
+      `[data-property-index="${descriptor.index}"] [data-testid="${descriptor.testId}"]`,
+      `[data-property-index="${descriptor.index - 1}"] [data-testid="${descriptor.testId}"]`,
+      '[data-testid="properties-add"]'
+    ];
+    const target = candidates.reduce<HTMLElement | null>(
+      (found, selector) => found ?? root.querySelector<HTMLElement>(selector),
+      null
+    ) as
+      | (HTMLElement & { selectionStart?: number | null; setSelectionRange?: (start: number, end: number) => void })
+      | null;
+    if (!target) {
+      return;
+    }
+    target.focus();
+    if (descriptor.selectionStart !== null && typeof target.setSelectionRange === "function") {
+      try {
+        target.setSelectionRange(descriptor.selectionStart, descriptor.selectionStart);
+      } catch {
+        // Inputs such as `number` and `date` reject selection ranges; focus is enough.
+      }
+    }
+  };
+
+  const render = (): void => {
+    const focus = captureFocus();
+    if (!state.present) {
+      root.hidden = true;
+      root.replaceChildren();
+      return;
+    }
+    root.hidden = false;
+    root.dataset.display = state.display;
+
+    const header = createElement(options.host, "div", "mme-properties-header");
+    const heading = createElement(options.host, "span", "mme-properties-label");
+    heading.textContent = strings.label;
+    const controls = createElement(options.host, "div", "mme-properties-controls");
+    controls.setAttribute("role", "group");
+    controls.setAttribute("aria-label", strings.label);
+    displayControl(controls, "visible", strings.displayVisible, "properties-display-visible");
+    displayControl(controls, "hidden", strings.displayHidden, "properties-display-hidden");
+    displayControl(controls, "source", strings.displaySource, "properties-display-source");
+    const add = createElement(options.host, "button", "mme-properties-add");
+    add.type = "button";
+    add.dataset.testid = "properties-add";
+    add.textContent = strings.add;
+    /*
+     * The handler accepts both `metaKey` and `ctrlKey`, so the hint must not
+     * hardcode `⌘` — on Windows and Linux that named a key the writer does not
+     * have. The platform is read from the host document, keeping the component
+     * free of direct global access.
+     */
+    const applePlatform = /Mac|iPhone|iPad/.test(root.ownerDocument.defaultView?.navigator?.platform ?? "");
+    add.title = `${strings.add} (${applePlatform ? "⌘" : "Ctrl+"};)`;
+    add.addEventListener("click", () => options.onAddProperty());
+    controls.append(add);
+    header.append(heading, controls);
+
+    const children: HTMLElement[] = [header];
+    if (state.display === "visible") {
+      const list = createElement(options.host, "div", "mme-properties-rows");
+      list.dataset.testid = "properties-rows";
+      list.setAttribute("role", "list");
+      for (const row of state.properties) {
+        renderRow(row, list);
+      }
+      children.push(list);
+    } else if (state.display === "source") {
+      const source = createElement(options.host, "pre", "mme-properties-source");
+      source.dataset.testid = "properties-source";
+      source.textContent = state.source;
+      children.push(source);
+    }
+    /*
+     * The `hidden` state renders nothing but the header's own restore control:
+     * a state whose purpose is to remove chrome cannot itself paint a heading, a
+     * rule and a sentence above every note. The header stays because without it
+     * the properties would be unreachable.
+     */
+    root.replaceChildren(...children);
+    restoreFocus(focus);
+  };
+
+  root.addEventListener("keydown", (event) => {
+    if (openTypeMenuIndex !== null) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeTypeMenu({ restoreTriggerFocus: true });
+        return;
+      }
+      const items = typeMenuItems();
+      const current = items.indexOf(root.ownerDocument.activeElement as HTMLElement);
+      const next =
+        event.key === "ArrowDown"
+          ? (current + 1 + items.length) % items.length
+          : event.key === "ArrowUp"
+            ? (current - 1 + items.length) % items.length
+            : event.key === "Home"
+              ? 0
+              : event.key === "End"
+                ? items.length - 1
+                : null;
+      if (next !== null && items.length > 0) {
+        event.preventDefault();
+        focusTypeMenuItem(next);
+        return;
+      }
+    }
+    if (!event.metaKey && !event.ctrlKey) {
+      return;
+    }
+    // Obsidian's own shortcuts: ⌘; adds a property, ⌘⌫ deletes the focused one.
+    if (event.key === ";") {
+      event.preventDefault();
+      options.onAddProperty();
+      return;
+    }
+    if (event.key === "Backspace") {
+      const owner = elementTarget(event)?.closest("[data-property-index]") as HTMLElement | null;
+      if (!owner?.dataset.propertyIndex) {
+        return;
+      }
+      event.preventDefault();
+      options.onRemoveProperty({ index: Number(owner.dataset.propertyIndex) });
+    }
+  });
+
+  cleanups.push(options.session.on("destroy", () => destroy()));
+  render();
+
+  const destroy = (): void => {
+    for (const cleanup of cleanups.splice(0)) {
+      cleanup();
+    }
+    root.remove();
+  };
+
+  return {
+    destroy,
+    /**
+     * Moves focus to a property's field. The host calls this after an add, so
+     * the new property can be named immediately — and so focus stays inside the
+     * panel, which is what keeps the `⌘;` shortcut alive for a second use.
+     */
+    focusProperty(index: number, field: "property-key" | "property-value" = "property-key") {
+      const target = root.querySelector<HTMLElement & { select?: () => void }>(
+        `[data-property-index="${index}"] [data-testid="${field}"]`
+      );
+      target?.focus();
+      target?.select?.();
+    },
+    root,
+    setState(next: SurfacePropertiesState) {
+      state = next;
+      refusal = next.refusal ?? null;
       render();
     },
     update: render

@@ -88,12 +88,10 @@
             true
           ]
         },
-        "thematic-break": {
+        "frontmatter-block": {
           "forbidden": [],
-          "markdown": "---\n",
-          "required": [
-            true
-          ]
+          "markdown": "---\ntitle: \n---\n\n\n",
+          "required": []
         },
         "thematic-break-asterisks": {
           "forbidden": [],
@@ -329,12 +327,10 @@
             true
           ]
         },
-        "thematic-break": {
+        "frontmatter-block": {
           "forbidden": [],
-          "markdown": "---\n",
-          "required": [
-            true
-          ]
+          "markdown": "---\ntitle: \n---\n\n\n",
+          "required": []
         },
         "thematic-break-asterisks": {
           "forbidden": [],
@@ -570,12 +566,10 @@
             true
           ]
         },
-        "thematic-break": {
+        "frontmatter-block": {
           "forbidden": [],
-          "markdown": "---\n",
-          "required": [
-            true
-          ]
+          "markdown": "---\ntitle: \n---\n\n\n",
+          "required": []
         },
         "thematic-break-asterisks": {
           "forbidden": [],

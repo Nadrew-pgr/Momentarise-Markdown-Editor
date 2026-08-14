@@ -1,0 +1,102 @@
+{
+  "demoUrl": "http://127.0.0.1:5174/",
+  "evidence": {
+    "390": {
+      "knownOcclusionOwnedByMme0091": [],
+      "painted": {
+        "headingTop": 1237,
+        "panel": {
+          "x": 0,
+          "y": 100,
+          "width": 390,
+          "height": 1113,
+          "top": 100,
+          "right": 390,
+          "bottom": 1213,
+          "left": 0
+        },
+        "rows": 10
+      },
+      "valueEdit": {
+        "line": "title: Edited In The Browser"
+      },
+      "typeChange": {
+        "line": "priority: \"3\"",
+        "menuTypes": [
+          "text",
+          "list",
+          "number",
+          "checkbox",
+          "date",
+          "datetime"
+        ]
+      },
+      "complexRouting": {
+        "mode": "source",
+        "selection": "summary: |\n  A block scalar the panel must never rewrite,\n  because it cannot be spliced safely."
+      },
+      "shortcuts": {
+        "addedIndex": 10,
+        "addedLine": "property: "
+      },
+      "displayStates": {
+        "hiddenRows": 0,
+        "sourceRows": 0
+      },
+      "blockCreation": {
+        "markdown": "---\ntitle: \n---\n\nPlain body first.\n\nNo YAML block here.\n"
+      }
+    },
+    "1280": {
+      "knownOcclusionOwnedByMme0091": [],
+      "painted": {
+        "headingTop": 648,
+        "panel": {
+          "x": 286,
+          "y": 48,
+          "width": 708,
+          "height": 536,
+          "top": 48,
+          "right": 994,
+          "bottom": 584,
+          "left": 286
+        },
+        "rows": 10
+      },
+      "valueEdit": {
+        "line": "title: Edited In The Browser"
+      },
+      "typeChange": {
+        "line": "priority: \"3\"",
+        "menuTypes": [
+          "text",
+          "list",
+          "number",
+          "checkbox",
+          "date",
+          "datetime"
+        ]
+      },
+      "complexRouting": {
+        "mode": "source",
+        "selection": "summary: |\n  A block scalar the panel must never rewrite,\n  because it cannot be spliced safely."
+      },
+      "shortcuts": {
+        "addedIndex": 10,
+        "addedLine": "property: "
+      },
+      "displayStates": {
+        "hiddenRows": 0,
+        "sourceRows": 0
+      },
+      "blockCreation": {
+        "markdown": "---\ntitle: \n---\n\nPlain body first.\n\nNo YAML block here.\n"
+      }
+    }
+  },
+  "schemes": [
+    "dark",
+    "light"
+  ],
+  "status": "passed"
+}

@@ -681,9 +681,18 @@ Close the two gaps MME-0125 attempt 2 shipped around: a bubble that a React host
 - `apps/react-demo`'s gate proves dismissal in a real browser at 1280 and 390: `Escape`, an outside click, and a mode switch each remove the bubble, and focus returns somewhere sane rather than to `<body>`.
 - Mutation-proved under the current rule: the smallest change that would still ship (a wrong event name, an un-removed listener, a stale controller reference), never a deleted registration.
 
+### Added 2026-08-14 by MME-0090 — the surface contract becomes a gate
+
+MME-0090 shipped the frontmatter Properties panel reachable from `apps/md-demo` only. That is the **third** time this exact shape has shipped: rich mode (MME-0101), the selection bubble (MME-0125), and now the panel. Each was built against the demo while `@momentarise/md-react` — the primary documented integration path since interview decision D8 — was left without it, so a default consumer got an invisible feature. A build-log note did not catch the second or the third, so this issue turns the pattern into a failing test.
+
+- `surfaceContract.surfaces` in `@momentarise/md-surface` now lists every package-owned surface with the factory a host calls (`documentStatus`, `modeControl`, `propertiesPanel`, `selectionBubble`, `slashMenu`, `toolbar`), added by MME-0090.
+- **A test must fail when a surface named in `surfaceContract.surfaces` has no mount in a default `@momentarise/md-react` mount.** It must read the binding's real code, not a second hand-maintained list — the MME-0125 reachability guard was circular (dropping a surface from both the contract and the code stayed green) and would not have caught the defect it was written for. Adding a seventh contract entry with no binding mount must go red.
+- **`propertiesPanel` is the entry that is red on arrival.** Mounting it is part of this issue: the panel, the frontmatter splice path through `session`, and the `onFrontmatterBlockRequested` sink so the `frontmatterBlock` input rule activates for React hosts. MME-0090 gated that rule on the sink's presence, so it is absent rather than inert today and switches on by itself when the binding provides one — nothing to remember to re-enable.
+- `apps/react-demo`'s gate proves the panel renders and edits bytes in a real browser at 1280 and 390, as `visual:mme-0090` does for the demo.
+
 ### Test-first plan
 
-- RED: a binding test asserting the bubble dismisses on each path; fails today because nothing registers a controller. A single-source test that fails while three copies exist.
+- RED: a binding test asserting the bubble dismisses on each path; fails today because nothing registers a controller. A single-source test that fails while three copies exist. A contract-reachability test that is red for `propertiesPanel` on arrival.
 - GREEN: register the controller in the binding beside the bubble mount; hoist the conversion list and helpers.
 
 ### Implementation notes
@@ -697,6 +706,7 @@ The bubble closes when a React user presses `Escape` or clicks away, as it alrea
 ### Out of scope
 
 - Bubble contents (MME-0089), formatting announcements (MME-0124), turn-into out of list items (MME-0105).
+- The Properties panel's own contents and its YAML engine (MME-0090, shipped). This issue mounts it in the binding; it does not redesign it.
 
 ### Execution model
 

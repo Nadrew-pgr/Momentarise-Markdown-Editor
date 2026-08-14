@@ -97,6 +97,21 @@
   .inline-ai-prompt-label,
   .inline-ai-provider-state,
   .inline-ai-suggestion-actions,
+  .mme-properties-add,
+  .mme-properties-controls,
+  .mme-properties-display-button,
+  .mme-properties-header,
+  .mme-properties-panel,
+  .mme-properties-rows,
+  .mme-property-chip,
+  .mme-property-chip-remove,
+  .mme-property-chips,
+  .mme-property-remove,
+  .mme-property-row,
+  .mme-property-type-button,
+  .mme-property-type-glyph,
+  .mme-property-type-menu,
+  .mme-property-type-option,
   .mme-react-editor-shell,
   .mode-switch,
   .rich-block-affordance,
@@ -2311,6 +2326,453 @@
     grid-template-columns: 1fr;
     max-height: none;
   }
+
+  /*
+   * MME-0090: at 390px a four-column property row cannot hold a key field, a
+   * value field and two controls without the value collapsing to a few
+   * characters. The row becomes two lines — icon + key + delete, then the value
+   * across the full measure — which is also how Obsidian's own panel behaves on
+   * a phone.
+   */
+  /*
+   * One line per property, not two.
+   *
+   * Wrapping the value onto its own row cost ~100px per property with the touch
+   * floor on each line, and the panel reached 292px for a TWO-property document
+   * in an 820px viewport — before the note's first word. Measured consequence:
+   * the selection it pushed down landed underneath the slash menu, and the
+   * MME-0045 mobile gate caught the bubble as unreachable. The key column is
+   * capped instead so the value keeps the rest of the measure.
+   */
+  .mme-property-row,
+  .mme-property-row[data-property-editable="false"] {
+    grid-template-columns: auto minmax(4.5em, 7em) minmax(0, 1fr) auto;
+    gap: 0 var(--mme-space-xs);
+    align-items: center;
+  }
+
+  .mme-property-chips,
+  .mme-property-raw-value,
+  .mme-property-reason {
+    grid-column: 2 / -1;
+  }
+
+  /*
+   * The delete control is pinned to the first row, beside the key.
+   *
+   * Without this it auto-placed after the value and took a grid row of its own,
+   * so an editable property was three lines and a read-only one was four —
+   * ~150px each with the touch floor on every line, and the note's title pushed
+   * to y=1877 with the ten-property fixture. That density was auto-placement
+   * overflow, not the accessibility contract.
+   */
+  .mme-property-remove {
+    grid-row: 1;
+    grid-column: 3;
+    opacity: 1;
+  }
+
+  .mme-property-edit-in-source {
+    grid-column: 2 / -1;
+    justify-self: start;
+  }
+
+  /*
+   * Stacked, not `space-between`: the controls wrap onto two lines at this
+   * width, and a centred label between them read as sandwiched inside the
+   * control group.
+   */
+  .mme-properties-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--mme-space-2xs);
+  }
+
+  .mme-properties-controls {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+}
+
+/* --- frontmatter properties (MME-0090) -------------------------------------
+ *
+ * The panel sits above the document title inside the editing surface, so it is
+ * chrome that has to read as *part of the note*: aligned to the content measure,
+ * quiet until hovered, and never wider than the text it introduces. Everything
+ * here is packaged, per the styling-ownership rule — a host that installs
+ * @momentarise/md-surface gets the panel looking like this without copying a
+ * line of the demo's stylesheet.
+ */
+
+.mme-properties-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mme-space-sm);
+  /*
+   * Sized and padded like `.ProseMirror`, because it sits inside the same
+   * scroller directly above it: the rows have to line up with the note's text,
+   * not with the scroller's edge.
+   */
+  max-inline-size: var(--mme-active-content-measure);
+  margin-inline: auto;
+  /*
+   * No bottom margin: `.ProseMirror`'s own `--mme-content-padding-block-start`
+   * sits directly below and already carries the gap. Stacking both left ~80px of
+   * dead space between the rule and the title, which is what made the panel read
+   * as a form bolted above the note rather than the note's own header.
+   */
+  padding-block-start: var(--mme-content-padding-block-start);
+  padding-inline:
+    calc(max(var(--mme-content-padding-inline), var(--mme-fold-gutter-width)) + env(safe-area-inset-left))
+    calc(max(var(--mme-content-padding-inline), var(--mme-fold-gutter-width)) + env(safe-area-inset-right));
+  padding-block-end: var(--mme-space-md);
+  border-block-end: 1px solid var(--mme-color-border-subtle);
+  color: var(--mme-color-text);
+  font-family: var(--mme-font-family-ui);
+  font-size: var(--mme-font-size-ui);
+}
+
+.mme-properties-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mme-space-md);
+}
+
+.mme-properties-label {
+  color: var(--mme-color-text-subtle);
+  font-size: var(--mme-font-size-ui-xs);
+  font-weight: var(--mme-font-weight-semibold);
+  letter-spacing: var(--mme-letter-spacing-label);
+  text-transform: uppercase;
+}
+
+.mme-properties-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--mme-space-2xs);
+  /*
+   * The controls are an editing affordance, not a headline: they stay faint
+   * until the writer is actually in the panel, the same way the block handles do.
+   */
+  opacity: 0;
+  transition: opacity var(--mme-motion-fast) var(--mme-motion-ease);
+}
+
+.mme-properties-panel:hover .mme-properties-controls,
+.mme-properties-panel:focus-within .mme-properties-controls {
+  opacity: 1;
+}
+
+.mme-properties-display-button,
+.mme-properties-add {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--mme-control-height);
+  padding-inline: var(--mme-space-sm);
+  border: 1px solid transparent;
+  border-radius: var(--mme-radius-sm);
+  background: transparent;
+  color: var(--mme-color-text-muted);
+  font-family: inherit;
+  font-size: var(--mme-font-size-ui-sm);
+  cursor: pointer;
+}
+
+.mme-properties-display-button:hover,
+.mme-properties-add:hover {
+  background: var(--mme-color-surface-hover);
+  color: var(--mme-color-text);
+}
+
+.mme-properties-display-button[aria-pressed="true"] {
+  border-color: var(--mme-color-border);
+  background: var(--mme-color-surface-active);
+  color: var(--mme-color-text);
+}
+
+.mme-properties-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mme-space-2xs);
+}
+
+.mme-property-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(6em, 12em) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--mme-space-sm);
+  padding: var(--mme-space-2xs) var(--mme-space-xs);
+  border-radius: var(--mme-radius-sm);
+}
+
+.mme-property-row:hover {
+  background: var(--mme-color-surface-hover);
+}
+
+/*
+ * A multi-line raw value must hang from its key, not be centred against it:
+ * centring lined `nested` up with its value's first line and `summary` up with
+ * its second, which reads as a broken grid.
+ */
+.mme-property-row[data-property-editable="false"] {
+  align-items: start;
+}
+
+.mme-property-reason {
+  grid-column: 3;
+  margin: 0;
+  color: var(--mme-color-text-subtle);
+  font-size: var(--mme-font-size-ui-xs);
+}
+
+.mme-property-type-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--mme-space-3xl);
+  block-size: var(--mme-space-3xl);
+  border: 1px solid transparent;
+  border-radius: var(--mme-radius-sm);
+  background: transparent;
+  /*
+   * `text-muted`, not `text-subtle`: this glyph is simultaneously the type
+   * indicator and the menu trigger, so it is the only place a row's type is
+   * shown. Non-text UI that carries meaning cannot sit on the faintest step of
+   * the ramp.
+   */
+  color: var(--mme-color-text-muted);
+  cursor: pointer;
+}
+
+.mme-property-type-button:hover:not(:disabled) {
+  border-color: var(--mme-color-border);
+  color: var(--mme-color-text);
+}
+
+.mme-property-type-button:disabled {
+  color: var(--mme-color-text-disabled);
+  cursor: default;
+}
+
+.mme-property-type-menu {
+  position: absolute;
+  z-index: var(--mme-z-menu);
+  inset-block-start: 100%;
+  inset-inline-start: 0;
+  display: flex;
+  flex-direction: column;
+  min-inline-size: var(--mme-space-8xl);
+  padding: var(--mme-space-2xs);
+  border: 1px solid var(--mme-color-border);
+  border-radius: var(--mme-radius-md);
+  background: var(--mme-color-surface-raised);
+  box-shadow: var(--mme-elevation-2);
+}
+
+.mme-property-type-option {
+  display: flex;
+  align-items: center;
+  gap: var(--mme-space-sm);
+  min-block-size: var(--mme-control-height);
+  padding-inline: var(--mme-space-sm);
+  border: none;
+  border-radius: var(--mme-radius-sm);
+  background: transparent;
+  color: var(--mme-color-text);
+  font-family: inherit;
+  font-size: var(--mme-font-size-ui-sm);
+  text-align: start;
+  cursor: pointer;
+}
+
+.mme-property-type-option:hover,
+.mme-property-type-option[aria-checked="true"] {
+  background: var(--mme-color-surface-hover);
+}
+
+.mme-property-type-glyph {
+  display: inline-flex;
+  color: var(--mme-color-text-subtle);
+}
+
+.mme-property-key,
+.mme-property-value,
+.mme-property-chip-input {
+  min-block-size: var(--mme-control-height);
+  padding-inline: var(--mme-space-xs);
+  border: 1px solid transparent;
+  border-radius: var(--mme-radius-sm);
+  background: transparent;
+  color: var(--mme-color-text);
+  font-family: inherit;
+  font-size: var(--mme-font-size-ui);
+}
+
+.mme-property-key {
+  color: var(--mme-color-text-muted);
+}
+
+.mme-property-key:hover,
+.mme-property-value:hover,
+.mme-property-chip-input:hover {
+  border-color: var(--mme-color-border-subtle);
+}
+
+.mme-property-key:focus,
+.mme-property-value:focus,
+.mme-property-chip-input:focus {
+  border-color: var(--mme-color-border-strong);
+  background: var(--mme-color-surface);
+  outline: none;
+}
+
+/*
+ * A date input stretched to the full measure strands its native picker glyph
+ * ~400px from the value it belongs to, which makes the value column look
+ * mis-set. Cap these near their natural content width.
+ */
+.mme-property-value[type="date"],
+.mme-property-value[type="datetime-local"],
+.mme-property-value[type="number"] {
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  justify-self: start;
+}
+
+.mme-property-value[type="checkbox"] {
+  inline-size: var(--mme-space-xl);
+  block-size: var(--mme-space-xl);
+  justify-self: start;
+  accent-color: var(--mme-color-accent);
+}
+
+.mme-property-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mme-space-2xs);
+}
+
+.mme-property-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mme-space-2xs);
+  padding: 0 var(--mme-space-2xs) 0 var(--mme-space-sm);
+  border: 1px solid var(--mme-color-border-subtle);
+  border-radius: var(--mme-radius-full);
+  background: var(--mme-color-surface-muted);
+  font-size: var(--mme-font-size-ui-sm);
+}
+
+.mme-property-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--mme-space-xl);
+  block-size: var(--mme-space-xl);
+  border: none;
+  border-radius: var(--mme-radius-full);
+  background: transparent;
+  color: var(--mme-color-text-subtle);
+  cursor: pointer;
+}
+
+.mme-property-chip-remove:hover {
+  background: var(--mme-color-surface-active);
+  color: var(--mme-color-text);
+}
+
+.mme-property-chip-input {
+  min-inline-size: var(--mme-space-7xl);
+  flex: 1 1 var(--mme-space-7xl);
+}
+
+/*
+ * A value the panel refuses to rewrite is shown as the bytes the writer
+ * authored, in the mono face, with the way out beside it. Anything prettier
+ * would suggest it is editable here, which is exactly the lie this row exists
+ * to avoid telling.
+ */
+.mme-property-raw-value {
+  /*
+   * `text-overflow` does not apply to multi-line preformatted content, so the
+   * previous `overflow: hidden` cut a block scalar off at the column edge with
+   * no indicator and no way to read the rest. Scroll it instead, capped so a
+   * long value cannot push the note's title off the screen.
+   */
+  max-block-size: calc(var(--mme-space-3xl) * 3);
+  overflow: auto;
+  color: var(--mme-color-text-muted);
+  font-family: var(--mme-font-family-mono);
+  font-size: var(--mme-font-size-ui-sm);
+  white-space: pre;
+}
+
+.mme-property-edit-in-source {
+  justify-self: end;
+  min-block-size: var(--mme-control-height);
+  padding-inline: var(--mme-space-sm);
+  border: 1px solid var(--mme-color-border-subtle);
+  border-radius: var(--mme-radius-sm);
+  background: transparent;
+  color: var(--mme-color-text-muted);
+  font-family: inherit;
+  font-size: var(--mme-font-size-ui-xs);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.mme-property-edit-in-source:hover {
+  border-color: var(--mme-color-border-strong);
+  color: var(--mme-color-text);
+}
+
+.mme-property-row[data-property-editable="false"] {
+  grid-template-columns: auto minmax(6em, 12em) minmax(0, 1fr) auto auto;
+}
+
+.mme-property-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--mme-space-3xl);
+  block-size: var(--mme-space-3xl);
+  border: none;
+  border-radius: var(--mme-radius-sm);
+  background: transparent;
+  color: var(--mme-color-text-subtle);
+  opacity: 0;
+  cursor: pointer;
+}
+
+.mme-property-row:hover .mme-property-remove,
+.mme-property-row:focus-within .mme-property-remove {
+  opacity: 1;
+}
+
+.mme-property-remove:hover {
+  background: var(--mme-color-surface-active);
+  color: var(--mme-color-text);
+}
+
+.mme-properties-source {
+  margin: 0;
+  padding: var(--mme-space-md);
+  overflow-x: auto;
+  border-radius: var(--mme-radius-sm);
+  background: var(--mme-color-code-bg);
+  color: var(--mme-color-text-muted);
+  font-family: var(--mme-font-family-mono);
+  font-size: var(--mme-font-size-ui-sm);
+  line-height: var(--mme-line-height-code);
+}
+
+.mme-properties-hidden-note {
+  margin: 0;
+  color: var(--mme-color-text-subtle);
+  font-size: var(--mme-font-size-ui-sm);
 }
 
 /* ============================================================================
@@ -2340,6 +2802,22 @@
   .ai-command-item,
   .inline-ai-action-row,
   .document-conflict-action,
+  .mme-properties-display-button,
+  .mme-properties-add,
+  .mme-property-type-button,
+  .mme-property-type-option,
+  .mme-property-remove,
+  .mme-property-chip-remove,
+  .mme-property-edit-in-source,
+  /*
+   * MME-0090: the property fields are tap targets too, and they are the ones a
+   * writer aims at most. Measured at 390 before this rule: every key, value and
+   * chip input painted 28px tall — 17 controls under the floor, including a 16px
+   * checkbox.
+   */
+  .mme-property-key,
+  .mme-property-value:not([type="checkbox"]),
+  .mme-property-chip-input,
   .debug-inspector-toggle {
     min-block-size: var(--mme-touch-target-size) !important; /* allow: accessibility floor a host must not silently undercut (MME-0117) */
     min-inline-size: var(--mme-touch-target-size) !important; /* allow: accessibility floor a host must not silently undercut (MME-0117) */
@@ -2406,6 +2884,31 @@
     block-size: var(--mme-touch-target-size) !important; /* allow: accessibility floor a host must not silently undercut (MME-0117) */
     background-clip: content-box;
     padding: calc((var(--mme-touch-target-size) - var(--mme-space-xl)) / 2);
+  }
+
+  /*
+   * MME-0090: the checkbox keeps the floor as a HIT AREA, not as its painted
+   * box. Sized to 44px directly it rendered as a solid 44px block — the loudest
+   * element on the screen, reading as a filled button rather than a checkbox.
+   * `background-clip: content-box` is the same trick the fold toggle above uses.
+   */
+  .mme-property-value[type="checkbox"] {
+    inline-size: var(--mme-touch-target-size) !important; /* allow: accessibility floor a host must not silently undercut (MME-0117) */
+    block-size: var(--mme-touch-target-size) !important; /* allow: accessibility floor a host must not silently undercut (MME-0117) */
+    background-clip: content-box;
+    padding: calc((var(--mme-touch-target-size) - var(--mme-space-xl)) / 2);
+  }
+
+  /*
+   * MME-0090: the panel's controls are hover-gated, and a coarse pointer has no
+   * hover. Gating them on viewport width instead left the display states and the
+   * only pointer route to "Add property" painted at zero opacity on any touch
+   * device wider than 720px — a tablet in landscape, a touchscreen laptop. This
+   * is the `any-pointer` distinction MME-0117 exists to make.
+   */
+  .mme-properties-controls,
+  .mme-property-remove {
+    opacity: 1;
   }
 }
 
