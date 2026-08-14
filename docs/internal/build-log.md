@@ -12859,3 +12859,15 @@ quietly, because on that path a refusal is the normal outcome, not an error.
 **Final state: `npm test` exit 0; `npm run visual` 82/82, 0 known-failing,
 0 anomalies, 0 unexpected failures, 5 not selected (the opt-in `registry` and
 `theia` groups).**
+
+## Docs-rationale D17-D23 propagation — 2026-08-15
+
+- Date: 2026-08-15. Requested by Andrew: propagate the final half of `docs/internal/research/docs-rationale-2026-08-04.md` (now FINAL, D1-D23) the same way commit `e11b8e8` propagated D1-D16. No implementation.
+- Changes:
+  - **D22 → `PRD.md` decision 9.** "ProseMirror is the first rich-mode spike, not an irreversible choice" is retired and marked superseded. CodeMirror 6 and ProseMirror are the definitive V0/V1 engines, ratified by Andrew on the recommendation: CodeMirror 6 is Obsidian's source engine, ProseMirror powers the Notion-class editors and BlockNote/Tiptap. MME-0101 shipped rich mode on it and roughly forty issues have extended it since, so the "spike" language was also factually stale.
+  - **D23 → `BACKLOG.md` Payload item.** Option A recorded as a binding constraint: the Markdown file stays the canonical, exportable source, and Payload's back-office edits real `.md` content through MME rather than becoming the master copy with Markdown as an export. Written as a constraint rather than a note, with the consequence spelled out — any future Payload issue that inverts it contradicts both a ratified decision and a shipped public claim, and needs a fresh human decision before it can be written.
+  - **D17-D21 → `MME-0095` acceptance criteria.** CLI and AX open agent-first, reversing today's developer-at-a-terminal assumption (D18); the roadmap follows Andrew's stated trajectory — docs-site-on-MME, Payload path, SEO/AEO pages, back-office, ahead of mobile and VS Code (D19); a public Localization page ships with a French reference dictionary, and English-only documentation is stated visibly as a recorded decision rather than an omission (D21); AX stays one page with no adoption-versus-runtime split (D20); performance framing is confirmed as guardrails with no unmeasured claims and the virtualization residual left documented (D17).
+- Recorded for completeness: §2 of the rationale document now reads "Decisions still open: none" — O1 resolved as D22, O3 as D23. The rich-view virtualization sequencing question was answered there (both complicated and long; deliberately after docs repair and the Payload path) and already lives in `BACKLOG.md` §Performance And Scale.
+- Visual impact: No visible editing or general UI changes. Planning documents only.
+- Checks: `npm run test:alignment`, `node scripts/docs-lint.mjs`, `git diff --check`.
+- Push status: pushed.

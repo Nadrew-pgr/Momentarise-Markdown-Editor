@@ -104,7 +104,7 @@ V0 must not build:
 6. CodeMirror 6 is the V0 source mode.
 7. Source mode must support undo/redo, including `Cmd/Ctrl+Z`.
 8. Source mode must support baseline modern editor behavior: newline, indentation, list continuation, checkbox continuation, bracket/quote/backtick pairing where appropriate.
-9. ProseMirror is the first rich-mode spike, not an irreversible choice.
+9. CodeMirror 6 and ProseMirror are the definitive V0/V1 engines. **Superseded 2026-08-04 (D22, `docs/internal/research/docs-rationale-2026-08-04.md`):** the original wording — "ProseMirror is the first rich-mode spike, not an irreversible choice" — is retired. Andrew ratified the recommendation: CodeMirror 6 is the source engine Obsidian uses, and ProseMirror powers the Notion-class editors as well as BlockNote and Tiptap. MME-0101 shipped rich mode on it and ~40 issues have extended it since. Docs may state the rationale plainly — the same engines as the benchmarks MME is measured against.
 10. Mini web demo is mandatory in V0.
 11. Theia is an adapter/client, not the core.
 12. HTML is artifact/preview format, not durable document source.
