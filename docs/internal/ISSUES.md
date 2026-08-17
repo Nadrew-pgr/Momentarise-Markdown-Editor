@@ -133,7 +133,7 @@ Execution model chosen by Andrew (2026-07-30): **one conversation per block**. T
 | D3 | MME-0109 | Full-surface UX audit | opus-4.8 | Andrew reviews and appends |
 | E | MME-0098 | AI writing surface (BlockNote tier) | opus-5 / fable-5 | Andrew tries the AI flow |
 | F | MME-0092, 0093 | Host contracts (diff/patch, revisions) | opus-5 / fable-5 | Andrew API sign-off |
-| G | MME-0094, 0095 | Docs site tier (shell + IA, incl. Principles framing) | opus-4.8 | Andrew screenshot + copy review |
+| G | MME-0094, 0095, 0127 | Docs site tier (shell + IA + llms.txt v2 conformance) | opus-4.8 | Andrew screenshot + copy review |
 | G2 | MME-0112, 0113 | Theme presets, live switcher, appearance preferences | opus-4.8 | Andrew judges the presets |
 | H | MME-0096, 0097, 0110 | Landing + blog/SEO + public demo page | opus-4.8 | Andrew copy review before public deploy |
 | H2 | MME-0111 | Deploy momentarise.dev | sonnet-5 + Andrew | live URLs verified |
@@ -2210,6 +2210,57 @@ Make block-selection state changes reliably announced to assistive technology, o
 ### Blocked by
 
 - None. MME-0115 (shipped) recorded the measurement.
+
+## MME-0127 — llms.txt v2 conformance and Markdown link relations
+
+### Goal
+
+Bring MME's agent-discovery surface up to the llms.txt specification as it stands in v2, and advertise the Markdown twin of every documentation page so an agent finds it without guessing a URL.
+
+### Why now, and what is already true
+
+MME shipped `llms.txt`, `llms-full.txt`, raw `/docs/<page>.md` routes and `/agent/*` artifacts in MME-0076/0079 — the hard part is done, and this issue is conformance rather than new capability. The v2 spec was verified against `llmstxt.org` itself on 2026-08-15, not from secondary SEO articles: it is a real update, dated August 2026, after two years of adoption.
+
+Measured deviations, verified in this repository the same day:
+
+- **The mandated blockquote summary is missing.** The spec's required order is H1, then a blockquote with a brief summary, then free sections, then H2 file lists. Our `llms.txt` goes straight from `# Momentarise Markdown Editor` to `## What MME Is`. An agent parsing strictly finds no summary where the spec says one lives.
+- **No `## Optional` section.** The spec gives it a strict meaning: links an agent may skip when it needs a shorter context. Everything we list is therefore implicitly load-bearing, which wastes the context of exactly the small-window agents the file exists to serve.
+- **No link relations anywhere.** `rel="alternate" type="text/markdown"` (pointing at a page's Markdown twin) and `rel="describedby"` (pointing at `llms.txt`) appear in no page head and no HTTP header. The `.md` routes exist and are unadvertised — an agent has to guess the pattern.
+
+### Acceptance criteria
+
+- `llms.txt` conforms to the v2 structure: H1, blockquote summary, sections, H2 file lists — generated, never hand-maintained, and asserted by the existing generator gate.
+- An `## Optional` section carries the genuinely skippable links, and the choice of what is optional is recorded rather than arbitrary. Nothing an agent needs to answer "what is MME and how do I install it" is in it.
+- Every documentation HTML page emits `<link rel="alternate" type="text/markdown" href="…">` pointing at its own `.md` twin, and `<link rel="describedby" href="/llms.txt">`. The same relations are served as HTTP `Link` headers where the host allows it; if the static export cannot set headers, that limitation is recorded rather than silently skipped.
+- The `.md` URL pattern is documented publicly and matches the spec's suggested forms, so an agent that never reads `llms.txt` can still derive it.
+- HTTP proof: each relation is fetched and asserted with its content type, the way MME-0076's endpoint proof already works — not asserted from source alone.
+- `test:agent-discovery`, `test:agent-retrieval-content`, `test:llms-sync` and the docs build stay green; the truth rules hold — no claim that conformance produces indexing, ranking, or citation.
+- Mutation-proved: a mutant removing the blockquote, the `Optional` heading, or a relation must fail.
+
+### Test-first plan
+
+- RED: extend the discovery gate to assert v2 structure and the two relations; it fails today on all three deviations.
+- GREEN: extend `scripts/generate-llms.mjs` and the docs-site head; regenerate artifacts.
+
+### Implementation notes
+
+Read first: `scripts/generate-llms.mjs`, `scripts/generate-agent-artifacts.mjs`, the docs-site head/metadata route from MME-0076, `tests/agent-discovery.test.mjs`. Keep the generated/committed boundary as it is: artifacts stay generated and committed for inspection.
+
+### Visual impact
+
+No visible editing or general UI changes; documentation page heads gain link elements.
+
+### Out of scope
+
+- New documentation content (MME-0095), any claim about search or citation outcomes, `robots.txt`/sitemap changes beyond what a new route requires.
+
+### Execution model
+
+- Sequential; fresh context rebuild; DX Reviewer mandatory, read-only, frozen tree; builder model sonnet-5; human review: no.
+
+### Blocked by
+
+- None. It may run alongside MME-0118 (docs correctness) on its own branch, since both touch documentation surfaces but not the same files — confirm before parallelising.
 
 ## MME-0112 — Theme presets and live theme switcher
 
